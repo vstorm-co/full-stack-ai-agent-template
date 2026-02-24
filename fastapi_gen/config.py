@@ -136,6 +136,44 @@ class LogfireFeatures(BaseModel):
     httpx: bool = False
 
 
+class EmbeddingProviderType(str, Enum):
+    """Define the embedding provider for LLM models."""
+
+    OPENAI = "openai"  # test-embedding-3-small
+    VOYAGE = "voyage"  # voyage-3 (Anthropic users)
+    SENTENCE_TRANSFORMERS = "sentence_transformers"  # all-MiniLM-L6-v2 (local, for OpenRouter)
+
+
+class RerankerType(str, Enum):
+    """Define the reranker type and provider for reranking purposes."""
+
+    NONE = "none"
+    COHERE = "cohere"  # rerank-v3.5
+    CROSS_ENCODER = "cross_encoder"  # ms-marco-MiniLM (local)
+
+
+class DocumentParserType(str, Enum):
+    """Define the document parser used to process the documents."""
+
+    PYTHON_NATIVE = "python_native"  # pdfplumber + python-docx
+    LLAMAPARSE = "llamaparse"  # LlamaParse cloud API
+
+
+class VectorStoreType(str, Enum):
+    """Define a Vector Store type."""
+
+    MILVUS = "milvus"
+
+
+class RAGFeatures(BaseModel):
+    """RAG features."""
+
+    enable_rag: bool = False
+    enable_google_drive_ingestion: bool = False
+    enable_reranker: bool = False
+    vector_store: VectorStoreType = VectorStoreType.MILVUS
+
+
 class ProjectConfig(BaseModel):
     """Full project configuration."""
 
@@ -152,6 +190,12 @@ class ProjectConfig(BaseModel):
     db_pool_size: int = 5
     db_max_overflow: int = 10
     db_pool_timeout: int = 30
+
+    # RAG
+    rag_features: RAGFeatures = Field(default_factory=RAGFeatures)
+    embedding_provider: EmbeddingProviderType = EmbeddingProviderType.OPENAI
+    reranker: RerankerType = RerankerType.NONE
+    document_parser: DocumentParserType = DocumentParserType.PYTHON_NATIVE
 
     # Authentication
     auth: AuthType = AuthType.JWT
@@ -379,6 +423,47 @@ class ProjectConfig(BaseModel):
                     "Logfire Celery instrumentation requires Celery as background task system"
                 )
 
+        # RAG-oriented checks
+        if self.rag_features.enable_rag and not self.enable_ai_agent:
+            raise ValueError("RAG requires AI agent to be enabled.")
+
+        if self.rag_features.enable_rag and self.background_tasks == BackgroundTaskType.NONE:
+            raise ValueError("RAG requires a background task system for scheduled ingestion.")
+
+        if self.rag_features.enable_rag and not self.enable_docker:
+            raise ValueError(
+                "RAG (w/ Milvus) requires Docker to be enabled for local orchestration."
+            )
+
+        if (
+            self.rag_features.enable_google_drive_ingestion
+            and self.oauth_provider != OAuthProvider.GOOGLE
+        ):
+            raise ValueError("Google Drive ingestion requires OAuth Provider to be set.")
+
+        # RAG Features
+        if self.rag_features.enable_rag:
+            # Embeddings
+            if self.llm_provider == LLMProviderType.ANTHROPIC:
+                self.embedding_provider = EmbeddingProviderType.VOYAGE
+
+            elif self.llm_provider == LLMProviderType.OPENROUTER:
+                self.embedding_provider = EmbeddingProviderType.SENTENCE_TRANSFORMERS
+
+            else:
+                self.embedding_provider = EmbeddingProviderType.OPENAI
+
+            # Reranker
+            if self.rag_features.enable_reranker:
+                if self.llm_provider == LLMProviderType.OPENROUTER:
+                    self.reranker = RerankerType.CROSS_ENCODER
+
+                else:
+                    self.reranker = RerankerType.COHERE
+
+            else:
+                self.reranker = RerankerType.NONE
+
         return self
 
     def to_cookiecutter_context(self) -> dict[str, Any]:
@@ -505,4 +590,31 @@ class ProjectConfig(BaseModel):
             "frontend_port": self.frontend_port,
             # Backend
             "backend_port": self.backend_port,
+            # RAG
+            "enable_rag": self.rag_features.enable_rag,
+            "use_milvus": self.rag_features.enable_rag,
+            "embedding_provider": self.embedding_provider.value
+            if self.rag_features.enable_rag
+            else "openai",
+            "use_openai_embeddings": self.rag_features.enable_rag
+            and self.embedding_provider == EmbeddingProviderType.OPENAI,
+            "use_voyage_embeddings": self.rag_features.enable_rag
+            and self.embedding_provider == EmbeddingProviderType.VOYAGE,
+            "use_sentence_transformers": self.rag_features.enable_rag
+            and self.embedding_provider == EmbeddingProviderType.SENTENCE_TRANSFORMERS,
+            "use_reranker": self.rag_features.enable_reranker
+            if self.rag_features.enable_rag
+            else False,
+            "use_cohere_reranker": self.rag_features.enable_reranker
+            and self.reranker == RerankerType.COHERE,
+            "use_cross_encoder_reranker": self.rag_features.enable_reranker
+            and self.reranker == RerankerType.CROSS_ENCODER,
+            "document_parser": self.document_parser.value
+            if self.rag_features.enable_rag
+            else "python_native",
+            "use_llamaparse": self.rag_features.enable_rag
+            and self.document_parser == DocumentParserType.LLAMAPARSE,
+            "use_python_parser": self.rag_features.enable_rag
+            and self.document_parser == DocumentParserType.PYTHON_NATIVE,
+            "enable_google_drive_ingestion": self.rag_features.enable_google_drive_ingestion,
         }

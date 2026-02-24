@@ -12,11 +12,14 @@ from .config import (
     BackgroundTaskType,
     CIType,
     DatabaseType,
+    DocumentParserType,
     FrontendType,
     LLMProviderType,
     OAuthProvider,
     OrmType,
     ProjectConfig,
+    RAGFeatures,
+    RerankerType,
 )
 from .generator import generate_project, post_generation_tasks
 from .prompts import confirm_generation, run_interactive_prompts, show_summary
@@ -191,6 +194,30 @@ def new(output: Path | None, no_input: bool, name: str | None) -> None:
     default=None,
     help="Apply configuration preset",
 )
+@click.option(
+    "--rag",
+    is_flag=True,
+    default=False,
+    help="Enable RAG feature.",
+)
+@click.option(
+    "--gdrive-rag",
+    is_flag=True,
+    default=False,
+    help="Use Google Drive for document ingestion",
+)
+@click.option(
+    "--reranker",
+    type=click.Choice(["none", "cohere", "cross-encoder"]),
+    default="none",
+    help="Choose reranking logic.",
+)
+@click.option(
+    "--document-parser",
+    type=click.Choice(["python-native", "llamaparse"]),
+    default="python_native",
+    help="Choose document ingestion engine",
+)
 def create(
     name: str,
     output: Path | None,
@@ -227,6 +254,10 @@ def create(
     webhooks: bool,
     python_version: str,
     i18n: bool,
+    rag: bool,
+    gdrive_rag: bool,
+    reranker: str,
+    document_parser: str,
     preset: str | None,
 ) -> None:
     """Create a new FastAPI project with specified options.
@@ -334,6 +365,13 @@ def create(
                 enable_webhooks=webhooks,
                 python_version=python_version,
                 enable_i18n=i18n,
+                rag_features=RAGFeatures(
+                    enable_rag=rag,
+                    enable_google_drive_ingestion=gdrive_rag,
+                    enable_reranker=reranker != "none",
+                ),
+                reranker=RerankerType(reranker),
+                document_parser=DocumentParserType(document_parser),
             )
 
         console.print(f"[cyan]Creating project:[/] {name}")
@@ -410,6 +448,13 @@ def templates() -> None:
     console.print("  --llm-provider openai       OpenAI (gpt-4o-mini)")
     console.print("  --llm-provider anthropic    Anthropic (claude-sonnet-4-5)")
     console.print("  --llm-provider openrouter   OpenRouter (pydantic_ai only)")
+    console.print()
+
+    console.print("[bold]RAG (Retrieval Augmented Generation):[/]")
+    console.print("  --rag              Enable RAG")
+    console.print("  --gdrive-rag       Enable Google Drive ingestion for RAG")
+    console.print("  --reranker         Enable reranker logic")
+    console.print("  --document-parser  Choose document parser")
     console.print()
 
     console.print("[bold]Integrations:[/]")

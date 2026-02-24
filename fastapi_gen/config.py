@@ -602,7 +602,7 @@ class ProjectConfig(BaseModel):
             and self.embedding_provider == EmbeddingProviderType.VOYAGE,
             "use_sentence_transformers": self.rag_features.enable_rag
             and self.embedding_provider == EmbeddingProviderType.SENTENCE_TRANSFORMERS,
-            "use_reranker": self.rag_features.enable_reranker
+            "enable_reranker": self.rag_features.enable_reranker
             if self.rag_features.enable_rag
             else False,
             "use_cohere_reranker": self.rag_features.enable_reranker
@@ -616,5 +616,7 @@ class ProjectConfig(BaseModel):
             and self.document_parser == DocumentParserType.LLAMAPARSE,
             "use_python_parser": self.rag_features.enable_rag
             and self.document_parser == DocumentParserType.PYTHON_NATIVE,
-            "enable_google_drive_ingestion": self.rag_features.enable_google_drive_ingestion,
+            "enable_google_drive_ingestion": self.rag_features.enable_google_drive_ingestion
+            if self.rag_features.enable_rag
+            else False,
         }

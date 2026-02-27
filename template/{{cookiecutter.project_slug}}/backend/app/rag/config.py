@@ -10,6 +10,8 @@ class DocumentExtensions(str, Enum):
     """Extensions supported by the RAG ingestion pipeline."""
     PDF = "pdf"
     DOCX = "docx"
+    MD = "md"
+    TXT = "txt"
 
     
 class EmbeddingsConfig(BaseModel):

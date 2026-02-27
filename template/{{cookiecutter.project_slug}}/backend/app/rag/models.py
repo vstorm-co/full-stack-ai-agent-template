@@ -4,7 +4,7 @@
 Structures used to interface with the RAG feature."""
 
 import uuid
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, model_validator, computed_field
 from typing import Optional, Any
 
 from enum import Enum
@@ -13,11 +13,17 @@ from enum import Enum
 class DocumentPage(BaseModel):
     """Content of document's page."""
     
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    num: int
+    page_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    page_num: int
     content: str
     parent_doc_id: Optional[str] = None
     
+    
+class DocumentPageChunk(DocumentPage):
+    """Content of chunked document's page."""
+    chunk_content: str
+    chunk_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+
 
 class DocumentMetadata(BaseModel):
     """Metadata of a document."""
@@ -25,7 +31,7 @@ class DocumentMetadata(BaseModel):
     filename: str
     filesize: int
     filetype: str
-    additional_info: dict[str, Any] = Field(default_factory=dict)    
+    additional_info: Optional[dict[str, Any]] = None
 
 
 class Document(BaseModel):
@@ -33,13 +39,20 @@ class Document(BaseModel):
     
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     pages: list[DocumentPage]
+    chunked_pages: Optional[list[DocumentPageChunk]] = None
     metadata: DocumentMetadata
+    
+    @computed_field
+    @property
+    def num_pages(self) -> int:
+        return len(self.pages) 
     
     @model_validator(mode="after")
     def connect_pages(self) -> "Document":
         for page in self.pages:
             page.parent_doc_id = self.id
-        return self            
+        return self     
+         
     
 class SearchResult(BaseModel):
     """A schema of vector store query output."""

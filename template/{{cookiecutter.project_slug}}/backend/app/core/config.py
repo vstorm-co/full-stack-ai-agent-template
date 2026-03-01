@@ -5,7 +5,7 @@
 from pathlib import Path
 from typing import Literal
 
-{% if cookiecutter.use_database or cookiecutter.enable_redis -%}
+{% if cookiecutter.use_database or cookiecutter.enable_redis or cookiecutter.enable_rag -%}
 from pydantic import computed_field, field_validator{% if cookiecutter.use_jwt or cookiecutter.use_api_key or cookiecutter.enable_cors %}, ValidationInfo{% endif %}
 {% else -%}
 from pydantic import field_validator{% if cookiecutter.use_jwt or cookiecutter.use_api_key or cookiecutter.enable_cors %}, ValidationInfo{% endif %}
@@ -37,6 +37,7 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     DEBUG: bool = False
     ENVIRONMENT: Literal["development", "local", "staging", "production"] = "local"
+    MODELS_CACHE_DIR: Path = Path("./models_cache")
 
 {%- if cookiecutter.enable_logfire %}
 
@@ -188,12 +189,13 @@ class Settings(BaseSettings):
     MILVUS_HOST: str = "localhost"
     MILVUS_PORT: int = 19530
     MILVUS_DATABASE: str = "default"
+    MILVUS_TOKEN: str = "root:Milvus"
 
     @computed_field  # type: ignore[prop-decorator]
     @property
     def MILVUS_URI(self) -> str:
         """Build Milvus connection URI."""
-        return f"{self.MILVUS_HOST}:{self.MILVUS_PORT}"
+        return f"http://{self.MILVUS_HOST}:{self.MILVUS_PORT}"
 
 {%- if cookiecutter.use_openai_embeddings %}
     # === OpenAI Embeddings ===
@@ -340,6 +342,24 @@ class Settings(BaseSettings):
                 "Specify explicit allowed origins."
             )
         return v
+{%- endif %}
+
+{%- if cookiecutter.enable_rag %}
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def rag(self) -> "RAGSettings":
+        """Build RAG-specific settings."""
+        from app.rag.config import RAGSettings, DocumentParser
+        
+        parser_config = {}
+        {%- if cookiecutter.use_llamaparse %}
+        parser_config["api_key"] = self.LLAMAPARSE_API_KEY
+        {%- endif %}
+        
+        return RAGSettings(
+            document_parser=DocumentParser(**parser_config)
+        )
 {%- endif %}
 
 

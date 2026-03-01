@@ -43,6 +43,7 @@ class DocumentParser(BaseModel):
     """Document parsing settings for RAG features."""
     {%- if cookiecutter.use_llamaparse %}
     method: str = "llamaparse"
+    api_key: str = ""
     {%- else %}
     method: str = "python_native"
     {%- endif %}

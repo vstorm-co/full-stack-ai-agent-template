@@ -1,4 +1,4 @@
-{%- if cookiecutter.use_milvus %}
+{%- if cookiecutter.enable_rag %}
 """RAG Data Models.
 
 Structures used to interface with the RAG feature."""

@@ -1,5 +1,4 @@
 {%- if cookiecutter.enable_rag %}
-import os
 from abc import ABC, abstractmethod
 from pathlib import Path
 
@@ -153,8 +152,7 @@ class DocumentProcessor:
         )
         
         {%- if cookiecutter.use_llamaparse %}
-        # TODO: Pull LlamaParse API key from environment/settings
-        self.parser = LlamaParseParser(api_key=os.getenv("LLAMA_CLOUD_API_KEY", ""))
+        self.parser = LlamaParseParser(api_key=settings.document_parser.api_key)
         {%- else %}
         self.parser = PythonNativeParser()
         {%- endif %}

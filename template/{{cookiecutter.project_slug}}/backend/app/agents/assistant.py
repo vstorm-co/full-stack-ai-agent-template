@@ -30,7 +30,13 @@ from pydantic_ai.providers.openrouter import OpenRouterProvider
 from pydantic_ai.settings import ModelSettings
 
 from app.agents.prompts import DEFAULT_SYSTEM_PROMPT
+{%- if cookiecutter.enable_rag %}
+from app.agents.prompts import get_system_prompt_with_rag
+{%- endif %}
 from app.agents.tools import get_current_datetime
+{%- if cookiecutter.enable_rag %}
+from app.agents.tools.rag_tool import search_knowledge_base
+{%- endif %}
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -62,7 +68,11 @@ class AssistantAgent:
     ):
         self.model_name = model_name or settings.AI_MODEL
         self.temperature = temperature or settings.AI_TEMPERATURE
+{%- if cookiecutter.enable_rag %}
+        self.system_prompt = system_prompt or get_system_prompt_with_rag()
+{%- else %}
         self.system_prompt = system_prompt or DEFAULT_SYSTEM_PROMPT
+{%- endif %}
         self._agent: Agent[Deps, str] | None = None
 
     def _create_agent(self) -> Agent[Deps, str]:
@@ -106,6 +116,27 @@ class AssistantAgent:
             Use this tool when you need to know the current date or time.
             """
             return get_current_datetime()
+
+{%- if cookiecutter.enable_rag %}
+        @agent.tool
+        async def search_documents(
+            ctx: RunContext[Deps], query: str, collection: str = "default", top_k: int = 5
+        ) -> str:
+            """Search the knowledge base for relevant documents.
+
+            Use this tool to find information from uploaded documents before answering user queries.
+            Cite sources by referring to the document filename from the search results.
+
+            Args:
+                query: The search query string.
+                collection: Name of the collection to search (default: "default").
+                top_k: Number of top results to retrieve (default: 5).
+
+            Returns:
+                Formatted string with search results including content and scores.
+            """
+            return await search_knowledge_base(query=query, collection=collection, top_k=top_k)
+{%- endif %}
 
     @property
     def agent(self) -> Agent[Deps, str]:

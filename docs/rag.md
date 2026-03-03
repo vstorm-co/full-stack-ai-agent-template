@@ -24,7 +24,7 @@ fastapi-fullstack new
 fastapi-fullstack create my_project --enable-rag
 
 # Full RAG with all features
-fastapi-fullstack create my_project --enable-rag --embedding-provider openai --pdf-parser llamaparse --enable-reranker cohere
+fastapi-fullstack create my_project --enable-rag --pdf-parser llamaparse --reranker cohere
 ```
 
 ---
@@ -95,9 +95,9 @@ COHERE_API_KEY=...           # For Cohere reranker
 | Option | Values | Description |
 |--------|--------|-------------|
 | `enable_rag` | bool | Enable RAG functionality |
-| `embedding_provider` | `openai`, `voyage`, `sentence_transformers` | Embedding model provider |
-| `pdf_parser` | `pdfplumber`, `llamaparse` | PDF parsing method |
-| `enable_reranker` | `none`, `cohere`, `cross_encoder` | Reranking for search results |
+| `embedding_provider` | auto-derived | Embedding model provider (auto-derived from LLM provider: OpenAI→openai, Anthropic→voyage, OpenRouter→sentence_transformers) |
+| `pdf_parser` | `pdfplumber`, `llamaparse` | PDF parsing method (set via `--pdf-parser` CLI flag) |
+| `enable_reranker` | bool | Enable reranking (set via `--reranker` CLI flag: none/cohere/cross_encoder) |
 
 ---
 

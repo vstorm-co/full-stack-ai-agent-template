@@ -193,14 +193,14 @@ These variables are set automatically by the generator.
 | Variable | Type | Default | Description | Dependencies |
 |----------|------|---------|-------------|--------------|
 | `enable_rag` | bool | `false` | Enable RAG functionality with vector database | - |
-| `use_milvus` | bool | `false` | Milvus vector database is selected | Computed from `embedding_provider` or `enable_rag` |
-| `embedding_provider` | enum | `"openai"` | Embedding model provider. Values: `openai`, `voyage`, `sentence_transformers` | Requires RAG |
-| `use_openai_embeddings` | bool | `false` | OpenAI embeddings are selected | Computed from `embedding_provider` |
-| `use_voyage_embeddings` | bool | `false` | Voyage AI embeddings are selected | Computed from `embedding_provider` |
-| `use_sentence_transformers` | bool | `true` | Local Sentence Transformers are selected | Computed from `embedding_provider` |
-| `enable_reranker` | enum | `"none"` | Reranker for search results. Values: `cohere`, `cross_encoder`, `none` | Requires RAG |
-| `use_cohere_reranker` | bool | `false` | Cohere reranker is selected | Computed from `enable_reranker` |
-| `use_cross_encoder_reranker` | bool | `false` | Cross-encoder reranker (sentence-transformers) is selected | Computed from `enable_reranker` |
+| `use_milvus` | bool | `false` | Milvus vector database is selected | Computed from `enable_rag` |
+| `embedding_provider` | enum | auto-derived | Embedding model provider. Auto-derived from LLM provider: OpenAI→openai, Anthropic→voyage, OpenRouter→sentence_transformers | Auto-derived from `llm_provider` |
+| `use_openai_embeddings` | bool | `false` | OpenAI embeddings are selected | Computed from `llm_provider` |
+| `use_voyage_embeddings` | bool | `false` | Voyage AI embeddings are selected | Computed from `llm_provider` |
+| `use_sentence_transformers` | bool | `true` | Local Sentence Transformers are selected | Computed from `llm_provider` |
+| `enable_reranker` | bool | `false` | Enable reranker for search results (set via `--reranker` CLI flag) | Computed from `--reranker` CLI flag |
+| `use_cohere_reranker` | bool | `false` | Cohere reranker is selected | Computed from `--reranker` CLI flag |
+| `use_cross_encoder_reranker` | bool | `false` | Cross-encoder reranker (sentence-transformers) is selected | Computed from `--reranker` CLI flag |
 | `pdf_parser` | enum | `"pdfplumber"` | PDF parsing method. Values: `pdfplumber`, `llamaparse` | Requires RAG |
 | `use_pdfplumber` | bool | `true` | pdfplumber (local) is selected for PDF parsing | Computed from `pdf_parser` |
 | `use_llamaparse` | bool | `false` | LlamaParse (LLM-based) is selected for PDF parsing | Computed from `pdf_parser` |
@@ -210,10 +210,11 @@ These variables are set automatically by the generator.
 
 **Notes:**
 
-- RAG requires a vector database (Milvus) and embedding provider
-- Sentence Transformers are used locally when no API provider is configured
+- RAG requires a vector database (Milvus)
+- Embedding provider is auto-derived from LLM provider (OpenAI→openai, Anthropic→voyage, OpenRouter→sentence_transformers)
+- Reranker is enabled via `--reranker` CLI flag (cohere, cross_encoder)
 - Cohere and Cross-Encoder rerankers improve search result relevance
-- LlamaParse requires an API key; Python parser is free and self-hosted
+- LlamaParse requires an API key; pdfplumber is free and self-hosted
 - Google Drive ingestion enables direct document loading from Google Workspace
 
 ---

@@ -1,0 +1,2214 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Production-Ready AI/LLM Applications — In Minutes, Not Weeks">
+      
+      
+      
+        <link rel="canonical" href="https://vstorm-co.github.io/full-stack-ai-agent-template/CHANGELOG/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>Changelog - FastAPI Fullstack</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+  
+  
+    
+      
+      
+    
+  
+    
+      
+      
+    
+  
+    
+      
+      
+    
+  
+    
+      
+      
+    
+  
+    
+      
+      
+    
+  
+    
+      
+      
+    
+  
+    
+      
+      
+    
+  
+    
+      
+      
+    
+  
+    
+      
+      
+    
+  
+    
+      
+      
+    
+  
+    
+      
+      
+    
+  
+    
+      
+      
+    
+  
+  
+  <style>:root{--md-admonition-icon--note:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22M1%207.775V2.75C1%201.784%201.784%201%202.75%201h5.025c.464%200%20.91.184%201.238.513l6.25%206.25a1.75%201.75%200%200%201%200%202.474l-5.026%205.026a1.75%201.75%200%200%201-2.474%200l-6.25-6.25A1.75%201.75%200%200%201%201%207.775m1.5%200c0%20.066.026.13.073.177l6.25%206.25a.25.25%200%200%200%20.354%200l5.025-5.025a.25.25%200%200%200%200-.354l-6.25-6.25a.25.25%200%200%200-.177-.073H2.75a.25.25%200%200%200-.25.25ZM6%205a1%201%200%201%201%200%202%201%201%200%200%201%200-2%22/%3E%3C/svg%3E');--md-admonition-icon--abstract:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22M2.5%201.75v11.5c0%20.138.112.25.25.25h3.17a.75.75%200%200%201%200%201.5H2.75A1.75%201.75%200%200%201%201%2013.25V1.75C1%20.784%201.784%200%202.75%200h8.5C12.216%200%2013%20.784%2013%201.75v7.736a.75.75%200%200%201-1.5%200V1.75a.25.25%200%200%200-.25-.25h-8.5a.25.25%200%200%200-.25.25m13.274%209.537zl-4.557%204.45a.75.75%200%200%201-1.055-.008l-1.943-1.95a.75.75%200%200%201%201.062-1.058l1.419%201.425%204.026-3.932a.75.75%200%201%201%201.048%201.074M4.75%204h4.5a.75.75%200%200%201%200%201.5h-4.5a.75.75%200%200%201%200-1.5M4%207.75A.75.75%200%200%201%204.75%207h2a.75.75%200%200%201%200%201.5h-2A.75.75%200%200%201%204%207.75%22/%3E%3C/svg%3E');--md-admonition-icon--info:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22M0%208a8%208%200%201%201%2016%200A8%208%200%200%201%200%208m8-6.5a6.5%206.5%200%201%200%200%2013%206.5%206.5%200%200%200%200-13M6.5%207.75A.75.75%200%200%201%207.25%207h1a.75.75%200%200%201%20.75.75v2.75h.25a.75.75%200%200%201%200%201.5h-2a.75.75%200%200%201%200-1.5h.25v-2h-.25a.75.75%200%200%201-.75-.75M8%206a1%201%200%201%201%200-2%201%201%200%200%201%200%202%22/%3E%3C/svg%3E');--md-admonition-icon--tip:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22M3.499.75a.75.75%200%200%201%201.5%200v.996C5.9%202.903%206.793%203.65%207.662%204.376l.24.202c-.036-.694.055-1.422.426-2.163C9.1.873%2010.794-.045%2012.622.26%2014.408.558%2016%201.94%2016%204.25c0%201.278-.954%202.575-2.44%202.734l.146.508.065.22c.203.701.412%201.455.476%202.226.142%201.707-.4%203.03-1.487%203.898C11.714%2014.671%2010.27%2015%208.75%2015h-6a.75.75%200%200%201%200-1.5h1.376a4.5%204.5%200%200%201-.563-1.191%203.84%203.84%200%200%201-.05-2.063%204.65%204.65%200%200%201-2.025-.293.75.75%200%200%201%20.525-1.406c1.357.507%202.376-.006%202.698-.318l.009-.01a.747.747%200%200%201%201.06%200%20.75.75%200%200%201-.012%201.074c-.912.92-.992%201.835-.768%202.586.221.74.745%201.337%201.196%201.621H8.75c1.343%200%202.398-.296%203.074-.836.635-.507%201.036-1.31.928-2.602-.05-.603-.216-1.224-.422-1.93l-.064-.221c-.12-.407-.246-.84-.353-1.29a2.4%202.4%200%200%201-.507-.441%203.1%203.1%200%200%201-.633-1.248.75.75%200%200%201%201.455-.364c.046.185.144.436.31.627.146.168.353.305.712.305.738%200%201.25-.615%201.25-1.25%200-1.47-.95-2.315-2.123-2.51-1.172-.196-2.227.387-2.706%201.345-.46.92-.27%201.774.019%203.062l.042.19.01.05c.348.443.666.949.94%201.553a.75.75%200%201%201-1.365.62c-.553-1.217-1.32-1.94-2.3-2.768L6.7%205.527c-.814-.68-1.75-1.462-2.692-2.619a3.7%203.7%200%200%200-1.023.88c-.406.495-.663%201.036-.722%201.508.116.122.306.21.591.239.388.038.797-.06%201.032-.19a.75.75%200%200%201%20.728%201.31c-.515.287-1.23.439-1.906.373-.682-.067-1.473-.38-1.879-1.193L.75%205.677V5.5c0-.984.48-1.94%201.077-2.664.46-.559%201.05-1.055%201.673-1.353z%22/%3E%3C/svg%3E');--md-admonition-icon--success:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22M13.78%204.22a.75.75%200%200%201%200%201.06l-7.25%207.25a.75.75%200%200%201-1.06%200L2.22%209.28a.75.75%200%200%201%20.018-1.042.75.75%200%200%201%201.042-.018L6%2010.94l6.72-6.72a.75.75%200%200%201%201.06%200%22/%3E%3C/svg%3E');--md-admonition-icon--question:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22M0%208a8%208%200%201%201%2016%200A8%208%200%200%201%200%208m8-6.5a6.5%206.5%200%201%200%200%2013%206.5%206.5%200%200%200%200-13M6.92%206.085h.001a.749.749%200%201%201-1.342-.67c.169-.339.436-.701.849-.977C6.845%204.16%207.369%204%208%204a2.76%202.76%200%200%201%201.637.525c.503.377.863.965.863%201.725%200%20.448-.115.83-.329%201.15-.205.307-.47.513-.692.662-.109.072-.22.138-.313.195l-.006.004a6%206%200%200%200-.26.16%201%201%200%200%200-.276.245.75.75%200%200%201-1.248-.832c.184-.264.42-.489.692-.661q.154-.1.313-.195l.007-.004c.1-.061.182-.11.258-.161a1%201%200%200%200%20.277-.245C8.96%206.514%209%206.427%209%206.25a.61.61%200%200%200-.262-.525A1.27%201.27%200%200%200%208%205.5c-.369%200-.595.09-.74.187a1%201%200%200%200-.34.398M9%2011a1%201%200%201%201-2%200%201%201%200%200%201%202%200%22/%3E%3C/svg%3E');--md-admonition-icon--warning:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22M6.457%201.047c.659-1.234%202.427-1.234%203.086%200l6.082%2011.378A1.75%201.75%200%200%201%2014.082%2015H1.918a1.75%201.75%200%200%201-1.543-2.575Zm1.763.707a.25.25%200%200%200-.44%200L1.698%2013.132a.25.25%200%200%200%20.22.368h12.164a.25.25%200%200%200%20.22-.368Zm.53%203.996v2.5a.75.75%200%200%201-1.5%200v-2.5a.75.75%200%200%201%201.5%200M9%2011a1%201%200%201%201-2%200%201%201%200%200%201%202%200%22/%3E%3C/svg%3E');--md-admonition-icon--failure:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22M2.344%202.343za8%208%200%200%201%2011.314%2011.314A8.002%208.002%200%200%201%20.234%2010.089a8%208%200%200%201%202.11-7.746m1.06%2010.253a6.5%206.5%200%201%200%209.108-9.275%206.5%206.5%200%200%200-9.108%209.275M6.03%204.97%208%206.94l1.97-1.97a.749.749%200%200%201%201.275.326.75.75%200%200%201-.215.734L9.06%208l1.97%201.97a.749.749%200%200%201-.326%201.275.75.75%200%200%201-.734-.215L8%209.06l-1.97%201.97a.749.749%200%200%201-1.275-.326.75.75%200%200%201%20.215-.734L6.94%208%204.97%206.03a.75.75%200%200%201%20.018-1.042.75.75%200%200%201%201.042-.018%22/%3E%3C/svg%3E');--md-admonition-icon--danger:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22M9.504.43a1.516%201.516%200%200%201%202.437%201.713L10.415%205.5h2.123c1.57%200%202.346%201.909%201.22%203.004l-7.34%207.142a1.25%201.25%200%200%201-.871.354h-.302a1.25%201.25%200%200%201-1.157-1.723L5.633%2010.5H3.462c-1.57%200-2.346-1.909-1.22-3.004zm1.047%201.074L3.286%208.571A.25.25%200%200%200%203.462%209H6.75a.75.75%200%200%201%20.694%201.034l-1.713%204.188%206.982-6.793A.25.25%200%200%200%2012.538%207H9.25a.75.75%200%200%201-.683-1.06l2.008-4.418.003-.006-.004-.009-.006-.006-.008-.001q-.005%200-.009.004%22/%3E%3C/svg%3E');--md-admonition-icon--bug:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22M4.72.22a.75.75%200%200%201%201.06%200l1%20.999a3.5%203.5%200%200%201%202.441%200l.999-1a.748.748%200%200%201%201.265.332.75.75%200%200%201-.205.729l-.775.776c.616.63.995%201.493.995%202.444v.327q0%20.15-.025.292c.408.14.764.392%201.029.722l1.968-.787a.75.75%200%200%201%20.556%201.392L13%207.258V9h2.25a.75.75%200%200%201%200%201.5H13v.5q-.002.615-.141%201.186l2.17.868a.75.75%200%200%201-.557%201.392l-2.184-.873A5%205%200%200%201%208%2016a5%205%200%200%201-4.288-2.427l-2.183.873a.75.75%200%200%201-.558-1.392l2.17-.868A5%205%200%200%201%203%2011v-.5H.75a.75.75%200%200%201%200-1.5H3V7.258L.971%206.446a.75.75%200%200%201%20.558-1.392l1.967.787c.265-.33.62-.583%201.03-.722a1.7%201.7%200%200%201-.026-.292V4.5c0-.951.38-1.814.995-2.444L4.72%201.28a.75.75%200%200%201%200-1.06m.53%206.28a.75.75%200%200%200-.75.75V11a3.5%203.5%200%201%200%207%200V7.25a.75.75%200%200%200-.75-.75ZM6.173%205h3.654A.17.17%200%200%200%2010%204.827V4.5a2%202%200%201%200-4%200v.327c0%20.096.077.173.173.173%22/%3E%3C/svg%3E');--md-admonition-icon--example:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22M5%205.782V2.5h-.25a.75.75%200%200%201%200-1.5h6.5a.75.75%200%200%201%200%201.5H11v3.282l3.666%205.76C15.619%2013.04%2014.543%2015%2012.767%2015H3.233c-1.776%200-2.852-1.96-1.899-3.458Zm-2.4%206.565a.75.75%200%200%200%20.633%201.153h9.534a.75.75%200%200%200%20.633-1.153L12.225%2010.5h-8.45ZM9.5%202.5h-3V6c0%20.143-.04.283-.117.403L4.73%209h6.54L9.617%206.403A.75.75%200%200%201%209.5%206Z%22/%3E%3C/svg%3E');--md-admonition-icon--quote:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22M1.75%202.5h10.5a.75.75%200%200%201%200%201.5H1.75a.75.75%200%200%201%200-1.5m4%205h8.5a.75.75%200%200%201%200%201.5h-8.5a.75.75%200%200%201%200-1.5m0%205h8.5a.75.75%200%200%201%200%201.5h-8.5a.75.75%200%200%201%200-1.5M2.5%207.75v6a.75.75%200%200%201-1.5%200v-6a.75.75%200%200%201%201.5%200%22/%3E%3C/svg%3E');}</style>
+
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+  
+
+
+  
+  
+
+<script id="__analytics">function __md_analytics(){function e(){dataLayer.push(arguments)}window.dataLayer=window.dataLayer||[],e("js",new Date),e("config",""),document.addEventListener("DOMContentLoaded",(function(){document.forms.search&&document.forms.search.query.addEventListener("blur",(function(){this.value&&e("event","search",{search_term:this.value})}));document$.subscribe((function(){var t=document.forms.feedback;if(void 0!==t)for(var a of t.querySelectorAll("[type=submit]"))a.addEventListener("click",(function(a){a.preventDefault();var n=document.location.pathname,d=this.getAttribute("data-md-value");e("event","feedback",{page:n,data:d}),t.firstElementChild.disabled=!0;var r=t.querySelector(".md-feedback__note [data-md-value='"+d+"']");r&&(r.hidden=!1)})),t.hidden=!1})),location$.subscribe((function(t){e("config","",{page_path:t.pathname})}))}));var t=document.createElement("script");t.async=!0,t.src="https://www.googletagmanager.com/gtag/js?id=",document.getElementById("__analytics").insertAdjacentElement("afterEnd",t)}</script>
+  
+    <script>"undefined"!=typeof __md_analytics&&__md_analytics()</script>
+  
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="pink" data-md-color-accent="pink">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#changelog" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+        <aside class="md-banner">
+          <div class="md-banner__inner md-grid md-typeset">
+            
+              <button class="md-banner__button md-icon" aria-label="Don't show this again">
+                
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+              </button>
+            
+            
+<a href="https://github.com/vstorm-co/full-stack-ai-agent-template">
+  <span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg></span>
+  <strong>Star us on GitHub</strong> — Help us reach more developers!
+</a>
+
+          </div>
+          
+            <script>var el=document.querySelector("[data-md-component=announce]");if(el){var content=el.querySelector(".md-typeset");__md_hash(content.innerHTML)===__md_get("__announce")&&(el.hidden=!0)}</script>
+          
+        </aside>
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="FastAPI Fullstack" class="md-header__button md-logo" aria-label="FastAPI Fullstack" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            FastAPI Fullstack
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Changelog
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="pink" data-md-color-accent="pink"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="pink" data-md-color-accent="pink"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/vstorm-co/full-stack-ai-agent-template" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    vstorm-co/full-stack-ai-agent-template
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="FastAPI Fullstack" class="md-nav__button md-logo" aria-label="FastAPI Fullstack" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    FastAPI Fullstack
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/vstorm-co/full-stack-ai-agent-template" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    vstorm-co/full-stack-ai-agent-template
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FastAPI Fullstack
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-help/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Help
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../concepts/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concepts
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Concepts
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ai-agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI Agents
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../frontend/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Frontend
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../guides/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/quick-start/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quick Start
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deployment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deployment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../observability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Observability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../changelog.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#021-2026-03-05" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [0.2.1] - 2026-03-05
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[0.2.1] - 2026-03-05">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#added" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#020-2026-02-27" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [0.2.0] - 2026-02-27
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[0.2.0] - 2026-02-27">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#changed_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#0118-2026-02-01" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [0.1.18] - 2026-02-01
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[0.1.18] - 2026-02-01">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fixed_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#0117-2026-01-24" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [0.1.17] - 2026-01-24
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[0.1.17] - 2026-01-24">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#added_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#0116-2026-01-20" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [0.1.16] - 2026-01-20
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[0.1.16] - 2026-01-20">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fixed_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tests-added" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tests Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#0115-2026-01-18" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [0.1.15] - 2026-01-18
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[0.1.15] - 2026-01-18">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#added_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tests-added_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tests Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#0114-2026-01-16" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [0.1.14] - 2026-01-16
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[0.1.14] - 2026-01-16">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fixed_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#security" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Security
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#0113-2026-01-06" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [0.1.13] - 2026-01-06
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[0.1.13] - 2026-01-06">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#added_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tests-added_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tests Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#0112-2026-01-02" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [0.1.12] - 2026-01-02
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[0.1.12] - 2026-01-02">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#added_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tests-added_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tests Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#0111-2026-01-02" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [0.1.11] - 2026-01-02
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[0.1.11] - 2026-01-02">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#added_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#0110-2025-12-27" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [0.1.10] - 2025-12-27
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[0.1.10] - 2025-12-27">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#added_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tests-added_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tests Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#019-2025-12-26" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [0.1.9] - 2025-12-26
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[0.1.9] - 2025-12-26">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#added_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tests-added_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tests Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#017-2025-12-23" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [0.1.7] - 2025-12-23
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[0.1.7] - 2025-12-23">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#added_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#security_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Security
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#016-2025-12-22" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [0.1.6] - 2025-12-22
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[0.1.6] - 2025-12-22">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#added_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tests-added_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tests Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="changelog">Changelog<a class="headerlink" href="#changelog" title="Permanent link">&para;</a></h1>
+<p>All notable changes to this project will be documented in this file.</p>
+<p>The format is based on <a href="https://keepachangelog.com/en/1.0.0/">Keep a Changelog</a>,
+and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semantic Versioning</a>.</p>
+<h2 id="021-2026-03-05">[0.2.1] - 2026-03-05<a class="headerlink" href="#021-2026-03-05" title="Permanent link">&para;</a></h2>
+<h3 id="added">Added<a class="headerlink" href="#added" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>LangSmith observability integration</strong> - New <code>enable_langsmith</code> option for LangChain, LangGraph, and DeepAgents frameworks. Adds <code>LANGCHAIN_TRACING_V2</code>, <code>LANGCHAIN_API_KEY</code>, <code>LANGCHAIN_PROJECT</code>, <code>LANGCHAIN_ENDPOINT</code> settings and <code>langsmith</code> dependency when enabled. Includes interactive prompt, <code>--langsmith</code> <abbr title="Command Line Interface">CLI</abbr> flag, and auto-enable in <code>ai-agent</code> preset. Previously LangSmith env vars were hardcoded to appear with LangChain — now requires explicit opt-in and works with all 3 LangChain-ecosystem frameworks.</li>
+<li><strong><abbr title="Command Line Interface">CLI</abbr>: <code>--conversation-persistence</code> flag</strong> - Enable conversation persistence from the command line (previously only available interactively)</li>
+<li><strong><abbr title="Command Line Interface">CLI</abbr>: <code>--websocket-auth</code> option</strong> - Set <abbr title="Full-duplex communication protocol">WebSocket</abbr> authentication method (<code>none</code>, <code>jwt</code>, <code>api_key</code>) from the command line</li>
+</ul>
+<h3 id="changed">Changed<a class="headerlink" href="#changed" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><abbr title="Command Line Interface">CLI</abbr> runs interactive wizard by default</strong> - <code>fastapi-fullstack</code> now launches the configurator directly without requiring <code>new</code> subcommand</li>
+<li><strong><abbr title="Command Line Interface">CLI</abbr> branding updated</strong> - Banner, descriptions, and prog name updated from "fastapi-gen / FastAPI Project Generator with Logfire" to "Full-Stack <abbr title="Artificial Intelligence">AI</abbr> Agent Template Generator"</li>
+<li><strong><code>templates</code> command expanded</strong> - Now lists all 5 <abbr title="Artificial Intelligence">AI</abbr> frameworks, LangSmith, <abbr title="Object-Relational Mapping">ORM</abbr> options, <abbr title="Full-duplex communication protocol">WebSocket</abbr> auth, conversation persistence, and port options</li>
+</ul>
+<h3 id="fixed">Fixed<a class="headerlink" href="#fixed" title="Permanent link">&para;</a></h3>
+<h4 id="cli-fixes"><abbr title="Command Line Interface">CLI</abbr> Fixes<a class="headerlink" href="#cli-fixes" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong><code>--ai-framework</code> missing 3 frameworks</strong> - Added <code>langgraph</code>, <code>crewai</code>, <code>deepagents</code> to choices (previously only <code>pydantic_ai</code> and <code>langchain</code>)</li>
+</ul>
+<h4 id="backend-template-fixes">Backend Template Fixes<a class="headerlink" href="#backend-template-fixes" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Unconditional <code>import logfire</code> in <code>versioning.py</code></strong> - Replaced with <code>logging</code> module to prevent <code>ImportError</code> when Logfire is disabled</li>
+<li><strong>Unconditional <code>import logfire</code> in <code>webhook.py</code></strong> - Replaced <code>logfire.error()</code>/<code>logfire.info()</code> with <code>logger.error()</code>/<code>logger.info()</code> in all 3 database sections (PostgreSQL, SQLite, MongoDB) to prevent <code>ImportError</code> when Logfire is disabled but webhooks are enabled</li>
+<li><strong><code>backend/.env</code> LangSmith conditional wrong</strong> - Was gated by <code>use_langchain</code> instead of <code>enable_langsmith</code> (only <code>.env.example</code> was updated, <code>.env</code> was missed)</li>
+<li><strong><code>backend/.env</code> missing sections</strong> - Added <abbr title="Open Authorization">OAuth</abbr> Google, ARQ, and Prometheus sections that were present in <code>.env.example</code> but absent from generated <code>.env</code></li>
+</ul>
+<h4 id="frontend-template-fixes">Frontend Template Fixes<a class="headerlink" href="#frontend-template-fixes" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Sidebar "Chat" link visible without <abbr title="Artificial Intelligence">AI</abbr> agent</strong> - Chat navigation item now conditional on <code>enable_ai_agent</code></li>
+<li><strong>Frontend chat files not cleaned up</strong> - Post-generation hook now removes chat page, components, hooks, types, and stores when <code>enable_ai_agent=False</code></li>
+<li><strong>Chat component exports unconditional</strong> - <code>chat/index.ts</code> exports now wrapped in <code>enable_ai_agent</code> conditional</li>
+<li><strong>Chat hook exports unconditional</strong> - <code>hooks/index.ts</code> exports for <code>useWebSocket</code>, <code>useChat</code>, <code>useLocalChat</code> now conditional on <code>enable_ai_agent</code></li>
+<li><strong><code>WS_URL</code> and <code>ROUTES.CHAT</code> always defined</strong> - <code>constants.ts</code> now conditionally defines <abbr title="Full-duplex communication protocol">WebSocket</abbr> URL and chat route only when <abbr title="Artificial Intelligence">AI</abbr> agent is enabled</li>
+</ul>
+<h2 id="020-2026-02-27">[0.2.0] - 2026-02-27<a class="headerlink" href="#020-2026-02-27" title="Permanent link">&para;</a></h2>
+<h3 id="changed_1">Changed<a class="headerlink" href="#changed_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Repository renamed</strong> from <code>full-stack-fastapi-nextjs-llm-template</code> to <code>full-stack-ai-agent-template</code> — all internal links, badges, raw.githubusercontent URLs, mkdocs config, and template files updated. Old GitHub URLs redirect automatically.</li>
+<li><strong>Repository marked as GitHub Template</strong> — users can now click "Use this template" to create a new repo directly from GitHub</li>
+<li><strong>README CTA section</strong> — replaced "Made with" footer with Vstorm consultancy call-to-action</li>
+</ul>
+<h2 id="0118-2026-02-01">[0.1.18] - 2026-02-01<a class="headerlink" href="#0118-2026-02-01" title="Permanent link">&para;</a></h2>
+<h3 id="fixed_1">Fixed<a class="headerlink" href="#fixed_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Removed macOS <code>.DS_Store</code> artifacts</strong> and added <code>.DS_Store</code> to <code>.gitignore</code> (contributed by <a href="https://github.com/vladdoster">@vladdoster</a> in <a href="https://github.com/vstorm-co/full-stack-ai-agent-template/pull/42">#42</a>)</li>
+</ul>
+<h2 id="0117-2026-01-24">[0.1.17] - 2026-01-24<a class="headerlink" href="#0117-2026-01-24" title="Permanent link">&para;</a></h2>
+<h3 id="added_1">Added<a class="headerlink" href="#added_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>MkDocs Material documentation site</strong> with pink theme, Inter/JetBrains Mono fonts</li>
+<li>New documentation pages:</li>
+<li><code>docs/index.md</code> - Landing page with quick start and features overview</li>
+<li><code>docs/installation.md</code> - Installation guide with uv/pip/pipx options</li>
+<li><code>docs/getting-help.md</code> - FAQ and support resources</li>
+<li><code>docs/concepts/index.md</code> - Architecture overview with Mermaid diagrams</li>
+<li><code>docs/guides/quick-start.md</code> - Step-by-step first project guide</li>
+<li><code>docs/guides/configuration.md</code> - All configuration options</li>
+<li>GitHub Actions workflow for automatic docs deployment (<code>docs.yml</code>)</li>
+<li>Custom styling (<code>docs/stylesheets/extra.css</code>) matching pydantic-deep theme</li>
+<li>GitHub announcement bar in docs header</li>
+</ul>
+<h3 id="changed_2">Changed<a class="headerlink" href="#changed_2" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>README.md redesign</strong>:</li>
+<li>New centered header with "Full-Stack <abbr title="Artificial Intelligence">AI</abbr> Agent Template" title</li>
+<li>Reorganized badges: <abbr title="Artificial Intelligence">AI</abbr> frameworks (PydanticAI, LangChain, LangGraph, CrewAI, OpenAI, Anthropic, OpenRouter) moved to Features section</li>
+<li>Added infrastructure badges: FastAPI, Next.js 15, React 19, TypeScript, Tailwind v4, SQLAlchemy, PostgreSQL, MongoDB, Redis, Celery, Logfire, Sentry, Prometheus, Docker, Kubernetes, GitHub Actions, <abbr title="Simple Storage Service">S3</abbr></li>
+<li>New highlights: "🤖 PydanticAI • 🦜 LangChain, LangGraph &amp; DeepAgents • 👥 CrewAI • 🎯 Fully Type-Safe"</li>
+<li>Moved <code>CHANGELOG.md</code> from <code>docs/</code> to project root (symlinked in docs)</li>
+<li>Added <code>docs</code> optional dependency group with mkdocs packages</li>
+</ul>
+<h2 id="0116-2026-01-20">[0.1.16] - 2026-01-20<a class="headerlink" href="#0116-2026-01-20" title="Permanent link">&para;</a></h2>
+<h3 id="fixed_2">Fixed<a class="headerlink" href="#fixed_2" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Logfire Celery instrumentation prompt</strong> - Celery instrumentation option now only appears when Celery is selected as background task system (previously caused validation error when selecting the option with Taskiq/ARQ)</li>
+</ul>
+<h3 id="changed_3">Changed<a class="headerlink" href="#changed_3" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Prompt order</strong> - Background tasks prompt now appears before Logfire prompt to enable dynamic feature filtering</li>
+</ul>
+<h3 id="tests-added">Tests Added<a class="headerlink" href="#tests-added" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Test for Celery instrumentation option visibility based on background task selection</li>
+</ul>
+<h2 id="0115-2026-01-18">[0.1.15] - 2026-01-18<a class="headerlink" href="#0115-2026-01-18" title="Permanent link">&para;</a></h2>
+<h3 id="added_2">Added<a class="headerlink" href="#added_2" title="Permanent link">&para;</a></h3>
+<h4 id="deepagents-framework-support">DeepAgents Framework Support<a class="headerlink" href="#deepagents-framework-support" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>DeepAgents as fifth <abbr title="Artificial Intelligence">AI</abbr> framework option</strong> alongside PydanticAI, LangChain, LangGraph, and CrewAI</li>
+<li>New <code>--ai-framework deepagents</code> <abbr title="Command Line Interface">CLI</abbr> option for project creation</li>
+<li>Interactive prompt includes "DeepAgents" choice</li>
+<li><strong>Built-in tools</strong> for file operations, code execution, and task management:</li>
+<li><code>ls</code>, <code>read_file</code>, <code>write_file</code>, <code>edit_file</code>, <code>glob</code>, <code>grep</code></li>
+<li><code>execute</code> (disabled by default for safety)</li>
+<li><code>write_todos</code>, <code>task</code> (sub-agents)</li>
+<li><strong>StateBackend</strong> for in-memory file state management</li>
+<li><strong>Skills support</strong> via <code>DEEPAGENTS_SKILLS_PATHS</code> environment variable</li>
+<li>New template files:</li>
+<li><code>app/agents/deepagents_assistant.py</code> - DeepAgentsAssistant class with run() and stream()</li>
+<li><abbr title="Full-duplex communication protocol">WebSocket</abbr> route implementation with interrupt handling</li>
+<li>New cookiecutter variable: <code>use_deepagents</code></li>
+<li>Dependencies: <code>deepagents&gt;=0.1.0</code></li>
+</ul>
+<h4 id="human-in-the-loop-hitl-support">Human-in-the-Loop (HITL) Support<a class="headerlink" href="#human-in-the-loop-hitl-support" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Tool approval workflow</strong> for DeepAgents allowing users to approve, edit, or reject tool calls</li>
+<li>Configurable via <code>DEEPAGENTS_INTERRUPT_TOOLS</code> environment variable:</li>
+<li>Comma-separated tool names (e.g., <code>write_file,edit_file,execute</code>)</li>
+<li>Or <code>all</code> to require approval for all tools</li>
+<li><strong>Frontend tool approval dialog</strong> (<code>tool-approval-dialog.tsx</code>):</li>
+<li>Shows pending tool calls with JSON args in editable textarea</li>
+<li>Cancel/Save buttons for editing args</li>
+<li>Submit button to send decisions</li>
+<li>Auto-detects changes and sends appropriate decision (approve/edit/reject)</li>
+<li><strong><abbr title="Full-duplex communication protocol">WebSocket</abbr> protocol</strong> for interrupt handling:</li>
+<li>Backend sends <code>tool_approval_required</code> event with action requests</li>
+<li>Frontend sends <code>resume</code> message with user decisions</li>
+<li>Thread ID management for state persistence across interrupts</li>
+<li>New types in <code>chat.ts</code>: <code>ActionRequest</code>, <code>ReviewConfig</code>, <code>PendingApproval</code>, <code>Decision</code></li>
+<li>Updated hooks (<code>use-chat.ts</code>, <code>use-local-chat.ts</code>) with:</li>
+<li><code>pendingApproval</code> state</li>
+<li><code>sendResumeDecisions()</code> function</li>
+<li>Environment variables:</li>
+<li><code>DEEPAGENTS_INTERRUPT_TOOLS</code> - tools requiring approval</li>
+<li><code>DEEPAGENTS_ALLOWED_DECISIONS</code> - allowed decision types (approve, edit, reject)</li>
+</ul>
+<h3 id="fixed_3">Fixed<a class="headerlink" href="#fixed_3" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><abbr title="Open Authorization">OAuth</abbr> requires <abbr title="JSON Web Token">JWT</abbr> authentication</strong> - Added validation that <abbr title="Open Authorization">OAuth</abbr> providers (Google) require <abbr title="JSON Web Token">JWT</abbr> auth to be enabled, preventing invalid configuration combinations</li>
+</ul>
+<h3 id="changed_4">Changed<a class="headerlink" href="#changed_4" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><code>AIFrameworkType</code> enum</strong> extended with <code>DEEPAGENTS</code> value</li>
+<li><strong><abbr title="Artificial Intelligence">AI</abbr> framework prompt</strong> now shows five options: PydanticAI, LangChain, LangGraph, CrewAI, DeepAgents</li>
+<li><strong><abbr title="Large Language Model">LLM</abbr> provider validation</strong> - OpenRouter not supported with DeepAgents (uses LangChain providers directly)</li>
+<li><strong><code>VARIABLES.md</code></strong> updated with <code>use_deepagents</code> documentation</li>
+<li><strong>Template <code>CLAUDE.md</code></strong> includes DeepAgents in stack section</li>
+<li><strong><code>CONTRIBUTING.md</code></strong> updated with correct repository URL</li>
+</ul>
+<h3 id="tests-added_1">Tests Added<a class="headerlink" href="#tests-added_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Tests for <code>DEEPAGENTS</code> enum value</li>
+<li>Tests for DeepAgents + OpenRouter validation (combination is rejected)</li>
+<li>Tests for <code>use_deepagents</code> computed field</li>
+<li>Tests for cookiecutter context generation with DeepAgents</li>
+</ul>
+<h2 id="0114-2026-01-16">[0.1.14] - 2026-01-16<a class="headerlink" href="#0114-2026-01-16" title="Permanent link">&para;</a></h2>
+<h3 id="fixed_4">Fixed<a class="headerlink" href="#fixed_4" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Dynamic version reading</strong> - <code>fastapi-fullstack --version</code> now correctly displays the version from <code>pyproject.toml</code> using <code>importlib.metadata</code> instead of hardcoded value</li>
+</ul>
+<h3 id="security">Security<a class="headerlink" href="#security" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>CVE-2026-22701</strong> - Updated <code>filelock</code> to 3.20.3</li>
+<li><strong>CVE-2026-21441</strong> - Updated <code>urllib3</code> to 2.6.3</li>
+<li><strong>CVE-2026-22702</strong> - Updated <code>virtualenv</code> to 20.36.1</li>
+</ul>
+<h2 id="0113-2026-01-06">[0.1.13] - 2026-01-06<a class="headerlink" href="#0113-2026-01-06" title="Permanent link">&para;</a></h2>
+<h3 id="added_3">Added<a class="headerlink" href="#added_3" title="Permanent link">&para;</a></h3>
+<h4 id="comprehensive-configuration-validation">Comprehensive Configuration Validation<a class="headerlink" href="#comprehensive-configuration-validation" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>New validation rules</strong> to prevent invalid option combinations at config time:</li>
+<li><abbr title="Full-duplex communication protocol">WebSocket</abbr> <abbr title="JSON Web Token">JWT</abbr> auth requires main <abbr title="JSON Web Token">JWT</abbr> auth to be enabled</li>
+<li><abbr title="Full-duplex communication protocol">WebSocket</abbr> <abbr title="Application Programming Interface">API</abbr> key auth requires main <abbr title="Application Programming Interface">API</abbr> key auth to be enabled</li>
+<li>Admin panel authentication requires <abbr title="JSON Web Token">JWT</abbr> auth (for User model)</li>
+<li>Conversation persistence requires <abbr title="Artificial Intelligence">AI</abbr> agent to be enabled</li>
+<li>Admin panel requires SQLAlchemy <abbr title="Object-Relational Mapping">ORM</abbr> (SQLModel not fully supported by SQLAdmin)</li>
+<li>Session management requires <abbr title="JSON Web Token">JWT</abbr> auth</li>
+<li>Webhooks require a database to store subscriptions and delivery history</li>
+<li>Background task queues (Celery/Taskiq/ARQ) require Redis as broker</li>
+<li>Logfire database instrumentation requires a database</li>
+<li>Logfire Redis instrumentation requires Redis</li>
+<li>Logfire Celery instrumentation requires Celery as background task system</li>
+</ul>
+<h4 id="improved-post-generation-instructions">Improved Post-Generation Instructions<a class="headerlink" href="#improved-post-generation-instructions" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Clearer database setup instructions</strong> with warning message:
+  <div class="language-text highlight"><span class="filename">Text Only</span><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>⚠️  Run all commands in order: db-migrate creates the migration, db-upgrade applies it
+</span></code></pre></div></li>
+<li><strong>README.md</strong> updated with prominent warning about required migration steps</li>
+<li>Commands displayed with aligned descriptions for better readability</li>
+</ul>
+<h4 id="dynamic-integration-prompts">Dynamic Integration Prompts<a class="headerlink" href="#dynamic-integration-prompts" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Context-aware integration options</strong> in interactive wizard:</li>
+<li>Admin Panel option only shown when SQLAlchemy is selected (not SQLModel)</li>
+<li>Webhooks option only shown when a database is enabled</li>
+<li><abbr title="Full-duplex communication protocol">WebSocket</abbr> auth options filtered based on main auth type selected</li>
+<li>Clearer <abbr title="Object-Relational Mapping">ORM</abbr> selection labels: "SQLAlchemy — full control, supports admin panel" vs "SQLModel — less boilerplate, no admin panel support"</li>
+<li><strong>Auto-enable Redis</strong> when caching is selected (with info message)</li>
+<li><strong>Better descriptions</strong> for all integration options explaining dependencies</li>
+</ul>
+<h4 id="template-improvements">Template Improvements<a class="headerlink" href="#template-improvements" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>ARQ worker service</strong> added to <code>docker-compose.prod.yml</code></li>
+<li><strong>Prometheus labels</strong> added to backend service in <code>docker-compose.dev.yml</code></li>
+<li><strong><abbr title="Open Authorization">OAuth</abbr> environment variable</strong> <code>NEXT_PUBLIC_API_URL</code> added to frontend <code>.env.example</code></li>
+<li><strong>Frontend WS_URL</strong> now uses <code>backend_port</code> cookiecutter variable instead of hardcoded 8000</li>
+</ul>
+<h3 id="changed_5">Changed<a class="headerlink" href="#changed_5" title="Permanent link">&para;</a></h3>
+<h4 id="post-generation-hook-improvements">Post-Generation Hook Improvements<a class="headerlink" href="#post-generation-hook-improvements" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Stub file cleanup</strong> - removes files containing only docstrings with no actual code</li>
+<li><strong>Auth file cleanup</strong> - removes auth/user files when <abbr title="JSON Web Token">JWT</abbr> is disabled:</li>
+<li><code>auth.py</code>, <code>users.py</code> routes</li>
+<li><code>user.py</code> model, repository, service, schema</li>
+<li><code>token.py</code> schema</li>
+<li><strong>Logfire cleanup</strong> - removes <code>logfire_setup.py</code> when Logfire is disabled</li>
+<li><strong>Security cleanup</strong> - removes <code>security.py</code> when no auth is configured at all</li>
+<li><strong>LangGraph/CrewAI cleanup</strong> - properly removes unused <abbr title="Artificial Intelligence">AI</abbr> framework files</li>
+</ul>
+<h3 id="fixed_5">Fixed<a class="headerlink" href="#fixed_5" title="Permanent link">&para;</a></h3>
+<h4 id="template-fixes">Template Fixes<a class="headerlink" href="#template-fixes" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>LangChain assistant <code>stream()</code> method</strong> - changed from sync generator to async generator using <code>astream()</code> for proper async streaming</li>
+<li><strong><abbr title="Open Authorization">OAuth</abbr> callback</strong> - made fully async, removed sync <code>asyncio.new_event_loop()</code> hack</li>
+<li><strong>Deprecated <code>datetime.utcnow()</code></strong> - replaced with <code>datetime.now(UTC)</code> across all services:</li>
+<li><code>cleanup.py</code> command</li>
+<li><code>session.py</code> repository and service</li>
+<li><code>conversation.py</code> service</li>
+<li><code>webhook.py</code> service</li>
+<li><strong>Session model</strong> - added missing <code>default_factory=datetime.utcnow</code> for <code>created_at</code> and <code>last_used_at</code> fields</li>
+<li><strong>Webhook model</strong> - moved <code>import json</code> to module level instead of inside properties</li>
+<li><strong>Admin panel template condition</strong> - now correctly checks for SQLAlchemy <abbr title="Object-Relational Mapping">ORM</abbr> requirement</li>
+<li><strong>Caching setup</strong> - only runs when both caching AND Redis are enabled</li>
+<li><strong>Config imports</strong> - fixed conditional imports for Redis-only projects (no database)</li>
+</ul>
+<h3 id="tests-added_2">Tests Added<a class="headerlink" href="#tests-added_2" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>290+ new test lines</strong> covering all new validation rules</li>
+<li>Tests for <abbr title="Full-duplex communication protocol">WebSocket</abbr> auth requiring main auth</li>
+<li>Tests for admin panel requiring SQLAlchemy</li>
+<li>Tests for admin authentication requiring <abbr title="JSON Web Token">JWT</abbr></li>
+<li>Tests for conversation persistence requiring <abbr title="Artificial Intelligence">AI</abbr> agent</li>
+<li>Tests for webhooks requiring database</li>
+<li>Tests for Logfire feature dependencies (database, Redis, Celery)</li>
+<li>Tests for background task queues requiring Redis</li>
+<li>Updated <abbr title="Command Line Interface">CLI</abbr> tests to include <code>--redis</code> flag with task queue options</li>
+</ul>
+<h2 id="0112-2026-01-02">[0.1.12] - 2026-01-02<a class="headerlink" href="#0112-2026-01-02" title="Permanent link">&para;</a></h2>
+<h3 id="added_4">Added<a class="headerlink" href="#added_4" title="Permanent link">&para;</a></h3>
+<h4 id="crewai-multi-agent-framework-improvements">CrewAI Multi-Agent Framework Improvements<a class="headerlink" href="#crewai-multi-agent-framework-improvements" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Full type annotations</strong> for all CrewAI event handlers in <code>crewai_assistant.py</code></li>
+<li><strong>Comprehensive event queue listener</strong> with handlers for:</li>
+<li><code>crew_started</code>, <code>crew_completed</code>, <code>crew_failed</code></li>
+<li><code>agent_started</code>, <code>agent_completed</code></li>
+<li><code>task_started</code>, <code>task_completed</code></li>
+<li><code>tool_started</code>, <code>tool_finished</code></li>
+<li><code>llm_started</code>, <code>llm_completed</code></li>
+<li><strong>Improved stream method</strong> with proper thread and queue handling:</li>
+<li>Natural completion path when receiving None sentinel</li>
+<li>Race condition handling for thread death scenarios</li>
+<li>Defensive code with <code># pragma: no cover</code> for edge cases</li>
+<li><strong>100% test coverage</strong> for CrewAI assistant module</li>
+</ul>
+<h3 id="fixed_6">Fixed<a class="headerlink" href="#fixed_6" title="Permanent link">&para;</a></h3>
+<h4 id="backend-fixes">Backend Fixes<a class="headerlink" href="#backend-fixes" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Type annotations</strong> - All mypy errors fixed across the codebase:</li>
+<li>Added <code>Any</code> types where needed in <code>logfire_setup.py</code></li>
+<li>Fixed <code>Callable</code> types in <code>commands/__init__.py</code></li>
+<li>Added proper types to versioning middleware</li>
+<li>Full type coverage for CrewAI event handlers</li>
+<li><strong><abbr title="Full-duplex communication protocol">WebSocket</abbr> disconnect handling</strong> - Proper logging and cleanup when client disconnects during agent processing (lines 241-242 in <code>agent.py</code>)</li>
+<li><strong>Health endpoint edge cases</strong> - Added <code># pragma: no cover</code> for unreachable 503 response path (checks dict is always empty)</li>
+<li><strong>Abstract method coverage</strong> - Added <code># pragma: no cover</code> for abstract <code>run()</code> method in <code>BasePipeline</code></li>
+</ul>
+<h4 id="frontend-fixes">Frontend Fixes<a class="headerlink" href="#frontend-fixes" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Timeline connector lines</strong> for grouped messages now display correctly</li>
+<li><strong>Message grouping</strong> visual indicators properly connect related messages</li>
+</ul>
+<h3 id="tests-added_3">Tests Added<a class="headerlink" href="#tests-added_3" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>100% code coverage achieved</strong> (720 statements, 0 missing)</li>
+<li>Tests for all 11 CrewAI event handlers:</li>
+<li><code>test_crew_started_handler</code>, <code>test_crew_completed_handler</code>, <code>test_crew_failed_handler</code></li>
+<li><code>test_agent_started_handler</code>, <code>test_agent_completed_handler</code></li>
+<li><code>test_task_started_handler</code>, <code>test_task_completed_handler</code></li>
+<li><code>test_tool_started_handler</code>, <code>test_tool_finished_handler</code></li>
+<li><code>test_llm_started_handler</code>, <code>test_llm_completed_handler</code></li>
+<li>Tests for CrewAI stream method edge cases:</li>
+<li><code>test_stream_complete_flow</code> - natural completion path</li>
+<li><code>test_stream_empty_queue_break</code> - queue empty handling</li>
+<li><code>test_stream_with_error</code> - error event handling</li>
+<li>Tests for <abbr title="Full-duplex communication protocol">WebSocket</abbr> disconnect during processing:</li>
+<li><code>test_websocket_disconnect_during_stream</code></li>
+<li><code>test_websocket_disconnect_during_processing</code></li>
+<li>Tests for health endpoint edge cases:</li>
+<li><code>test_readiness_probe_503_unit</code> - 503 response logic</li>
+</ul>
+<h2 id="0111-2026-01-02">[0.1.11] - 2026-01-02<a class="headerlink" href="#0111-2026-01-02" title="Permanent link">&para;</a></h2>
+<h3 id="added_5">Added<a class="headerlink" href="#added_5" title="Permanent link">&para;</a></h3>
+<h4 id="langgraph-react-agent-support">LangGraph ReAct Agent Support<a class="headerlink" href="#langgraph-react-agent-support" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>LangGraph as third <abbr title="Artificial Intelligence">AI</abbr> framework option</strong> alongside PydanticAI and LangChain</li>
+<li>New <code>--ai-framework langgraph</code> <abbr title="Command Line Interface">CLI</abbr> option for project creation</li>
+<li>Interactive prompt includes "LangGraph (ReAct agent)" choice</li>
+<li><strong>ReAct (Reasoning + Acting) agent pattern</strong> with graph-based architecture:</li>
+<li>Agent node for <abbr title="Large Language Model">LLM</abbr> reasoning and tool decision</li>
+<li>Tools node for executing tool calls</li>
+<li>Conditional edges for tool execution loop</li>
+<li>Memory-based checkpointing for conversation continuity</li>
+<li><strong>Full <abbr title="Full-duplex communication protocol">WebSocket</abbr> streaming support</strong> using <code>astream()</code> with dual modes:</li>
+<li><code>messages</code> mode for token-level <abbr title="Large Language Model">LLM</abbr> streaming</li>
+<li><code>updates</code> mode for node state changes (tool calls/results)</li>
+<li><strong>Tool result correlation</strong> - proper <code>tool_call_id</code> matching between calls and results</li>
+<li>New template files:</li>
+<li><code>app/agents/langgraph_assistant.py</code> - LangGraphAssistant class with run() and stream()</li>
+<li><abbr title="Full-duplex communication protocol">WebSocket</abbr> route implementation in <code>app/api/routes/v1/agent.py</code></li>
+<li>New cookiecutter variable: <code>use_langgraph</code></li>
+<li>Dependencies for LangGraph projects:</li>
+<li><code>langchain-core&gt;=0.3.0</code></li>
+<li><code>langchain-openai&gt;=0.3.0</code> or <code>langchain-anthropic&gt;=0.3.0</code></li>
+<li><code>langgraph&gt;=0.2.0</code></li>
+<li><code>langgraph-checkpoint&gt;=2.0.0</code></li>
+</ul>
+<h3 id="changed_6">Changed<a class="headerlink" href="#changed_6" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><code>AIFrameworkType</code> enum</strong> extended with <code>LANGGRAPH</code> value</li>
+<li><strong><abbr title="Artificial Intelligence">AI</abbr> framework prompt</strong> now shows three options: PydanticAI, LangChain, LangGraph</li>
+<li><strong><abbr title="Large Language Model">LLM</abbr> provider validation</strong> - OpenRouter not supported with LangGraph (same as LangChain)</li>
+<li><strong><code>VARIABLES.md</code></strong> updated with <code>use_langgraph</code> documentation</li>
+<li><strong>Template <code>CLAUDE.md</code></strong> includes LangGraph in stack section</li>
+</ul>
+<h2 id="0110-2025-12-27">[0.1.10] - 2025-12-27<a class="headerlink" href="#0110-2025-12-27" title="Permanent link">&para;</a></h2>
+<h3 id="added_6">Added<a class="headerlink" href="#added_6" title="Permanent link">&para;</a></h3>
+<h4 id="nginx-reverse-proxy-support">Nginx Reverse Proxy Support<a class="headerlink" href="#nginx-reverse-proxy-support" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Nginx as alternative to Traefik</strong> with two configuration modes:</li>
+<li><code>nginx_included</code>: Full Nginx setup in docker-compose.prod.yml</li>
+<li><code>nginx_external</code>: Nginx config template only, for external Nginx</li>
+<li><strong>Nginx configuration template</strong> (<code>nginx/nginx.conf</code>) with:</li>
+<li>Reverse proxy for backend <abbr title="Application Programming Interface">API</abbr> (api.DOMAIN)</li>
+<li>Reverse proxy for frontend (DOMAIN) - conditional</li>
+<li>Reverse proxy for Flower dashboard (flower.DOMAIN) - conditional</li>
+<li><abbr title="Full-duplex communication protocol">WebSocket</abbr> support for <code>/ws</code> endpoint</li>
+<li>Security headers (X-Frame-Options, X-Content-Type-Options, HSTS, etc.)</li>
+<li>HTTP to HTTPS redirect</li>
+<li>SSL/TLS configuration with modern cipher suites</li>
+<li>Let's Encrypt ACME challenge support</li>
+<li><strong>SSL certificate directory</strong> (<code>nginx/ssl/</code>) with setup instructions</li>
+<li>New cookiecutter variables:</li>
+<li><code>include_nginx_service</code>: Include Nginx container in docker-compose</li>
+<li><code>include_nginx_config</code>: Generate nginx configuration files</li>
+<li><code>use_nginx</code>: Using Nginx (included or external)</li>
+<li><code>use_traefik</code>: Using Traefik (included or external)</li>
+</ul>
+<h3 id="changed_7">Changed<a class="headerlink" href="#changed_7" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Reverse proxy prompt</strong> now offers 5 options:</li>
+<li>Traefik (included in docker-compose) - default</li>
+<li>Traefik (external, shared between projects)</li>
+<li>Nginx (included in docker-compose)</li>
+<li>Nginx (external, config template only)</li>
+<li>None (expose ports directly)</li>
+<li><strong><code>ReverseProxyType</code> enum</strong> extended with <code>NGINX_INCLUDED</code> and <code>NGINX_EXTERNAL</code></li>
+<li><strong>docker-compose.prod.yml</strong> updated:</li>
+<li>Added nginx service definition</li>
+<li>Services use backend-internal network when nginx is selected</li>
+<li>No ports exposed on backend/frontend when nginx handles traffic</li>
+<li><strong><code>.env.prod.example</code></strong> includes DOMAIN variable for nginx configuration</li>
+<li><strong><code>post_gen_project.py</code></strong> removes nginx/ folder when nginx is not selected</li>
+</ul>
+<h3 id="tests-added_4">Tests Added<a class="headerlink" href="#tests-added_4" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Tests for <code>NGINX_INCLUDED</code> and <code>NGINX_EXTERNAL</code> enum values</li>
+<li>Tests for cookiecutter context generation with all reverse proxy options</li>
+<li>Tests for <code>prompt_reverse_proxy()</code> with nginx choices</li>
+</ul>
+<h2 id="019-2025-12-26">[0.1.9] - 2025-12-26<a class="headerlink" href="#019-2025-12-26" title="Permanent link">&para;</a></h2>
+<h3 id="added_7">Added<a class="headerlink" href="#added_7" title="Permanent link">&para;</a></h3>
+<h4 id="sqlmodel-support">SQLModel Support<a class="headerlink" href="#sqlmodel-support" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Optional SQLModel <abbr title="Object-Relational Mapping">ORM</abbr></strong> as alternative to SQLAlchemy for PostgreSQL and SQLite</li>
+<li>New <code>--orm</code> <abbr title="Command Line Interface">CLI</abbr> option: <code>--orm sqlalchemy</code> (default) or <code>--orm sqlmodel</code></li>
+<li>Interactive prompt for <abbr title="Object-Relational Mapping">ORM</abbr> library selection when using <code>fastapi-fullstack new</code></li>
+<li>SQLModel provides simplified syntax combining SQLAlchemy and Pydantic:
+  <div class="language-python highlight"><span class="filename">Python</span><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">sqlmodel</span><span class="w"> </span><span class="kn">import</span> <span class="n">SQLModel</span><span class="p">,</span> <span class="n">Field</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="k">class</span><span class="w"> </span><span class="nc">User</span><span class="p">(</span><span class="n">SQLModel</span><span class="p">,</span> <span class="n">table</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    <span class="nb">id</span><span class="p">:</span> <span class="n">uuid</span><span class="o">.</span><span class="n">UUID</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">,</span> <span class="n">primary_key</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    <span class="n">email</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">max_length</span><span class="o">=</span><span class="mi">255</span><span class="p">,</span> <span class="n">unique</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="n">is_active</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span></code></pre></div></li>
+<li>Full Alembic compatibility maintained with SQLModel</li>
+<li>SQLAdmin works seamlessly with SQLModel models</li>
+<li>All database models updated with SQLModel variants:</li>
+<li><code>User</code>, <code>Item</code>, <code>Conversation</code>, <code>Message</code>, <code>Session</code>, <code>Webhook</code>, <code>WebhookDelivery</code></li>
+<li><code>VARIABLES.md</code> updated with new <abbr title="Object-Relational Mapping">ORM</abbr> variables: <code>orm_type</code>, <code>use_sqlalchemy</code>, <code>use_sqlmodel</code></li>
+</ul>
+<h3 id="changed_8">Changed<a class="headerlink" href="#changed_8" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Database model templates now support conditional SQLModel/SQLAlchemy syntax</li>
+<li><code>alembic/env.py</code> uses <code>SQLModel.metadata</code> when SQLModel is selected</li>
+<li>Repositories remain unchanged (SQLModel uses same AsyncSession and methods)</li>
+</ul>
+<h3 id="tests-added_5">Tests Added<a class="headerlink" href="#tests-added_5" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Tests for <code>OrmType</code> enum values</li>
+<li>Tests for <code>use_sqlalchemy</code> and <code>use_sqlmodel</code> computed fields</li>
+<li>Tests for SQLModel validation (requires PostgreSQL or SQLite)</li>
+<li>Tests for <code>prompt_orm_type()</code> function</li>
+<li>Updated <code>run_interactive_prompts()</code> tests with <code>prompt_orm_type</code> mocks</li>
+</ul>
+<h2 id="017-2025-12-23">[0.1.7] - 2025-12-23<a class="headerlink" href="#017-2025-12-23" title="Permanent link">&para;</a></h2>
+<h3 id="added_8">Added<a class="headerlink" href="#added_8" title="Permanent link">&para;</a></h3>
+<h4 id="docker-production">Docker &amp; Production<a class="headerlink" href="#docker-production" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Optional Traefik reverse proxy</strong> with three configuration modes:</li>
+<li><code>traefik_included</code>: Full Traefik setup in docker-compose.prod.yml (default)</li>
+<li><code>traefik_external</code>: Traefik labels only, for shared Traefik instances</li>
+<li><code>none</code>: No reverse proxy, ports exposed directly</li>
+<li><strong><code>.env.prod.example</code> template</strong> for production secrets management:</li>
+<li>Conditional sections for PostgreSQL, Redis, <abbr title="JSON Web Token">JWT</abbr>, Traefik, Flower</li>
+<li>Required variable validation using <code>${VAR:?error}</code> syntax</li>
+<li>Setup instructions in docker-compose.prod.yml header</li>
+<li><strong>Unique Traefik router names</strong> using <code>project_slug</code> prefix for multi-tenant support:</li>
+<li><code>{project_slug}-api</code>, <code>{project_slug}-frontend</code>, <code>{project_slug}-flower</code></li>
+<li>Prevents conflicts when running multiple projects on same server</li>
+</ul>
+<h4 id="ai-agent-support"><abbr title="Artificial Intelligence">AI</abbr> Agent Support<a class="headerlink" href="#ai-agent-support" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong><code>AGENTS.md</code></strong> file for non-Claude <abbr title="Artificial Intelligence">AI</abbr> agents (Codex, Copilot, Cursor, Zed, OpenCode)</li>
+<li><strong>Progressive disclosure documentation</strong> in generated projects:</li>
+<li><code>docs/architecture.md</code> - layered architecture details</li>
+<li><code>docs/adding_features.md</code> - how to add endpoints, commands, tools</li>
+<li><code>docs/testing.md</code> - testing guide and examples</li>
+<li><code>docs/patterns.md</code> - DI, service, repository patterns</li>
+<li><strong>README.md</strong> updated with "<abbr title="Artificial Intelligence">AI</abbr>-Agent Friendly" section</li>
+</ul>
+<h3 id="changed_9">Changed<a class="headerlink" href="#changed_9" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Template <code>CLAUDE.md</code> refactored</strong> from 384 to ~80 lines following <a href="https://humanlayer.dev/blog/writing-a-good-claude-md">progressive disclosure best practices</a></li>
+<li><strong>Main project <code>CLAUDE.md</code></strong> updated with "Where to Find More Info" section</li>
+<li><strong>docker-compose.prod.yml</strong> now uses <code>env_file: .env.prod</code> instead of inline defaults</li>
+<li><strong>Removed hardcoded credentials</strong> (<code>changeme</code>) from docker-compose.prod.yml</li>
+</ul>
+<h3 id="security_1">Security<a class="headerlink" href="#security_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Production credentials no longer have insecure defaults</li>
+<li><code>.env.prod</code> added to <code>.gitignore</code> to prevent committing secrets</li>
+<li>Required environment variables fail fast with descriptive error messages</li>
+</ul>
+<h2 id="016-2025-12-22">[0.1.6] - 2025-12-22<a class="headerlink" href="#016-2025-12-22" title="Permanent link">&para;</a></h2>
+<h3 id="added_9">Added<a class="headerlink" href="#added_9" title="Permanent link">&para;</a></h3>
+<h4 id="multi-llm-provider-support">Multi-<abbr title="Large Language Model">LLM</abbr> Provider Support<a class="headerlink" href="#multi-llm-provider-support" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Multiple <abbr title="Large Language Model">LLM</abbr> providers</strong> for <abbr title="Artificial Intelligence">AI</abbr> agents: OpenAI, Anthropic, and OpenRouter</li>
+<li>PydanticAI supports all three providers (OpenAI, Anthropic, OpenRouter)</li>
+<li>LangChain supports OpenAI and Anthropic</li>
+<li>New <code>--llm-provider</code> <abbr title="Command Line Interface">CLI</abbr> option and interactive prompt</li>
+<li>Provider-specific <abbr title="Application Programming Interface">API</abbr> key configuration in <code>.env</code> and <code>config.py</code></li>
+</ul>
+<h4 id="cli-enhancements"><abbr title="Command Line Interface">CLI</abbr> Enhancements<a class="headerlink" href="#cli-enhancements" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong><code>make create-admin</code> command</strong> for quick admin user creation</li>
+<li><strong>Comprehensive <abbr title="Command Line Interface">CLI</abbr> options</strong> for <code>fastapi-fullstack create</code> command:</li>
+<li><code>--redis</code>, <code>--caching</code>, <code>--rate-limiting</code></li>
+<li><code>--admin-panel</code>, <code>--websockets</code></li>
+<li><code>--task-queue</code> (none/celery/taskiq/arq)</li>
+<li><code>--oauth-google</code>, <code>--session-management</code></li>
+<li><code>--kubernetes</code>, <code>--ci</code> (github/gitlab/none)</li>
+<li><code>--sentry</code>, <code>--prometheus</code></li>
+<li><code>--file-storage</code>, <code>--webhooks</code></li>
+<li><code>--python-version</code> (3.11/3.12/3.13)</li>
+<li><code>--i18n</code></li>
+<li><strong>Configuration presets</strong> for common use cases:</li>
+<li><code>--preset production</code>: Full production setup with Redis, Sentry, <abbr title="Kubernetes">K8s</abbr>, Prometheus</li>
+<li><code>--preset ai-agent</code>: <abbr title="Artificial Intelligence">AI</abbr> agent with <abbr title="Full-duplex communication protocol">WebSocket</abbr> streaming and conversation persistence</li>
+<li><strong>Interactive rate limit configuration</strong> when rate limiting is enabled:</li>
+<li>Requests per period (default: 100)</li>
+<li>Period in seconds (default: 60)</li>
+<li>Storage backend (memory or Redis)</li>
+</ul>
+<h4 id="documentation">Documentation<a class="headerlink" href="#documentation" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Improved <abbr title="Command Line Interface">CLI</abbr> documentation</strong> in README explaining project <abbr title="Command Line Interface">CLI</abbr> naming convention (<code>uv run &lt;project_slug&gt;</code>)</li>
+<li><strong>Makefile shortcuts</strong> documented with <code>make help</code> command</li>
+</ul>
+<h4 id="template-improvements_1">Template Improvements<a class="headerlink" href="#template-improvements_1" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Generator version metadata</strong> in generated projects (<code>pyproject.toml</code>):
+  <div class="language-toml highlight"><span class="filename">TOML</span><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">[tool.fastapi-fullstack]</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">generator_version</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;0.1.6&quot;</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">generated_at</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;2025-12-22T10:30:00+00:00&quot;</span>
+</span></code></pre></div></li>
+<li><strong>Centralized agent prompts</strong> module (<code>app/agents/prompts.py</code>) for easier maintenance</li>
+<li><strong>Template variables documentation</strong> (<code>template/VARIABLES.md</code>) with 88+ variables documented</li>
+</ul>
+<h4 id="validation">Validation<a class="headerlink" href="#validation" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Email validation</strong> for <code>author_email</code> field using Pydantic's <code>EmailStr</code></li>
+<li><strong>Tests for OpenRouter + LangChain</strong> validation (combination is rejected)</li>
+<li><strong>Tests for agents folder</strong> conditional creation</li>
+</ul>
+<h3 id="changed_10">Changed<a class="headerlink" href="#changed_10" title="Permanent link">&para;</a></h3>
+<h4 id="configuration-validation">Configuration Validation<a class="headerlink" href="#configuration-validation" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Improved option combination validation</strong> in <code>ProjectConfig</code>:</li>
+<li>Admin panel requires PostgreSQL or SQLite (not MongoDB)</li>
+<li>Caching requires Redis to be enabled</li>
+<li>Session management requires a database</li>
+<li>Conversation persistence requires a database</li>
+<li>Rate limiting with Redis storage requires Redis enabled</li>
+<li>OpenRouter is only available with PydanticAI (not LangChain)</li>
+</ul>
+<h4 id="database-support">Database Support<a class="headerlink" href="#database-support" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Admin panel prompt</strong> now appears for both PostgreSQL and SQLite (previously only PostgreSQL)</li>
+<li><strong>Database-specific post-generation messages</strong>:</li>
+<li>PostgreSQL: <code>make docker-db</code> + migration commands</li>
+<li>SQLite: Auto-creation note + migration commands (no Docker)</li>
+<li>MongoDB: <code>make docker-mongo</code> (no migrations)</li>
+<li><strong>Added <code>close_db()</code> function</strong> for SQLite database consistency</li>
+</ul>
+<h4 id="project-name-handling">Project Name Handling<a class="headerlink" href="#project-name-handling" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Unified project name validation</strong> between <code>prompts.py</code> and <code>config.py</code></li>
+<li>Extracted validation into <code>_validate_project_name()</code> function with clear error messages</li>
+<li>Shows converted project name to user when it differs from input</li>
+</ul>
+<h3 id="fixed_7">Fixed<a class="headerlink" href="#fixed_7" title="Permanent link">&para;</a></h3>
+<h4 id="backend-fixes_1">Backend Fixes<a class="headerlink" href="#backend-fixes_1" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Conversation list <abbr title="Application Programming Interface">API</abbr> response format</strong>: Changed <code>/conversations</code> and <code>/conversations/{id}/messages</code> endpoints to return paginated response <code>{ items: [...], total: N }</code> instead of raw array, fixing frontend conversation list not loading after page refresh</li>
+<li><strong>Database session handling</strong>: Split <code>get_db_session</code> into async generator for FastAPI <code>Depends()</code> and <code>@asynccontextmanager</code> for manual use (<abbr title="Full-duplex communication protocol">WebSocket</abbr> handlers)</li>
+<li><strong><abbr title="Full-duplex communication protocol">WebSocket</abbr> authentication</strong>:</li>
+<li>Update <code>deps.py</code> to use <code>get_db_context</code> for <abbr title="Full-duplex communication protocol">WebSocket</abbr> auth</li>
+<li>Add cookie-based authentication support for <abbr title="Full-duplex communication protocol">WebSocket</abbr> (<code>access_token</code> cookie)</li>
+<li>Now accepts token via query parameter OR cookie for flexibility</li>
+<li><strong><abbr title="Full-duplex communication protocol">WebSocket</abbr> exception handling</strong>: Fix <code>AttributeError</code> when exception occurs on <abbr title="Full-duplex communication protocol">WebSocket</abbr> connection (<code>request.method</code> doesn't exist for <abbr title="Full-duplex communication protocol">WebSocket</abbr>)</li>
+<li><strong><abbr title="Full-duplex communication protocol">WebSocket</abbr> conversation persistence</strong>:</li>
+<li>Fix <code>get_db_session</code> vs <code>get_db_context</code> usage (async generator vs async context manager)</li>
+<li>Fix event name mismatch: backend now sends <code>conversation_created</code> to match frontend expectation</li>
+<li><strong>Docker Compose</strong>: Fix <code>env_file</code> path from <code>.env</code> to <code>./backend/.env</code></li>
+<li><strong>ValidationInfo typing</strong>: Add proper type hints to all field validators in <code>config.py</code></li>
+</ul>
+<h4 id="frontend-fixes_1">Frontend Fixes<a class="headerlink" href="#frontend-fixes_1" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>ThemeToggle hydration mismatch</strong>: Add mounted state to prevent SSR/client mismatch</li>
+<li><strong>Button component</strong>: Extract <code>asChild</code> prop to prevent DOM warning</li>
+<li><strong>ConversationList</strong>: Add default value for conversations to prevent undefined error</li>
+<li><strong>New Chat button</strong>:</li>
+<li>Create conversation in database immediately (eager creation)</li>
+<li>Clear messages properly when switching conversations</li>
+<li>Fix message appending issue when switching between conversations</li>
+<li><strong>Conversation store</strong>: Add defensive checks for undefined state</li>
+</ul>
+<h4 id="cli-fixes_1"><abbr title="Command Line Interface">CLI</abbr> Fixes<a class="headerlink" href="#cli-fixes_1" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Consistent package name</strong>: Changed from <code>fastapi-gen</code> to <code>fastapi-fullstack</code> in version option</li>
+<li><strong>Makefile</strong>: Always generated now (removed from optional dev tools)</li>
+</ul>
+<h4 id="templategenerator-fixes">Template/Generator Fixes<a class="headerlink" href="#templategenerator-fixes" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Ruff dependency in hooks</strong>: Graceful handling when ruff is not installed:</li>
+<li>Check PATH for ruff binary</li>
+<li>Fall back to <code>uvx ruff</code> if uv is available</li>
+<li>Fall back to <code>python -m ruff</code> if available as module</li>
+<li>Show friendly warning if ruff is not available</li>
+<li><strong>Dynamic generator version</strong>: Replaced hardcoded version with <code>DYNAMIC</code> placeholder</li>
+<li><strong>Unused files cleanup</strong>: Improved post-generation hook to remove:</li>
+<li><abbr title="Artificial Intelligence">AI</abbr> agent files based on framework selection</li>
+<li>Example <abbr title="Create, Read, Update, Delete">CRUD</abbr> files when disabled</li>
+<li>Conversation, webhook, session files when features disabled</li>
+<li>Worker directory when no background tasks selected</li>
+<li>Empty directories automatically</li>
+<li><strong><code>.env</code> file location</strong>: Move <code>.env.example</code> from root to <code>backend/</code></li>
+</ul>
+<h3 id="tests-added_6">Tests Added<a class="headerlink" href="#tests-added_6" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Tests for all configuration validation combinations</li>
+<li>Tests for project name validation edge cases</li>
+<li>Tests for <code>new</code> command <code>--output</code> option</li>
+<li>Tests for OpenRouter + LangChain validation</li>
+<li>Tests for admin panel prompt with SQLite</li>
+<li>Tests for agents folder conditional creation</li>
+<li>Tests for email validation (config and prompts)</li>
+<li>Tests for rate limit configuration prompts</li>
+</ul>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://github.com/vstorm-co/full-stack-ai-agent-template" target="_blank" rel="noopener" title="GitHub" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://pypi.org/project/fastapi-fullstack/" target="_blank" rel="noopener" title="PyPI" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.8 200.5c-7.7-30.9-22.3-54.2-53.4-54.2h-40.1v47.4c0 36.8-31.2 67.8-66.8 67.8H172.7c-29.2 0-53.4 25-53.4 54.3v101.8c0 29 25.2 46 53.4 54.3 33.8 9.9 66.3 11.7 106.8 0 26.9-7.8 53.4-23.5 53.4-54.3v-40.7H226.2v-13.6h160.2c31.1 0 42.6-21.7 53.4-54.2 11.2-33.5 10.7-65.7 0-108.6M286.2 444.7a20.4 20.4 0 1 1 0-40.7 20.4 20.4 0 1 1 0 40.7M167.8 248.1h106.8c29.7 0 53.4-24.5 53.4-54.3V91.9c0-29-24.4-50.7-53.4-55.6-35.8-5.9-74.7-5.6-106.8.1-45.2 8-53.4 24.7-53.4 55.6v40.7h106.9v13.6h-147c-31.1 0-58.3 18.7-66.8 54.2-9.8 40.7-10.2 66.1 0 108.6 7.6 31.6 25.7 54.2 56.8 54.2H101v-48.8c0-35.3 30.5-66.4 66.8-66.4m-6.6-183.4a20.4 20.4 0 1 1 0 40.8 20.4 20.4 0 1 1 0-40.8"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+      <div class="md-progress" data-md-component="progress" role="progressbar"></div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.instant.prefetch", "navigation.instant.progress", "navigation.tracking", "navigation.path", "navigation.top", "navigation.footer", "navigation.indexes", "search.suggest", "search.highlight", "search.share", "content.tabs.link", "content.code.copy", "content.code.select", "content.code.annotate", "content.tooltips", "toc.follow", "announce.dismiss"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

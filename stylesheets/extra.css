@@ -1,0 +1,105 @@
+/* ============================================
+   FastAPI Fullstack Documentation Styles
+   Clean, minimal - inspired by FastAPI/Pydantic AI
+   ============================================ */
+
+/* --------------------------------------------
+   Theme Colors
+   -------------------------------------------- */
+:root {
+  --md-primary-fg-color: #e91e63;
+  --md-primary-fg-color--light: #f48fb1;
+  --md-primary-fg-color--dark: #c2185b;
+  --md-accent-fg-color: #ff4081;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color: #e91e63;
+  --md-primary-fg-color--light: #f48fb1;
+  --md-primary-fg-color--dark: #c2185b;
+  --md-accent-fg-color: #ff4081;
+}
+
+/* --------------------------------------------
+   Announcement Bar
+   -------------------------------------------- */
+.md-banner {
+  background: #1e1e2e;
+}
+
+.md-banner a {
+  color: #f8f8f2 !important;
+}
+
+.md-banner a:hover {
+  color: var(--md-primary-fg-color) !important;
+}
+
+/* --------------------------------------------
+   Typography
+   -------------------------------------------- */
+.md-typeset h1 {
+  font-weight: 700;
+  color: var(--md-primary-fg-color);
+}
+
+/* Center the main title on index page */
+.md-content h1[id="fastapi-fullstack"] {
+  text-align: center;
+  font-size: 2.5rem;
+  margin-top: 0;
+}
+
+/* --------------------------------------------
+   Code Blocks
+   -------------------------------------------- */
+.md-typeset pre {
+  border-radius: 6px;
+}
+
+.md-typeset code {
+  border-radius: 4px;
+}
+
+/* --------------------------------------------
+   Tables
+   -------------------------------------------- */
+.md-typeset table:not([class]) th {
+  background: var(--md-primary-fg-color);
+  color: white;
+  font-weight: 600;
+}
+
+/* --------------------------------------------
+   Admonitions
+   -------------------------------------------- */
+.md-typeset .admonition.tip,
+.md-typeset details.tip {
+  border-color: var(--md-primary-fg-color);
+}
+
+.md-typeset .tip > .admonition-title,
+.md-typeset .tip > summary {
+  background-color: rgba(233, 30, 99, 0.1);
+}
+
+/* --------------------------------------------
+   Navigation
+   -------------------------------------------- */
+.md-nav__link--active {
+  font-weight: 600;
+  color: var(--md-primary-fg-color) !important;
+}
+
+/* --------------------------------------------
+   Buttons
+   -------------------------------------------- */
+.md-button--primary {
+  background-color: var(--md-primary-fg-color);
+  border-color: var(--md-primary-fg-color);
+}
+
+.md-button--primary:hover {
+  background-color: var(--md-primary-fg-color--dark);
+  border-color: var(--md-primary-fg-color--dark);
+}

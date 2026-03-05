@@ -504,7 +504,8 @@ class TestOptionCombinationValidation:
     def test_admin_panel_not_supported_with_mongodb(self) -> None:
         """Test that admin panel (SQLAdmin) does not support MongoDB."""
         with pytest.raises(
-            ValidationError, match="Admin panel \\(SQLAdmin\\) requires PostgreSQL or SQLite"
+            ValidationError,
+            match="Admin panel \\(SQLAdmin\\) requires PostgreSQL, SQLite, or MS SQL Server",
         ):
             ProjectConfig(
                 project_name="test",
@@ -513,9 +514,10 @@ class TestOptionCombinationValidation:
             )
 
     def test_sqlmodel_requires_sql_database(self) -> None:
-        """Test that SQLModel requires PostgreSQL or SQLite database."""
+        """Test that SQLModel requires PostgreSQL, SQLite, or MS SQL Server database."""
         with pytest.raises(
-            ValidationError, match="SQLModel requires PostgreSQL or SQLite database"
+            ValidationError,
+            match="SQLModel requires PostgreSQL, SQLite, or MS SQL Server database",
         ):
             ProjectConfig(
                 project_name="test",
@@ -526,7 +528,8 @@ class TestOptionCombinationValidation:
     def test_sqlmodel_not_supported_with_no_database(self) -> None:
         """Test that SQLModel cannot be used without a database."""
         with pytest.raises(
-            ValidationError, match="SQLModel requires PostgreSQL or SQLite database"
+            ValidationError,
+            match="SQLModel requires PostgreSQL, SQLite, or MS SQL Server database",
         ):
             ProjectConfig(
                 project_name="test",

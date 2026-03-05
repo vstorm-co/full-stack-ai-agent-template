@@ -84,7 +84,7 @@ def new(output: Path | None, no_input: bool, name: str | None) -> None:
 )
 @click.option(
     "--database",
-    type=click.Choice(["postgresql", "mongodb", "sqlite", "none"]),
+    type=click.Choice(["postgresql", "mongodb", "sqlite", "sqlserver", "none"]),
     default="postgresql",
     help="Database type",
 )
@@ -375,10 +375,11 @@ def templates() -> None:
     console.print()
 
     console.print("[bold]Databases:[/]")
-    console.print("  --database postgresql  PostgreSQL with asyncpg (async)")
-    console.print("  --database mongodb     MongoDB with Motor (async)")
-    console.print("  --database sqlite      SQLite with SQLAlchemy (sync)")
-    console.print("  --database none        No database")
+    console.print("  --database postgresql   PostgreSQL with asyncpg (async)")
+    console.print("  --database mongodb      MongoDB with Motor (async)")
+    console.print("  --database sqlite       SQLite with SQLAlchemy (sync)")
+    console.print("  --database sqlserver  MS SQL Server with aioodbc (async)")
+    console.print("  --database none         No database")
     console.print()
 
     console.print("[bold]Authentication:[/]")

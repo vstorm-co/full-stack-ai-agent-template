@@ -4,21 +4,26 @@ This document describes all variables available in `cookiecutter.json` for the f
 
 ## Table of Contents
 
-- [Metadata](#metadata)
-- [Project Information](#project-information)
-- [Database Settings](#database-settings)
-- [Authentication](#authentication)
-- [OAuth](#oauth)
-- [Observability (Logfire)](#observability-logfire)
-- [Background Tasks](#background-tasks)
-- [Redis & Caching](#redis--caching)
-- [Rate Limiting](#rate-limiting)
-- [Features](#features)
-- [AI Agent](#ai-agent)
-- [WebSocket](#websocket)
-- [Development Tools](#development-tools)
-- [Deployment](#deployment)
-- [Frontend](#frontend)
+- [Cookiecutter Template Variables](#cookiecutter-template-variables)
+  - [Table of Contents](#table-of-contents)
+  - [Metadata](#metadata)
+  - [Project Information](#project-information)
+  - [Database Settings](#database-settings)
+    - [ORM Library](#orm-library)
+  - [Authentication](#authentication)
+  - [OAuth](#oauth)
+  - [Observability (Logfire)](#observability-logfire)
+  - [Background Tasks](#background-tasks)
+  - [Redis \& Caching](#redis--caching)
+  - [Rate Limiting](#rate-limiting)
+  - [Features](#features)
+  - [AI Agent](#ai-agent)
+  - [WebSocket](#websocket)
+  - [Development Tools](#development-tools)
+  - [Deployment](#deployment)
+  - [Frontend](#frontend)
+  - [Variable Naming Conventions](#variable-naming-conventions)
+  - [Computed Variables](#computed-variables)
 
 ---
 
@@ -54,6 +59,7 @@ These variables are set automatically by the generator.
 | `use_postgresql` | bool | `true` | PostgreSQL is selected | Computed from `database` |
 | `use_mongodb` | bool | `false` | MongoDB is selected | Computed from `database` |
 | `use_sqlite` | bool | `false` | SQLite is selected | Computed from `database` |
+| `use_sqlserver` | bool | `false` | MS SQL Server | Computed from `database` |
 | `use_database` | bool | `true` | Any database is enabled | Computed from `database` |
 | `db_pool_size` | int | `5` | Database connection pool size | Requires SQL database |
 | `db_max_overflow` | int | `10` | Max overflow connections above pool size | Requires SQL database |

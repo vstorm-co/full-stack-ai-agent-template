@@ -16,6 +16,7 @@ use_database = "{{ cookiecutter.use_database }}" == "True"
 use_postgresql = "{{ cookiecutter.use_postgresql }}" == "True"
 use_sqlite = "{{ cookiecutter.use_sqlite }}" == "True"
 use_mongodb = "{{ cookiecutter.use_mongodb }}" == "True"
+use_sqlserver = "{{ cookiecutter.use_sqlserver }}" == "True"
 use_sqlalchemy = "{{ cookiecutter.use_sqlalchemy }}" == "True"
 use_sqlmodel = "{{ cookiecutter.use_sqlmodel }}" == "True"
 include_example_crud = "{{ cookiecutter.include_example_crud }}" == "True"
@@ -140,7 +141,11 @@ if not enable_websockets:
     remove_file(os.path.join(backend_app, "api", "routes", "v1", "ws.py"))
 
 # --- Admin panel (requires SQLAlchemy, not SQLModel) ---
-if not enable_admin_panel or (not use_postgresql and not use_sqlite) or not use_sqlalchemy:
+if (
+    not enable_admin_panel
+    or (not use_postgresql and not use_sqlite and not use_sqlserver)
+    or not use_sqlalchemy
+):
     remove_file(os.path.join(backend_app, "admin.py"))
 
 # --- Redis/Cache files ---

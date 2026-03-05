@@ -40,6 +40,12 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 DBSession = Annotated[AsyncIOMotorDatabase, Depends(get_db_session)]
 {%- endif %}
 
+{%- if cookiecutter.use_sqlserver %}
+from sqlalchemy.ext.asyncio import AsyncSession
+
+DBSession = Annotated[AsyncSession, Depends(get_db_session)]
+{%- endif %}
+
 {%- if cookiecutter.enable_redis %}
 from fastapi import Request
 
@@ -74,7 +80,7 @@ from app.services.item import ItemService
 from app.services.conversation import ConversationService
 {%- endif %}
 {%- if cookiecutter.use_jwt %}
-{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
+{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite or cookiecutter.use_sqlserver %}
 
 
 def get_user_service(db: DBSession) -> UserService:
@@ -112,7 +118,7 @@ SessionSvc = Annotated[SessionService, Depends(get_session_service)]
 {%- endif %}
 
 {%- if cookiecutter.enable_webhooks and cookiecutter.use_database %}
-{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
+{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite or cookiecutter.use_sqlserver %}
 
 
 def get_webhook_service(db: DBSession) -> WebhookService:
@@ -131,7 +137,7 @@ WebhookSvc = Annotated[WebhookService, Depends(get_webhook_service)]
 {%- endif %}
 
 {%- if cookiecutter.include_example_crud and cookiecutter.use_database %}
-{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
+{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite or cookiecutter.use_sqlserver %}
 
 
 def get_item_service(db: DBSession) -> ItemService:
@@ -150,7 +156,7 @@ ItemSvc = Annotated[ItemService, Depends(get_item_service)]
 {%- endif %}
 
 {%- if cookiecutter.enable_conversation_persistence and cookiecutter.use_database %}
-{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
+{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite or cookiecutter.use_sqlserver %}
 
 
 def get_conversation_service(db: DBSession) -> ConversationService:
@@ -177,7 +183,7 @@ from app.db.models.user import User, UserRole
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login")
 
-{%- if cookiecutter.use_postgresql %}
+{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlserver %}
 
 
 async def get_current_user(
@@ -482,7 +488,7 @@ async def get_current_user_ws(
     if user_id is None:
         await websocket.close(code=4001, reason="Invalid token payload")
         raise AuthenticationError(message="Invalid token payload")
-{%- if cookiecutter.use_postgresql %}
+{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlserver %}
 
     from app.db.session import get_db_context
 

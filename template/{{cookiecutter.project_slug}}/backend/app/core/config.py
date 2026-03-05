@@ -109,6 +109,44 @@ class Settings(BaseSettings):
         return f"sqlite:///{self.SQLITE_PATH}"
 {%- endif %}
 
+{%- if cookiecutter.use_sqlserver %}
+
+    # === Database (MS SQL Server async) ===
+    MSSQL_HOST: str = "localhost"
+    MSSQL_PORT: int = 1433
+    MSSQL_USER: str = "sa"
+    MSSQL_PASSWORD: str = ""
+    MSSQL_DB: str = "{{ cookiecutter.project_slug }}"
+    MSSQL_DRIVER: str = "ODBC Driver 18 for SQL Server"
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def DATABASE_URL(self) -> str:
+        """Build async MS SQL Server connection URL."""
+        return (
+            f"mssql+aioodbc://{self.MSSQL_USER}:{self.MSSQL_PASSWORD}"
+            f"@{self.MSSQL_HOST}:{self.MSSQL_PORT}/{self.MSSQL_DB}"
+            f"?driver={self.MSSQL_DRIVER.replace(' ', '+')}"
+            "&TrustServerCertificate=yes"
+        )
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def DATABASE_URL_SYNC(self) -> str:
+        """Build sync MS SQL Server connection URL (for Alembic)."""
+        return (
+            f"mssql+pyodbc://{self.MSSQL_USER}:{self.MSSQL_PASSWORD}"
+            f"@{self.MSSQL_HOST}:{self.MSSQL_PORT}/{self.MSSQL_DB}"
+            f"?driver={self.MSSQL_DRIVER.replace(' ', '+')}"
+            "&TrustServerCertificate=yes"
+        )
+
+    # Pool configuration
+    DB_POOL_SIZE: int = {{ cookiecutter.db_pool_size }}
+    DB_MAX_OVERFLOW: int = {{ cookiecutter.db_max_overflow }}
+    DB_POOL_TIMEOUT: int = {{ cookiecutter.db_pool_timeout }}
+{%- endif %}
+
 {%- if cookiecutter.use_jwt or (cookiecutter.enable_admin_panel and cookiecutter.admin_require_auth) or cookiecutter.enable_oauth %}
 
     # === Auth (SECRET_KEY for JWT/Session/Admin) ===

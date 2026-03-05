@@ -83,6 +83,50 @@ async def close_db() -> None:
         client = None
 
 
+{%- elif cookiecutter.use_sqlserver %}
+"""Async MS SQL Server database session."""
+
+from collections.abc import AsyncGenerator
+
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
+
+from app.core.config import settings
+
+engine = create_async_engine(
+    settings.DATABASE_URL,  # Should be format: mssql+aioodbc://...
+    echo=settings.DEBUG,
+    pool_pre_ping=True,
+    pool_size=5,
+    max_overflow=10,
+)
+
+AsyncSessionLocal = async_sessionmaker(
+    engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+)
+
+
+async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
+    """Get async database session."""
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+
+
+async def close_db() -> None:
+    """Close database connection."""
+    await engine.dispose()
+
+
 {%- elif cookiecutter.use_sqlite %}
 """Sync SQLite database session."""
 

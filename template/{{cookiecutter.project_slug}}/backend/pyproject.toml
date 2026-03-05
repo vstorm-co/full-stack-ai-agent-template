@@ -53,6 +53,18 @@ dependencies = [
 {%- endif %}
     "alembic>=1.14.0",
 {%- endif %}
+{%- if cookiecutter.use_sqlserver %}
+{%- if cookiecutter.use_sqlmodel %}
+    "sqlmodel>=0.0.22",
+    "sqlalchemy[asyncio]>=2.0.0",
+{%- else %}
+    "sqlalchemy[asyncio]>=2.0.0",
+{%- endif %}
+    "aioodbc>=0.5.0",
+    "pyodbc>=5.0.0",
+    "alembic>=1.14.0",
+    "greenlet>=3.0.0",
+{%- endif %}
 {%- if cookiecutter.use_jwt %}
     "pyjwt>=2.9.0",
     "bcrypt>=4.0.0",

@@ -138,6 +138,7 @@ def prompt_database() -> DatabaseType:
         questionary.Choice("PostgreSQL (async - asyncpg)", value=DatabaseType.POSTGRESQL),
         questionary.Choice("MongoDB (async - motor)", value=DatabaseType.MONGODB),
         questionary.Choice("SQLite (sync)", value=DatabaseType.SQLITE),
+        questionary.Choice("MS SQL Server", value=DatabaseType.SQLSERVER),
         questionary.Choice("None", value=DatabaseType.NONE),
     ]
 
@@ -345,7 +346,7 @@ def prompt_integrations(
 
     # Admin Panel only available with SQLAlchemy (not SQLModel) and SQL database
     if (
-        database in (DatabaseType.POSTGRESQL, DatabaseType.SQLITE)
+        database in (DatabaseType.POSTGRESQL, DatabaseType.SQLITE, DatabaseType.SQLSERVER)
         and orm_type == OrmType.SQLALCHEMY
     ):
         choices.append(
@@ -823,9 +824,9 @@ def run_interactive_prompts() -> ProjectConfig:
     # Database
     database = prompt_database()
 
-    # ORM type (only for PostgreSQL or SQLite)
+    # ORM type (only for SQL databases)
     orm_type = OrmType.SQLALCHEMY
-    if database in (DatabaseType.POSTGRESQL, DatabaseType.SQLITE):
+    if database in (DatabaseType.POSTGRESQL, DatabaseType.SQLITE, DatabaseType.SQLSERVER):
         orm_type = prompt_orm_type()
 
     # Auth
@@ -897,12 +898,13 @@ def run_interactive_prompts() -> ProjectConfig:
                 ).ask()
             )
 
-    # Admin panel configuration (when enabled and SQL database - PostgreSQL or SQLite)
+    # Admin panel configuration (when enabled and SQL database)
     admin_environments = AdminEnvironmentType.DEV_STAGING
     admin_require_auth = True
     if integrations.get("enable_admin_panel") and database in (
         DatabaseType.POSTGRESQL,
         DatabaseType.SQLITE,
+        DatabaseType.SQLSERVER,
     ):
         admin_environments, admin_require_auth = prompt_admin_config()
 
@@ -968,7 +970,7 @@ def show_summary(config: ProjectConfig) -> None:
 
     console.print(f"  [cyan]Project:[/] {config.project_name}")
     console.print(f"  [cyan]Database:[/] {config.database.value}")
-    if config.database in (DatabaseType.POSTGRESQL, DatabaseType.SQLITE):
+    if config.database in (DatabaseType.POSTGRESQL, DatabaseType.SQLITE, DatabaseType.SQLSERVER):
         console.print(f"  [cyan]ORM:[/] {config.orm_type.value}")
     auth_str = config.auth.value
     if config.oauth_provider != OAuthProvider.NONE:

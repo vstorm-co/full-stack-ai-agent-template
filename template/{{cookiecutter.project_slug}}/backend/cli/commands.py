@@ -48,7 +48,7 @@ def server_routes():
     click.echo(tabulate(routes, headers=["Method", "Path", "Name"]))
 
 
-{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
+{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite or cookiecutter.use_sqlserver %}
 
 
 # === Database Commands ===
@@ -228,7 +228,7 @@ def user_create(email: str, password: str, role: str, superuser: bool):
     from app.db.models.user import UserRole
     from app.schemas.user import UserCreate
     from app.services.user import UserService
-{%- if cookiecutter.use_postgresql %}
+{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlserver %}
     from app.db.session import async_session_maker
 
     async def _create():
@@ -268,7 +268,7 @@ def user_create(email: str, password: str, role: str, superuser: bool):
                 return None
 {%- endif %}
 
-{%- if cookiecutter.use_postgresql %}
+{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlserver %}
     user = asyncio.run(_create())
 {%- else %}
     user = _create()
@@ -291,7 +291,7 @@ def user_create_admin(email: str, password: str):
     from app.db.models.user import UserRole
     from app.schemas.user import UserCreate
     from app.services.user import UserService
-{%- if cookiecutter.use_postgresql %}
+{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlserver %}
     from app.db.session import async_session_maker
 
     async def _create():
@@ -331,7 +331,7 @@ def user_create_admin(email: str, password: str):
                 return None
 {%- endif %}
 
-{%- if cookiecutter.use_postgresql %}
+{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlserver %}
     user = asyncio.run(_create())
 {%- else %}
     user = _create()
@@ -350,7 +350,7 @@ def user_set_role(email: str, role: str):
     from app.core.exceptions import NotFoundError
     from app.db.models.user import UserRole
     from app.services.user import UserService
-{%- if cookiecutter.use_postgresql %}
+{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlserver %}
     from app.db.session import async_session_maker
 
     async def _update():
@@ -390,7 +390,7 @@ def user_list():
     """List all users."""
     import asyncio
     from app.services.user import UserService
-{%- if cookiecutter.use_postgresql %}
+{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlserver %}
     from app.db.session import async_session_maker
 
     async def _list():

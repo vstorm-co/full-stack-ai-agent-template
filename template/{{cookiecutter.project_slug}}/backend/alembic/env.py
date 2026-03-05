@@ -1,4 +1,4 @@
-{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
+{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite or cookiecutter.use_sqlserver %}
 """Alembic migration environment."""
 # ruff: noqa: I001 - Imports structured for Jinja2 template conditionals
 
@@ -34,7 +34,7 @@ target_metadata = Base.metadata
 
 def get_url() -> str:
     """Get database URL from settings."""
-{%- if cookiecutter.use_postgresql %}
+{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlserver %}
     return settings.DATABASE_URL_SYNC
 {%- else %}
     return settings.DATABASE_URL

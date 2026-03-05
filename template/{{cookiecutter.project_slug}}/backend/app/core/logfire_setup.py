@@ -52,6 +52,15 @@ def instrument_sqlalchemy(engine):
 {%- endif %}
 
 
+{%- if cookiecutter.use_sqlserver and cookiecutter.logfire_database %}
+
+
+def instrument_sqlalchemy(engine):
+    """Instrument SQLAlchemy for SQL Server."""
+    logfire.instrument_sqlalchemy(engine=engine)
+{%- endif %}
+
+
 {%- if cookiecutter.enable_redis and cookiecutter.logfire_redis %}
 
 

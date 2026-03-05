@@ -79,6 +79,47 @@ class Settings(BaseSettings):
     DB_POOL_TIMEOUT: int = {{ cookiecutter.db_pool_timeout }}
 {%- endif %}
 
+{%- if cookiecutter.use_sqlserver %}
+
+    # === Database (SQL Server async) ===
+    SQLSERVER_HOST: str = "localhost"
+    SQLSERVER_PORT: int = 1433
+    SQLSERVER_USER: str = "sa"
+    SQLSERVER_PASSWORD: str = ""
+    SQLSERVER_DB: str = "{{ cookiecutter.project_slug }}"
+    SQLSERVER_DRIVER: str = "ODBC Driver 18 for SQL Server"
+    SQLSERVER_TRUST_SERVER_CERTIFICATE: bool = True
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def DATABASE_URL(self) -> str:
+        """Build async SQL Server connection URL."""
+        trust_cert = "yes" if self.SQLSERVER_TRUST_SERVER_CERTIFICATE else "no"
+        return (
+            f"mssql+aioodbc://{self.SQLSERVER_USER}:{self.SQLSERVER_PASSWORD}"
+            f"@{self.SQLSERVER_HOST}:{self.SQLSERVER_PORT}/{self.SQLSERVER_DB}"
+            f"?driver={self.SQLSERVER_DRIVER.replace(' ', '+')}"
+            f"&TrustServerCertificate={trust_cert}"
+        )
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def DATABASE_URL_SYNC(self) -> str:
+        """Build sync SQL Server connection URL (for Alembic)."""
+        trust_cert = "yes" if self.SQLSERVER_TRUST_SERVER_CERTIFICATE else "no"
+        return (
+            f"mssql+pyodbc://{self.SQLSERVER_USER}:{self.SQLSERVER_PASSWORD}"
+            f"@{self.SQLSERVER_HOST}:{self.SQLSERVER_PORT}/{self.SQLSERVER_DB}"
+            f"?driver={self.SQLSERVER_DRIVER.replace(' ', '+')}"
+            f"&TrustServerCertificate={trust_cert}"
+        )
+
+    # Pool configuration
+    DB_POOL_SIZE: int = {{ cookiecutter.db_pool_size }}
+    DB_MAX_OVERFLOW: int = {{ cookiecutter.db_max_overflow }}
+    DB_POOL_TIMEOUT: int = {{ cookiecutter.db_pool_timeout }}
+{%- endif %}
+
 {%- if cookiecutter.use_mongodb %}
 
     # === Database (MongoDB async) ===

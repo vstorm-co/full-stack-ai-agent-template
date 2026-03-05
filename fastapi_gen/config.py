@@ -24,6 +24,7 @@ class DatabaseType(str, Enum):
     POSTGRESQL = "postgresql"
     MONGODB = "mongodb"
     SQLITE = "sqlite"
+    SQLSERVER = "sqlserver"
     NONE = "none"
 
 
@@ -248,12 +249,13 @@ class ProjectConfig(BaseModel):
         if self.enable_admin_panel and self.database == DatabaseType.NONE:
             raise ValueError("Admin panel requires a database")
         if self.enable_admin_panel and self.database == DatabaseType.MONGODB:
-            raise ValueError("Admin panel (SQLAdmin) requires PostgreSQL or SQLite")
+            raise ValueError("Admin panel (SQLAdmin) requires PostgreSQL, SQL Server, or SQLite")
         if self.orm_type == OrmType.SQLMODEL and self.database not in (
             DatabaseType.POSTGRESQL,
             DatabaseType.SQLITE,
+            DatabaseType.SQLSERVER,
         ):
-            raise ValueError("SQLModel requires PostgreSQL or SQLite database")
+            raise ValueError("SQLModel requires PostgreSQL, SQL Server, or SQLite database")
         if self.enable_caching and not self.enable_redis:
             raise ValueError("Caching requires Redis to be enabled")
         if self.enable_session_management and self.database == DatabaseType.NONE:
@@ -399,6 +401,7 @@ class ProjectConfig(BaseModel):
             "use_postgresql": self.database == DatabaseType.POSTGRESQL,
             "use_mongodb": self.database == DatabaseType.MONGODB,
             "use_sqlite": self.database == DatabaseType.SQLITE,
+            "use_sqlserver": self.database == DatabaseType.SQLSERVER,
             "use_database": self.database != DatabaseType.NONE,
             "db_pool_size": self.db_pool_size,
             "db_max_overflow": self.db_max_overflow,

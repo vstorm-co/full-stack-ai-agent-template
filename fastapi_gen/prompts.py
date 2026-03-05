@@ -136,6 +136,7 @@ def prompt_database() -> DatabaseType:
 
     choices = [
         questionary.Choice("PostgreSQL (async - asyncpg)", value=DatabaseType.POSTGRESQL),
+        questionary.Choice("SQL Server (async - aioodbc)", value=DatabaseType.SQLSERVER),
         questionary.Choice("MongoDB (async - motor)", value=DatabaseType.MONGODB),
         questionary.Choice("SQLite (sync)", value=DatabaseType.SQLITE),
         questionary.Choice("None", value=DatabaseType.NONE),

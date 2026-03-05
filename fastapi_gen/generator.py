@@ -32,6 +32,16 @@ def _get_database_setup_commands(database: DatabaseType) -> list[tuple[str, str]
             ("make docker-mongo", "Start MongoDB container"),
             ("# Or configure MongoDB Atlas connection in .env", ""),
         ]
+    elif database == DatabaseType.SQLSERVER:
+        return [
+            ("# Install ODBC Driver 18 for SQL Server", ""),
+            ("# Windows: https://go.microsoft.com/fwlink/?linkid=2249004", ""),
+            ("# Linux: https://learn.microsoft.com/sql/connect/odbc/linux-mac/installing-the-microsoft-odbc-driver-for-sql-server", ""),
+            ("# macOS: https://learn.microsoft.com/sql/connect/odbc/linux-mac/install-microsoft-odbc-driver-sql-server-macos", ""),
+            ("make docker-sqlserver", "Start SQL Server container (or configure existing server in .env)"),
+            ("make db-migrate", "Create initial migration"),
+            ("make db-upgrade", "Apply migrations"),
+        ]
     else:  # PostgreSQL
         return [
             ("make docker-db", "Start PostgreSQL container"),

@@ -88,6 +88,8 @@ LLAMA_CLOUD_API_KEY=...      # For LlamaParse
 
 # Optional - Reranker
 COHERE_API_KEY=...           # For Cohere reranker
+HF_TOKEN=...                # For HuggingFace Cross-Encoder reranker
+CROSS_ENCODER_MODEL=...    # Model name (default: cross-encoder/ms-marco-MiniLM-L6-v2)
 ```
 
 ### Configuration Options
@@ -147,6 +149,32 @@ Local embedding using `all-MiniLM-L6-v2` (384 dimensions). No API required.
 
 ---
 
+## Reranking
+
+Reranking improves search result quality by re-ordering initial vector search results using a dedicated reranker model. Enable via `--reranker` CLI flag.
+
+### Cohere Reranker
+
+Uses Cohere's rerank API. Requires `COHERE_API_KEY`.
+
+```bash
+fastapi-fullstack create my_project --enable-rag --reranker cohere
+```
+
+### Cross-Encoder Reranker
+
+Uses HuggingFace Cross-Encoder models locally. Requires `HF_TOKEN` for private models (optional for public models).
+
+```bash
+fastapi-fullstack create my_project --enable-rag --reranker cross_encoder
+```
+
+Default model: `cross-encoder/ms-marco-MiniLM-L6-v2`. Override with `CROSS_ENCODER_MODEL` env var.
+
+### Using Reranking in API
+
+Pass `use_reranker=true` as a query parameter when calling the search endpoint:
+
 ## API Endpoints
 
 All RAG endpoints are prefixed with `/api/v1/rag`.
@@ -170,9 +198,18 @@ Content-Type: application/json
   "query": "search term",
   "collection_name": "documents",
   "limit": 5,
-  "min_score": 0.0
+  "min_score": 0.0,
+  "filter": ""
 }
 ```
+
+**Query Parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `use_reranker` | bool | false | Whether to use reranking (if configured) |
+
+**Note:** Set `use_reranker=true` to enable reranking during search. Reranking must be enabled in the project configuration (via `--reranker cohere` or `--reranker cross_encoder` CLI flags).
 
 ### List Collections
 

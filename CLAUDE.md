@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**fastapi-fullstack** is an interactive CLI tool that generates FastAPI projects with Logfire observability integration. It uses Cookiecutter templates to scaffold complete project structures with configurable options for databases, authentication, background tasks, and various integrations.
+**fastapi-fullstack** is an interactive CLI tool that generates FastAPI projects with Logfire observability integration. It uses Cookiecutter templates to scaffold complete project structures with configurable options for databases, authentication, background tasks, and various integrations including AI agents and RAG.
 
 ## Commands
 
@@ -42,6 +42,9 @@ fastapi-fullstack create my_project --database postgresql --auth jwt
 # Minimal project (no extras)
 fastapi-fullstack create my_project --minimal
 
+# With RAG enabled
+fastapi-fullstack create my_project --ai-agent --rag --background-tasks celery
+
 # List available options
 fastapi-fullstack templates
 ```
@@ -61,7 +64,7 @@ Uses Cookiecutter with Jinja2 conditionals. Structure:
 
 ```
 template/
-├── cookiecutter.json                    # Default context (~75 variables)
+├── cookiecutter.json                    # Default context (~85 variables)
 ├── hooks/post_gen_project.py            # Post-gen cleanup & ruff formatting
 └── {{cookiecutter.project_slug}}/
     ├── backend/
@@ -73,7 +76,8 @@ template/
     │   │   ├── schemas/                 # Pydantic request/response models
     │   │   ├── repositories/            # Data access layer
     │   │   ├── services/                # Business logic
-    │   │   ├── agents/                  # PydanticAI agents (optional)
+    │   │   ├── agents/                  # AI agents (PydanticAI, LangChain, LangGraph, CrewAI, DeepAgents)
+    │   │   ├── rag/                     # RAG module (Milvus vector store, embeddings, document processing)
     │   │   ├── commands/                # Django-style CLI commands
     │   │   └── worker/                  # Background tasks (Celery/Taskiq/ARQ)
     │   ├── cli/                         # Generated project CLI
@@ -101,6 +105,56 @@ Template files use `{% if cookiecutter.use_jwt %}` style conditionals to include
 - Generated projects use UV for package management
 - AI Agent uses PydanticAI with `iter()` for full event streaming over WebSocket
 - Template uses repository pattern for data access and service layer for business logic
+- RAG uses Milvus vector store with configurable embeddings (OpenAI, Voyage, SentenceTransformers)
+- RAG supports reranking (Cohere, CrossEncoder) and multiple document parsers (pdfplumber, LlamaParse)
+
+## RAG Configuration
+
+When RAG is enabled, the following additional components are available:
+
+### Environment Variables
+
+```bash
+# Milvus
+MILVUS_HOST=milvus
+MILVUS_PORT=19530
+
+# Embeddings (provider-dependent)
+EMBEDDING_MODEL=text-embedding-3-small  # OpenAI
+# or: EMBEDDING_MODEL=voyage-3          # Voyage
+# or: EMBEDDING_MODEL=all-MiniLM-L6-v2  # SentenceTransformers
+
+# Optional: Reranker
+# COHERE_API_KEY=...
+# LLAMAPARSE_API_KEY=...
+```
+
+### RAG CLI Commands (in generated project)
+
+```bash
+# List collections
+python -m app.cli rag-collections
+
+# Ingest documents
+python -m app.cli rag-ingest /path/to/document.pdf --collection mydocs
+
+# Search knowledge base
+python -m app.cli rag-search "query" --collection mydocs --top-k 5
+
+# Drop collection
+python -m app.cli rag-drop collection_name
+```
+
+### RAG API Endpoints
+
+- `POST /api/v1/rag/collections/{name}/upload` - Upload & ingest document
+- `POST /api/v1/rag/collections/{name}/ingest` - Ingest synchronously
+- `GET /api/v1/rag/collections` - List collections
+- `POST /api/v1/rag/collections/{name}` - Create collection
+- `DELETE /api/v1/rag/collections/{name}` - Drop collection
+- `GET /api/v1/rag/collections/{name}/info` - Collection stats
+- `POST /api/v1/rag/search` - Search documents
+- `DELETE /api/v1/rag/collections/{name}/documents/{source}` - Delete document
 
 ## Where to Find More Info
 

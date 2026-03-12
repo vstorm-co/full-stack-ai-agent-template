@@ -1,0 +1,8 @@
+-P ubuntu-latest=ghcr.io/catthehacker/ubuntu:full-latest
+# -P ubuntu-latest=ghcr.io/catthehacker/ubuntu:act-latest
+# --container-options --user root
+# --container-architecture linux/amd64
+# --container-daemon-socket /var/run/docker.sock
+--network host
+--env UV_LINK_MODE=copy
+--env ASYNC_TIMEOUT=60

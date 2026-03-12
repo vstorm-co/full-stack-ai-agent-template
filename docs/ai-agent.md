@@ -12,8 +12,10 @@ The template supports multiple AI frameworks for building intelligent agents:
 | **LangChain** | Comprehensive AI tooling ecosystem | Complex chains, many integrations |
 | **LangGraph** | Graph-based ReAct agents | Multi-step reasoning, tool loops |
 | **CrewAI** | Multi-agent orchestration | Agent teams, complex workflows |
+| **RAG** | Document retrieval & knowledge base | Building AI assistants with context |
 
 Select your framework during project creation:
+
 ```bash
 fastapi-fullstack create my_project --ai-framework pydanticai  # default
 fastapi-fullstack create my_project --ai-framework langchain
@@ -288,6 +290,83 @@ def _register_tools(self, agent: Agent[Deps, str]) -> None:
 
 1. **Clear docstrings** - The LLM uses these to understand when to call tools
 2. **Type hints** - Required for argument validation
+3. **Error handling** - Return meaningful error messages
+
+---
+
+## RAG Tool Integration
+
+When RAG is enabled, agents can search a knowledge base for relevant documents.
+
+### Enabling RAG with AI Agent
+
+```bash
+fastapi-fullstack create my_project --enable-rag --enable-ai-agent
+```
+
+### Using the RAG Tool
+
+```python
+# app/agents/assistant.py
+from app.agents.tools.rag_tool import search_knowledge_base
+
+def _register_tools(self, agent: Agent[Deps, str]) -> None:
+    """Register all tools on the agent."""
+
+    @agent.tool
+    async def search_knowledge(ctx: RunContext[Deps], query: str) -> str:
+        """Search the knowledge base for relevant documents.
+        
+        Args:
+            query: The search query string
+        """
+        return await search_knowledge_base(
+            query=query,
+            collection="documents",
+            top_k=5
+        )
+```
+
+### RAG Tool Function Signature
+
+```python
+async def search_knowledge_base(
+    query: str,
+    collection: str = "documents",
+    top_k: int = 5,
+) -> str:
+    """Search the knowledge base and return formatted results.
+    
+    Args:
+        query: The search query string.
+        collection: Name of the collection to search (default: "documents").
+        top_k: Number of top results to retrieve (default: 5).
+    
+    Returns:
+        Formatted string with search results, including content and scores.
+    """
+```
+
+### CrewAI Integration
+
+For CrewAI agents, use the synchronous wrapper:
+
+```python
+# app/agents/crewai_assistant.py
+from app.agents.tools.rag_tool import search_knowledge_base_sync
+
+class MyCrewAgent:
+    def __init__(self):
+        self.tools = [
+            Tool.from_function(
+                func=search_knowledge_base_sync,
+                name="search_knowledge_base",
+                description="Search the knowledge base for relevant documents"
+            )
+        ]
+```
+
+See also: [RAG Documentation](rag.md) for detailed configuration.
 3. **Async** - Use async functions for I/O operations
 4. **Error handling** - Return user-friendly error messages
 5. **Context access** - Use `ctx.deps` for user-specific data
@@ -622,19 +701,23 @@ interface Message {
 ### Common Issues
 
 **"Invalid API key"**
+
 - Check `OPENAI_API_KEY` is set correctly
 - Verify the key has sufficient credits
 
 **"Model not found"**
+
 - Check `AI_MODEL` is a valid model name
 - Ensure you have access to the specified model
 
 **"WebSocket connection failed"**
+
 - Verify the backend is running
 - Check CORS settings for WebSocket connections
 - Ensure the token is valid (if using auth)
 
 **"Tool not found"**
+
 - Verify the tool is registered in `_register_tools()`
 - Check the tool's docstring is descriptive enough
 

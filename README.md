@@ -29,6 +29,8 @@
   &nbsp;•&nbsp;
   <b>👥 CrewAI</b>
   &nbsp;•&nbsp;
+  <b>📄 RAG & Milvus</b>
+  &nbsp;•&nbsp;
   <b>🎯 Fully Type-Safe</b>
 </p>
 
@@ -72,6 +74,7 @@ Generated projects include **CLAUDE.md** and **AGENTS.md** files optimized for A
   <a href="https://python.langchain.com"><img src="https://img.shields.io/badge/LangChain-1C3C3C?logo=langchain&logoColor=white" alt="LangChain"></a>
   <a href="https://langchain-ai.github.io/langgraph/"><img src="https://img.shields.io/badge/LangGraph-005A9C?logo=langchain&logoColor=white" alt="LangGraph"></a>
   <a href="https://www.crewai.com"><img src="https://img.shields.io/badge/CrewAI-FF6B35?logoColor=white" alt="CrewAI"></a>
+  <a href="https://milvus.io"><img src="https://img.shields.io/badge/Milvus-FF6B35?logoColor=white" alt="Milvus"></a>
   <a href="https://openai.com"><img src="https://img.shields.io/badge/OpenAI-412991?logo=openai&logoColor=white" alt="OpenAI"></a>
   <a href="https://anthropic.com"><img src="https://img.shields.io/badge/Anthropic-D4A373?logo=anthropic&logoColor=white" alt="Anthropic"></a>
   <a href="https://openrouter.ai"><img src="https://img.shields.io/badge/OpenRouter-6366F1?logoColor=white" alt="OpenRouter"></a>
@@ -90,6 +93,7 @@ Generated projects include **CLAUDE.md** and **AGENTS.md** files optimized for A
   <a href="https://www.postgresql.org"><img src="https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white" alt="PostgreSQL"></a>
   <a href="https://www.mongodb.com"><img src="https://img.shields.io/badge/MongoDB-47A248?logo=mongodb&logoColor=white" alt="MongoDB"></a>
   <a href="https://redis.io"><img src="https://img.shields.io/badge/Redis-DC382D?logo=redis&logoColor=white" alt="Redis"></a>
+  <a href="https://milvus.io"><img src="https://img.shields.io/badge/Milvus-FF6B35?logoColor=white" alt="Milvus"></a>
   <a href="https://docs.celeryq.dev"><img src="https://img.shields.io/badge/Celery-37814A?logo=celery&logoColor=white" alt="Celery"></a>
   <a href="https://logfire.pydantic.dev"><img src="https://img.shields.io/badge/Logfire-E92063?logo=pydantic&logoColor=white" alt="Logfire"></a>
   <a href="https://sentry.io"><img src="https://img.shields.io/badge/Sentry-362D59?logo=sentry&logoColor=white" alt="Sentry"></a>
@@ -152,21 +156,25 @@ Generated projects include **CLAUDE.md** and **AGENTS.md** files optimized for A
 ## 📸 Screenshots
 
 ### Chat Interface
+
 | Light Mode | Dark Mode |
 |:---:|:---:|
 | ![Chat Light](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new_chat_light.png) | ![Chat Dark](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new_chat_dark.png) |
 
 ### Authentication
+
 | Register | Login |
 |:---:|:---:|
 | ![Register](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new_register.png) | ![Login](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new_login.png) |
 
 ### Observability
+
 | Logfire (PydanticAI) | LangSmith (LangChain) |
 |:---:|:---:|
 | ![Logfire](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/logfire.png) | ![LangSmith](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/langsmith.png) |
 
 ### Admin, Monitoring & API
+
 | Celery Flower | SQLAdmin Panel |
 |:---:|:---:|
 | ![Flower](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/flower.png) | ![Admin](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/admin.png) |
@@ -271,10 +279,11 @@ bun dev
 ```
 
 **Access:**
-- API: http://localhost:8000
-- Docs: http://localhost:8000/docs
-- Admin Panel: http://localhost:8000/admin (login with admin user)
-- Frontend: http://localhost:3000
+
+- API: <http://localhost:8000>
+- Docs: <http://localhost:8000/docs>
+- Admin Panel: <http://localhost:8000/admin> (login with admin user)
+- Frontend: <http://localhost:3000>
 
 ### Quick Start with Docker
 

@@ -37,5 +37,6 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   }
 }{% endraw %}
 {%- else %}
-// Conversation messages API route - not configured (enable_conversation_persistence is false)
+// Conversation detail API route - not configured (enable_conversation_persistence is false)
+export {};
 {%- endif %}

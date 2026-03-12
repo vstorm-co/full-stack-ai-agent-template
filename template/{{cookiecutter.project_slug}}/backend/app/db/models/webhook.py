@@ -4,7 +4,7 @@
 
 import uuid
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import ARRAY, UUID as PG_UUID
@@ -13,7 +13,7 @@ from sqlmodel import Field, Relationship, SQLModel
 from app.db.base import TimestampMixin
 
 
-class WebhookEventType(str, Enum):
+class WebhookEventType(StrEnum):
     """Webhook event types."""
 
     # User events
@@ -91,7 +91,7 @@ class WebhookDelivery(SQLModel, table=True):
 
 import uuid
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import ARRAY, UUID
@@ -100,7 +100,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base, TimestampMixin
 
 
-class WebhookEventType(str, Enum):
+class WebhookEventType(StrEnum):
     """Webhook event types."""
 
     # User events
@@ -175,7 +175,7 @@ class WebhookDelivery(Base):
 import json
 import uuid
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
 from sqlmodel import Field, Relationship, SQLModel
@@ -183,7 +183,7 @@ from sqlmodel import Field, Relationship, SQLModel
 from app.db.base import TimestampMixin
 
 
-class WebhookEventType(str, Enum):
+class WebhookEventType(StrEnum):
     """Webhook event types."""
 
     # User events
@@ -271,7 +271,7 @@ class WebhookDelivery(SQLModel, table=True):
 import json
 import uuid
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -279,7 +279,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base, TimestampMixin
 
 
-class WebhookEventType(str, Enum):
+class WebhookEventType(StrEnum):
     """Webhook event types."""
 
     # User events
@@ -360,14 +360,14 @@ class WebhookDelivery(Base):
 """Webhook document models (MongoDB)."""
 
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Optional
 
 from beanie import Document
 from pydantic import Field
 
 
-class WebhookEventType(str, Enum):
+class WebhookEventType(StrEnum):
     """Webhook event types."""
 
     # User events

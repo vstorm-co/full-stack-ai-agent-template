@@ -17,6 +17,10 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
+# Build arguments for environment variables
+ARG NEXT_PUBLIC_RAG_ENABLED=false
+ENV NEXT_PUBLIC_RAG_ENABLED=$NEXT_PUBLIC_RAG_ENABLED
+
 # Build the application
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN bun run build

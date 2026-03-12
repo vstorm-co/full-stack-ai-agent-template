@@ -539,3 +539,77 @@ async def verify_api_key(
 
 ValidAPIKey = Annotated[str, Depends(verify_api_key)]
 {%- endif %}
+
+{%- if cookiecutter.enable_rag %}
+
+# === RAG Service Dependencies ===
+
+from app.rag.embeddings import EmbeddingService
+from app.rag.ingestion import IngestionService
+from app.rag.documents import DocumentProcessor
+from fastapi import Request
+from app.core.config import settings
+{%- if cookiecutter.use_milvus %}
+from app.rag.vectorstore import MilvusVectorStore
+from app.rag.retrieval import MilvusRetrievalService
+{%- endif %}
+
+def get_embedding_service(request: Request) -> EmbeddingService:
+    """Get embedding service from lifespan state or create new if not available."""
+    if request and hasattr(request.state, "embedding_service"):
+        return request.state.embedding_service
+    return EmbeddingService(settings=settings.rag)
+
+# Type Alias for the Embedder
+EmbeddingSvc = Annotated[EmbeddingService, Depends(get_embedding_service)]
+
+{%- if cookiecutter.use_milvus %}
+def get_vectorstore(
+    request: Request,
+    embedder: EmbeddingSvc
+) -> MilvusVectorStore:
+    """Get vector store client from lifespan state or create new if not available."""
+    if request and hasattr(request.state, "vector_store"):
+        return request.state.vector_store
+    return MilvusVectorStore(settings=settings.rag, embedding_service=embedder)
+
+VectorStoreSvc = Annotated[MilvusVectorStore, Depends(get_vectorstore)]
+
+def get_retrieval_service(
+    vector_store: VectorStoreSvc
+) -> MilvusRetrievalService:
+    """Create MilvusRetrievalService instance.
+    
+    Includes optional reranking service if configured.
+    """
+    {%- if cookiecutter.enable_reranker %}
+    from app.rag.reranker import RerankService
+    rerank_service = RerankService(settings=settings.rag)
+    return MilvusRetrievalService(
+        vector_store=vector_store,
+        settings=settings.rag,
+        rerank_service=rerank_service,
+    )
+    {%- else %}
+    return MilvusRetrievalService(vector_store=vector_store, settings=settings.rag)
+    {%- endif %}
+
+RetrievalSvc = Annotated[MilvusRetrievalService, Depends(get_retrieval_service)]
+
+def get_document_processor() -> DocumentProcessor:
+    """Create DocumentProcessor instance."""
+    return DocumentProcessor(settings=settings.rag)
+
+DocumentProcessorSvc = Annotated[DocumentProcessor, Depends(get_document_processor)]
+
+def get_ingestion_service(
+    processor: DocumentProcessorSvc,
+    vector_store: VectorStoreSvc
+) -> IngestionService:
+    """Create IngestionService instance."""
+    return IngestionService(processor=processor, vector_store=vector_store)
+
+IngestionSvc = Annotated[IngestionService, Depends(get_ingestion_service)]
+{%- endif %}
+
+{%- endif %}

@@ -357,25 +357,25 @@ async def agent_websocket(
                             await manager.send_event(websocket, "call_tools_start", {})
 
                             async with node.stream(agent_run.ctx) as handle_stream:
-                                async for event in handle_stream:
-                                    if isinstance(event, FunctionToolCallEvent):
+                                async for tool_event in handle_stream:
+                                    if isinstance(tool_event, FunctionToolCallEvent):
                                         await manager.send_event(
                                             websocket,
                                             "tool_call",
                                             {
-                                                "tool_name": event.part.tool_name,
-                                                "args": event.part.args,
-                                                "tool_call_id": event.part.tool_call_id,
+                                                "tool_name": tool_event.part.tool_name,
+                                                "args": tool_event.part.args,
+                                                "tool_call_id": tool_event.part.tool_call_id,
                                             },
                                         )
 
-                                    elif isinstance(event, FunctionToolResultEvent):
+                                    elif isinstance(tool_event, FunctionToolResultEvent):
                                         await manager.send_event(
                                             websocket,
                                             "tool_result",
                                             {
-                                                "tool_call_id": event.tool_call_id,
-                                                "content": str(event.result.content),
+                                                "tool_call_id": tool_event.tool_call_id,
+                                                "content": str(tool_event.result.content),
                                             },
                                         )
 

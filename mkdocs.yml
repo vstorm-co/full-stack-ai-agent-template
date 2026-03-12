@@ -146,6 +146,7 @@ nav:
     - Overview: concepts/index.md
     - Architecture: architecture.md
     - AI Agents: ai-agent.md
+    - RAG: rag.md
     - Frontend: frontend.md
   - Guides:
     - Overview: guides/index.md

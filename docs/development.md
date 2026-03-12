@@ -67,9 +67,9 @@ bun dev
 
 ### 4. Access the application
 
-- **Backend API**: http://localhost:8000
-- **API Docs**: http://localhost:8000/docs
-- **Frontend**: http://localhost:3000 (if enabled)
+- **Backend API**: <http://localhost:8000>
+- **API Docs**: <http://localhost:8000/docs>
+- **Frontend**: <http://localhost:3000> (if enabled)
 
 ---
 
@@ -142,11 +142,20 @@ AI_MODEL=gpt-4o-mini
 ### Frontend (.env.local)
 
 ```bash
-# Backend URL (server-side)
+# Backend URL (server-side only - not exposed to browser)
 BACKEND_URL=http://localhost:8000
 
-# WebSocket URL (client-side)
-NEXT_PUBLIC_WS_URL=ws://localhost:8000/api/v1/agent/ws
+# WebSocket URL for real-time features
+BACKEND_WS_URL=ws://localhost:8000
+
+# Authentication (set to true when JWT or OAuth is enabled)
+NEXT_PUBLIC_AUTH_ENABLED=true
+
+# RAG (Retrieval Augmented Generation)
+NEXT_PUBLIC_RAG_ENABLED=true
+
+# Public API URL for OAuth redirects (exposed to browser)
+NEXT_PUBLIC_API_URL=http://localhost:8000
 ```
 
 ---

@@ -14,6 +14,7 @@ from fastapi_gen.config import (
     LogfireFeatures,
     OAuthProvider,
     ProjectConfig,
+    RAGFeatures,
 )
 
 
@@ -100,3 +101,58 @@ def mock_questionary_responses() -> dict[str, Any]:
         "ci_type": CIType.GITHUB,
         "confirm": True,
     }
+
+
+@pytest.fixture
+def rag_base_config() -> ProjectConfig:
+    """Base RAG project configuration with required dependencies.
+
+    This fixture provides a minimal valid RAG configuration that can be
+    extended in individual tests for specific RAG scenarios.
+    """
+    return ProjectConfig(
+        project_name="rag_project",
+        database=DatabaseType.POSTGRESQL,
+        auth=AuthType.JWT,
+        enable_ai_agent=True,
+        rag_features=RAGFeatures(enable_rag=True),
+        background_tasks=BackgroundTaskType.CELERY,
+        enable_redis=True,
+        enable_docker=True,
+    )
+
+
+@pytest.fixture
+def rag_with_celery_config(rag_base_config: ProjectConfig) -> ProjectConfig:
+    """RAG configuration with Celery background tasks."""
+    return rag_base_config
+
+
+@pytest.fixture
+def rag_with_taskiq_config() -> ProjectConfig:
+    """RAG configuration with Taskiq background tasks."""
+    return ProjectConfig(
+        project_name="rag_taskiq_project",
+        database=DatabaseType.POSTGRESQL,
+        auth=AuthType.JWT,
+        enable_ai_agent=True,
+        rag_features=RAGFeatures(enable_rag=True),
+        background_tasks=BackgroundTaskType.TASKIQ,
+        enable_redis=True,
+        enable_docker=True,
+    )
+
+
+@pytest.fixture
+def rag_with_arq_config() -> ProjectConfig:
+    """RAG configuration with ARQ background tasks."""
+    return ProjectConfig(
+        project_name="rag_arq_project",
+        database=DatabaseType.POSTGRESQL,
+        auth=AuthType.JWT,
+        enable_ai_agent=True,
+        rag_features=RAGFeatures(enable_rag=True),
+        background_tasks=BackgroundTaskType.ARQ,
+        enable_redis=True,
+        enable_docker=True,
+    )

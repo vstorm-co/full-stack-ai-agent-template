@@ -20,7 +20,9 @@ from .config import (
     LogfireFeatures,
     OAuthProvider,
     OrmType,
+    PdfParserType,
     ProjectConfig,
+    RAGFeatures,
     RateLimitStorageType,
     ReverseProxyType,
     WebSocketAuthType,
@@ -689,6 +691,62 @@ def prompt_langsmith() -> bool:
     )
 
 
+def prompt_rag_config() -> RAGFeatures:
+    """Prompt for RAG configuration.
+
+    Args:
+        llm_provider: The selected LLM Provider.
+    """
+
+    console.print()
+    console.print("[bold cyan]RAG (Retrieval Augmented Generation)[/]")
+    console.print("Configure document ingestion and retrieval logic.")
+    console.print()
+
+    # Prompt for RAG enable/disable
+    enable_rag = questionary.confirm(
+        "Enable RAG (Retrieval Augmented Generation) applications?", default=False
+    ).ask()
+
+    enable_google_drive_ingestion = False
+    enable_reranker = False
+    pdf_parser = PdfParserType.PDFPLUMBER
+
+    # In RAG is enabled, ask for features
+    if enable_rag:
+        enable_google_drive_ingestion = questionary.confirm(
+            "Enable Google Drive document ingestion?", default=False
+        ).ask()
+
+        enable_reranker = questionary.confirm(
+            "Enable Rerank logic (improves accuracy, requires extra API calls)?", default=False
+        ).ask()
+
+        # PDF Parser selection
+        pdf_parser_choice = questionary.select(
+            "Select PDF parser:",
+            choices=[
+                questionary.Choice(
+                    "PDFPlumber (fast, local, free) - extracts text layer only",
+                    value=PdfParserType.PDFPLUMBER,
+                ),
+                questionary.Choice(
+                    "LlamaParse (AI-powered, cloud) - handles complex layouts & scanned docs",
+                    value=PdfParserType.LLAMAPARSE,
+                ),
+            ],
+            default=PdfParserType.PDFPLUMBER,
+        ).ask()
+        pdf_parser = PdfParserType(pdf_parser_choice)
+
+    return RAGFeatures(
+        enable_rag=enable_rag,
+        enable_google_drive_ingestion=enable_google_drive_ingestion,
+        enable_reranker=enable_reranker,
+        pdf_parser=pdf_parser,
+    )
+
+
 def prompt_websocket_auth(auth: AuthType) -> WebSocketAuthType:
     """Prompt for WebSocket authentication method for AI Agent.
 
@@ -898,9 +956,20 @@ def run_interactive_prompts() -> ProjectConfig:
     websocket_auth = WebSocketAuthType.NONE
     enable_conversation_persistence = False
     enable_langsmith = False
+    rag_features = RAGFeatures()
+
     if integrations.get("enable_ai_agent"):
         ai_framework = prompt_ai_framework()
         llm_provider = prompt_llm_provider(ai_framework)
+
+        # RAG Logic
+        rag_features = prompt_rag_config()
+        if rag_features.enable_rag and background_tasks == BackgroundTaskType.NONE:
+            console.print("[yellow]RAG requires a background task system for document ingestion.")
+            console.print("[yellow] ARQ (Redis-based) has been auto enabled to support RAG.")
+            background_tasks = BackgroundTaskType.ARQ
+            integrations["enable_redis"] = True
+
         websocket_auth = prompt_websocket_auth(auth=auth)
         # LangSmith for LangChain-ecosystem frameworks
         if ai_framework in (
@@ -960,6 +1029,7 @@ def run_interactive_prompts() -> ProjectConfig:
         background_tasks=background_tasks,
         ai_framework=ai_framework,
         llm_provider=llm_provider,
+        rag_features=rag_features,
         websocket_auth=websocket_auth,
         enable_conversation_persistence=enable_conversation_persistence,
         enable_langsmith=enable_langsmith,
@@ -1030,6 +1100,11 @@ def show_summary(config: ProjectConfig) -> None:
         enabled_features.append("Example CRUD")
     if config.enable_docker:
         enabled_features.append("Docker")
+    if config.enable_ai_agent:
+        ai_info = f"AI Agent ({config.ai_framework.value}, {config.llm_provider.value})"
+        if config.rag_features.enable_rag:
+            ai_info += " + RAG (Milvus)"  # RAG addition
+        enabled_features.append(ai_info)
 
     if enabled_features:
         console.print(f"  [cyan]Features:[/] {', '.join(enabled_features)}")

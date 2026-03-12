@@ -45,6 +45,7 @@ enable_kubernetes = "{{ cookiecutter.enable_kubernetes }}" == "True"
 use_nginx = "{{ cookiecutter.use_nginx }}" == "True"
 enable_logfire = "{{ cookiecutter.enable_logfire }}" == "True"
 enable_langsmith = "{{ cookiecutter.enable_langsmith }}" == "True"
+enable_rag = "{{ cookiecutter.enable_rag }}" == "True"
 
 
 def remove_file(path: str) -> None:
@@ -192,6 +193,21 @@ if not use_jwt:
 # --- Logfire setup file (when logfire is disabled) ---
 if not enable_logfire:
     remove_file(os.path.join(backend_app, "core", "logfire_setup.py"))
+
+# --- RAG files ---
+if not enable_rag:
+    # Remove entire rag directory when RAG is disabled
+    remove_dir(os.path.join(backend_app, "rag"))
+    # Remove RAG-related API route
+    remove_file(os.path.join(backend_app, "api", "routes", "v1", "rag.py"))
+    # Remove RAG schema
+    remove_file(os.path.join(backend_app, "schemas", "rag.py"))
+    # Remove RAG commands
+    remove_file(os.path.join(backend_app, "commands", "rag.py"))
+    # Remove RAG worker tasks
+    remove_file(os.path.join(backend_app, "worker", "tasks", "rag_ingestion.py"))
+    # Remove RAG agent tool
+    remove_file(os.path.join(backend_app, "agents", "tools", "rag_tool.py"))
 
 # --- Cleanup stub files (files with only docstring, no code) ---
 core_dir = os.path.join(backend_app, "core")
@@ -355,6 +371,55 @@ if not generate_env:
     if os.path.exists(frontend_env):
         os.remove(frontend_env)
         print("Removed frontend/.env.local (generate_env disabled)")
+else:
+    # Generate frontend/.env.local with necessary Next.js public variables
+    if use_frontend:
+        frontend_env_local = os.path.join(os.getcwd(), "frontend", ".env.local")
+        if not os.path.exists(frontend_env_local):
+            env_lines = [
+                "# Backend API URL (server-side only - not exposed to browser)",
+                "BACKEND_URL=http://localhost:{{ cookiecutter.backend_port }}",
+                "",
+                "# WebSocket URL for real-time features",
+                "BACKEND_WS_URL=ws://localhost:{{ cookiecutter.backend_port }}",
+            ]
+            # Add auth setting based on whether JWT or OAuth is enabled
+            if use_jwt or enable_oauth:
+                env_lines.extend([
+                    "",
+                    "# Authentication (set to true when JWT or OAuth is enabled)",
+                    "NEXT_PUBLIC_AUTH_ENABLED=true",
+                ])
+            else:
+                env_lines.extend([
+                    "",
+                    "# Authentication (set to true when JWT or OAuth is enabled)",
+                    "NEXT_PUBLIC_AUTH_ENABLED=false",
+                ])
+            if enable_oauth:
+                env_lines.extend([
+                    "",
+                    "# Public API URL for OAuth redirects (exposed to browser)",
+                    "NEXT_PUBLIC_API_URL=http://localhost:{{ cookiecutter.backend_port }}",
+                ])
+            if enable_rag:
+                env_lines.extend([
+                    "",
+                    "# RAG (Retrieval Augmented Generation)",
+                    "NEXT_PUBLIC_RAG_ENABLED=true",
+                ])
+            if enable_logfire:
+                env_lines.extend([
+                    "",
+                    "# Logfire/OpenTelemetry (server-side instrumentation)",
+                    "# Get your write token from: https://logfire.pydantic.dev",
+                    "OTEL_EXPORTER_OTLP_ENDPOINT=https://logfire-api.pydantic.dev",
+                    "OTEL_EXPORTER_OTLP_HEADERS=Authorization=your-logfire-write-token",
+                ])
+
+            with open(frontend_env_local, "w") as f:
+                f.write("\n".join(env_lines) + "\n")
+            print("Generated frontend/.env.local")
 
 # Generate uv.lock for backend (required for Docker builds)
 backend_dir = os.path.join(os.getcwd(), "backend")

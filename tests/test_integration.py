@@ -1,5 +1,6 @@
 """Integration tests for project generation."""
 
+import sys
 from pathlib import Path
 
 import pytest
@@ -247,3 +248,132 @@ class TestProjectContents:
         content = main_file.read_text()
         assert "FastAPI" in content
         assert "app = " in content or "app=" in content
+
+
+class TestGeneratedAppSmokeTest:
+    """Smoke tests to verify generated FastAPI app can be imported and instantiated.
+
+    These tests ensure the generated code is syntactically correct and
+    can be imported without errors, verifying runnability not just file existence.
+
+    Note: These tests require the generated project to have its dependencies installed.
+    They will be skipped if FastAPI is not available in the generated project's context.
+    """
+
+    @pytest.fixture
+    def minimal_project_for_import(self, tmp_path: Path) -> Path:
+        """Generate a minimal project for import testing."""
+        config = ProjectConfig(
+            project_name="smoke_test_project",
+            database=DatabaseType.NONE,
+            auth=AuthType.NONE,
+            enable_logfire=False,
+            enable_docker=False,
+            enable_precommit=False,
+            ci_type=CIType.NONE,
+        )
+        return generate_project(config, tmp_path)
+
+    def _can_import_fastapi(self, project_path: Path) -> bool:
+        """Check if FastAPI can be imported in the project's context."""
+        backend_path = project_path / "backend"
+        original_path = sys.path.copy()
+        sys.path.insert(0, str(backend_path))
+        try:
+            import fastapi  # noqa: F401
+
+            return True
+        except ImportError:
+            return False
+        finally:
+            sys.path = original_path
+
+    def test_main_py_syntax_is_valid(self, minimal_project_for_import: Path) -> None:
+        """Test that main.py has valid Python syntax."""
+        main_file = minimal_project_for_import / "backend" / "app" / "main.py"
+        content = main_file.read_text()
+
+        # Compile the Python code to check for syntax errors
+        try:
+            compile(content, str(main_file), "exec")
+        except SyntaxError as e:
+            pytest.fail(f"main.py has syntax error: {e}")
+
+    @pytest.mark.skipif(
+        not Path("tests/conftest.py").exists(), reason="Test requires full environment"
+    )
+    def test_fastapi_app_can_be_imported(self, minimal_project_for_import: Path) -> None:
+        """Test that the generated FastAPI app module can be imported."""
+        backend_path = minimal_project_for_import / "backend"
+
+        if not self._can_import_fastapi(minimal_project_for_import):
+            pytest.skip("FastAPI not available in generated project")
+
+        # Add the backend directory to sys.path
+        original_path = sys.path.copy()
+        sys.path.insert(0, str(backend_path))
+
+        try:
+            # Try importing the app module
+            import app.main as main_module
+
+            # Verify the module was imported successfully
+            assert main_module is not None
+        finally:
+            # Restore original sys.path
+            sys.path = original_path
+
+    @pytest.mark.skipif(
+        not Path("tests/conftest.py").exists(), reason="Test requires full environment"
+    )
+    def test_fastapi_app_has_app_instance(self, minimal_project_for_import: Path) -> None:
+        """Test that the generated main.py exports a FastAPI app instance."""
+        backend_path = minimal_project_for_import / "backend"
+
+        if not self._can_import_fastapi(minimal_project_for_import):
+            pytest.skip("FastAPI not available in generated project")
+
+        # Add the backend directory to sys.path
+        original_path = sys.path.copy()
+        sys.path.insert(0, str(backend_path))
+
+        try:
+            # Import the app module
+            import app.main as main_module
+
+            # Check for common FastAPI app variable names
+            app_instance = (
+                getattr(main_module, "app", None)
+                or getattr(main_module, "application", None)
+                or getattr(main_module, "fastapi_app", None)
+            )
+            assert app_instance is not None, "FastAPI app instance not found in main.py"
+
+            # Verify it's a FastAPI instance
+            assert type(app_instance).__name__ == "FastAPI", (
+                f"Expected FastAPI instance, got {type(app_instance).__name__}"
+            )
+        finally:
+            # Restore original sys.path
+            sys.path = original_path
+
+    def test_postgresql_main_py_syntax_is_valid(self, tmp_path: Path) -> None:
+        """Test that PostgreSQL project main.py has valid Python syntax."""
+        config = ProjectConfig(
+            project_name="pg_smoke_test",
+            database=DatabaseType.POSTGRESQL,
+            auth=AuthType.JWT,
+            enable_logfire=False,
+            enable_docker=False,
+            enable_precommit=False,
+            ci_type=CIType.NONE,
+        )
+        project_path = generate_project(config, tmp_path)
+        main_file = project_path / "backend" / "app" / "main.py"
+        content = main_file.read_text()
+
+        # Compile the Python code to check for syntax errors
+        try:
+            compile(content, str(main_file), "exec")
+        except SyntaxError as e:
+            pytest.fail(f"main.py has syntax error: {e}")

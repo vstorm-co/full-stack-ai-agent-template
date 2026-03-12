@@ -16,7 +16,9 @@ from .config import (
     LLMProviderType,
     OAuthProvider,
     OrmType,
+    PdfParserType,
     ProjectConfig,
+    RAGFeatures,
     WebSocketAuthType,
 )
 from .generator import generate_project, post_generation_tasks
@@ -214,6 +216,30 @@ def new(output: Path | None, no_input: bool, name: str | None) -> None:
     default=None,
     help="Apply configuration preset",
 )
+@click.option(
+    "--rag",
+    is_flag=True,
+    default=False,
+    help="Enable RAG feature.",
+)
+@click.option(
+    "--gdrive-rag",
+    is_flag=True,
+    default=False,
+    help="Use Google Drive for document ingestion",
+)
+@click.option(
+    "--reranker",
+    type=click.Choice(["none", "cohere", "cross_encoder"]),
+    default="none",
+    help="Choose reranking logic.",
+)
+@click.option(
+    "--pdf-parser",
+    type=click.Choice(["pdfplumber", "llamaparse"]),
+    default="pdfplumber",
+    help="Choose PDF parser (pdfplumber=local/free, llamaparse=cloud/AI)",
+)
 def create(
     name: str,
     output: Path | None,
@@ -253,6 +279,10 @@ def create(
     langsmith: bool,
     python_version: str,
     i18n: bool,
+    rag: bool,
+    gdrive_rag: bool,
+    reranker: str,
+    pdf_parser: str,
     preset: str | None,
 ) -> None:
     """Create a new FastAPI project with specified options.
@@ -363,6 +393,12 @@ def create(
                 enable_langsmith=langsmith,
                 python_version=python_version,
                 enable_i18n=i18n,
+                rag_features=RAGFeatures(
+                    enable_rag=rag,
+                    enable_google_drive_ingestion=gdrive_rag,
+                    enable_reranker=(reranker != "none"),
+                    pdf_parser=PdfParserType(pdf_parser),
+                ),
             )
 
         console.print(f"[cyan]Creating project:[/] {name}")
@@ -446,6 +482,13 @@ def templates() -> None:
     console.print("  --frontend none        API only (no frontend)")
     console.print("  --frontend nextjs      Next.js 15 (App Router, TypeScript, Bun)")
     console.print("  --i18n                 Enable internationalization (next-intl)")
+    console.print()
+
+    console.print("[bold]RAG (Retrieval Augmented Generation):[/]")
+    console.print("  --rag              Enable RAG")
+    console.print("  --gdrive-rag       Enable Google Drive ingestion for RAG")
+    console.print("  --reranker         Enable reranker logic")
+    console.print("  --document-parser  Choose document parser")
     console.print()
 
     console.print("[bold]Integrations:[/]")

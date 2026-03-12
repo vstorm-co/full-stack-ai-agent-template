@@ -10,6 +10,8 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_RAG_ENABLED={% if cookiecutter.enable_rag %}true{% else %}false{% endif %}
     container_name: {{ cookiecutter.project_slug }}_frontend
     ports:
       - "{{ cookiecutter.frontend_port }}:{{ cookiecutter.frontend_port }}"
@@ -17,6 +19,9 @@ services:
       - NODE_ENV=development
       - BACKEND_URL=http://host.docker.internal:{{ cookiecutter.backend_port }}
       - BACKEND_WS_URL=ws://host.docker.internal:{{ cookiecutter.backend_port }}
+{%- if cookiecutter.enable_rag %}
+      - NEXT_PUBLIC_RAG_ENABLED=true
+{%- endif %}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped

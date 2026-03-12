@@ -29,7 +29,7 @@ export async function backendFetch<T>(
   endpoint: string,
   options: RequestOptions = {}
 ): Promise<T> {
-  const { params, ...fetchOptions } = options;
+  const { params, body, ...fetchOptions } = options;
 
   let url = `${BACKEND_URL}${endpoint}`;
 
@@ -38,12 +38,21 @@ export async function backendFetch<T>(
     url += `?${searchParams.toString()}`;
   }
 
+  // Determine content type - don't set for FormData (browser will set with boundary)
+  const headers: Record<string, string> = {};
+  if (body instanceof FormData) {
+    // Let the browser set Content-Type with the multipart boundary
+  } else {
+    headers["Content-Type"] = "application/json";
+  }
+
   const response = await fetch(url, {
     ...fetchOptions,
     headers: {
-      "Content-Type": "application/json",
+      ...headers,
       ...fetchOptions.headers,
     },
+    body,
   });
 
   if (!response.ok) {

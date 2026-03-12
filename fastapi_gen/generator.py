@@ -218,6 +218,47 @@ def post_generation_tasks(project_path: Path, config: ProjectConfig) -> None:
         console.print("[dim]Get your token at: https://logfire.pydantic.dev[/]")
         console.print()
 
+    # RAG-specific instructions
+    if config.rag_features.enable_rag:
+        console.print("[bold cyan]RAG Setup:[/]")
+        console.print()
+        console.print("[bold]1. Start Milvus vector database:[/]")
+        console.print("  make docker-milvus  # Starts Milvus container on port 19530")
+        console.print()
+        console.print("[bold]2. Configure environment variables:[/]")
+        console.print("  # In backend/.env, ensure these are set:")
+        console.print("  MILVUS_URI=localhost:19530")
+        console.print("  MILVUS_TOKEN=        # Leave empty for local dev")
+        if config.llm_provider.value == "openai":
+            console.print("  OPENAI_API_KEY=sk-...  # For OpenAI embeddings")
+        elif config.llm_provider.value == "anthropic":
+            console.print("  VOYAGE_API_KEY=...   # For Voyage AI embeddings")
+        elif config.llm_provider.value == "openrouter":
+            console.print("  # Uses local Sentence Transformers - no API key needed")
+        if config.rag_features.enable_reranker:
+            if config.rag_features.enable_reranker and config.llm_provider.value != "openrouter":
+                console.print("  COHERE_API_KEY=...   # For Cohere reranker")
+            else:
+                console.print("  # Uses local Cross-Encoder - no API key needed")
+        if config.rag_features.pdf_parser.value == "llamaparse":
+            console.print("  LLAMA_CLOUD_API_KEY=...  # For LlamaParse PDF parsing")
+        console.print()
+        console.print("[bold]3. Upload documents:[/]")
+        console.print(
+            "  python -m app.commands.rag upload --collection my_docs --path ./document.pdf"
+        )
+        console.print("  python -m app.commands.rag list-collections")
+        console.print()
+        console.print("[bold]4. RAG API endpoints:[/]")
+        console.print("  POST /api/v1/rag/collections/{name}/upload  # Upload document")
+        console.print("  POST /api/v1/rag/search                    # Search documents")
+        console.print("  GET  /api/v1/rag/collections               # List collections")
+        console.print()
+        console.print(
+            "[dim]Full RAG documentation:[/] [link]https://fastapi-fullstack.readthedocs.io/en/latest/rag.html[/]"
+        )
+        console.print()
+
     if config.frontend == FrontendType.NEXTJS:
         console.print(f"[dim]Frontend runs on http://localhost:{config.frontend_port}[/]")
         console.print(f"[dim]Backend API runs on http://localhost:{config.backend_port}[/]")

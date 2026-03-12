@@ -100,5 +100,19 @@
   "use_frontend": false,
   "use_nextjs": false,
   "frontend_port": 3000,
-  "backend_port": 8000
+  "backend_port": 8000,
+  "enable_rag": false,
+  "use_milvus": false,
+  "embedding_provider": "openai",
+  "use_openai_embeddings": false,
+  "use_voyage_embeddings": false,
+  "use_sentence_transformers": false,
+  "enable_reranker": false,
+  "use_cohere_reranker": false,
+  "use_cross_encoder_reranker": false,
+  "pdf_parser": "pdfplumber",
+  "use_llamaparse": false,
+  "use_pdfplumber": true,
+  "use_python_parser": true,
+  "enable_google_drive_ingestion": false
 }

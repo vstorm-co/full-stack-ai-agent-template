@@ -1,7 +1,7 @@
 """Configuration models for project generation."""
 
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 from importlib.metadata import version
 from typing import Any
 
@@ -18,7 +18,7 @@ def get_generator_version() -> str:
         return "0.0.0"
 
 
-class DatabaseType(str, Enum):
+class DatabaseType(StrEnum):
     """Supported database types."""
 
     POSTGRESQL = "postgresql"
@@ -27,7 +27,7 @@ class DatabaseType(str, Enum):
     NONE = "none"
 
 
-class AuthType(str, Enum):
+class AuthType(StrEnum):
     """Supported authentication types."""
 
     JWT = "jwt"
@@ -36,7 +36,7 @@ class AuthType(str, Enum):
     NONE = "none"
 
 
-class BackgroundTaskType(str, Enum):
+class BackgroundTaskType(StrEnum):
     """Supported background task systems."""
 
     NONE = "none"
@@ -45,7 +45,7 @@ class BackgroundTaskType(str, Enum):
     ARQ = "arq"
 
 
-class CIType(str, Enum):
+class CIType(StrEnum):
     """Supported CI/CD systems."""
 
     GITHUB = "github"
@@ -53,14 +53,14 @@ class CIType(str, Enum):
     NONE = "none"
 
 
-class FrontendType(str, Enum):
+class FrontendType(StrEnum):
     """Supported frontend frameworks."""
 
     NONE = "none"
     NEXTJS = "nextjs"
 
 
-class WebSocketAuthType(str, Enum):
+class WebSocketAuthType(StrEnum):
     """WebSocket authentication types for AI Agent."""
 
     NONE = "none"
@@ -68,7 +68,7 @@ class WebSocketAuthType(str, Enum):
     API_KEY = "api_key"
 
 
-class AdminEnvironmentType(str, Enum):
+class AdminEnvironmentType(StrEnum):
     """Admin panel environment restriction types."""
 
     ALL = "all"  # Available in all environments
@@ -77,14 +77,14 @@ class AdminEnvironmentType(str, Enum):
     DISABLED = "disabled"  # Disabled everywhere
 
 
-class OAuthProvider(str, Enum):
+class OAuthProvider(StrEnum):
     """Supported OAuth2 providers."""
 
     NONE = "none"
     GOOGLE = "google"
 
 
-class AIFrameworkType(str, Enum):
+class AIFrameworkType(StrEnum):
     """Supported AI agent frameworks."""
 
     PYDANTIC_AI = "pydantic_ai"
@@ -94,7 +94,7 @@ class AIFrameworkType(str, Enum):
     DEEPAGENTS = "deepagents"
 
 
-class LLMProviderType(str, Enum):
+class LLMProviderType(StrEnum):
     """Supported LLM providers."""
 
     OPENAI = "openai"
@@ -102,14 +102,14 @@ class LLMProviderType(str, Enum):
     OPENROUTER = "openrouter"
 
 
-class RateLimitStorageType(str, Enum):
+class RateLimitStorageType(StrEnum):
     """Rate limiting storage backends."""
 
     MEMORY = "memory"
     REDIS = "redis"
 
 
-class ReverseProxyType(str, Enum):
+class ReverseProxyType(StrEnum):
     """Reverse proxy configuration options."""
 
     TRAEFIK_INCLUDED = "traefik_included"  # Include Traefik service + labels
@@ -119,7 +119,7 @@ class ReverseProxyType(str, Enum):
     NONE = "none"  # No reverse proxy, expose ports directly
 
 
-class OrmType(str, Enum):
+class OrmType(StrEnum):
     """Supported ORM libraries for SQL databases."""
 
     SQLALCHEMY = "sqlalchemy"
@@ -134,6 +134,60 @@ class LogfireFeatures(BaseModel):
     redis: bool = False
     celery: bool = False
     httpx: bool = False
+
+
+class EmbeddingProviderType(StrEnum):
+    """Define the embedding provider for LLM models."""
+
+    OPENAI = "openai"  # test-embedding-3-small
+    VOYAGE = "voyage"  # voyage-3 (Anthropic users)
+    SENTENCE_TRANSFORMERS = "sentence_transformers"  # all-MiniLM-L6-v2 (local, for OpenRouter)
+
+
+class RerankerType(StrEnum):
+    """Define the reranker type and provider for reranking purposes."""
+
+    NONE = "none"
+    COHERE = "cohere"  # rerank-v3.5
+    CROSS_ENCODER = "cross_encoder"  # ms-marco-MiniLM (local)
+
+
+class DocumentParserType(StrEnum):
+    """Define the document parser used to process non-PDF documents.
+    Note: PDF parsing is now controlled separately via PdfParserType.
+    This setting applies to TXT, MD, and DOCX files only.
+    """
+
+    PYTHON_NATIVE = "python_native"  # python-docx for DOCX
+
+
+class PdfParserType(StrEnum):
+    """Define the PDF parser used to process PDF documents.
+    PDFPLUMBER: Fast, free, local PDF extraction using pdfplumber.
+               Only extracts text layer - fails on scanned images.
+    LLAMAPARSE: AI-powered cloud extraction. Handles complex layouts,
+                tables, and scanned documents. Requires API key.
+    """
+
+    PDFPLUMBER = "pdfplumber"  # Local PDF extraction
+    LLAMAPARSE = "llamaparse"  # LlamaParse cloud API
+
+
+class VectorStoreType(StrEnum):
+    """Define a Vector Store type."""
+
+    MILVUS = "milvus"
+
+
+class RAGFeatures(BaseModel):
+    """RAG features."""
+
+    enable_rag: bool = False
+    enable_google_drive_ingestion: bool = False
+    enable_reranker: bool = False
+    # pdf_parser is stored here since it's only used when RAG is enabled
+    pdf_parser: PdfParserType = PdfParserType.PDFPLUMBER
+    vector_store: VectorStoreType = VectorStoreType.MILVUS
 
 
 class ProjectConfig(BaseModel):
@@ -152,6 +206,9 @@ class ProjectConfig(BaseModel):
     db_pool_size: int = 5
     db_max_overflow: int = 10
     db_pool_timeout: int = 30
+
+    # RAG
+    rag_features: RAGFeatures = Field(default_factory=RAGFeatures)
 
     # Authentication
     auth: AuthType = AuthType.JWT
@@ -388,6 +445,24 @@ class ProjectConfig(BaseModel):
                     "Logfire Celery instrumentation requires Celery as background task system"
                 )
 
+        # RAG-oriented checks
+        if self.rag_features.enable_rag and not self.enable_ai_agent:
+            raise ValueError("RAG requires AI agent to be enabled.")
+
+        if self.rag_features.enable_rag and self.background_tasks == BackgroundTaskType.NONE:
+            raise ValueError("RAG requires a background task system for scheduled ingestion.")
+
+        if self.rag_features.enable_rag and not self.enable_docker:
+            raise ValueError(
+                "RAG (w/ Milvus) requires Docker to be enabled for local orchestration."
+            )
+
+        if (
+            self.rag_features.enable_google_drive_ingestion
+            and self.oauth_provider != OAuthProvider.GOOGLE
+        ):
+            raise ValueError("Google Drive ingestion requires OAuth Provider to be set.")
+
         return self
 
     def to_cookiecutter_context(self) -> dict[str, Any]:
@@ -515,4 +590,40 @@ class ProjectConfig(BaseModel):
             "frontend_port": self.frontend_port,
             # Backend
             "backend_port": self.backend_port,
+            # RAG
+            "enable_rag": self.rag_features.enable_rag,
+            "use_milvus": self.rag_features.enable_rag,
+            # Embedding provider is auto-derived from LLM provider
+            "embedding_provider": (
+                EmbeddingProviderType.VOYAGE.value
+                if self.llm_provider == LLMProviderType.ANTHROPIC
+                else EmbeddingProviderType.SENTENCE_TRANSFORMERS.value
+                if self.llm_provider == LLMProviderType.OPENROUTER
+                else EmbeddingProviderType.OPENAI.value
+            ),
+            "use_openai_embeddings": self.rag_features.enable_rag
+            and self.llm_provider != LLMProviderType.ANTHROPIC
+            and self.llm_provider != LLMProviderType.OPENROUTER,
+            "use_voyage_embeddings": self.rag_features.enable_rag
+            and self.llm_provider == LLMProviderType.ANTHROPIC,
+            "use_sentence_transformers": self.rag_features.enable_rag
+            and self.llm_provider == LLMProviderType.OPENROUTER,
+            "enable_reranker": self.rag_features.enable_reranker
+            if self.rag_features.enable_rag
+            else False,
+            "use_cohere_reranker": self.rag_features.enable_reranker
+            and self.llm_provider != LLMProviderType.OPENROUTER,
+            "use_cross_encoder_reranker": self.rag_features.enable_reranker
+            and self.llm_provider == LLMProviderType.OPENROUTER,
+            "pdf_parser": self.rag_features.pdf_parser.value
+            if self.rag_features.enable_rag
+            else "pdfplumber",
+            "use_llamaparse": self.rag_features.enable_rag
+            and self.rag_features.pdf_parser == PdfParserType.LLAMAPARSE,
+            "use_pdfplumber": self.rag_features.enable_rag
+            and self.rag_features.pdf_parser == PdfParserType.PDFPLUMBER,
+            "use_python_parser": True,  # Always use Python parser for non-PDF
+            "enable_google_drive_ingestion": self.rag_features.enable_google_drive_ingestion
+            if self.rag_features.enable_rag
+            else False,
         }

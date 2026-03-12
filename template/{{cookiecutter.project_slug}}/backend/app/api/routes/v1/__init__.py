@@ -30,6 +30,9 @@ from app.api.routes.v1 import ws
 {%- if cookiecutter.enable_ai_agent %}
 from app.api.routes.v1 import agent
 {%- endif %}
+{%- if cookiecutter.enable_rag %}
+from app.api.routes.v1 import rag
+{%- endif %}
 
 v1_router = APIRouter()
 
@@ -84,4 +87,10 @@ v1_router.include_router(ws.router, tags=["websocket"])
 
 # AI Agent routes
 v1_router.include_router(agent.router, tags=["agent"])
+{%- endif %}
+
+{%- if cookiecutter.enable_rag %}
+
+# RAG routes
+v1_router.include_router(rag.router, prefix="/rag", tags=["rag"])
 {%- endif %}

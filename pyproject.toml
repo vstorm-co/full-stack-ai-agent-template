@@ -27,6 +27,9 @@ keywords = [
     "langgraph",
     "logfire",
     "observability",
+    "milvus",
+    "rag",
+    "retrieval-augmented-generation",
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",

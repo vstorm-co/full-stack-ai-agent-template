@@ -375,9 +375,6 @@ class TestRAGWithRerankers:
         main_content = main_file.read_text()
         assert "rerank_service.warmup()" not in main_content
 
-        # deps.py should NOT have RerankService import
-        deps_file = project / "backend" / "app" / "api" / "deps.py"
-        deps_content = deps_file.read_text()
         # The reranker is optional, so RerankService might not be imported
         # but the warmup shouldn't be there
         assert "rerank_service.warmup()" not in main_content

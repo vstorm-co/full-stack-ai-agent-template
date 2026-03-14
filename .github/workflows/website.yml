@@ -22,7 +22,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       # Build Astro website
       - uses: oven-sh/setup-bun@v2
@@ -32,10 +32,10 @@ jobs:
         run: cd website && bun run build
 
       # Build mkdocs and merge into Astro output
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
-      - uses: astral-sh/setup-uv@v5
+      - uses: astral-sh/setup-uv@v7
       - name: Install docs dependencies
         run: uv sync --extra docs
       - name: Build mkdocs
@@ -43,7 +43,7 @@ jobs:
       - name: Merge mkdocs into Astro output
         run: cp -r site/ website/dist/docs/
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v4
         with:
           path: website/dist/
 

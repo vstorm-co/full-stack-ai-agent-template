@@ -11,6 +11,9 @@ from sqlmodel import Field, Relationship, SQLModel
 
 from app.db.base import TimestampMixin
 
+if TYPE_CHECKING:
+    from app.db.models.chat_file import ChatFile
+
 
 class Conversation(TimestampMixin, SQLModel, table=True):
     """Conversation model - groups messages in a chat session.
@@ -90,6 +93,9 @@ class Message(TimestampMixin, SQLModel, table=True):
     tool_calls: list["ToolCall"] = Relationship(
         back_populates="message",
         sa_relationship_kwargs={"cascade": "all, delete-orphan", "order_by": "ToolCall.started_at"},
+    )
+    files: list["ChatFile"] = Relationship(
+        sa_relationship_kwargs={"foreign_keys": "ChatFile.message_id", "lazy": "selectin"},
     )
 
     def __repr__(self) -> str:
@@ -365,6 +371,9 @@ class Message(TimestampMixin, SQLModel, table=True):
     tool_calls: list["ToolCall"] = Relationship(
         back_populates="message",
         sa_relationship_kwargs={"cascade": "all, delete-orphan", "order_by": "ToolCall.started_at"},
+    )
+    files: list["ChatFile"] = Relationship(
+        sa_relationship_kwargs={"foreign_keys": "ChatFile.message_id", "lazy": "selectin"},
     )
 
     def __repr__(self) -> str:

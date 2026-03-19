@@ -2,11 +2,15 @@
 
 import uuid
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Column, DateTime, ForeignKey, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlmodel import Field, Relationship, SQLModel
+
+if TYPE_CHECKING:
+    from app.db.models.chat_file import ChatFile
 
 from app.db.base import TimestampMixin
 
@@ -87,6 +91,9 @@ class Message(TimestampMixin, SQLModel, table=True):
     tool_calls: list["ToolCall"] = Relationship(
         back_populates="message",
         sa_relationship_kwargs={"cascade": "all, delete-orphan", "order_by": "ToolCall.started_at"},
+    )
+    files: list["ChatFile"] = Relationship(
+        sa_relationship_kwargs={"foreign_keys": "ChatFile.message_id", "lazy": "selectin"},
     )
 
     def __repr__(self) -> str:

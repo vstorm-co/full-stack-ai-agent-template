@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     ENVIRONMENT: Literal["development", "local", "staging", "production"] = "local"
     MODELS_CACHE_DIR: Path = Path("./models_cache")
+    MEDIA_DIR: Path = Path("./media")
 
     # === Logfire ===
     LOGFIRE_TOKEN: str | None = None

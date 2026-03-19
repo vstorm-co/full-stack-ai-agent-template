@@ -13,6 +13,8 @@ export interface ChatMessage {
   isStreaming?: boolean;
   /** Group ID for related messages (e.g., CrewAI agent chain) */
   groupId?: string;
+  /** IDs of attached files (images, documents) */
+  fileIds?: string[];
 }
 
 export interface ToolCall {

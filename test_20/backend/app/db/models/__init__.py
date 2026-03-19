@@ -6,6 +6,7 @@ from app.db.models.session import Session
 from app.db.models.item import Item
 from app.db.models.conversation import Conversation, Message, ToolCall
 from app.db.models.webhook import Webhook, WebhookDelivery
+from app.db.models.chat_file import ChatFile
 
 __all__ = [
     "User",
@@ -16,4 +17,5 @@ __all__ = [
     "ToolCall",
     "Webhook",
     "WebhookDelivery",
+    "ChatFile",
 ]

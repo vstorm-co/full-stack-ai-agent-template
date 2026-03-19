@@ -69,6 +69,15 @@ class MessageCreate(MessageBase):
     tokens_used: int | None = Field(default=None, ge=0, description="Token count")
 
 
+class MessageFileRead(BaseSchema):
+    """Schema for file attached to a message."""
+
+    id: UUID
+    filename: str
+    mime_type: str
+    file_type: str
+
+
 class MessageRead(MessageBase, TimestampSchema):
     """Schema for reading a message (API response)."""
 
@@ -77,6 +86,7 @@ class MessageRead(MessageBase, TimestampSchema):
     model_name: str | None = None
     tokens_used: int | None = None
     tool_calls: list[ToolCallRead] = Field(default_factory=list)
+    files: list[MessageFileRead] = Field(default_factory=list)
 
 
 class MessageReadSimple(MessageBase, TimestampSchema):

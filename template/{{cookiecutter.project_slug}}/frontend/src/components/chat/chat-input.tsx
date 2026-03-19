@@ -20,16 +20,9 @@ export function ChatInput({ onSend, disabled, isProcessing }: ChatInputProps) {
   const [message, setMessage] = useState("");
   const [attachedFile, setAttachedFile] = useState<AttachedFile | null>(null);
   const [isListening, setIsListening] = useState(false);
-  const [speechSupported, setSpeechSupported] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
-
-  useEffect(() => {
-    const SpeechRecognition =
-      window.SpeechRecognition || window.webkitSpeechRecognition;
-    setSpeechSupported(!!SpeechRecognition);
-  }, []);
 
   useEffect(() => {
     if (!isProcessing && textareaRef.current) {
@@ -78,7 +71,10 @@ export function ChatInput({ onSend, disabled, isProcessing }: ChatInputProps) {
 
     const SpeechRecognition =
       window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) return;
+    if (!SpeechRecognition) {
+      toast.info("Voice input is only supported in Chrome. Use Chrome for speech-to-text.");
+      return;
+    }
 
     const recognition = new SpeechRecognition();
     recognition.continuous = true;
@@ -183,23 +179,21 @@ export function ChatInput({ onSend, disabled, isProcessing }: ChatInputProps) {
         />
 
         <div className="flex shrink-0 items-center gap-0.5 pb-1">
-          {speechSupported && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={toggleMic}
-              disabled={disabled}
-              className="h-9 w-9"
-              title={isListening ? "Stop recording" : "Voice input"}
-            >
-              {isListening ? (
-                <MicOff className="h-4 w-4 animate-pulse text-red-500" />
-              ) : (
-                <Mic className="text-muted-foreground h-4 w-4" />
-              )}
-            </Button>
-          )}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={toggleMic}
+            disabled={disabled}
+            className="h-9 w-9"
+            title={isListening ? "Stop recording" : "Voice input"}
+          >
+            {isListening ? (
+              <MicOff className="h-4 w-4 animate-pulse text-red-500" />
+            ) : (
+              <Mic className="text-muted-foreground h-4 w-4" />
+            )}
+          </Button>
 
           <Button
             type="button"

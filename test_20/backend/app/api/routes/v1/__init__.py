@@ -13,6 +13,7 @@ from app.api.routes.v1 import webhooks
 from app.api.routes.v1 import ws
 from app.api.routes.v1 import agent
 from app.api.routes.v1 import rag
+from app.api.routes.v1 import files
 
 v1_router = APIRouter()
 
@@ -48,3 +49,6 @@ v1_router.include_router(agent.router, tags=["agent"])
 
 # RAG routes
 v1_router.include_router(rag.router, prefix="/rag", tags=["rag"])
+
+# File upload/download routes
+v1_router.include_router(files.router, tags=["files"])

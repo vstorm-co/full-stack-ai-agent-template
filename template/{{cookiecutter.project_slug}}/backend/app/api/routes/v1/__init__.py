@@ -33,6 +33,9 @@ from app.api.routes.v1 import agent
 {%- if cookiecutter.enable_rag %}
 from app.api.routes.v1 import rag
 {%- endif %}
+{%- if cookiecutter.enable_ai_agent and cookiecutter.enable_conversation_persistence and cookiecutter.use_jwt %}
+from app.api.routes.v1 import files
+{%- endif %}
 
 v1_router = APIRouter()
 
@@ -93,4 +96,10 @@ v1_router.include_router(agent.router, tags=["agent"])
 
 # RAG routes
 v1_router.include_router(rag.router, prefix="/rag", tags=["rag"])
+{%- endif %}
+
+{%- if cookiecutter.enable_ai_agent and cookiecutter.enable_conversation_persistence and cookiecutter.use_jwt %}
+
+# File upload/download routes
+v1_router.include_router(files.router, tags=["files"])
 {%- endif %}

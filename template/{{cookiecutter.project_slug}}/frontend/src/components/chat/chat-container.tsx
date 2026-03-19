@@ -5,7 +5,7 @@ import { useChat, useLocalChat } from "@/hooks";
 import { MessageList } from "./message-list";
 import { ChatInput } from "./chat-input";
 import { ToolApprovalDialog } from "./tool-approval-dialog";
-import { RotateCcw, Bot } from "lucide-react";
+import { Bot } from "lucide-react";
 import type { PendingApproval, Decision } from "@/types";
 {%- if cookiecutter.enable_conversation_persistence and cookiecutter.use_database %}
 import { useConversationStore, useChatStore, useAuthStore } from "@/stores";
@@ -99,6 +99,9 @@ function AuthenticatedChatContainer() {
             result: tc.result,
             status: tc.status === "failed" ? "error" : tc.status,
           })),
+          fileIds: "files" in msg && Array.isArray((msg as unknown as { files?: unknown[] }).files)
+            ? ((msg as unknown as { files: { id: string }[] }).files).map((f) => f.id)
+            : undefined,
         });
       });
     }
@@ -119,7 +122,7 @@ function AuthenticatedChatContainer() {
       isConnected={isConnected}
       isProcessing={isProcessing}
       sendMessage={sendMessage}
-      clearMessages={clearMessages}
+
       messagesEndRef={messagesEndRef}
       pendingApproval={pendingApproval}
       onResumeDecisions={sendResumeDecisions}
@@ -158,7 +161,7 @@ function LocalChatContainer() {
       isConnected={isConnected}
       isProcessing={isProcessing}
       sendMessage={sendMessage}
-      clearMessages={clearMessages}
+
       messagesEndRef={messagesEndRef}
       pendingApproval={pendingApproval}
       onResumeDecisions={sendResumeDecisions}
@@ -176,8 +179,8 @@ interface ChatUIProps {
   messages: import("@/types").ChatMessage[];
   isConnected: boolean;
   isProcessing: boolean;
-  sendMessage: (content: string) => void;
-  clearMessages: () => void;
+  sendMessage: (content: string, fileIds?: string[]) => void;
+
   messagesEndRef: React.RefObject<HTMLDivElement | null>;
   // Human-in-the-Loop support
   pendingApproval?: PendingApproval | null;
@@ -189,7 +192,6 @@ function ChatUI({
   isConnected,
   isProcessing,
   sendMessage,
-  clearMessages,
   messagesEndRef,
   pendingApproval,
   onResumeDecisions,
@@ -227,23 +229,14 @@ function ChatUI({
 
       <div className="px-2 pb-2 sm:px-4 sm:pb-4">
         <div className="rounded-xl border bg-card shadow-sm p-3 sm:p-4">
-          {/* Status bar */}
-          <div className="mb-2 flex items-center justify-between">
-            <div className="flex items-center gap-1.5">
-              <span
-                className={`inline-block h-1.5 w-1.5 rounded-full ${isConnected ? "bg-green-500" : "bg-red-500"}`}
-              />
-              <span className="text-muted-foreground text-[11px]">
-                {isConnected ? "Connected" : "Disconnected"}
-              </span>
-            </div>
-            <button
-              onClick={clearMessages}
-              className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-[11px] transition-colors"
-            >
-              <RotateCcw className="h-3 w-3" />
-              Reset
-            </button>
+          {/* Status indicator */}
+          <div className="mb-2 flex items-center gap-1.5">
+            <span
+              className={`inline-block h-1.5 w-1.5 rounded-full ${isConnected ? "bg-green-500" : "bg-red-500"}`}
+            />
+            <span className="text-muted-foreground text-[11px]">
+              {isConnected ? "Connected" : "Disconnected"}
+            </span>
           </div>
           <ChatInput
             onSend={sendMessage}

@@ -6,6 +6,7 @@ import { ToolCallCard } from "./tool-call-card";
 import { MarkdownContent } from "./markdown-content";
 import { CopyButton } from "./copy-button";
 import { User, Bot } from "lucide-react";
+import { getFileUrl } from "@/lib/file-api";
 
 interface MessageItemProps {
   message: ChatMessage;
@@ -52,6 +53,30 @@ export function MessageItem({ message, groupPosition }: MessageItemProps) {
         "flex-1 space-y-2 overflow-hidden max-w-[88%] sm:max-w-[85%]",
         isUser && "flex flex-col items-end"
       )}>
+        {/* Attached images */}
+        {isUser && message.fileIds && message.fileIds.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {message.fileIds.map((fileId) => (
+              <a
+                key={fileId}
+                href={getFileUrl(fileId)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block overflow-hidden rounded-xl border"
+              >
+                <img
+                  src={getFileUrl(fileId)}
+                  alt="Attached file"
+                  className="max-h-64 max-w-xs object-contain"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = "none";
+                  }}
+                />
+              </a>
+            ))}
+          </div>
+        )}
+
         {/* Only show message bubble if there's content or if it's streaming without tool calls */}
         {(message.content || (message.isStreaming && (!message.toolCalls || message.toolCalls.length === 0))) && (
           <div className={cn(

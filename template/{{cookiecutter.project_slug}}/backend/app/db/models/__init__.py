@@ -24,6 +24,10 @@ from app.db.models.conversation import Conversation, Message, ToolCall
 {%- set _ = models.extend(["Webhook", "WebhookDelivery"]) %}
 from app.db.models.webhook import Webhook, WebhookDelivery
 {%- endif %}
+{%- if cookiecutter.enable_conversation_persistence and cookiecutter.enable_ai_agent %}
+{%- set _ = models.append("ChatFile") %}
+from app.db.models.chat_file import ChatFile
+{%- endif %}
 {%- if models %}
 
 __all__ = {{ models }}

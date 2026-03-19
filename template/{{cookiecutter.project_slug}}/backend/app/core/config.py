@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     ENVIRONMENT: Literal["development", "local", "staging", "production"] = "local"
     MODELS_CACHE_DIR: Path = Path("./models_cache")
+    MEDIA_DIR: Path = Path("./media")
 
 {%- if cookiecutter.enable_logfire %}
 
@@ -350,7 +351,7 @@ class Settings(BaseSettings):
     {%- if cookiecutter.enable_reranker and cookiecutter.use_cohere_reranker %}
     COHERE_API_KEY: str = ""
     {%- endif %}
-    
+
     {%- if cookiecutter.enable_reranker and cookiecutter.use_cross_encoder_reranker %}
     HF_TOKEN: str = ""
     CROSS_ENCODER_MODEL: str = "cross-encoder/ms-marco-MiniLM-L6-v2"

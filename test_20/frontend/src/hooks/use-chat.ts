@@ -330,22 +330,27 @@ export function useChat(options: UseChatOptions = {}) {
   });
 
   const sendChatMessage = useCallback(
-    (content: string) => {
+    (content: string, fileIds?: string[]) => {
       // Add user message
       const userMessage: ChatMessage = {
         id: nanoid(),
         role: "user",
         content,
         timestamp: new Date(),
+        fileIds,
       };
       addMessage(userMessage);
 
       // Send to WebSocket
       setIsProcessing(true);
-      sendMessage({
+      const payload: Record<string, unknown> = {
         message: content,
         conversation_id: conversationId || null,
-      });
+      };
+      if (fileIds?.length) {
+        payload.file_ids = fileIds;
+      }
+      sendMessage(payload);
     },
     [addMessage, sendMessage, conversationId]
   );

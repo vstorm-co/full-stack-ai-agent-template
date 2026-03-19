@@ -3,6 +3,7 @@
 
 import logging
 from typing import Any
+from sqlalchemy import select, update as sa_update
 {%- if cookiecutter.enable_conversation_persistence and cookiecutter.use_database %}
 from datetime import datetime, UTC
 {%- if cookiecutter.use_postgresql %}
@@ -173,11 +174,12 @@ async def agent_websocket(
             # Receive user message
             data = await websocket.receive_json()
             user_message = data.get("message", "")
+            file_ids = data.get("file_ids", [])
             # Optionally accept history from client (or use server-side tracking)
             if "history" in data:
                 conversation_history = data["history"]
 
-            if not user_message:
+            if not user_message and not file_ids:
                 await manager.send_event(websocket, "error", {"message": "Empty message"})
                 continue
 
@@ -212,10 +214,18 @@ async def agent_websocket(
                         )
 
                     # Save user message
-                    await conv_service.add_message(
+                    user_msg = await conv_service.add_message(
                         UUID(current_conversation_id),
                         MessageCreate(role="user", content=user_message),
                     )
+                    # Link uploaded files to this message
+                    if file_ids:
+                        try:
+                            file_uuids = [UUID(fid) for fid in file_ids]
+                            await db.execute(sa_update(ChatFileModel).where(ChatFileModel.id.in_(file_uuids)).values(message_id=user_msg.id))
+                            await db.commit()
+                        except Exception as e:
+                            logger.warning(f"Failed to link files: {e}")
 {%- else %}
                 with get_db_session() as db:
                     conv_service = get_conversation_service(db)
@@ -290,18 +300,72 @@ async def agent_websocket(
                 # Collect tool calls during streaming for persistence
                 collected_tool_calls: list[dict] = []
 
+{%- if cookiecutter.enable_conversation_persistence and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
+                # Load attached files and build multimodal input
+                from pydantic_ai.messages import BinaryContent
+                from app.db.models.chat_file import ChatFile as ChatFileModel
+                from app.services.file_storage import get_file_storage
+
+                user_input: str | list = user_message
+                file_context_parts: list[str] = []
+
+                if file_ids:
+                    storage = get_file_storage()
+                    image_parts = []
+{%- if cookiecutter.use_postgresql %}
+                    async with get_db_context() as file_db:
+                        for fid in file_ids:
+                            try:
+                                result = await file_db.execute(select(ChatFileModel).where(ChatFileModel.id == UUID(fid)))
+                                chat_file = result.scalar_one_or_none()
+                                if not chat_file:
+                                    continue
+                                if chat_file.file_type == "image":
+                                    file_data = await storage.load(chat_file.storage_path)
+                                    image_parts.append(BinaryContent(data=file_data, media_type=chat_file.mime_type))
+                                elif chat_file.parsed_content:
+                                    file_context_parts.append(f"\n---\nAttached file: {chat_file.filename}\n```\n{chat_file.parsed_content}\n```")
+                            except Exception as e:
+                                logger.warning(f"Failed to load file {fid}: {e}")
+{%- else %}
+                    with get_db_session() as file_db:
+                        for fid in file_ids:
+                            try:
+                                result = file_db.execute(select(ChatFileModel).where(ChatFileModel.id == fid))
+                                chat_file = result.scalar_one_or_none()
+                                if not chat_file:
+                                    continue
+                                if chat_file.file_type == "image":
+                                    file_data = await storage.load(chat_file.storage_path)
+                                    image_parts.append(BinaryContent(data=file_data, media_type=chat_file.mime_type))
+                                elif chat_file.parsed_content:
+                                    file_context_parts.append(f"\n---\nAttached file: {chat_file.filename}\n```\n{chat_file.parsed_content}\n```")
+                            except Exception as e:
+                                logger.warning(f"Failed to load file {fid}: {e}")
+{%- endif %}
+
+                    if image_parts:
+                        full_text = user_message + "".join(file_context_parts)
+                        user_input = [full_text, *image_parts]
+                    elif file_context_parts:
+                        user_input = user_message + "".join(file_context_parts)
+{%- else %}
+                user_input = user_message
+{%- endif %}
+
                 # Use iter() on the underlying PydanticAI agent to stream all events
                 async with assistant.agent.iter(
-                    user_message,
+                    user_input,
                     deps=deps,
                     message_history=model_history,
                 ) as agent_run:
                     async for node in agent_run:
                         if Agent.is_user_prompt_node(node):
+                            prompt_text = node.user_prompt if isinstance(node.user_prompt, str) else user_message
                             await manager.send_event(
                                 websocket,
                                 "user_prompt_processed",
-                                {"prompt": node.user_prompt},
+                                {"prompt": prompt_text},
                             )
 
                         elif Agent.is_model_request_node(node):
@@ -670,11 +734,12 @@ async def agent_websocket(
             # Receive user message
             data = await websocket.receive_json()
             user_message = data.get("message", "")
+            file_ids = data.get("file_ids", [])
             # Optionally accept history from client (or use server-side tracking)
             if "history" in data:
                 conversation_history = data["history"]
 
-            if not user_message:
+            if not user_message and not file_ids:
                 await manager.send_event(websocket, "error", {"message": "Empty message"})
                 continue
 
@@ -709,10 +774,18 @@ async def agent_websocket(
                         )
 
                     # Save user message
-                    await conv_service.add_message(
+                    user_msg = await conv_service.add_message(
                         UUID(current_conversation_id),
                         MessageCreate(role="user", content=user_message),
                     )
+                    # Link uploaded files to this message
+                    if file_ids:
+                        try:
+                            file_uuids = [UUID(fid) for fid in file_ids]
+                            await db.execute(sa_update(ChatFileModel).where(ChatFileModel.id.in_(file_uuids)).values(message_id=user_msg.id))
+                            await db.commit()
+                        except Exception as e:
+                            logger.warning(f"Failed to link files: {e}")
 {%- else %}
                 with get_db_session() as db:
                     conv_service = get_conversation_service(db)
@@ -1109,11 +1182,12 @@ async def agent_websocket(
             # Receive user message
             data = await websocket.receive_json()
             user_message = data.get("message", "")
+            file_ids = data.get("file_ids", [])
             # Optionally accept history from client (or use server-side tracking)
             if "history" in data:
                 conversation_history = data["history"]
 
-            if not user_message:
+            if not user_message and not file_ids:
                 await manager.send_event(websocket, "error", {"message": "Empty message"})
                 continue
 
@@ -1148,10 +1222,18 @@ async def agent_websocket(
                         )
 
                     # Save user message
-                    await conv_service.add_message(
+                    user_msg = await conv_service.add_message(
                         UUID(current_conversation_id),
                         MessageCreate(role="user", content=user_message),
                     )
+                    # Link uploaded files to this message
+                    if file_ids:
+                        try:
+                            file_uuids = [UUID(fid) for fid in file_ids]
+                            await db.execute(sa_update(ChatFileModel).where(ChatFileModel.id.in_(file_uuids)).values(message_id=user_msg.id))
+                            await db.commit()
+                        except Exception as e:
+                            logger.warning(f"Failed to link files: {e}")
 {%- else %}
                 with get_db_session() as db:
                     conv_service = get_conversation_service(db)
@@ -1532,11 +1614,12 @@ async def agent_websocket(
             # Receive user message
             data = await websocket.receive_json()
             user_message = data.get("message", "")
+            file_ids = data.get("file_ids", [])
             # Optionally accept history from client (or use server-side tracking)
             if "history" in data:
                 conversation_history = data["history"]
 
-            if not user_message:
+            if not user_message and not file_ids:
                 await manager.send_event(websocket, "error", {"message": "Empty message"})
                 continue
 
@@ -1571,10 +1654,18 @@ async def agent_websocket(
                         )
 
                     # Save user message
-                    await conv_service.add_message(
+                    user_msg = await conv_service.add_message(
                         UUID(current_conversation_id),
                         MessageCreate(role="user", content=user_message),
                     )
+                    # Link uploaded files to this message
+                    if file_ids:
+                        try:
+                            file_uuids = [UUID(fid) for fid in file_ids]
+                            await db.execute(sa_update(ChatFileModel).where(ChatFileModel.id.in_(file_uuids)).values(message_id=user_msg.id))
+                            await db.commit()
+                        except Exception as e:
+                            logger.warning(f"Failed to link files: {e}")
 {%- else %}
                 with get_db_session() as db:
                     conv_service = get_conversation_service(db)
@@ -2164,10 +2255,18 @@ async def agent_websocket(
                         )
 
                     # Save user message
-                    await conv_service.add_message(
+                    user_msg = await conv_service.add_message(
                         UUID(current_conversation_id),
                         MessageCreate(role="user", content=user_message),
                     )
+                    # Link uploaded files to this message
+                    if file_ids:
+                        try:
+                            file_uuids = [UUID(fid) for fid in file_ids]
+                            await db.execute(sa_update(ChatFileModel).where(ChatFileModel.id.in_(file_uuids)).values(message_id=user_msg.id))
+                            await db.commit()
+                        except Exception as e:
+                            logger.warning(f"Failed to link files: {e}")
 {%- else %}
                 with get_db_session() as db:
                     conv_service = get_conversation_service(db)

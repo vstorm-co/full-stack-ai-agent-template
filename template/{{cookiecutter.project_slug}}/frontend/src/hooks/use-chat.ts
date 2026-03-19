@@ -341,25 +341,30 @@ export function useChat() {
   });
 
   const sendChatMessage = useCallback(
-    (content: string) => {
+    (content: string, fileIds?: string[]) => {
       // Add user message
       const userMessage: ChatMessage = {
         id: nanoid(),
         role: "user",
         content,
         timestamp: new Date(),
+        fileIds,
       };
       addMessage(userMessage);
 
       // Send to WebSocket
       setIsProcessing(true);
 {%- if cookiecutter.enable_conversation_persistence and cookiecutter.use_database %}
-      sendMessage({
+      const payload: Record<string, unknown> = {
         message: content,
         conversation_id: conversationId || null,
-      });
+      };
+      if (fileIds?.length) payload.file_ids = fileIds;
+      sendMessage(payload);
 {%- else %}
-      sendMessage({ message: content });
+      const payload: Record<string, unknown> = { message: content };
+      if (fileIds?.length) payload.file_ids = fileIds;
+      sendMessage(payload);
 {%- endif %}
     },
 {%- if cookiecutter.enable_conversation_persistence and cookiecutter.use_database %}

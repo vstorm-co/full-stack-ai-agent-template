@@ -93,7 +93,7 @@ function AuthenticatedChatContainer() {
         });
       });
     }
-  }, [currentMessages, addChatMessage]);
+  }, [currentMessages, addChatMessage, clearMessages]);
 
   useEffect(() => {
     connect();

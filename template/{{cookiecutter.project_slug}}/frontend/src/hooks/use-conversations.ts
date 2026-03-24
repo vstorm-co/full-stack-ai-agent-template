@@ -72,7 +72,7 @@ export function useConversations() {
     } finally {
       setLoading(false);
     }
-  }, [setConversations, setLoading, setError]);
+  }, [setConversations, setLoading, setError, setCurrentConversationId, setCurrentMessages, clearMessages]);
 
   const loadingMoreRef = useRef(false);
 

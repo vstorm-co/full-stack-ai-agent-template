@@ -307,7 +307,7 @@ jobs:
   # ============================================
   generate-frontend:
     name: Template - Frontend (Next.js)
-    needs: [generate-minimal, generate-postgresql, generate-mongodb]
+    needs: [lint, type-check, test, security]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6

@@ -82,7 +82,10 @@ async def mock_db_session() -> AsyncGenerator[AsyncMock, None]:
 def mock_db_session() -> MagicMock:
     """Create a mock database session for testing."""
     mock = MagicMock()
-    mock.execute = MagicMock()
+    mock_result = MagicMock()
+    mock_result.scalar_one_or_none.return_value = None
+    mock_result.scalars.return_value.all.return_value = []
+    mock.execute.return_value = mock_result
     mock.commit = MagicMock()
     mock.rollback = MagicMock()
     mock.close = MagicMock()

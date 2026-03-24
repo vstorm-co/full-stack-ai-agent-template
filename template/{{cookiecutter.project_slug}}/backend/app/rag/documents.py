@@ -278,7 +278,7 @@ class PyMuPDFParser(BaseDocumentParser):
 
     def _parse_pdf_file(self, filepath: Path) -> Document:
         """Parse PDF with smart extraction pipeline."""
-        doc = pymupdf.open(filepath)
+        doc: Any = pymupdf.open(filepath)
 
         # Doc-level metadata
         meta = doc.metadata or {}
@@ -624,7 +624,7 @@ class PyMuPDFParser(BaseDocumentParser):
 
     def _parse_pdf_file(self, filepath: Path) -> Document:
         """Parse PDF with smart extraction pipeline."""
-        doc = pymupdf.open(filepath)
+        doc: Any = pymupdf.open(filepath)
 
         # Doc-level metadata
         meta = doc.metadata or {}

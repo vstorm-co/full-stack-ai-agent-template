@@ -328,7 +328,7 @@ async def agent_websocket(
                 from app.db.models.chat_file import ChatFile as ChatFileModel
                 from app.services.file_storage import get_file_storage
 
-                user_input: str | list = user_message
+                user_input: str | list[Any] = user_message
                 file_context_parts: list[str] = []
 
                 if file_ids:

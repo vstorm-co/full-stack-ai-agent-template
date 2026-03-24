@@ -266,9 +266,25 @@ def user_create(email: str, password: str, role: str, superuser: bool):
             except AlreadyExistsError:
                 click.secho(f"User already exists: {email}", fg="red")
                 return None
+{%- elif cookiecutter.use_mongodb %}
+
+    async def _create():
+        user_service = UserService()
+        try:
+            user_in = UserCreate(email=email, password=password, role=UserRole(role))
+            user = await user_service.register(user_in)
+
+            if superuser:
+                user.role = UserRole.ADMIN.value
+                await user.save()
+
+            return user
+        except AlreadyExistsError:
+            click.secho(f"User already exists: {email}", fg="red")
+            return None
 {%- endif %}
 
-{%- if cookiecutter.use_postgresql %}
+{%- if cookiecutter.use_postgresql or cookiecutter.use_mongodb %}
     user = asyncio.run(_create())
 {%- else %}
     user = _create()
@@ -325,9 +341,21 @@ def user_create_admin(email: str, password: str):
             except AlreadyExistsError:
                 click.secho(f"User already exists: {email}", fg="red")
                 return None
+{%- elif cookiecutter.use_mongodb %}
+
+    async def _create():
+        user_service = UserService()
+        try:
+            user_in = UserCreate(email=email, password=password, role=UserRole.ADMIN)
+            user = await user_service.register(user_in)
+            await user.save()
+            return user
+        except AlreadyExistsError:
+            click.secho(f"User already exists: {email}", fg="red")
+            return None
 {%- endif %}
 
-{%- if cookiecutter.use_postgresql %}
+{%- if cookiecutter.use_postgresql or cookiecutter.use_mongodb %}
     user = asyncio.run(_create())
 {%- else %}
     user = _create()
@@ -376,6 +404,20 @@ def user_set_role(email: str, role: str):
         except NotFoundError:
             click.secho(f"User not found: {email}", fg="red")
             user = None
+{%- elif cookiecutter.use_mongodb %}
+
+    async def _update():
+        user_service = UserService()
+        try:
+            user = await user_service.get_by_email(email)
+            user.role = UserRole(role).value
+            await user.save()
+            return user
+        except NotFoundError:
+            click.secho(f"User not found: {email}", fg="red")
+            return None
+
+    user = asyncio.run(_update())
 {%- endif %}
     if user:
         click.secho(f"User {email} role updated to: {role}", fg="green")
@@ -401,6 +443,13 @@ def user_list():
     with SessionLocal() as session:
         user_service = UserService(session)
         users = user_service.get_multi()
+{%- elif cookiecutter.use_mongodb %}
+
+    async def _list():
+        user_service = UserService()
+        return await user_service.get_multi()
+
+    users = asyncio.run(_list())
 {%- endif %}
 
     if not users:

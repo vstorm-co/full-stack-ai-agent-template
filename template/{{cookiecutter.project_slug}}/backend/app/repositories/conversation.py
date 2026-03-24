@@ -550,10 +550,11 @@ def deserialize_tool_call_args(tool_call: ToolCall) -> dict[str, Any]:
 
     if isinstance(tool_call.args, str):
         try:
-            return json.loads(tool_call.args)
+            result: dict[str, Any] = json.loads(tool_call.args)
+            return result
         except (json.JSONDecodeError, TypeError):
             return {}
-    return tool_call.args if isinstance(tool_call.args, dict) else {}
+    return dict(tool_call.args) if isinstance(tool_call.args, dict) else {}
 
 
 def complete_tool_call(

@@ -12,6 +12,10 @@ from app.rag.config import RAGSettings
 
 {%- if cookiecutter.enable_reranker %}
 from app.rag.reranker import RerankService
+{%- else %}
+from typing import Any
+
+RerankService = Any
 {%- endif %}
 
 logger = logging.getLogger(__name__)

@@ -409,7 +409,7 @@ def download_rag_document(
         file_path, filename, mime_type = rag_doc_svc.get_download_info(doc_id)
 {%- endif %}
     except NotFoundError as e:
-        raise HTTPException(status_code=404, detail=e.message)
+        raise HTTPException(status_code=404, detail=e.message) from e
     return FileResponse(path=file_path, filename=filename, media_type=mime_type)
 
 
@@ -434,7 +434,7 @@ def delete_rag_document(
         rag_doc_svc.delete_document(doc_id, ingestion_service)
 {%- endif %}
     except NotFoundError as e:
-        raise HTTPException(status_code=404, detail=e.message)
+        raise HTTPException(status_code=404, detail=e.message) from e
 
 
 
@@ -458,9 +458,9 @@ def retry_ingestion(
         doc = rag_doc_svc.retry_ingestion(doc_id)
 {%- endif %}
     except NotFoundError as e:
-        raise HTTPException(status_code=404, detail=e.message)
+        raise HTTPException(status_code=404, detail=e.message) from e
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     return RAGRetryResponse(id=str(doc.id), status="processing", message="Retry queued")
 
 
@@ -604,9 +604,9 @@ def cancel_sync(
         rag_sync_svc.cancel_sync(sync_id)
 {%- endif %}
     except NotFoundError as e:
-        raise HTTPException(status_code=404, detail=e.message)
+        raise HTTPException(status_code=404, detail=e.message) from e
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     return RAGMessageResponse(message="Sync cancelled")
 
 
@@ -665,7 +665,7 @@ def create_sync_source(
         source = sync_source_svc.create_source(data)
 {%- endif %}
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     return SyncSourceRead(
         id=str(source.id), name=source.name, connector_type=source.connector_type,
         collection_name=source.collection_name,
@@ -698,7 +698,7 @@ def update_sync_source(
         source = sync_source_svc.update_source(source_id, data)
 {%- endif %}
     except NotFoundError as e:
-        raise HTTPException(status_code=404, detail=e.message)
+        raise HTTPException(status_code=404, detail=e.message) from e
     return SyncSourceRead(
         id=str(source.id), name=source.name, connector_type=source.connector_type,
         collection_name=source.collection_name,
@@ -731,7 +731,7 @@ def delete_sync_source(
         sync_source_svc.delete_source(source_id)
 {%- endif %}
     except NotFoundError as e:
-        raise HTTPException(status_code=404, detail=e.message)
+        raise HTTPException(status_code=404, detail=e.message) from e
 
 
 @router.post("/sync/sources/{source_id}/trigger", response_model=RAGSyncResponse)
@@ -751,7 +751,7 @@ async def trigger_sync_source(
         sync_log = sync_source_svc.trigger_sync(source_id)
 {%- endif %}
     except NotFoundError as e:
-        raise HTTPException(status_code=404, detail=e.message)
+        raise HTTPException(status_code=404, detail=e.message) from e
 
     # Dispatch background task to execute the sync
 {%- if cookiecutter.use_celery %}
@@ -825,7 +825,7 @@ async def list_connectors(
     from app.rag.connectors import CONNECTOR_REGISTRY
 
     items = []
-    for connector_type, connector_cls in CONNECTOR_REGISTRY.items():
+    for _connector_type, connector_cls in CONNECTOR_REGISTRY.items():
         schema_fields = {}
         for field_name, field_spec in connector_cls.CONFIG_SCHEMA.items():
             schema_fields[field_name] = ConnectorConfigField(**field_spec)

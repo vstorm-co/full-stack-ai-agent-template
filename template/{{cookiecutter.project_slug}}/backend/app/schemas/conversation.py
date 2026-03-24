@@ -37,10 +37,11 @@ class ToolCallBase(BaseSchema):
         if isinstance(v, str):
             import json
             try:
-                return json.loads(v)
+                result: dict[str, Any] = json.loads(v)
+                return result
             except (json.JSONDecodeError, TypeError):
                 return {}
-        return v if isinstance(v, dict) else {}
+        return dict(v) if isinstance(v, dict) else {}
 {%- endif %}
 
 

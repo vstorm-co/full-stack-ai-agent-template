@@ -30,7 +30,7 @@ def ingest_document_task(self, rag_document_id: str, collection_name: str, filep
     except Exception as exc:
         logger.error(f"Ingestion failed: {exc}")
         asyncio.run(_update_status(rag_document_id, "error", error_message=str(exc)))
-        raise self.retry(exc=exc, countdown=30)
+        raise self.retry(exc=exc, countdown=30) from exc
 
 
 @shared_task(bind=True, max_retries=1, soft_time_limit=600, time_limit=720)
@@ -42,7 +42,7 @@ def sync_collection_task(self, sync_log_id: str, source: str, collection_name: s
     except Exception as exc:
         logger.error(f"Sync failed: {exc}")
         asyncio.run(_update_sync_log(sync_log_id, "error", error_message=str(exc)))
-        raise self.retry(exc=exc, countdown=60)
+        raise self.retry(exc=exc, countdown=60) from exc
 {%- elif cookiecutter.use_taskiq %}
 
 
@@ -106,7 +106,7 @@ def sync_single_source_task(self, source_id: str, sync_log_id: str | None = None
         return asyncio.run(_run_source_sync(source_id, sync_log_id=sync_log_id))
     except Exception as exc:
         logger.error(f"Source sync failed: {exc}")
-        raise self.retry(exc=exc, countdown=60)
+        raise self.retry(exc=exc, countdown=60) from exc
 
 
 @shared_task

@@ -48,7 +48,7 @@ def command(name: str | None = None, **kwargs: Any) -> Callable[..., Any]:
 
     def decorator(func: Callable[..., Any]) -> click.Command:
         cmd_name = name or func.__name__.replace("_", "-")
-        cmd: click.Command = click.command(cmd_name, **kwargs)(func)
+        cmd: click.Command = click.command(cmd_name, **kwargs)(func)  # type: ignore[no-untyped-call]
         _commands.append(cmd)
         return cmd
 

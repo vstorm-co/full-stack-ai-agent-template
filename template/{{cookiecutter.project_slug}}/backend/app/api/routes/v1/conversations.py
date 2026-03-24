@@ -148,7 +148,7 @@ async def update_conversation(
     )
 
 
-@router.delete("/{conversation_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{conversation_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 async def delete_conversation(
     conversation_id: UUID,
     conversation_service: ConversationSvc,
@@ -328,7 +328,7 @@ def update_conversation(
     )
 
 
-@router.delete("/{conversation_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{conversation_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 def delete_conversation(
     conversation_id: str,
     conversation_service: ConversationSvc,
@@ -498,7 +498,7 @@ async def update_conversation(
     )
 
 
-@router.delete("/{conversation_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{conversation_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 async def delete_conversation(
     conversation_id: str,
     conversation_service: ConversationSvc,

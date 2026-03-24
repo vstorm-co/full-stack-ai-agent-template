@@ -126,7 +126,7 @@ async def refresh_token(
 {%- if cookiecutter.enable_session_management %}
 
 
-@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 async def logout(
     body: RefreshTokenRequest,
     session_service: SessionSvc,
@@ -261,7 +261,7 @@ async def refresh_token(
 {%- if cookiecutter.enable_session_management %}
 
 
-@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 async def logout(
     body: RefreshTokenRequest,
     session_service: SessionSvc,
@@ -408,7 +408,7 @@ def refresh_token(
 {%- if cookiecutter.enable_session_management %}
 
 
-@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 def logout(
     body: RefreshTokenRequest,
     session_service: SessionSvc,

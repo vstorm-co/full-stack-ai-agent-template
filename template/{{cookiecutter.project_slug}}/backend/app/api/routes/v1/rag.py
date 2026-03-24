@@ -194,7 +194,7 @@ async def search_documents(
     return RAGSearchResponse(results=api_results)
 
 
-@router.delete("/collections/{name}/documents/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/collections/{name}/documents/{document_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 async def delete_document(
     name: str,
     document_id: str,
@@ -202,7 +202,7 @@ async def delete_document(
 {%- if cookiecutter.use_jwt %}
     _: CurrentAdmin,
 {%- endif %}
-) -> Any:
+) -> None:
     """Delete a specific document by its ID from a collection."""
     success = await ingestion_service.remove_document(name, document_id)
     if not success:
@@ -418,7 +418,7 @@ def download_rag_document(
     return FileResponse(path=file_path, filename=filename, media_type=mime_type)
 
 
-@router.delete("/documents/{doc_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/documents/{doc_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 {%- if cookiecutter.use_postgresql %}
 async def delete_rag_document(
 {%- else %}
@@ -430,7 +430,7 @@ def delete_rag_document(
 {%- if cookiecutter.use_jwt %}
     _: CurrentAdmin | None = None,
 {%- endif %}
-) -> Any:
+) -> None:
     """Delete a document from SQL, vector store, and file storage."""
     assert rag_doc_svc is not None
     assert ingestion_service is not None
@@ -725,7 +725,7 @@ def update_sync_source(
     )
 
 
-@router.delete("/sync/sources/{source_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/sync/sources/{source_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 {%- if cookiecutter.use_postgresql %}
 async def delete_sync_source(
 {%- else %}
@@ -736,7 +736,7 @@ def delete_sync_source(
 {%- if cookiecutter.use_jwt %}
     _: CurrentAdmin | None = None,
 {%- endif %}
-) -> Any:
+) -> None:
     """Delete a sync source configuration."""
     assert sync_source_svc is not None
     try:

@@ -127,7 +127,7 @@ async def update_webhook(
     )
 
 
-@router.delete("/{webhook_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{webhook_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 async def delete_webhook(
     webhook_id: UUID,
     webhook_service: WebhookSvc,
@@ -290,7 +290,7 @@ def update_webhook(
     )
 
 
-@router.delete("/{webhook_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{webhook_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 def delete_webhook(
     webhook_id: str,
     webhook_service: WebhookSvc,
@@ -433,7 +433,7 @@ async def update_webhook(
     )
 
 
-@router.delete("/{webhook_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{webhook_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 async def delete_webhook(
     webhook_id: str,
     webhook_service: WebhookSvc,

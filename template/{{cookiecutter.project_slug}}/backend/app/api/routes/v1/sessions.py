@@ -41,7 +41,7 @@ async def list_sessions(
     )
 
 
-@router.delete("/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{session_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 async def logout_session(
     session_id: UUID,
     current_user: CurrentUser,
@@ -91,7 +91,7 @@ async def list_sessions(
     )
 
 
-@router.delete("/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{session_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 async def logout_session(
     session_id: str,
     current_user: CurrentUser,
@@ -141,7 +141,7 @@ def list_sessions(
     )
 
 
-@router.delete("/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{session_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 def logout_session(
     session_id: str,
     current_user: CurrentUser,

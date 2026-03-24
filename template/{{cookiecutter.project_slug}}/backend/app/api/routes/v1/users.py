@@ -159,7 +159,7 @@ async def update_user_by_id(
     return user
 
 
-@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 async def delete_user_by_id(
     user_id: UUID,
     user_service: UserSvc,
@@ -247,7 +247,7 @@ async def update_user_by_id(
     return user
 
 
-@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 async def delete_user_by_id(
     user_id: str,
     user_service: UserSvc,
@@ -353,7 +353,7 @@ def update_user_by_id(
     return user
 
 
-@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 def delete_user_by_id(
     user_id: str,
     user_service: UserSvc,

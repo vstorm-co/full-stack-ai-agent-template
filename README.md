@@ -2,14 +2,19 @@
   <img src="https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/banner.png" alt="Full-Stack AI Agent Template" width="100%">
 </p>
 
+<h1 align="center">Full-Stack AI Agent Template</h1>
+
+<p align="center">
+  <i>Production-ready FastAPI + Next.js project generator with AI agents, RAG, and 20+ enterprise integrations.</i>
+</p>
+
 <p align="center">
   <a href="#-quick-start">Quick Start</a> •
   <a href="#-features">Features</a> •
   <a href="#-demo">Demo</a> •
-  <a href="https://oss.vstorm.co/">Website</a> •
+  <a href="https://vstorm-co.github.io/full-stack-ai-agent-template/">Documentation</a> •
   <a href="https://oss.vstorm.co/projects/full-stack-ai-agent-template/configurator/">Configurator</a> •
-  <a href="https://pypi.org/project/fastapi-fullstack/">PyPI</a> •
-  <a href="#-documentation">Docs</a>
+  <a href="https://pypi.org/project/fastapi-fullstack/">PyPI</a>
 </p>
 
 <p align="center">
@@ -33,21 +38,7 @@
   <b>🔒 Enterprise-Ready</b> <i>(JWT, OAuth, admin panel, Celery, Docker, K8s)</i>
 </p>
 
-<p align="center">
-  <a href="https://oss.vstorm.co/projects/full-stack-ai-agent-template/configurator/">
-    <img src="https://img.shields.io/badge/Try%20Web%20Configurator%20%E2%86%92-0066FF?style=for-the-badge&logo=google-chrome&logoColor=white" alt="Web Configurator">
-  </a>
-  &nbsp;&nbsp;
-  <a href="https://pypi.org/project/fastapi-fullstack/">
-    <img src="https://img.shields.io/badge/pip%20install%20%E2%86%92-22C55E?style=for-the-badge&logo=pypi&logoColor=white" alt="Install via pip">
-  </a>
-  &nbsp;&nbsp;
-  <a href="https://vstorm-co.github.io/full-stack-ai-agent-template/">
-    <img src="https://img.shields.io/badge/Documentation%20%E2%86%92-6366F1?style=for-the-badge&logo=readthedocs&logoColor=white" alt="Documentation">
-  </a>
-</p>
-
-<details open>
+<details>
 <summary><b>Table of Contents</b></summary>
 
 - [Quick Start](#-quick-start)

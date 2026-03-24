@@ -20,6 +20,11 @@ async def test_not_found_error_format(client: AsyncClient):
 {%- if cookiecutter.use_jwt %}
 
 from unittest.mock import AsyncMock, MagicMock
+{%- if cookiecutter.use_sqlite %}
+ServiceMock = MagicMock
+{%- else %}
+ServiceMock = AsyncMock
+{%- endif %}
 
 from httpx import ASGITransport
 
@@ -56,10 +61,10 @@ def mock_user_service_with_errors() -> MagicMock:
     from app.core.exceptions import AlreadyExistsError, AuthenticationError
 
     service = MagicMock()
-    service.register = AsyncMock(
+    service.register = ServiceMock(
         side_effect=AlreadyExistsError(message="Email already registered")
     )
-    service.authenticate = AsyncMock(
+    service.authenticate = ServiceMock(
         side_effect=AuthenticationError(message="Invalid credentials")
     )
     return service

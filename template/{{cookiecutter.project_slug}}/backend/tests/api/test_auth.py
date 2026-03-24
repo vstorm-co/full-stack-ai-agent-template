@@ -4,6 +4,11 @@
 
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
+{%- if cookiecutter.use_sqlite %}
+ServiceMock = MagicMock
+{%- else %}
+ServiceMock = AsyncMock
+{%- endif %}
 from uuid import uuid4
 
 import pytest
@@ -56,10 +61,10 @@ def mock_user_service(mock_user: MockUser) -> MagicMock:
     service.get_by_id = MagicMock(return_value=mock_user)
     service.get_by_email = MagicMock(return_value=mock_user)
 {%- else %}
-    service.authenticate = AsyncMock(return_value=mock_user)
-    service.register = AsyncMock(return_value=mock_user)
-    service.get_by_id = AsyncMock(return_value=mock_user)
-    service.get_by_email = AsyncMock(return_value=mock_user)
+    service.authenticate = ServiceMock(return_value=mock_user)
+    service.register = ServiceMock(return_value=mock_user)
+    service.get_by_id = ServiceMock(return_value=mock_user)
+    service.get_by_email = ServiceMock(return_value=mock_user)
 {%- endif %}
     return service
 
@@ -122,7 +127,7 @@ async def test_login_invalid_credentials(
     """Test login with invalid credentials."""
     from app.core.exceptions import AuthenticationError
 
-    mock_user_service.authenticate = AsyncMock(
+    mock_user_service.authenticate = ServiceMock(
         side_effect=AuthenticationError(message="Invalid credentials")
     )
 
@@ -157,7 +162,7 @@ async def test_register_duplicate_email(
     """Test registration with duplicate email."""
     from app.core.exceptions import AlreadyExistsError
 
-    mock_user_service.register = AsyncMock(
+    mock_user_service.register = ServiceMock(
         side_effect=AlreadyExistsError(message="Email already registered")
     )
 
@@ -222,7 +227,7 @@ async def test_refresh_token_inactive_user(
 ):
     """Test refresh token for inactive user."""
     inactive_user = MockUser(is_active=False)
-    mock_user_service.get_by_id = AsyncMock(return_value=inactive_user)
+    mock_user_service.get_by_id = ServiceMock(return_value=inactive_user)
     refresh_token = create_refresh_token(subject=str(inactive_user.id))
 
     response = await client_with_mock_service.post(

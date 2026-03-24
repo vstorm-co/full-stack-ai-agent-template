@@ -6,6 +6,11 @@
 
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
+{%- if cookiecutter.use_sqlite %}
+ServiceMock = MagicMock
+{%- else %}
+ServiceMock = AsyncMock
+{%- endif %}
 from uuid import uuid4
 
 import pytest
@@ -75,10 +80,10 @@ def mock_user_service(mock_user: MockUser) -> MagicMock:
     service.update = MagicMock(return_value=mock_user)
     service.delete = MagicMock(return_value=mock_user)
 {%- else %}
-    service.get_by_id = AsyncMock(return_value=mock_user)
-    service.get_multi = AsyncMock(return_value=[mock_user])
-    service.update = AsyncMock(return_value=mock_user)
-    service.delete = AsyncMock(return_value=mock_user)
+    service.get_by_id = ServiceMock(return_value=mock_user)
+    service.get_multi = ServiceMock(return_value=[mock_user])
+    service.update = ServiceMock(return_value=mock_user)
+    service.delete = ServiceMock(return_value=mock_user)
 {%- endif %}
     return service
 
@@ -200,7 +205,7 @@ async def test_read_user_by_id_not_found(
     """Test getting non-existent user."""
     from app.core.exceptions import NotFoundError
 
-    mock_user_service.get_by_id = AsyncMock(
+    mock_user_service.get_by_id = ServiceMock(
         side_effect=NotFoundError(message="User not found")
     )
 
@@ -247,7 +252,7 @@ async def test_delete_user_by_id_not_found(
     """Test deleting non-existent user."""
     from app.core.exceptions import NotFoundError
 
-    mock_user_service.delete = AsyncMock(
+    mock_user_service.delete = ServiceMock(
         side_effect=NotFoundError(message="User not found")
     )
 

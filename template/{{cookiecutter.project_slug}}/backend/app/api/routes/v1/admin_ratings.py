@@ -39,7 +39,7 @@ router = APIRouter()
 @router.get("", response_model=MessageRatingList)
 async def list_ratings_admin(
     rating_service: MessageRatingSvc,
-    admin_user: CurrentAdmin,  # type: ignore[valid-type]
+    admin_user: CurrentAdmin,
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
     rating_filter: int | None = Query(None, ge=-1, le=1, description="Filter by rating value"),
@@ -65,7 +65,7 @@ async def list_ratings_admin(
 @router.get("/summary", response_model=RatingSummary)
 async def get_rating_summary(
     rating_service: MessageRatingSvc,
-    admin_user: CurrentAdmin,  # type: ignore[valid-type]
+    admin_user: CurrentAdmin,
     days: int = Query(30, ge=1, le=365, description="Number of days to include"),
 ) -> Any:
     """Get aggregated rating statistics (admin only).
@@ -85,7 +85,7 @@ async def get_rating_summary(
 @router.get("/export")
 async def export_ratings(
     rating_service: MessageRatingSvc,
-    admin_user: CurrentAdmin,  # type: ignore[valid-type]
+    admin_user: CurrentAdmin,
     format: str = Query("json", description="Export format: 'json' or 'csv'"),
     rating_filter: int | None = Query(None, ge=-1, le=1, description="Filter by rating value"),
     with_comments_only: bool = Query(False, description="Only show ratings with comments"),
@@ -159,7 +159,7 @@ async def export_ratings(
 @router.get("", response_model=MessageRatingList)
 def list_ratings_admin(
     rating_service: MessageRatingSvc,
-    admin_user: CurrentAdmin,  # type: ignore[valid-type]
+    admin_user: CurrentAdmin,
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
     rating_filter: int | None = Query(None, ge=-1, le=1, description="Filter by rating value"),
@@ -185,7 +185,7 @@ def list_ratings_admin(
 @router.get("/summary", response_model=RatingSummary)
 def get_rating_summary(
     rating_service: MessageRatingSvc,
-    admin_user: CurrentAdmin,  # type: ignore[valid-type]
+    admin_user: CurrentAdmin,
     days: int = Query(30, ge=1, le=365, description="Number of days to include"),
 ) -> Any:
     """Get aggregated rating statistics (admin only).
@@ -205,7 +205,7 @@ def get_rating_summary(
 @router.get("/export")
 def export_ratings(
     rating_service: MessageRatingSvc,
-    admin_user: CurrentAdmin,  # type: ignore[valid-type]
+    admin_user: CurrentAdmin,
     format: str = Query("json", description="Export format: 'json' or 'csv'"),
     rating_filter: int | None = Query(None, ge=-1, le=1, description="Filter by rating value"),
     with_comments_only: bool = Query(False, description="Only show ratings with comments"),
@@ -279,7 +279,7 @@ def export_ratings(
 @router.get("", response_model=MessageRatingList)
 async def list_ratings_admin(
     rating_service: MessageRatingSvc,
-    admin_user: CurrentAdmin,  # type: ignore[valid-type]
+    admin_user: CurrentAdmin,
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
     rating_filter: int | None = Query(None, ge=-1, le=1, description="Filter by rating value"),
@@ -305,7 +305,7 @@ async def list_ratings_admin(
 @router.get("/summary", response_model=RatingSummary)
 async def get_rating_summary(
     rating_service: MessageRatingSvc,
-    admin_user: CurrentAdmin,  # type: ignore[valid-type]
+    admin_user: CurrentAdmin,
     days: int = Query(30, ge=1, le=365, description="Number of days to include"),
 ) -> Any:
     """Get aggregated rating statistics (admin only).
@@ -325,7 +325,7 @@ async def get_rating_summary(
 @router.get("/export")
 async def export_ratings(
     rating_service: MessageRatingSvc,
-    admin_user: CurrentAdmin,  # type: ignore[valid-type]
+    admin_user: CurrentAdmin,
     format: str = Query("json", description="Export format: 'json' or 'csv'"),
     rating_filter: int | None = Query(None, ge=-1, le=1, description="Filter by rating value"),
     with_comments_only: bool = Query(False, description="Only show ratings with comments"),

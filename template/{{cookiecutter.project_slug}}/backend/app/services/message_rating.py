@@ -17,6 +17,7 @@ from app.schemas.message_rating import (
     MessageRatingRead,
     MessageRatingWithDetails,
     RatingSummary,
+    RatingValue,
 )
 
 
@@ -196,7 +197,7 @@ class MessageRatingService:
                     id=item.id,
                     message_id=item.message_id,
                     user_id=item.user_id,
-                    rating=item.rating,
+                    rating=RatingValue(item.rating),
                     comment=item.comment,
                     created_at=item.created_at,
                     updated_at=item.updated_at,
@@ -238,6 +239,7 @@ from app.schemas.message_rating import (
     MessageRatingRead,
     MessageRatingWithDetails,
     RatingSummary,
+    RatingValue,
 )
 
 
@@ -417,7 +419,7 @@ class MessageRatingService:
                     id=item.id,
                     message_id=item.message_id,
                     user_id=item.user_id,
-                    rating=item.rating,
+                    rating=RatingValue(item.rating),
                     comment=item.comment,
                     created_at=item.created_at,
                     updated_at=item.updated_at,
@@ -455,6 +457,7 @@ from app.schemas.message_rating import (
     MessageRatingRead,
     MessageRatingWithDetails,
     RatingSummary,
+    RatingValue,
 )
 
 
@@ -638,7 +641,7 @@ class MessageRatingService:
                     id=item.id,
                     message_id=item.message_id,
                     user_id=item.user_id,
-                    rating=item.rating,
+                    rating=RatingValue(item.rating),
                     comment=item.comment,
                     created_at=item.created_at,
                     updated_at=item.updated_at,

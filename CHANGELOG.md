@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.3] - 2026-04-05
+
+### Added
+
+- **`.claude/` directory in generated projects** — Full Claude Code project structure so generated projects work as AI-native codebases out of the box
+  - **`settings.json`** — Auto-allow permissions for safe operations (Read, Glob, Grep, git, pytest, ruff, mypy, alembic)
+  - **`rules/architecture.md`** — Layered architecture patterns (Routes → Services → Repositories), DI with `Annotated` aliases, `db.flush()` convention, domain exceptions
+  - **`rules/code-style.md`** — Type hints (`str | None`), naming conventions table, import ordering (stdlib → third-party → local), ruff config
+  - **`rules/schemas-models.md`** — Pydantic v2 `*Create/*Update/*Read/*List` pattern, `BaseSchema` with `ConfigDict`, SQLAlchemy `Mapped[]` columns, `TimestampMixin`
+  - **`rules/exceptions-security.md`** — Domain exception hierarchy (`AppException` → `NotFoundError`, etc.), JWT/bcrypt patterns, `RoleChecker`, API key verification
+  - **`rules/api-conventions.md`** — REST design, pagination (`Query(ge=0, le=100)`), auth deps (`CurrentUser`/`CurrentAdmin`/`ValidAPIKey`), response format, file upload
+  - **`rules/testing.md`** — Async test patterns, `httpx.AsyncClient`, fixtures, exception testing with `pytest.raises`
+  - **`rules/frontend.md`** — Next.js 15 App Router, Server Components, Tailwind conventions (auto-removed when frontend disabled)
+  - **`commands/review.md`** — `/project:review` slash command: checks changes against architecture, types, security, and runs linting
+  - **`commands/add-endpoint.md`** — `/project:add-endpoint` slash command: scaffolds full CRUD (schema → model → repo → service → deps → route → migration → test)
+  - **`commands/fix-issue.md`** — `/project:fix-issue` slash command: traces through layers, fixes, tests, lints
+- **Enhanced `CLAUDE.md`** — Rewritten with precise patterns from the actual codebase: architecture layers, DI pattern, schema conventions, exception table, response format examples, key conventions
+
 ## [0.2.2] - 2026-03-20
 
 ### Changed — CLI Simplification (Breaking)

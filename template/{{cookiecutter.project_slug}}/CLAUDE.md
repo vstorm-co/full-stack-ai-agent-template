@@ -5,9 +5,9 @@
 **{{ cookiecutter.project_name }}** - FastAPI application generated with [Full-Stack AI Agent Template](https://github.com/vstorm-co/full-stack-ai-agent-template).
 
 **Stack:** FastAPI + Pydantic v2
-{%- if cookiecutter.use_postgresql %}, PostgreSQL (async){%- endif %}
-{%- if cookiecutter.use_mongodb %}, MongoDB (async){%- endif %}
-{%- if cookiecutter.use_sqlite %}, SQLite{%- endif %}
+{%- if cookiecutter.use_postgresql %}, PostgreSQL (async via asyncpg){%- endif %}
+{%- if cookiecutter.use_mongodb %}, MongoDB (async via Motor){%- endif %}
+{%- if cookiecutter.use_sqlite %}, SQLite (sync){%- endif %}
 , JWT + API Key auth
 {%- if cookiecutter.enable_redis %}, Redis{%- endif %}
 {%- if cookiecutter.use_pydantic_ai %}, PydanticAI{%- endif %}
@@ -26,11 +26,13 @@
 # Backend
 cd backend
 uv run uvicorn app.main:app --reload --port {{ cookiecutter.backend_port }}
-pytest
-ruff check . --fix && ruff format .
+uv run pytest
+uv run pytest tests/test_file.py::test_name -v
+uv run ruff check . --fix && uv run ruff format .
+uv run mypy app
 {%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
 
-# Database
+# Database migrations
 uv run alembic upgrade head
 uv run alembic revision --autogenerate -m "Description"
 {%- endif %}
@@ -40,6 +42,7 @@ uv run alembic revision --autogenerate -m "Description"
 cd frontend
 bun dev
 bun test
+bun run lint
 {%- endif %}
 {%- if cookiecutter.enable_docker %}
 
@@ -70,65 +73,115 @@ uv run {{ cookiecutter.project_slug }} cmd rag-source-sync
 
 ```
 backend/app/
-├── api/routes/v1/    # HTTP endpoints
-├── services/         # Business logic
-├── repositories/     # Data access
-├── schemas/          # Pydantic models
-├── db/models/        # Database models
-├── core/config.py    # Settings
-├── agents/           # AI agents
+├── main.py               # FastAPI app with lifespan (startup/shutdown)
+├── api/
+│   ├── deps.py           # Annotated DI aliases (DBSession, CurrentUser, *Svc)
+│   ├── exception_handlers.py
+│   └── routes/v1/        # HTTP endpoints — call services, never repos
+├── core/
+│   ├── config.py         # pydantic-settings Settings class
+│   ├── security.py       # JWT (PyJWT), bcrypt password hashing, API key verification
+│   ├── exceptions.py     # Domain exceptions (AppException → NotFoundError, etc.)
+│   └── middleware.py      # RequestID, SecurityHeaders, CORS
+├── db/
+│   ├── base.py           # DeclarativeBase, TimestampMixin, naming convention
+│   ├── session.py        # Engine, async_session_maker, get_db_session (auto-commit)
+│   └── models/           # SQLAlchemy models (Mapped[] type hints)
+├── schemas/              # Pydantic v2 models: *Create, *Update, *Read, *List
+├── repositories/         # Data access functions — db.flush(), never commit
+├── services/             # Business logic classes — __init__(self, db), raise domain exceptions
+├── agents/               # AI agent wrappers + tools
 {%- if cookiecutter.enable_rag %}
-├── rag/              # RAG (embeddings, vector store, ingestion)
-│   └── connectors/   # Sync source connectors (Google Drive, S3)
+├── rag/                  # RAG: embeddings, vector store, ingestion, parsers
+│   └── connectors/       # Sync source connectors (Google Drive, S3)
 {%- endif %}
-└── commands/         # CLI commands
+├── worker/               # Background tasks (Celery/Taskiq/ARQ)
+└── commands/             # CLI commands (auto-discovered)
+```
+
+## Architecture: Routes → Services → Repositories
+
+**Routes** (`api/routes/v1/`) — HTTP layer only: validate input via Pydantic, call service, return response. Never import repositories.
+
+**Services** (`services/`) — Business logic: class with `__init__(self, db)`, orchestrate repos, raise domain exceptions (`NotFoundError`, `AlreadyExistsError`, etc.).
+
+**Repositories** (`repositories/`) — Pure data access functions. Always use `db.flush()` + `db.refresh()`, NEVER `db.commit()`. Session auto-commits via `get_db_session`.
+
+## Dependency Injection Pattern
+
+All DI uses `Annotated` type aliases defined in `api/deps.py`:
+
+```python
+# deps.py
+DBSession = Annotated[AsyncSession, Depends(get_db_session)]
+UserSvc = Annotated[UserService, Depends(get_user_service)]
+CurrentUser = Annotated[User, Depends(get_current_user)]
+CurrentAdmin = Annotated[User, Depends(RoleChecker(UserRole.ADMIN))]
+
+# Route usage — no raw Depends() in function signatures
+@router.get("/{id}", response_model=ConversationRead)
+async def get_conversation(
+    id: UUID, service: ConversationSvc, user: CurrentUser
+) -> Any:
+    return await service.get(id, user_id=user.id)
+```
+
+## Schema Conventions (Pydantic v2)
+
+- Base: `BaseSchema` with `ConfigDict(from_attributes=True, str_strip_whitespace=True)`
+- Separate models per operation: `*Create`, `*Update`, `*Read`
+- List responses: `*List` with `items: list[*Read]` and `total: int`
+- Update schemas: all fields `Optional` (`str | None = None`)
+- Use `Field(max_length=255)`, `Field(min_length=8)`, `EmailStr`
+- `@field_validator` for deserialization (e.g., JSON string → dict for SQLite)
+{%- if cookiecutter.use_postgresql %}
+- IDs are `UUID` type
+{%- endif %}
+{%- if cookiecutter.use_sqlite %}
+- IDs are `str` (UUID stored as text)
+{%- endif %}
+
+## Exception Handling
+
+Domain exceptions in `core/exceptions.py` — all extend `AppException`:
+
+| Exception | HTTP | Code |
+|-----------|------|------|
+| `NotFoundError` | 404 | `NOT_FOUND` |
+| `AlreadyExistsError` | 409 | `ALREADY_EXISTS` |
+| `ValidationError` | 422 | `VALIDATION_ERROR` |
+| `AuthenticationError` | 401 | `AUTHENTICATION_ERROR` |
+| `AuthorizationError` | 403 | `AUTHORIZATION_ERROR` |
+| `BadRequestError` | 400 | `BAD_REQUEST` |
+| `ExternalServiceError` | 503 | `EXTERNAL_SERVICE_ERROR` |
+
+Always pass `message` and `details` dict: `raise NotFoundError(message="User not found", details={"user_id": id})`
+
+## Response Format
+
+```python
+# Single item — use response_model
+@router.get("/{id}", response_model=ConversationRead)
+
+# List — return *List schema
+@router.get("", response_model=ConversationList)
+
+# Create — 201
+@router.post("", response_model=UserRead, status_code=status.HTTP_201_CREATED)
+
+# Delete — 204, no body
+@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
+
+# All route return types are -> Any (avoids double Pydantic validation)
 ```
 
 ## Key Conventions
 
-- Use `db.flush()` in repositories (not `commit`)
-- Services raise domain exceptions (`NotFoundError`, `AlreadyExistsError`)
-- Schemas: separate `Create`, `Update`, `Response` models
-- Commands auto-discovered from `app/commands/`
-{%- if cookiecutter.enable_rag %}
-- Document ingestion via CLI and API upload
-- Sync sources: configurable connectors with scheduled sync
-{%- endif %}
-
-## Environment Variables
-
-Key variables in `.env`:
-```bash
-ENVIRONMENT=local
-{%- if cookiecutter.use_postgresql %}
-POSTGRES_HOST=localhost
-POSTGRES_PASSWORD=secret
-{%- endif %}
-SECRET_KEY=change-me-use-openssl-rand-hex-32
-{%- if cookiecutter.use_openai %}
-OPENAI_API_KEY=sk-...
-{%- endif %}
-{%- if cookiecutter.use_anthropic %}
-ANTHROPIC_API_KEY=sk-ant-...
-{%- endif %}
-{%- if cookiecutter.use_google %}
-GOOGLE_API_KEY=...
-{%- endif %}
-AI_MODEL=gpt-4.1-mini           # Default LLM model for chat
-AI_AVAILABLE_MODELS=             # JSON list of models shown in UI selector (auto-configured)
-AI_TEMPERATURE=0.7               # LLM temperature (0.0-1.0)
-{%- if cookiecutter.enable_logfire %}
-LOGFIRE_TOKEN=your-token
-{%- endif %}
-{%- if cookiecutter.enable_langsmith %}
-LANGCHAIN_API_KEY=your-api-key
-{%- endif %}
-{%- if cookiecutter.use_milvus %}
-MILVUS_HOST=localhost
-MILVUS_PORT=19530
-{%- endif %}
-{%- if cookiecutter.use_qdrant %}
-QDRANT_HOST=localhost
-QDRANT_PORT=6333
-{%- endif %}
-```
+- Return type `-> Any` on route handlers (response_model handles serialization)
+- Use `Query(default, ge=0, le=100, description="...")` for query params
+- Keyword-only args in repo functions: `create(db, *, email: str, name: str)`
+- `__repr__` on all DB models
+- `datetime.now(UTC)` not `datetime.utcnow()`
+- `secrets.compare_digest()` for API key comparison
+- `TypedDict` for lifespan state
+- Imports: stdlib → third-party → local, with `TYPE_CHECKING` block for circular refs

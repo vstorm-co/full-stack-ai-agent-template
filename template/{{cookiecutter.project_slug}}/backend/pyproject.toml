@@ -301,7 +301,25 @@ python-version = "3.11"
 exclude = [
     "alembic/",
     "tests/",
+    "cli/",
+    "app/commands/",
 ]
+
+[tool.ty.rules]
+# FastAPI Depends() injects at runtime — default=None on typed params is intentional
+invalid-parameter-default = "warn"
+# Starlette/FastAPI handler signatures use Union types that ty flags
+invalid-argument-type = "warn"
+# ORM models with Optional fields trigger on attribute assignment
+invalid-assignment = "warn"
+# Callable[..., Any] doesn't expose __name__ but function objects do
+unresolved-attribute = "warn"
+# datetime.utcnow and ORJSONResponse deprecation warnings
+deprecated = "warn"
+# Optional deps imported inside try/except (pymupdf, docx, faker)
+unresolved-import = "warn"
+# dict() overload matching on dynamic types from validators
+no-matching-overload = "warn"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

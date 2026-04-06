@@ -14,6 +14,7 @@ import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import NotFoundError
+from app.core.sanitize import validate_webhook_url
 from app.db.models.webhook import Webhook, WebhookDelivery
 from app.repositories import webhook_repo
 from app.schemas.webhook import WebhookCreate, WebhookUpdate
@@ -33,6 +34,9 @@ class WebhookService:
         user_id: UUID | None = None,
     ) -> Webhook:
         """Create a new webhook subscription."""
+        # Validate URL against SSRF before storing
+        validate_webhook_url(str(data.url))
+
         # Generate a secure secret for HMAC signing
         secret = secrets.token_urlsafe(32)
 
@@ -70,6 +74,10 @@ class WebhookService:
         data: WebhookUpdate,
     ) -> Webhook:
         """Update a webhook."""
+        # Validate new URL against SSRF if provided
+        if data.url is not None:
+            validate_webhook_url(str(data.url))
+
         webhook = await self.get_webhook(webhook_id)
         return await webhook_repo.update(self.db, webhook, data)
 
@@ -129,6 +137,9 @@ class WebhookService:
         payload: dict,
     ) -> dict:
         """Deliver a payload to a webhook with HMAC signature."""
+        # Re-validate URL at delivery time to prevent DNS rebinding attacks
+        validate_webhook_url(webhook.url)
+
         payload_json = json.dumps(payload, default=str)
 
         # Create HMAC signature
@@ -230,6 +241,7 @@ import httpx
 from sqlalchemy.orm import Session as DBSession
 
 from app.core.exceptions import NotFoundError
+from app.core.sanitize import validate_webhook_url
 from app.db.models.webhook import Webhook, WebhookDelivery
 from app.repositories import webhook_repo
 from app.schemas.webhook import WebhookCreate, WebhookUpdate
@@ -249,6 +261,9 @@ class WebhookService:
         user_id: str | None = None,
     ) -> Webhook:
         """Create a new webhook subscription."""
+        # Validate URL against SSRF before storing
+        validate_webhook_url(str(data.url))
+
         secret = secrets.token_urlsafe(32)
 
         return webhook_repo.create(
@@ -285,6 +300,10 @@ class WebhookService:
         data: WebhookUpdate,
     ) -> Webhook:
         """Update a webhook."""
+        # Validate new URL against SSRF if provided
+        if data.url is not None:
+            validate_webhook_url(str(data.url))
+
         webhook = self.get_webhook(webhook_id)
         return webhook_repo.update(self.db, webhook, data)
 
@@ -323,6 +342,9 @@ class WebhookService:
         payload: dict,
     ) -> dict:
         """Deliver a payload to a webhook with HMAC signature."""
+        # Re-validate URL at delivery time to prevent DNS rebinding attacks
+        validate_webhook_url(webhook.url)
+
         payload_json = json.dumps(payload, default=str)
         signature = self._create_signature(webhook.secret, payload_json)
 
@@ -400,6 +422,7 @@ from datetime import UTC, datetime
 import httpx
 
 from app.core.exceptions import NotFoundError
+from app.core.sanitize import validate_webhook_url
 from app.db.models.webhook import Webhook, WebhookDelivery
 from app.repositories import webhook_repo
 from app.schemas.webhook import WebhookCreate, WebhookUpdate
@@ -416,6 +439,9 @@ class WebhookService:
         user_id: str | None = None,
     ) -> Webhook:
         """Create a new webhook subscription."""
+        # Validate URL against SSRF before storing
+        validate_webhook_url(str(data.url))
+
         secret = secrets.token_urlsafe(32)
 
         return await webhook_repo.create(
@@ -449,6 +475,10 @@ class WebhookService:
         data: WebhookUpdate,
     ) -> Webhook:
         """Update a webhook."""
+        # Validate new URL against SSRF if provided
+        if data.url is not None:
+            validate_webhook_url(str(data.url))
+
         webhook = await self.get_webhook(webhook_id)
         return await webhook_repo.update(webhook, data)
 
@@ -487,6 +517,9 @@ class WebhookService:
         payload: dict,
     ) -> dict:
         """Deliver a payload to a webhook with HMAC signature."""
+        # Re-validate URL at delivery time to prevent DNS rebinding attacks
+        validate_webhook_url(webhook.url)
+
         payload_json = json.dumps(payload, default=str)
         signature = self._create_signature(webhook.secret, payload_json)
 

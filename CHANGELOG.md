@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.4] - 2026-04-09
+
+### Security
+
+- **SSRF protection for webhook URLs (CWE-918)** — Added `validate_webhook_url()` in `app/core/sanitize.py` that blocks private/reserved/loopback/link-local/multicast/CGNAT IPs, validates DNS resolution against internal networks, rejects non-http(s) schemes and URLs with credentials. Validation enforced at webhook create, update, and delivery time across all three database variants (PostgreSQL, SQLite, MongoDB). Includes `SSRFBlockedError` exception with proper 422 responses and 39 unit tests. (PR #62)
+
 ## [0.2.3] - 2026-04-05
 
 ### Added

@@ -35,6 +35,12 @@ DEFAULT_ALLOWED_ATTRIBUTES = {
 # Allowed URL schemes for webhook URLs
 WEBHOOK_ALLOWED_SCHEMES = frozenset({"http", "https"})
 
+# Shared Address Space (RFC 6598) — CGNAT range.
+# Python 3.11+ no longer classifies 100.64.0.0/10 as private or reserved,
+# so we block it explicitly. Covers cloud metadata endpoints like
+# Alibaba Cloud's 100.100.100.200.
+_CGNAT_NETWORK = ipaddress.ip_network("100.64.0.0/10")
+
 
 class SSRFBlockedError(ValueError):
     """Raised when a URL is blocked by SSRF protection.
@@ -187,6 +193,7 @@ def _is_ip_blocked(ip_str: str) -> bool:
         or addr.is_link_local
         or addr.is_multicast
         or addr.is_unspecified
+        or addr in _CGNAT_NETWORK
     )
 
 
@@ -268,6 +275,8 @@ def validate_webhook_url(
     port = parsed.port or default_port
 
     # Resolve hostname via DNS and check all returned addresses
+    # TODO: socket.getaddrinfo() is blocking I/O — in async code paths
+    # (PostgreSQL, MongoDB) consider using loop.getaddrinfo() or run_in_executor.
     try:
         addr_infos = socket.getaddrinfo(hostname, port, proto=socket.IPPROTO_TCP)
     except socket.gaierror as err:
@@ -280,7 +289,7 @@ def validate_webhook_url(
             f"Webhook URL blocked: hostname {hostname!r} did not resolve to any address"
         )
 
-    for family, _type, _proto, _canonname, sockaddr in addr_infos:
+    for _family, _type, _proto, _canonname, sockaddr in addr_infos:
         ip_str = sockaddr[0]
         if _is_ip_blocked(ip_str):
             raise SSRFBlockedError(

@@ -7,22 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
-# Import directly — this module has no dependencies on database/framework code.
-import sys
-import os
-
-# The sanitize module lives inside the Jinja template tree, but it is plain
-# Python with no cookiecutter variables, so we can import it directly by
-# adding its parent to sys.path.
-_SANITIZE_DIR = os.path.join(
-    os.path.dirname(__file__),
-    os.pardir,
-    "app",
-    "core",
-)
-sys.path.insert(0, os.path.normpath(_SANITIZE_DIR))
-
-from sanitize import (  # noqa: E402
+from app.core.sanitize import (
     SSRFBlockedError,
     _is_ip_blocked,
     validate_webhook_url,
@@ -49,6 +34,8 @@ class TestIsIpBlocked:
             "::1",
             "fe80::1",
             "fc00::1",
+            "100.100.100.200",  # CGNAT / Alibaba Cloud metadata
+            "100.64.0.1",  # CGNAT range start (RFC 6598)
         ],
     )
     def test_blocked_ips(self, ip: str):
@@ -114,6 +101,7 @@ class TestDirectIpUrls:
             "http://192.168.1.1/hook",
             "http://[::1]/hook",
             "http://0.0.0.0/hook",
+            "http://100.100.100.200/latest/meta-data/",  # CGNAT / Alibaba metadata
         ],
     )
     def test_private_ip_blocked(self, url: str):
@@ -147,12 +135,14 @@ class TestDnsResolution:
         ]
 
     def test_dns_resolves_to_private_ip(self):
-        with patch("sanitize.socket.getaddrinfo", self._mock_getaddrinfo_private):
-            with pytest.raises(SSRFBlockedError):
-                validate_webhook_url("https://evil.attacker.com/hook")
+        with (
+            patch("app.core.sanitize.socket.getaddrinfo", self._mock_getaddrinfo_private),
+            pytest.raises(SSRFBlockedError),
+        ):
+            validate_webhook_url("https://evil.attacker.com/hook")
 
     def test_dns_resolves_to_public_ip(self):
-        with patch("sanitize.socket.getaddrinfo", self._mock_getaddrinfo_public):
+        with patch("app.core.sanitize.socket.getaddrinfo", self._mock_getaddrinfo_public):
             result = validate_webhook_url("https://example.com/webhook")
             assert result == "https://example.com/webhook"
 
@@ -185,7 +175,7 @@ class TestEdgeCases:
     def test_allowed_https_url(self):
         """A normal public URL should pass (mock DNS to avoid network calls)."""
         with patch(
-            "sanitize.socket.getaddrinfo",
+            "app.core.sanitize.socket.getaddrinfo",
             return_value=[(2, 1, 6, "", ("93.184.216.34", 443))],
         ):
             result = validate_webhook_url("https://example.com/webhook")
@@ -194,7 +184,7 @@ class TestEdgeCases:
     def test_allowed_http_url(self):
         """An http:// URL to a public IP should also pass."""
         with patch(
-            "sanitize.socket.getaddrinfo",
+            "app.core.sanitize.socket.getaddrinfo",
             return_value=[(2, 1, 6, "", ("93.184.216.34", 80))],
         ):
             result = validate_webhook_url("http://example.com/webhook")

@@ -934,8 +934,15 @@ async def get_messages_by_conversation(
     *,
     skip: int = 0,
     limit: int = 100,
+    include_tool_calls: bool = False,
 ) -> list[Message]:
-    """Get messages for a conversation with pagination."""
+    """Get messages for a conversation with pagination.
+
+    MongoDB stores tool calls embedded in the message document, so
+    `include_tool_calls` is accepted for API parity with the SQL variants
+    but has no effect on the query.
+    """
+    del include_tool_calls  # embedded in Mongo message documents
     return await (
         Message.find(Message.conversation_id == conversation_id)
         .sort("created_at")

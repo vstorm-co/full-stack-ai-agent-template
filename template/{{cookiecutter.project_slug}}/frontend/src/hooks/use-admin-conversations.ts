@@ -2,7 +2,7 @@
 {% raw %}
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { apiClient } from "@/lib/api-client";
 import type {
   AdminConversation,
@@ -21,6 +21,9 @@ export function useAdminConversations() {
     useState<ConversationWithMessages | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const loadingCount = useRef(0);
+  const startLoad = () => { loadingCount.current++; setIsLoading(true); };
+  const endLoad = () => { loadingCount.current = Math.max(0, loadingCount.current - 1); if (loadingCount.current === 0) setIsLoading(false); };
 
   const fetchConversations = useCallback(
     async (params?: {
@@ -30,7 +33,7 @@ export function useAdminConversations() {
       user_id?: string;
       include_archived?: boolean;
     }) => {
-      setIsLoading(true);
+      startLoad();
       setError(null);
       try {
         const query = new URLSearchParams();
@@ -52,7 +55,7 @@ export function useAdminConversations() {
           err instanceof Error ? err.message : "Failed to load conversations";
         setError(message);
       } finally {
-        setIsLoading(false);
+        endLoad();
       }
     },
     []
@@ -60,7 +63,7 @@ export function useAdminConversations() {
 
   const fetchUsers = useCallback(
     async (params?: { skip?: number; limit?: number; search?: string }) => {
-      setIsLoading(true);
+      startLoad();
       setError(null);
       try {
         const query = new URLSearchParams();
@@ -78,7 +81,7 @@ export function useAdminConversations() {
           err instanceof Error ? err.message : "Failed to load users";
         setError(message);
       } finally {
-        setIsLoading(false);
+        endLoad();
       }
     },
     []
@@ -86,7 +89,7 @@ export function useAdminConversations() {
 
   const fetchConversationDetail = useCallback(
     async (conversationId: string) => {
-      setIsLoading(true);
+      startLoad();
       setError(null);
       try {
         const conv = await apiClient.get<ConversationWithMessages>(
@@ -100,7 +103,7 @@ export function useAdminConversations() {
         setError(message);
         return null;
       } finally {
-        setIsLoading(false);
+        endLoad();
       }
     },
     []

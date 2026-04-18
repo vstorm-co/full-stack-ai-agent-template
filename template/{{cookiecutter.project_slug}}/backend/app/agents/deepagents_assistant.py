@@ -35,7 +35,7 @@ from langchain_core.tools import tool
 {%- endif %}
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph.message import add_messages
-from langgraph.types import Command, interrupt
+from langgraph.types import Command
 {%- if cookiecutter.use_openai %}
 from langchain_openai import ChatOpenAI
 {%- endif %}
@@ -64,15 +64,16 @@ logger = logging.getLogger(__name__)
 
 {%- if cookiecutter.enable_rag %}
 @tool
-async def search_documents(query: str, collection: str = "documents", top_k: int = 5) -> str:
+async def search_documents(query: str, collection: str | None = None, top_k: int = 5) -> str:
     """Search the knowledge base for relevant documents.
 
     Use this tool to find information from uploaded documents before answering user queries.
+    Searches across all available collections automatically.
     Cite sources by referring to the document filename from the search results.
 
     Args:
         query: The search query string.
-        collection: Name of the collection to search (default: "documents").
+        collection: Name of the collection to search (default: all collections).
         top_k: Number of top results to retrieve (default: 5).
 
     Returns:
@@ -514,14 +515,16 @@ class DeepAgentsAssistant:
             final_state = data if stream_mode == "updates" else final_state
             yield stream_mode, data
 
-        # Check for interrupt after stream completes
-        # Get the final state to check for interrupts
+        # Check for interrupt after stream completes by reading checkpoint state
         state = await self.graph.aget_state(config)
-        if state.next:  # If there's a next step, we're likely interrupted
-            # Fetch the actual interrupt data
-            result = await self.graph.ainvoke(input_data, config=config)
-            interrupt_data = self.extract_interrupt(result)
-            if interrupt_data:
+        if state.next and state.tasks:
+            interrupts = state.tasks[0].interrupts if state.tasks[0].interrupts else []
+            if interrupts:
+                interrupt_value = interrupts[0].value
+                interrupt_data = InterruptData(
+                    action_requests=interrupt_value.get("action_requests", []),
+                    review_configs=interrupt_value.get("review_configs", []),
+                )
                 yield "interrupt", interrupt_data
 
     async def stream_resume(
@@ -558,15 +561,16 @@ class DeepAgentsAssistant:
         ):
             yield stream_mode, data
 
-        # Check for another interrupt
+        # Check for another interrupt by reading checkpoint state
         state = await self.graph.aget_state(config)
-        if state.next:
-            result = await self.graph.ainvoke(
-                Command(resume={"decisions": decisions}),
-                config=config
-            )
-            interrupt_data = self.extract_interrupt(result)
-            if interrupt_data:
+        if state.next and state.tasks:
+            interrupts = state.tasks[0].interrupts if state.tasks[0].interrupts else []
+            if interrupts:
+                interrupt_value = interrupts[0].value
+                interrupt_data = InterruptData(
+                    action_requests=interrupt_value.get("action_requests", []),
+                    review_configs=interrupt_value.get("review_configs", []),
+                )
                 yield "interrupt", interrupt_data
 
 

@@ -20,6 +20,8 @@ from fastapi import APIRouter, HTTPException, Request, Response
 
 logger = logging.getLogger(__name__)
 
+_background_tasks: set[asyncio.Task[None]] = set()
+
 router = APIRouter()
 
 
@@ -41,22 +43,22 @@ async def slack_events(
     raw_body = (await request.body()).decode("utf-8")
     payload: dict[str, Any] = await request.json()
 
-    # --- URL Verification Challenge ---
-    if payload.get("type") == "url_verification":
-        return {"challenge": payload.get("challenge", "")}
-
-    # --- Verify signature ---
+    # --- Verify signature (BEFORE url_verification to prevent spoofed challenges) ---
     from app.channels import get_adapter
     from app.core.config import settings
 
     adapter = get_adapter("slack")
 
     headers = dict(request.headers)
-    headers["_raw_body"] = raw_body  # needed for HMAC verification
 
-    if settings.SLACK_SIGNING_SECRET:
-        if not adapter.verify_webhook_signature(headers, settings.SLACK_SIGNING_SECRET):
-            raise HTTPException(status_code=403, detail="Invalid Slack signature")
+    if not settings.SLACK_SIGNING_SECRET:
+        raise HTTPException(status_code=500, detail="SLACK_SIGNING_SECRET not configured")
+    if not adapter.verify_webhook_signature(headers, settings.SLACK_SIGNING_SECRET, body=raw_body):
+        raise HTTPException(status_code=403, detail="Invalid Slack signature")
+
+    # --- URL Verification Challenge ---
+    if payload.get("type") == "url_verification":
+        return {"challenge": payload.get("challenge", "")}
 
     # --- Load bot and check active ---
 {%- if cookiecutter.use_postgresql %}
@@ -92,7 +94,9 @@ async def slack_events(
         return Response(status_code=200)  # ignore non-text events
 
     # Fire-and-forget — acknowledge to Slack immediately
-    asyncio.create_task(_process_slack_event(incoming))
+    task = asyncio.create_task(_process_slack_event(incoming))
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
     return Response(status_code=200)
 
 
@@ -112,6 +116,8 @@ async def _process_slack_event(incoming: Any) -> None:
 
         from app.db.session import get_db_session
 
+        # NOTE: Holding a sync SQLite session across an `await` boundary is not
+        # ideal — see channels/slack.py for details.
         with contextmanager(get_db_session)() as db:
             await router.route(incoming, db)
 {%- elif cookiecutter.use_mongodb %}

@@ -181,7 +181,7 @@ class ChannelSession(TimestampMixin, SQLModel, table=True):
     is_active: bool = Field(default=True, sa_column=Column(Boolean, nullable=False, default=True))
     last_message_at: datetime | None = Field(
         default=None,
-        sa_column=Column(DateTime, nullable=True),
+        sa_column=Column(DateTime(timezone=True), nullable=True),
     )
 {%- if cookiecutter.use_pydantic_deep and cookiecutter.use_jwt %}
     project_id: str | None = Field(
@@ -241,7 +241,7 @@ class ChannelSession(Base, TimestampMixin):
     platform_chat_id: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     chat_type: Mapped[str] = mapped_column(String(20), nullable=False, default="private")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    last_message_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    last_message_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 {%- if cookiecutter.use_pydantic_deep and cookiecutter.use_jwt %}
     project_id: Mapped[str | None] = mapped_column(
         String(36),

@@ -4,6 +4,7 @@
 Contains business logic for conversation, message, and tool call operations.
 """
 
+import logging
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
@@ -13,6 +14,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.exceptions import NotFoundError
 from app.db.models.conversation import Conversation, Message, ToolCall
 from app.repositories import conversation_repo
+{%- if cookiecutter.use_jwt %}
+from app.repositories import conversation_share_repo
+{%- endif %}
 from app.schemas.conversation import (
     ConversationCreate,
     ConversationUpdate,
@@ -20,6 +24,12 @@ from app.schemas.conversation import (
     ToolCallCreate,
     ToolCallComplete,
 )
+
+
+logger = logging.getLogger(__name__)
+
+# Maximum number of conversations to export in a single request to prevent DoS.
+MAX_EXPORT_LIMIT = 1000
 
 
 class ConversationService:
@@ -84,10 +94,15 @@ class ConversationService:
             and conversation.user_id is not None
             and str(conversation.user_id) != str(user_id)
         ):
-            raise NotFoundError(
-                message="Conversation not found",
-                details={"conversation_id": str(conversation_id)},
+            # Not the owner — check if user has a share granting access
+            share = await conversation_share_repo.get_share(
+                self.db, conversation_id, user_id
             )
+            if not share:
+                raise NotFoundError(
+                    message="Conversation not found",
+                    details={"conversation_id": str(conversation_id)},
+                )
 {%- endif %}
         return conversation
 
@@ -369,7 +384,7 @@ class ConversationService:
         await self.db.execute(
             sa_update(ChatFile).where(ChatFile.id.in_(file_uuids)).values(message_id=message_id)
         )
-        await self.db.commit()
+        await self.db.flush()
 
 
 {%- elif cookiecutter.use_sqlite %}
@@ -386,6 +401,9 @@ from sqlalchemy.orm import Session
 from app.core.exceptions import NotFoundError
 from app.db.models.conversation import Conversation, Message, ToolCall
 from app.repositories import conversation_repo
+{%- if cookiecutter.use_jwt %}
+from app.repositories import conversation_share_repo
+{%- endif %}
 from app.schemas.conversation import (
     ConversationCreate,
     ConversationUpdate,

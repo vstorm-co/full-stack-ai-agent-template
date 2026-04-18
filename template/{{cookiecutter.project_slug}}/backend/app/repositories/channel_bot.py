@@ -7,6 +7,7 @@ from uuid import UUID
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.channels.base import DEFAULT_ACCESS_POLICY
 from app.db.models.channel_bot import ChannelBot
 
 
@@ -57,7 +58,9 @@ async def create(
     access_policy: dict | None = None,
     ai_model_override: str | None = None,
     system_prompt_override: str | None = None,
+{%- if cookiecutter.use_pydantic_deep and cookiecutter.use_jwt %}
     project_id: UUID | None = None,
+{%- endif %}
 ) -> ChannelBot:
     """Create a new channel bot."""
     bot = ChannelBot(
@@ -67,14 +70,7 @@ async def create(
         webhook_mode=webhook_mode,
         webhook_url=webhook_url,
         webhook_secret=webhook_secret,
-        access_policy=access_policy or {
-            "mode": "open",
-            "whitelist": [],
-            "allowed_groups": [],
-            "require_link": False,
-            "rate_limit_rpm": 10,
-            "denied_message": "You are not authorised to use this bot.",
-        },
+        access_policy=access_policy or dict(DEFAULT_ACCESS_POLICY),
         ai_model_override=ai_model_override,
         system_prompt_override=system_prompt_override,
 {%- if cookiecutter.use_pydantic_deep and cookiecutter.use_jwt %}
@@ -142,6 +138,7 @@ import json
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session as DBSession
 
+from app.channels.base import DEFAULT_ACCESS_POLICY
 from app.db.models.channel_bot import ChannelBot
 
 
@@ -192,17 +189,11 @@ def create(
     access_policy: dict | None = None,
     ai_model_override: str | None = None,
     system_prompt_override: str | None = None,
+{%- if cookiecutter.use_pydantic_deep and cookiecutter.use_jwt %}
     project_id: str | None = None,
+{%- endif %}
 ) -> ChannelBot:
     """Create a new channel bot."""
-    default_policy = {
-        "mode": "open",
-        "whitelist": [],
-        "allowed_groups": [],
-        "require_link": False,
-        "rate_limit_rpm": 10,
-        "denied_message": "You are not authorised to use this bot.",
-    }
     bot = ChannelBot(
         platform=platform,
         name=name,
@@ -210,7 +201,7 @@ def create(
         webhook_mode=webhook_mode,
         webhook_url=webhook_url,
         webhook_secret=webhook_secret,
-        access_policy=json.dumps(access_policy or default_policy),
+        access_policy=json.dumps(access_policy or DEFAULT_ACCESS_POLICY),
         ai_model_override=ai_model_override,
         system_prompt_override=system_prompt_override,
 {%- if cookiecutter.use_pydantic_deep and cookiecutter.use_jwt %}
@@ -276,6 +267,9 @@ def list_all(
 {%- elif cookiecutter.use_mongodb %}
 """ChannelBot repository (MongoDB)."""
 
+from datetime import UTC, datetime
+
+from app.channels.base import DEFAULT_ACCESS_POLICY
 from app.db.models.channel_bot import ChannelBot
 
 
@@ -320,7 +314,9 @@ async def create(
     access_policy: dict | None = None,
     ai_model_override: str | None = None,
     system_prompt_override: str | None = None,
+{%- if cookiecutter.use_pydantic_deep and cookiecutter.use_jwt %}
     project_id: str | None = None,
+{%- endif %}
 ) -> ChannelBot:
     """Create a new channel bot."""
     bot = ChannelBot(
@@ -330,14 +326,7 @@ async def create(
         webhook_mode=webhook_mode,
         webhook_url=webhook_url,
         webhook_secret=webhook_secret,
-        access_policy=access_policy or {
-            "mode": "open",
-            "whitelist": [],
-            "allowed_groups": [],
-            "require_link": False,
-            "rate_limit_rpm": 10,
-            "denied_message": "You are not authorised to use this bot.",
-        },
+        access_policy=access_policy or dict(DEFAULT_ACCESS_POLICY),
         ai_model_override=ai_model_override,
         system_prompt_override=system_prompt_override,
 {%- if cookiecutter.use_pydantic_deep and cookiecutter.use_jwt %}
@@ -356,6 +345,7 @@ async def update(
     """Update a channel bot."""
     for field, value in update_data.items():
         setattr(db_bot, field, value)
+    db_bot.updated_at = datetime.now(UTC)
     await db_bot.save()
     return db_bot
 

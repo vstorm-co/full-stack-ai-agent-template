@@ -314,6 +314,7 @@ def create(
                 database=DatabaseType.POSTGRESQL,
                 enable_logfire=True,
                 enable_redis=True,
+                enable_websockets=True,
                 ai_framework=AIFrameworkType(ai_framework),
                 llm_provider=LLMProviderType(llm_provider),
                 enable_langsmith=ai_framework in ("langchain", "langgraph", "deepagents"),

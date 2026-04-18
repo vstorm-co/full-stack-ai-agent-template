@@ -126,7 +126,7 @@ class ChannelIdentity(TimestampMixin, SQLModel, table=True):
     link_code: str | None = Field(default=None, sa_column=Column(String(10), nullable=True))
     link_code_expires_at: datetime | None = Field(
         default=None,
-        sa_column=Column(DateTime, nullable=True),
+        sa_column=Column(DateTime(timezone=True), nullable=True),
     )
     is_active: bool = Field(default=True, sa_column=Column(Boolean, nullable=False, default=True))
 
@@ -166,7 +166,7 @@ class ChannelIdentity(Base, TimestampMixin):
         index=True,
     )
     link_code: Mapped[str | None] = mapped_column(String(10), nullable=True)
-    link_code_expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    link_code_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     def __repr__(self) -> str:

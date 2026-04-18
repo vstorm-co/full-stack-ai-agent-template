@@ -264,7 +264,7 @@ class TestHistoryConversion:
         ]
         messages = agent._convert_history(history)
         assert len(messages) == 3
-        from langchain.messages import AIMessage, HumanMessage, SystemMessage
+        from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
         assert isinstance(messages[0], HumanMessage)
         assert isinstance(messages[1], AIMessage)
         assert isinstance(messages[2], SystemMessage)

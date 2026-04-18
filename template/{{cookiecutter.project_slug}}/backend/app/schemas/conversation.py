@@ -162,7 +162,6 @@ class ConversationCreate(ConversationBase):
     project_id: str | None = Field(default=None, description="Project this conversation belongs to")
 {%- endif %}
 {%- endif %}
-    pass
 
 
 class ConversationUpdate(BaseSchema):

@@ -2,7 +2,7 @@
 {% raw %}
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { apiClient } from "@/lib/api-client";
 import type {
   Conversation,
@@ -17,6 +17,9 @@ export function useConversationShares() {
   const [sharedWithMeTotal, setSharedWithMeTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const loadingCount = useRef(0);
+  const startLoad = () => { loadingCount.current++; setIsLoading(true); };
+  const endLoad = () => { loadingCount.current = Math.max(0, loadingCount.current - 1); if (loadingCount.current === 0) setIsLoading(false); };
 
   const shareConversation = useCallback(
     async (
@@ -27,7 +30,7 @@ export function useConversationShares() {
         generate_link?: boolean;
       }
     ) => {
-      setIsLoading(true);
+      startLoad();
       setError(null);
       try {
         const share = await apiClient.post<ConversationShare>(
@@ -41,14 +44,14 @@ export function useConversationShares() {
         setError(message);
         throw err;
       } finally {
-        setIsLoading(false);
+        endLoad();
       }
     },
     []
   );
 
   const fetchShares = useCallback(async (conversationId: string) => {
-    setIsLoading(true);
+    startLoad();
     setError(null);
     try {
       const response = await apiClient.get<ConversationShareListResponse>(
@@ -59,13 +62,13 @@ export function useConversationShares() {
       const message = err instanceof Error ? err.message : "Failed to load shares";
       setError(message);
     } finally {
-      setIsLoading(false);
+      endLoad();
     }
   }, []);
 
   const revokeShare = useCallback(
     async (conversationId: string, shareId: string) => {
-      setIsLoading(true);
+      startLoad();
       setError(null);
       try {
         await apiClient.delete(
@@ -77,7 +80,7 @@ export function useConversationShares() {
         setError(message);
         throw err;
       } finally {
-        setIsLoading(false);
+        endLoad();
       }
     },
     []
@@ -85,7 +88,7 @@ export function useConversationShares() {
 
   const fetchSharedWithMe = useCallback(
     async (skip = 0, limit = 50) => {
-      setIsLoading(true);
+      startLoad();
       setError(null);
       try {
         const response = await apiClient.get<ConversationListResponse>(
@@ -98,7 +101,7 @@ export function useConversationShares() {
           err instanceof Error ? err.message : "Failed to load shared";
         setError(message);
       } finally {
-        setIsLoading(false);
+        endLoad();
       }
     },
     []

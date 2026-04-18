@@ -8,7 +8,7 @@ import logging
 from typing import Any, TypedDict
 
 from langchain.agents import create_agent
-from langchain.messages import AIMessage, HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain.tools import tool
 {%- if cookiecutter.use_openai %}
 from langchain_openai import ChatOpenAI

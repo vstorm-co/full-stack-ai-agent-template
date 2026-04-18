@@ -4,7 +4,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-import type { Project, ProjectCreate, ProjectUpdate } from "@/types/project";
+import type { Project } from "@/types/project";
 
 interface ProjectState {
   projects: Project[];

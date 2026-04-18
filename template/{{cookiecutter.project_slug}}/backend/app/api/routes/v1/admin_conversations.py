@@ -19,9 +19,6 @@ from uuid import UUID
 from fastapi import APIRouter, Query
 
 from app.api.deps import ConversationSvc, CurrentAdmin
-{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
-from app.api.deps import DBSession
-{%- endif %}
 from app.schemas.conversation import ConversationList, ConversationReadWithMessages
 from app.schemas.conversation_share import AdminConversationList, AdminConversationRead, AdminUserList
 
@@ -43,40 +40,38 @@ async def admin_list_conversations(
 ) -> Any:
     """List all conversations across all users (admin only)."""
     from sqlalchemy import func, select
-    from app.db.session import get_db_context
     from app.db.models.conversation import Conversation, Message
     from app.db.models.user import User
 
-    async with get_db_context() as db:
-        query = select(
-            Conversation,
-            func.count(Message.id).label("message_count"),
-            User.email.label("user_email"),
-        ).outerjoin(Message, Message.conversation_id == Conversation.id).outerjoin(
-            User, User.id == Conversation.user_id
-        ).group_by(Conversation.id, User.email)
+    db = service.db
+    query = select(
+        Conversation,
+        func.count(Message.id).label("message_count"),
+        User.email.label("user_email"),
+    ).outerjoin(Message, Message.conversation_id == Conversation.id).outerjoin(
+        User, User.id == Conversation.user_id
+    ).group_by(Conversation.id, User.email)
 
-        if search:
-            query = query.where(Conversation.title.ilike(f"%{search}%"))
-        if user_id:
-            query = query.where(Conversation.user_id == user_id)
-        if not include_archived:
-            query = query.where(Conversation.is_archived.is_(False))
+    if search:
+        query = query.where(Conversation.title.ilike(f"%{search}%"))
+    if user_id:
+        query = query.where(Conversation.user_id == user_id)
+    if not include_archived:
+        query = query.where(Conversation.is_archived.is_(False))
 
-        # Count
-        from sqlalchemy import literal_column
-        count_query = select(func.count()).select_from(Conversation)
-        if search:
-            count_query = count_query.where(Conversation.title.ilike(f"%{search}%"))
-        if user_id:
-            count_query = count_query.where(Conversation.user_id == user_id)
-        if not include_archived:
-            count_query = count_query.where(Conversation.is_archived.is_(False))
-        total = await db.scalar(count_query) or 0
+    # Count
+    count_query = select(func.count()).select_from(Conversation)
+    if search:
+        count_query = count_query.where(Conversation.title.ilike(f"%{search}%"))
+    if user_id:
+        count_query = count_query.where(Conversation.user_id == user_id)
+    if not include_archived:
+        count_query = count_query.where(Conversation.is_archived.is_(False))
+    total = await db.scalar(count_query) or 0
 
-        query = query.order_by(Conversation.updated_at.desc()).offset(skip).limit(limit)
-        result = await db.execute(query)
-        rows = result.all()
+    query = query.order_by(Conversation.updated_at.desc()).offset(skip).limit(limit)
+    result = await db.execute(query)
+    rows = result.all()
 
     items = [
         AdminConversationRead(
@@ -99,6 +94,7 @@ async def admin_list_conversations(
 
 @router.get("/users", response_model=AdminUserList)
 async def admin_list_users(
+    service: ConversationSvc,
     current_user: CurrentAdmin,
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
@@ -106,32 +102,31 @@ async def admin_list_users(
 ) -> Any:
     """List all users with conversation counts (admin only)."""
     from sqlalchemy import func, select
-    from app.db.session import get_db_context
     from app.db.models.conversation import Conversation
     from app.db.models.user import User
     from app.schemas.conversation_share import AdminUserRead
 
-    async with get_db_context() as db:
-        query = select(
-            User,
-            func.count(Conversation.id).label("conversation_count"),
-        ).outerjoin(Conversation, Conversation.user_id == User.id).group_by(User.id)
+    db = service.db
+    query = select(
+        User,
+        func.count(Conversation.id).label("conversation_count"),
+    ).outerjoin(Conversation, Conversation.user_id == User.id).group_by(User.id)
 
-        if search:
-            query = query.where(
-                User.email.ilike(f"%{search}%") | User.full_name.ilike(f"%{search}%")
-            )
+    if search:
+        query = query.where(
+            User.email.ilike(f"%{search}%") | User.full_name.ilike(f"%{search}%")
+        )
 
-        count_query = select(func.count()).select_from(User)
-        if search:
-            count_query = count_query.where(
-                User.email.ilike(f"%{search}%") | User.full_name.ilike(f"%{search}%")
-            )
-        total = await db.scalar(count_query) or 0
+    count_query = select(func.count()).select_from(User)
+    if search:
+        count_query = count_query.where(
+            User.email.ilike(f"%{search}%") | User.full_name.ilike(f"%{search}%")
+        )
+    total = await db.scalar(count_query) or 0
 
-        query = query.order_by(User.created_at.desc()).offset(skip).limit(limit)
-        result = await db.execute(query)
-        rows = result.all()
+    query = query.order_by(User.created_at.desc()).offset(skip).limit(limit)
+    result = await db.execute(query)
+    rows = result.all()
 
     items = [
         AdminUserRead(
@@ -172,39 +167,37 @@ def admin_list_conversations(
 ) -> Any:
     """List all conversations across all users (admin only)."""
     from sqlalchemy import func, select
-    from contextlib import contextmanager
-    from app.db.session import get_db_session
     from app.db.models.conversation import Conversation, Message
     from app.db.models.user import User
 
-    with contextmanager(get_db_session)() as db:
-        query = select(
-            Conversation,
-            func.count(Message.id).label("message_count"),
-            User.email.label("user_email"),
-        ).outerjoin(Message, Message.conversation_id == Conversation.id).outerjoin(
-            User, User.id == Conversation.user_id
-        ).group_by(Conversation.id, User.email)
+    db = service.db
+    query = select(
+        Conversation,
+        func.count(Message.id).label("message_count"),
+        User.email.label("user_email"),
+    ).outerjoin(Message, Message.conversation_id == Conversation.id).outerjoin(
+        User, User.id == Conversation.user_id
+    ).group_by(Conversation.id, User.email)
 
-        if search:
-            query = query.where(Conversation.title.ilike(f"%{search}%"))
-        if user_id:
-            query = query.where(Conversation.user_id == user_id)
-        if not include_archived:
-            query = query.where(Conversation.is_archived.is_(False))
+    if search:
+        query = query.where(Conversation.title.ilike(f"%{search}%"))
+    if user_id:
+        query = query.where(Conversation.user_id == user_id)
+    if not include_archived:
+        query = query.where(Conversation.is_archived.is_(False))
 
-        count_query = select(func.count()).select_from(Conversation)
-        if search:
-            count_query = count_query.where(Conversation.title.ilike(f"%{search}%"))
-        if user_id:
-            count_query = count_query.where(Conversation.user_id == user_id)
-        if not include_archived:
-            count_query = count_query.where(Conversation.is_archived.is_(False))
-        total = db.scalar(count_query) or 0
+    count_query = select(func.count()).select_from(Conversation)
+    if search:
+        count_query = count_query.where(Conversation.title.ilike(f"%{search}%"))
+    if user_id:
+        count_query = count_query.where(Conversation.user_id == user_id)
+    if not include_archived:
+        count_query = count_query.where(Conversation.is_archived.is_(False))
+    total = db.scalar(count_query) or 0
 
-        query = query.order_by(Conversation.updated_at.desc()).offset(skip).limit(limit)
-        result = db.execute(query)
-        rows = result.all()
+    query = query.order_by(Conversation.updated_at.desc()).offset(skip).limit(limit)
+    result = db.execute(query)
+    rows = result.all()
 
     items = [
         AdminConversationRead(
@@ -227,6 +220,7 @@ def admin_list_conversations(
 
 @router.get("/users", response_model=AdminUserList)
 def admin_list_users(
+    service: ConversationSvc,
     current_user: CurrentAdmin,
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
@@ -234,33 +228,31 @@ def admin_list_users(
 ) -> Any:
     """List all users with conversation counts (admin only)."""
     from sqlalchemy import func, select
-    from contextlib import contextmanager
-    from app.db.session import get_db_session
     from app.db.models.conversation import Conversation
     from app.db.models.user import User
     from app.schemas.conversation_share import AdminUserRead
 
-    with contextmanager(get_db_session)() as db:
-        query = select(
-            User,
-            func.count(Conversation.id).label("conversation_count"),
-        ).outerjoin(Conversation, Conversation.user_id == User.id).group_by(User.id)
+    db = service.db
+    query = select(
+        User,
+        func.count(Conversation.id).label("conversation_count"),
+    ).outerjoin(Conversation, Conversation.user_id == User.id).group_by(User.id)
 
-        if search:
-            query = query.where(
-                User.email.ilike(f"%{search}%") | User.full_name.ilike(f"%{search}%")
-            )
+    if search:
+        query = query.where(
+            User.email.ilike(f"%{search}%") | User.full_name.ilike(f"%{search}%")
+        )
 
-        count_query = select(func.count()).select_from(User)
-        if search:
-            count_query = count_query.where(
-                User.email.ilike(f"%{search}%") | User.full_name.ilike(f"%{search}%")
-            )
-        total = db.scalar(count_query) or 0
+    count_query = select(func.count()).select_from(User)
+    if search:
+        count_query = count_query.where(
+            User.email.ilike(f"%{search}%") | User.full_name.ilike(f"%{search}%")
+        )
+    total = db.scalar(count_query) or 0
 
-        query = query.order_by(User.created_at.desc()).offset(skip).limit(limit)
-        result = db.execute(query)
-        rows = result.all()
+    query = query.order_by(User.created_at.desc()).offset(skip).limit(limit)
+    result = db.execute(query)
+    rows = result.all()
 
     items = [
         AdminUserRead(
@@ -305,7 +297,8 @@ async def admin_list_conversations(
 
     query_filter: dict = {}
     if search:
-        query_filter["title"] = {"$regex": search, "$options": "i"}
+        import re
+        query_filter["title"] = {"$regex": re.escape(search), "$options": "i"}
     if user_id:
         query_filter["user_id"] = user_id
     if not include_archived:
@@ -359,9 +352,11 @@ async def admin_list_users(
 
     query_filter: dict = {}
     if search:
+        import re
+        escaped = re.escape(search)
         query_filter["$or"] = [
-            {"email": {"$regex": search, "$options": "i"}},
-            {"full_name": {"$regex": search, "$options": "i"}},
+            {"email": {"$regex": escaped, "$options": "i"}},
+            {"full_name": {"$regex": escaped, "$options": "i"}},
         ]
 
     total = await User.find(query_filter).count()

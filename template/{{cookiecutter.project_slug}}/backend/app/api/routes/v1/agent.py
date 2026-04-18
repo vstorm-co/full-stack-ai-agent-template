@@ -204,10 +204,12 @@ async def agent_websocket(
                     if requested_conv_id:
                         current_conversation_id = requested_conv_id
                         # Verify conversation exists and update title if empty
-                        conv = await conv_service.get_conversation(UUID(requested_conv_id))
+                        conv = await conv_service.get_conversation(UUID(requested_conv_id)
+{%- if cookiecutter.websocket_auth_jwt %}, user_id=user.id{%- endif %})
                         if not conv.title and user_message:
                             title = user_message[:50] if len(user_message) > 50 else user_message
-                            await conv_service.update_conversation(UUID(requested_conv_id), ConversationUpdate(title=title))
+                            await conv_service.update_conversation(UUID(requested_conv_id), ConversationUpdate(title=title)
+{%- if cookiecutter.websocket_auth_jwt %}, user_id=user.id{%- endif %})
                     elif not current_conversation_id:
                         # Create new conversation
                         conv_data = ConversationCreate(
@@ -243,10 +245,12 @@ async def agent_websocket(
                     requested_conv_id = data.get("conversation_id")
                     if requested_conv_id:
                         current_conversation_id = requested_conv_id
-                        conv = conv_service.get_conversation(requested_conv_id)
+                        conv = conv_service.get_conversation(requested_conv_id
+{%- if cookiecutter.websocket_auth_jwt %}, user_id=str(user.id){%- endif %})
                         if not conv.title and user_message:
                             title = user_message[:50] if len(user_message) > 50 else user_message
-                            conv_service.update_conversation(requested_conv_id, ConversationUpdate(title=title))
+                            conv_service.update_conversation(requested_conv_id, ConversationUpdate(title=title)
+{%- if cookiecutter.websocket_auth_jwt %}, user_id=str(user.id){%- endif %})
                     elif not current_conversation_id:
                         # Create new conversation
                         conv_data = ConversationCreate(
@@ -286,10 +290,12 @@ async def agent_websocket(
             requested_conv_id = data.get("conversation_id")
             if requested_conv_id:
                 current_conversation_id = requested_conv_id
-                conv = await conv_service.get_conversation(requested_conv_id)
+                conv = await conv_service.get_conversation(requested_conv_id
+{%- if cookiecutter.websocket_auth_jwt %}, user_id=str(user.id){%- endif %})
                 if not conv.title and user_message:
                     title = user_message[:50] if len(user_message) > 50 else user_message
-                    await conv_service.update_conversation(requested_conv_id, ConversationUpdate(title=title))
+                    await conv_service.update_conversation(requested_conv_id, ConversationUpdate(title=title)
+{%- if cookiecutter.websocket_auth_jwt %}, user_id=str(user.id){%- endif %})
             elif not current_conversation_id:
                 conv_data = ConversationCreate(
 {%- if cookiecutter.websocket_auth_jwt %}
@@ -786,10 +792,12 @@ async def agent_websocket(
                     if requested_conv_id:
                         current_conversation_id = requested_conv_id
                         # Verify conversation exists and update title if empty
-                        conv = await conv_service.get_conversation(UUID(requested_conv_id))
+                        conv = await conv_service.get_conversation(UUID(requested_conv_id)
+{%- if cookiecutter.websocket_auth_jwt %}, user_id=user.id{%- endif %})
                         if not conv.title and user_message:
                             title = user_message[:50] if len(user_message) > 50 else user_message
-                            await conv_service.update_conversation(UUID(requested_conv_id), ConversationUpdate(title=title))
+                            await conv_service.update_conversation(UUID(requested_conv_id), ConversationUpdate(title=title)
+{%- if cookiecutter.websocket_auth_jwt %}, user_id=user.id{%- endif %})
                     elif not current_conversation_id:
                         # Create new conversation
                         conv_data = ConversationCreate(
@@ -825,10 +833,12 @@ async def agent_websocket(
                     requested_conv_id = data.get("conversation_id")
                     if requested_conv_id:
                         current_conversation_id = requested_conv_id
-                        conv = conv_service.get_conversation(requested_conv_id)
+                        conv = conv_service.get_conversation(requested_conv_id
+{%- if cookiecutter.websocket_auth_jwt %}, user_id=str(user.id){%- endif %})
                         if not conv.title and user_message:
                             title = user_message[:50] if len(user_message) > 50 else user_message
-                            conv_service.update_conversation(requested_conv_id, ConversationUpdate(title=title))
+                            conv_service.update_conversation(requested_conv_id, ConversationUpdate(title=title)
+{%- if cookiecutter.websocket_auth_jwt %}, user_id=str(user.id){%- endif %})
                     elif not current_conversation_id:
                         # Create new conversation
                         conv_data = ConversationCreate(
@@ -868,10 +878,12 @@ async def agent_websocket(
             requested_conv_id = data.get("conversation_id")
             if requested_conv_id:
                 current_conversation_id = requested_conv_id
-                conv = await conv_service.get_conversation(requested_conv_id)
+                conv = await conv_service.get_conversation(requested_conv_id
+{%- if cookiecutter.websocket_auth_jwt %}, user_id=str(user.id){%- endif %})
                 if not conv.title and user_message:
                     title = user_message[:50] if len(user_message) > 50 else user_message
-                    await conv_service.update_conversation(requested_conv_id, ConversationUpdate(title=title))
+                    await conv_service.update_conversation(requested_conv_id, ConversationUpdate(title=title)
+{%- if cookiecutter.websocket_auth_jwt %}, user_id=str(user.id){%- endif %})
             elif not current_conversation_id:
                 conv_data = ConversationCreate(
 {%- if cookiecutter.websocket_auth_jwt %}
@@ -908,7 +920,7 @@ async def agent_websocket(
 
                 await manager.send_event(websocket, "model_request_start", {})
 
-                for stream_mode, data in assistant.agent.stream(
+                async for stream_mode, data in assistant.agent.astream(
                     {"messages": model_history},
                     stream_mode=["messages", "updates"],
                     config={"configurable": context} if context else None,
@@ -1256,10 +1268,12 @@ async def agent_websocket(
                     if requested_conv_id:
                         current_conversation_id = requested_conv_id
                         # Verify conversation exists and update title if empty
-                        conv = await conv_service.get_conversation(UUID(requested_conv_id))
+                        conv = await conv_service.get_conversation(UUID(requested_conv_id)
+{%- if cookiecutter.websocket_auth_jwt %}, user_id=user.id{%- endif %})
                         if not conv.title and user_message:
                             title = user_message[:50] if len(user_message) > 50 else user_message
-                            await conv_service.update_conversation(UUID(requested_conv_id), ConversationUpdate(title=title))
+                            await conv_service.update_conversation(UUID(requested_conv_id), ConversationUpdate(title=title)
+{%- if cookiecutter.websocket_auth_jwt %}, user_id=user.id{%- endif %})
                     elif not current_conversation_id:
                         # Create new conversation
                         conv_data = ConversationCreate(
@@ -1295,10 +1309,12 @@ async def agent_websocket(
                     requested_conv_id = data.get("conversation_id")
                     if requested_conv_id:
                         current_conversation_id = requested_conv_id
-                        conv = conv_service.get_conversation(requested_conv_id)
+                        conv = conv_service.get_conversation(requested_conv_id
+{%- if cookiecutter.websocket_auth_jwt %}, user_id=str(user.id){%- endif %})
                         if not conv.title and user_message:
                             title = user_message[:50] if len(user_message) > 50 else user_message
-                            conv_service.update_conversation(requested_conv_id, ConversationUpdate(title=title))
+                            conv_service.update_conversation(requested_conv_id, ConversationUpdate(title=title)
+{%- if cookiecutter.websocket_auth_jwt %}, user_id=str(user.id){%- endif %})
                     elif not current_conversation_id:
                         # Create new conversation
                         conv_data = ConversationCreate(
@@ -1338,10 +1354,12 @@ async def agent_websocket(
             requested_conv_id = data.get("conversation_id")
             if requested_conv_id:
                 current_conversation_id = requested_conv_id
-                conv = await conv_service.get_conversation(requested_conv_id)
+                conv = await conv_service.get_conversation(requested_conv_id
+{%- if cookiecutter.websocket_auth_jwt %}, user_id=str(user.id){%- endif %})
                 if not conv.title and user_message:
                     title = user_message[:50] if len(user_message) > 50 else user_message
-                    await conv_service.update_conversation(requested_conv_id, ConversationUpdate(title=title))
+                    await conv_service.update_conversation(requested_conv_id, ConversationUpdate(title=title)
+{%- if cookiecutter.websocket_auth_jwt %}, user_id=str(user.id){%- endif %})
             elif not current_conversation_id:
                 conv_data = ConversationCreate(
 {%- if cookiecutter.websocket_auth_jwt %}
@@ -1710,10 +1728,12 @@ async def agent_websocket(
                     if requested_conv_id:
                         current_conversation_id = requested_conv_id
                         # Verify conversation exists and update title if empty
-                        conv = await conv_service.get_conversation(UUID(requested_conv_id))
+                        conv = await conv_service.get_conversation(UUID(requested_conv_id)
+{%- if cookiecutter.websocket_auth_jwt %}, user_id=user.id{%- endif %})
                         if not conv.title and user_message:
                             title = user_message[:50] if len(user_message) > 50 else user_message
-                            await conv_service.update_conversation(UUID(requested_conv_id), ConversationUpdate(title=title))
+                            await conv_service.update_conversation(UUID(requested_conv_id), ConversationUpdate(title=title)
+{%- if cookiecutter.websocket_auth_jwt %}, user_id=user.id{%- endif %})
                     elif not current_conversation_id:
                         # Create new conversation
                         conv_data = ConversationCreate(
@@ -1749,10 +1769,12 @@ async def agent_websocket(
                     requested_conv_id = data.get("conversation_id")
                     if requested_conv_id:
                         current_conversation_id = requested_conv_id
-                        conv = conv_service.get_conversation(requested_conv_id)
+                        conv = conv_service.get_conversation(requested_conv_id
+{%- if cookiecutter.websocket_auth_jwt %}, user_id=str(user.id){%- endif %})
                         if not conv.title and user_message:
                             title = user_message[:50] if len(user_message) > 50 else user_message
-                            conv_service.update_conversation(requested_conv_id, ConversationUpdate(title=title))
+                            conv_service.update_conversation(requested_conv_id, ConversationUpdate(title=title)
+{%- if cookiecutter.websocket_auth_jwt %}, user_id=str(user.id){%- endif %})
                     elif not current_conversation_id:
                         # Create new conversation
                         conv_data = ConversationCreate(
@@ -1792,10 +1814,12 @@ async def agent_websocket(
             requested_conv_id = data.get("conversation_id")
             if requested_conv_id:
                 current_conversation_id = requested_conv_id
-                conv = await conv_service.get_conversation(requested_conv_id)
+                conv = await conv_service.get_conversation(requested_conv_id
+{%- if cookiecutter.websocket_auth_jwt %}, user_id=str(user.id){%- endif %})
                 if not conv.title and user_message:
                     title = user_message[:50] if len(user_message) > 50 else user_message
-                    await conv_service.update_conversation(requested_conv_id, ConversationUpdate(title=title))
+                    await conv_service.update_conversation(requested_conv_id, ConversationUpdate(title=title)
+{%- if cookiecutter.websocket_auth_jwt %}, user_id=str(user.id){%- endif %})
             elif not current_conversation_id:
                 conv_data = ConversationCreate(
 {%- if cookiecutter.websocket_auth_jwt %}
@@ -2338,10 +2362,12 @@ async def agent_websocket(
                     if requested_conv_id:
                         current_conversation_id = requested_conv_id
                         # Verify conversation exists and update title if empty
-                        conv = await conv_service.get_conversation(UUID(requested_conv_id))
+                        conv = await conv_service.get_conversation(UUID(requested_conv_id)
+{%- if cookiecutter.websocket_auth_jwt %}, user_id=user.id{%- endif %})
                         if not conv.title and user_message:
                             title = user_message[:50] if len(user_message) > 50 else user_message
-                            await conv_service.update_conversation(UUID(requested_conv_id), ConversationUpdate(title=title))
+                            await conv_service.update_conversation(UUID(requested_conv_id), ConversationUpdate(title=title)
+{%- if cookiecutter.websocket_auth_jwt %}, user_id=user.id{%- endif %})
                     elif not current_conversation_id:
                         # Create new conversation
                         conv_data = ConversationCreate(
@@ -2377,10 +2403,12 @@ async def agent_websocket(
                     requested_conv_id = raw_data.get("conversation_id")
                     if requested_conv_id:
                         current_conversation_id = requested_conv_id
-                        conv = conv_service.get_conversation(requested_conv_id)
+                        conv = conv_service.get_conversation(requested_conv_id
+{%- if cookiecutter.websocket_auth_jwt %}, user_id=str(user.id){%- endif %})
                         if not conv.title and user_message:
                             title = user_message[:50] if len(user_message) > 50 else user_message
-                            conv_service.update_conversation(requested_conv_id, ConversationUpdate(title=title))
+                            conv_service.update_conversation(requested_conv_id, ConversationUpdate(title=title)
+{%- if cookiecutter.websocket_auth_jwt %}, user_id=str(user.id){%- endif %})
                     elif not current_conversation_id:
                         # Create new conversation
                         conv_data = ConversationCreate(
@@ -2420,10 +2448,12 @@ async def agent_websocket(
             requested_conv_id = raw_data.get("conversation_id")
             if requested_conv_id:
                 current_conversation_id = requested_conv_id
-                conv = await conv_service.get_conversation(requested_conv_id)
+                conv = await conv_service.get_conversation(requested_conv_id
+{%- if cookiecutter.websocket_auth_jwt %}, user_id=str(user.id){%- endif %})
                 if not conv.title and user_message:
                     title = user_message[:50] if len(user_message) > 50 else user_message
-                    await conv_service.update_conversation(requested_conv_id, ConversationUpdate(title=title))
+                    await conv_service.update_conversation(requested_conv_id, ConversationUpdate(title=title)
+{%- if cookiecutter.websocket_auth_jwt %}, user_id=str(user.id){%- endif %})
             elif not current_conversation_id:
                 conv_data = ConversationCreate(
 {%- if cookiecutter.websocket_auth_jwt %}
@@ -2875,10 +2905,12 @@ async def agent_websocket(
                     requested_conv_id = data.get("conversation_id")
                     if requested_conv_id:
                         current_conversation_id = requested_conv_id
-                        conv = await conv_service.get_conversation(UUID(requested_conv_id))
+                        conv = await conv_service.get_conversation(UUID(requested_conv_id)
+{%- if cookiecutter.websocket_auth_jwt %}, user_id=user.id{%- endif %})
                         if not conv.title and user_message:
                             title = user_message[:50] if len(user_message) > 50 else user_message
-                            await conv_service.update_conversation(UUID(requested_conv_id), ConversationUpdate(title=title))
+                            await conv_service.update_conversation(UUID(requested_conv_id), ConversationUpdate(title=title)
+{%- if cookiecutter.websocket_auth_jwt %}, user_id=user.id{%- endif %})
                     elif not current_conversation_id:
                         conv_data = ConversationCreate(
 {%- if cookiecutter.websocket_auth_jwt %}
@@ -2910,10 +2942,12 @@ async def agent_websocket(
                     requested_conv_id = data.get("conversation_id")
                     if requested_conv_id:
                         current_conversation_id = requested_conv_id
-                        conv = conv_service.get_conversation(requested_conv_id)
+                        conv = conv_service.get_conversation(requested_conv_id
+{%- if cookiecutter.websocket_auth_jwt %}, user_id=str(user.id){%- endif %})
                         if not conv.title and user_message:
                             title = user_message[:50] if len(user_message) > 50 else user_message
-                            conv_service.update_conversation(requested_conv_id, ConversationUpdate(title=title))
+                            conv_service.update_conversation(requested_conv_id, ConversationUpdate(title=title)
+{%- if cookiecutter.websocket_auth_jwt %}, user_id=str(user.id){%- endif %})
                     elif not current_conversation_id:
                         conv_data = ConversationCreate(
 {%- if cookiecutter.websocket_auth_jwt %}
@@ -2948,10 +2982,12 @@ async def agent_websocket(
             requested_conv_id = data.get("conversation_id")
             if requested_conv_id:
                 current_conversation_id = requested_conv_id
-                conv = await conv_service.get_conversation(requested_conv_id)
+                conv = await conv_service.get_conversation(requested_conv_id
+{%- if cookiecutter.websocket_auth_jwt %}, user_id=str(user.id){%- endif %})
                 if not conv.title and user_message:
                     title = user_message[:50] if len(user_message) > 50 else user_message
-                    await conv_service.update_conversation(requested_conv_id, ConversationUpdate(title=title))
+                    await conv_service.update_conversation(requested_conv_id, ConversationUpdate(title=title)
+{%- if cookiecutter.websocket_auth_jwt %}, user_id=str(user.id){%- endif %})
             elif not current_conversation_id:
                 conv_data = ConversationCreate(
 {%- if cookiecutter.websocket_auth_jwt %}
@@ -3418,7 +3454,8 @@ async def project_chat_websocket(
 
             conv_service = get_conversation_service(db)
             try:
-                conv = await conv_service.get_conversation(conversation_id)
+                conv = await conv_service.get_conversation(conversation_id
+{%- if cookiecutter.websocket_auth_jwt %}, user_id=user.id{%- endif %})
             except Exception:
                 conv = await conv_service.create_conversation(
                     ConversationCreate(

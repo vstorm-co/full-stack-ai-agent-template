@@ -5,8 +5,11 @@ Registers a single endpoint that Telegram will POST updates to:
     POST /channels/telegram/{bot_id}/webhook
 """
 
+import asyncio
 import logging
 from typing import Any
+
+_background_tasks: set[asyncio.Task[None]] = set()
 
 {%- if cookiecutter.use_postgresql %}
 from uuid import UUID
@@ -32,8 +35,6 @@ async def telegram_webhook(
     Immediately returns HTTP 200 to Telegram, then processes the update
     asynchronously in the background so Telegram does not time out.
     """
-    import asyncio
-
     from app.channels import get_adapter
 
     adapter = get_adapter("telegram")
@@ -62,7 +63,9 @@ async def telegram_webhook(
         return Response(status_code=200)  # ignore non-text updates
 
     # Fire-and-forget — acknowledge to Telegram immediately
-    asyncio.create_task(_process_webhook_update(incoming))
+    task = asyncio.create_task(_process_webhook_update(incoming))
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
     return Response(status_code=200)
 
 
@@ -75,8 +78,6 @@ async def telegram_webhook(
     request: Request,
 ) -> Response:
     """Receive Telegram webhook updates."""
-    import asyncio
-
     from app.channels import get_adapter
 
     adapter = get_adapter("telegram")
@@ -104,7 +105,9 @@ async def telegram_webhook(
     if incoming is None:
         return Response(status_code=200)
 
-    asyncio.create_task(_process_webhook_update(incoming))
+    task = asyncio.create_task(_process_webhook_update(incoming))
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
     return Response(status_code=200)
 
 
@@ -117,8 +120,6 @@ async def telegram_webhook(
     request: Request,
 ) -> Response:
     """Receive Telegram webhook updates."""
-    import asyncio
-
     from app.channels import get_adapter
 
     adapter = get_adapter("telegram")
@@ -141,7 +142,9 @@ async def telegram_webhook(
     if incoming is None:
         return Response(status_code=200)
 
-    asyncio.create_task(_process_webhook_update(incoming))
+    task = asyncio.create_task(_process_webhook_update(incoming))
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
     return Response(status_code=200)
 
 
@@ -164,6 +167,8 @@ async def _process_webhook_update(incoming: Any) -> None:
 
         from app.db.session import get_db_session
 
+        # NOTE: Holding a sync SQLite session across an `await` boundary is not
+        # ideal — see channels/telegram.py for details.
         with contextmanager(get_db_session)() as db:
             await router.route(incoming, db)
 {%- elif cookiecutter.use_mongodb %}

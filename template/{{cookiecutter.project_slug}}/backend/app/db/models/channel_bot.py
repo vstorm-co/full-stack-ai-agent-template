@@ -8,6 +8,7 @@ from sqlalchemy import Boolean, Column, ForeignKey, JSON, String, Text
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlmodel import Field, SQLModel
 
+from app.channels.base import DEFAULT_ACCESS_POLICY
 from app.db.base import TimestampMixin
 
 
@@ -28,14 +29,7 @@ class ChannelBot(TimestampMixin, SQLModel, table=True):
     webhook_url: str | None = Field(default=None, sa_column=Column(String(500), nullable=True))
     webhook_secret: str | None = Field(default=None, sa_column=Column(String(255), nullable=True))
     access_policy: dict = Field(
-        default_factory=lambda: {
-            "mode": "open",
-            "whitelist": [],
-            "allowed_groups": [],
-            "require_link": False,
-            "rate_limit_rpm": 10,
-            "denied_message": "You are not authorised to use this bot.",
-        },
+        default_factory=lambda: dict(DEFAULT_ACCESS_POLICY),
         sa_column=Column(JSON, nullable=False),
     )
     ai_model_override: str | None = Field(default=None, sa_column=Column(String(255), nullable=True))
@@ -65,6 +59,7 @@ from sqlalchemy import Boolean, ForeignKey, JSON, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.channels.base import DEFAULT_ACCESS_POLICY
 from app.db.base import Base, TimestampMixin
 
 
@@ -86,14 +81,7 @@ class ChannelBot(Base, TimestampMixin):
     access_policy: Mapped[dict] = mapped_column(
         JSON,
         nullable=False,
-        default=lambda: {
-            "mode": "open",
-            "whitelist": [],
-            "allowed_groups": [],
-            "require_link": False,
-            "rate_limit_rpm": 10,
-            "denied_message": "You are not authorised to use this bot.",
-        },
+        default=lambda: dict(DEFAULT_ACCESS_POLICY),
     )
     ai_model_override: Mapped[str | None] = mapped_column(String(255), nullable=True)
     system_prompt_override: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -118,6 +106,7 @@ import uuid
 from sqlalchemy import Boolean, Column, ForeignKey, JSON, String, Text
 from sqlmodel import Field, SQLModel
 
+from app.channels.base import DEFAULT_ACCESS_POLICY_JSON
 from app.db.base import TimestampMixin
 
 
@@ -138,7 +127,7 @@ class ChannelBot(TimestampMixin, SQLModel, table=True):
     webhook_url: str | None = Field(default=None, sa_column=Column(String(500), nullable=True))
     webhook_secret: str | None = Field(default=None, sa_column=Column(String(255), nullable=True))
     access_policy: str = Field(
-        default='{"mode":"open","whitelist":[],"allowed_groups":[],"require_link":false,"rate_limit_rpm":10,"denied_message":"You are not authorised to use this bot."}',
+        default=DEFAULT_ACCESS_POLICY_JSON,
         sa_column=Column(Text, nullable=False),
     )
     ai_model_override: str | None = Field(default=None, sa_column=Column(String(255), nullable=True))
@@ -164,9 +153,10 @@ class ChannelBot(TimestampMixin, SQLModel, table=True):
 
 import uuid
 
-from sqlalchemy import Boolean, ForeignKey, JSON, String, Text
+from sqlalchemy import Boolean, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.channels.base import DEFAULT_ACCESS_POLICY_JSON
 from app.db.base import Base, TimestampMixin
 
 
@@ -189,7 +179,7 @@ class ChannelBot(Base, TimestampMixin):
     access_policy: Mapped[str] = mapped_column(
         Text,
         nullable=False,
-        default='{"mode":"open","whitelist":[],"allowed_groups":[],"require_link":false,"rate_limit_rpm":10,"denied_message":"You are not authorised to use this bot."}',
+        default=DEFAULT_ACCESS_POLICY_JSON,
     )
     ai_model_override: Mapped[str | None] = mapped_column(String(255), nullable=True)
     system_prompt_override: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -215,6 +205,8 @@ from typing import Optional
 from beanie import Document
 from pydantic import Field
 
+from app.channels.base import DEFAULT_ACCESS_POLICY
+
 
 class ChannelBot(Document):
     """Registered bot instance for a messaging platform."""
@@ -227,14 +219,7 @@ class ChannelBot(Document):
     webhook_url: Optional[str] = None
     webhook_secret: Optional[str] = None
     access_policy: dict = Field(
-        default_factory=lambda: {
-            "mode": "open",
-            "whitelist": [],
-            "allowed_groups": [],
-            "require_link": False,
-            "rate_limit_rpm": 10,
-            "denied_message": "You are not authorised to use this bot.",
-        }
+        default_factory=lambda: dict(DEFAULT_ACCESS_POLICY)
     )
     ai_model_override: Optional[str] = None
     system_prompt_override: Optional[str] = None

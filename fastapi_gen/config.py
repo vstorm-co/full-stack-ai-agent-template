@@ -215,7 +215,7 @@ class ProjectConfig(BaseModel):
 
     # Authentication (always JWT + API Key)
     oauth_provider: OAuthProvider = OAuthProvider.NONE
-    enable_session_management: bool = True
+    enable_session_management: bool = False
 
     # Observability
     enable_logfire: bool = True
@@ -235,7 +235,7 @@ class ProjectConfig(BaseModel):
     enable_sentry: bool = False
     enable_prometheus: bool = False
     enable_admin_panel: bool = False
-    enable_websockets: bool = True
+    enable_websockets: bool = False
     enable_file_storage: bool = False
     ai_framework: AIFrameworkType = AIFrameworkType.PYDANTIC_AI
     llm_provider: LLMProviderType = LLMProviderType.OPENAI
@@ -261,7 +261,7 @@ class ProjectConfig(BaseModel):
     python_version: str = "3.12"
 
     # Frontend
-    frontend: FrontendType = FrontendType.NEXTJS
+    frontend: FrontendType = FrontendType.NONE
     frontend_port: int = 3000
     brand_color: BrandColorType = BrandColorType.BLUE
 

@@ -20,6 +20,33 @@ class ConversationShareService:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
+    async def check_edit_permission(
+        self,
+        conversation_id: UUID,
+        user_id: UUID,
+    ) -> None:
+        """Verify the user is the owner or has an 'edit' share.
+
+        Raises:
+            NotFoundError: If conversation does not exist.
+            AuthorizationError: If user has no edit access.
+        """
+        conv = await conversation_repo.get_conversation_by_id(self.db, conversation_id)
+        if not conv:
+            raise NotFoundError(
+                message="Conversation not found",
+                details={"conversation_id": str(conversation_id)},
+            )
+        if conv.user_id == user_id:
+            return
+        share = await conversation_share_repo.get_share(self.db, conversation_id, user_id)
+        if share and share.permission == "edit":
+            return
+        raise AuthorizationError(
+            message="You do not have edit permission for this conversation",
+            details={"conversation_id": str(conversation_id)},
+        )
+
     async def share_conversation(
         self,
         conversation_id: UUID,
@@ -162,6 +189,33 @@ class ConversationShareService:
     def __init__(self, db: DBSession) -> None:
         self.db = db
 
+    def check_edit_permission(
+        self,
+        conversation_id: str,
+        user_id: str,
+    ) -> None:
+        """Verify the user is the owner or has an 'edit' share.
+
+        Raises:
+            NotFoundError: If conversation does not exist.
+            AuthorizationError: If user has no edit access.
+        """
+        conv = conversation_repo.get_conversation_by_id(self.db, conversation_id)
+        if not conv:
+            raise NotFoundError(
+                message="Conversation not found",
+                details={"conversation_id": conversation_id},
+            )
+        if conv.user_id == user_id:
+            return
+        share = conversation_share_repo.get_share(self.db, conversation_id, user_id)
+        if share and share.permission == "edit":
+            return
+        raise AuthorizationError(
+            message="You do not have edit permission for this conversation",
+            details={"conversation_id": conversation_id},
+        )
+
     def share_conversation(
         self,
         conversation_id: str,
@@ -291,6 +345,33 @@ logger = logging.getLogger(__name__)
 
 class ConversationShareService:
     """Business logic for conversation sharing."""
+
+    async def check_edit_permission(
+        self,
+        conversation_id: str,
+        user_id: str,
+    ) -> None:
+        """Verify the user is the owner or has an 'edit' share.
+
+        Raises:
+            NotFoundError: If conversation does not exist.
+            AuthorizationError: If user has no edit access.
+        """
+        conv = await conversation_repo.get_conversation_by_id(conversation_id)
+        if not conv:
+            raise NotFoundError(
+                message="Conversation not found",
+                details={"conversation_id": conversation_id},
+            )
+        if conv.user_id == user_id:
+            return
+        share = await conversation_share_repo.get_share(conversation_id, user_id)
+        if share and share.permission == "edit":
+            return
+        raise AuthorizationError(
+            message="You do not have edit permission for this conversation",
+            details={"conversation_id": conversation_id},
+        )
 
     async def share_conversation(
         self,

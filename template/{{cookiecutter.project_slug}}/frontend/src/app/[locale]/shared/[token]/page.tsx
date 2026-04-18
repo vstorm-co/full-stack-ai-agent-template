@@ -7,8 +7,10 @@ interface SharedConversationPageProps {
 }
 
 async function fetchSharedConversation(token: string) {
+  // Validate token contains only safe characters (base64url)
+  if (!/^[A-Za-z0-9_-]+$/.test(token)) return null;
   const baseUrl = process.env.BACKEND_URL || "http://localhost:8000";
-  const res = await fetch(`${baseUrl}/api/v1/conversations/shared/${token}`, {
+  const res = await fetch(`${baseUrl}/api/v1/conversations/shared/${encodeURIComponent(token)}`, {
     cache: "no-store",
   });
   if (!res.ok) return null;

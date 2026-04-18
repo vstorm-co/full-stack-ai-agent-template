@@ -146,9 +146,13 @@ class TelegramAdapter(ChannelAdapter):
             await bot.session.close()
 
     def verify_webhook_signature(
-        self, headers: dict[str, str], secret: str
+        self, headers: dict[str, str], secret: str, body: str | None = None
     ) -> bool:
-        """Verify that the request came from Telegram via the secret token header."""
+        """Verify that the request came from Telegram via the secret token header.
+
+        The ``body`` parameter is unused for Telegram (signature is header-only)
+        but accepted for interface compatibility with ChannelAdapter.
+        """
         received = headers.get("x-telegram-bot-api-secret-token", "")
         # Use hmac.compare_digest for constant-time comparison
         return hmac.compare_digest(received.encode(), secret.encode())
@@ -241,6 +245,11 @@ class TelegramAdapter(ChannelAdapter):
 {%- elif cookiecutter.use_sqlite %}
         from contextlib import contextmanager
         from app.db.session import get_db_session
+        # NOTE: Holding a sync SQLite session across an `await` boundary is not
+        # ideal — the session stays open while the coroutine is suspended. For
+        # production SQLite usage the router should adopt a more careful session
+        # management strategy (e.g. open/close around each synchronous DB call,
+        # or use asyncio.to_thread for the sync work).
         with contextmanager(get_db_session)() as db:
             await router.route(incoming, db)
 {%- elif cookiecutter.use_mongodb %}

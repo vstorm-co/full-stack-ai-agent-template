@@ -81,9 +81,13 @@ export function ShareDialog({
     }
   };
 
-  const handleCopyLink = () => {
+  const handleCopyLink = async () => {
     if (shareLink) {
-      navigator.clipboard.writeText(shareLink);
+      try {
+        await navigator.clipboard.writeText(shareLink);
+      } catch {
+        // Fallback for non-secure contexts
+      }
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }

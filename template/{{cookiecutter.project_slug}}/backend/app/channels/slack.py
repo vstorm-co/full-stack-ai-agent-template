@@ -46,7 +46,7 @@ class SlackAdapter(ChannelAdapter):
         }
         if thread_ts:
             kwargs["thread_ts"] = thread_ts
-        if msg.reply_to_message_id:
+        if "thread_ts" not in kwargs and msg.reply_to_message_id:
             kwargs["thread_ts"] = msg.reply_to_message_id
 
         await client.chat_postMessage(**kwargs)
@@ -141,16 +141,16 @@ class SlackAdapter(ChannelAdapter):
         return True
 
     def verify_webhook_signature(
-        self, headers: dict[str, str], secret: str
+        self, headers: dict[str, str], secret: str, body: str | None = None
     ) -> bool:
         """Verify Slack request signature (HMAC-SHA256).
 
         Slack signs requests with: v0=HMAC-SHA256(signing_secret, "v0:{timestamp}:{body}")
-        The raw body must be passed in headers["_raw_body"] by the webhook endpoint.
+        The raw request body must be passed via the ``body`` parameter.
         """
         timestamp = headers.get("x-slack-request-timestamp", "")
         signature = headers.get("x-slack-signature", "")
-        raw_body = headers.get("_raw_body", "")
+        raw_body = body or ""
 
         # Reject missing timestamp (required for replay protection)
         if not timestamp or not signature:
@@ -241,6 +241,11 @@ class SlackAdapter(ChannelAdapter):
 {%- elif cookiecutter.use_sqlite %}
         from contextlib import contextmanager
         from app.db.session import get_db_session
+        # NOTE: Holding a sync SQLite session across an `await` boundary is not
+        # ideal — the session stays open while the coroutine is suspended. For
+        # production SQLite usage the router should adopt a more careful session
+        # management strategy (e.g. open/close around each synchronous DB call,
+        # or use asyncio.to_thread for the sync work).
         with contextmanager(get_db_session)() as db:
             await router.route(incoming, db)
 {%- elif cookiecutter.use_mongodb %}

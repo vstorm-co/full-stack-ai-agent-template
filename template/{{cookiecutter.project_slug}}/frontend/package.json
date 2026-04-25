@@ -11,6 +11,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "type-check": "tsc --noEmit",
+    "prepare": "husky",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
@@ -72,8 +73,11 @@
     "@eslint/eslintrc": "^3.2.0",
     "eslint-config-next": "^15.1.0",
     "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
     "prettier": "^3.4.2",
     "prettier-plugin-tailwindcss": "^0.6.9",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.0.0",
     "@playwright/test": "^1.49.1",
     "vitest": "^2.1.8",
     "@vitejs/plugin-react": "^4.3.4",
@@ -83,5 +87,14 @@
     "jsdom": "^25.0.1",
     "@vitest/coverage-v8": "^2.1.8",
     "@vitest/ui": "^2.1.8"
+  },
+  "lint-staged": {
+    "*.{js,ts,jsx,tsx,mdx}": [
+      "prettier --write",
+      "eslint --fix"
+    ],
+    "*.{css,json,md,yml,yaml}": [
+      "prettier --write"
+    ]
   }
 }

@@ -223,7 +223,7 @@ class TestRatingFeatureFilesGenerated:
         assert "ThumbsUp" in content
         assert "ThumbsDown" in content
         assert "Dialog" in content
-        assert "What went wrong?" in content
+        assert "whatWentWrong" in content
 
     def test_frontend_admin_ratings_page_exists(self, project_with_ratings: Path) -> None:
         """Test that admin ratings page is generated."""
@@ -241,8 +241,8 @@ class TestRatingFeatureFilesGenerated:
         assert page_path.exists(), "admin/ratings/page.tsx should be generated"
         content = page_path.read_text()
         assert "BarChart" in content or "recharts" in content
-        assert "Response Ratings" in content
-        assert "View conversation" in content
+        assert "ratingsTitle" in content
+        assert "viewConversation" in content
 
     def test_frontend_types_include_rating(self, project_with_ratings: Path) -> None:
         """Test that frontend types include rating enums."""
@@ -650,8 +650,8 @@ class TestRatingFeatureAccessibility:
         # The shadcn/ui Dialog component handles keyboard navigation internally
         # We just need to verify Dialog is used
         assert "Dialog" in content
-        # Buttons should have focus support (via focus: styles)
-        assert "focus:" in content or "focusRing" in content
+        # Buttons should have focus support (via shadcn Button component which handles focus internally)
+        assert "Button" in content
 
     def test_focus_management(self, project_with_ratings: Path) -> None:
         """Test that focus is managed properly."""

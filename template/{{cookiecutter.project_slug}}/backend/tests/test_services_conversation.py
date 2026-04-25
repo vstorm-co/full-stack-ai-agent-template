@@ -848,17 +848,13 @@ class TestConversationServiceExportAll:
     async def test_export_all_empty(self, service: ConversationService):
         """export_all returns empty list when no conversations exist."""
         with patch("app.services.conversation.conversation_repo") as mock_repo:
-            mock_repo.get_conversations_by_user = AsyncMock(return_value=[])
-            mock_repo.count_conversations = AsyncMock(return_value=0)
-
-            # Mock db.execute: returns empty conversations result
-            conv_result = MagicMock()
-            conv_result.scalars.return_value.all.return_value = []
-            service.db.execute = AsyncMock(return_value=conv_result)
+            # export_chunk returns [] → loop exits immediately
+            mock_repo.export_chunk = AsyncMock(return_value=[])
 
             result = await service.export_all()
 
             assert result == []
+            mock_repo.export_chunk.assert_called_once()
 
     @pytest.mark.anyio
     async def test_export_all_with_conversations(self, service: ConversationService):
@@ -878,23 +874,24 @@ class TestConversationServiceExportAll:
         mock_msg.content = "Hello"
         mock_msg.created_at = None
         mock_msg.tool_calls = []
+        mock_msg.model_name = None
+        mock_msg.tokens_used = None
 
         with patch("app.services.conversation.conversation_repo") as mock_repo:
-            mock_repo.get_conversations_by_user = AsyncMock(return_value=[mock_conv])
-            mock_repo.count_conversations = AsyncMock(return_value=1)
-            # First call for get_conversation inside list_messages
+            # First call returns one conversation (< EXPORT_CHUNK_SIZE → loop exits after one pass)
+            mock_repo.export_chunk = AsyncMock(return_value=[mock_conv])
+            # get_conversation used inside list_messages
             mock_repo.get_conversation_by_id = AsyncMock(return_value=mock_conv)
             mock_repo.get_messages_by_conversation = AsyncMock(return_value=[mock_msg])
             mock_repo.count_messages = AsyncMock(return_value=1)
-
-            # Mock db.execute: first call returns conversations, second returns ratings
-            conv_result = MagicMock()
-            conv_result.scalars.return_value.all.return_value = [mock_conv]
-            ratings_result = MagicMock()
-            ratings_result.all.return_value = []
-            service.db.execute = AsyncMock(side_effect=[conv_result, ratings_result])
-
+{%- if cookiecutter.use_jwt %}
+            # message_rating_repo is lazily imported inside export_all, so patch the module
+            with patch("app.repositories.message_rating_repo") as mock_rating_repo:
+                mock_rating_repo.get_ratings_with_users_for_messages = AsyncMock(return_value=[])
+                result = await service.export_all()
+{%- else %}
             result = await service.export_all()
+{%- endif %}
 
             assert len(result) == 1
             assert result[0]["id"] == str(conv_id)

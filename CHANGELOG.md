@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.2.7] - 2026-04-25
+## [0.2.7] - 2026-04-26
 
 ### Fixed
 
@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`message_rating_repo` not exported** — Added to `app/repositories/__init__.py`; admin ratings flow no longer fails on import
 - **`ConversationService.get_conversation_with_messages` missing on SQL backends** — Previously only existed on MongoDB; added to PostgreSQL + SQLite variants
 - **`ProjectService.list` / `ChannelBotService.list` shadowed builtin `list`** — Renamed to `list_for_user()` / `list_all()` (with `find_active()` and `list_by_platform()` helpers added)
+- **`ModuleNotFoundError: No module named 'app.rag.connectors'`** — `post_gen_project.py` was deleting the entire `rag/connectors/` directory when neither Google Drive nor S3 ingestion was enabled, but `sync_source.py` always imports `CONNECTOR_REGISTRY` from that package. Directory is now preserved; only the individual connector files are removed
+- **Empty `tasks/channel.py` generated for projects without Telegram or Slack** — Added removal to the `not use_telegram and not use_slack` post-gen hook block
+- **Frontend TypeScript strict mode errors** — Fixed 26 `noUncheckedIndexedAccess` and `undefined`-assignability violations across 7 files: `rag/page.tsx` (array index + file loop guard), `chat-container.tsx` (model selector `useState` type + fallback), `chat-input.tsx` (speech recognition result guard), `tool-approval-dialog.tsx` (`editedArgs` index fallback), `tool-call-card.tsx` (regex capture group fallbacks), `breadcrumb.tsx` (route segment index), `theme-toggle.tsx` (persisted zustand state hydration)
 
 ### Changed
 
@@ -28,6 +31,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - CLI commands (`commands/channel.py`, `seed.py`, `rag.py`) refactored with a `_channel_service()` context-manager helper
   - All `self.db.execute/commit/add` removed from services; sessions auto-commit via `get_db_session`/`get_db_context`/`get_worker_db_context`
 - **Repositories expanded with the queries services now need** — `conversation.admin_list_with_users()` + `export_chunk()` (3 backends); `user.list_query()` + `admin_list_with_counts()` + `delete_non_admins()` + `has_any()` (3 backends); `chat_file.get_many()` + `link_to_message()`; `message_rating.get_user_ratings_for_messages()` + `get_rating_counts_for_messages()` + `get_ratings_with_users_for_messages()`; `webhook.create_delivery()` + `save_delivery()`; `sync_log.create(sync_source_id=...)`; `rag_document.delete_by_collection()`
+- **Routes thinned to HTTP-only layer** — All response-object construction moved from route handlers into services:
+  - `admin_ratings.py`: CSV/JSON export helpers (`_csv_escape`, `_csv_row_values`, `_serialize_csv_row`, `_validate_export_format`, `_export_disposition`, `_json_export_response`, `_stream_csv_sync/async`) and `export_ratings()` moved to `MessageRatingService`. Route reduced to a single `return await rating_service.export_ratings(...)` call
+  - `sessions.py`: `SessionRead` construction in `list_sessions` moved to `SessionService.list_sessions()` which now returns `SessionListResponse` directly
+  - `rag.py`: `SyncSourceRead(...)` construction moved to `SyncSourceService._to_read()` (used by `list_sources`, `create_source`, `update_source`); `RAGSyncLogItem(...)` moved to `RAGSyncService.list_sync_logs()` → returns `RAGSyncLogList`; `RAGTrackedDocumentItem(...)` moved to `RAGDocumentService.list_documents()` → returns `RAGTrackedDocumentList`; `RAGDocumentItem(...)` moved to `BaseVectorStore.get_document_list()`; `ConnectorInfo/ConnectorList` construction moved to `SyncSourceService.list_connectors()`
+  - `oauth.py`: Three-step find/link/create OAuth flow extracted to `UserService.get_or_create_oauth_user()` (all 3 DB variants); `google_callback` reduced to a single service call
+  - `users.py`: Raw `Annotated[User, Depends(RoleChecker(UserRole.ADMIN))]` replaced with `CurrentAdmin` alias throughout; `Depends(get_current_user)` replaced with `CurrentUser`
+  - Unused `current_user`/`admin_user` route parameters that only provided auth enforcement renamed to `_: CurrentAdmin` / `_: CurrentUser` across all affected routers
+- **`agent.py`: inline imports moved to module level** — `from datetime import datetime, UTC`, `import json`, `from pydantic_ai.messages import BinaryContent`, `from app.services.file_storage import get_file_storage`, and pydantic_deep session/project service imports were scattered across WebSocket handler bodies; all moved to the top of their respective framework blocks
+- **`conversations.py`**: Direct field mutation `data.user_id = current_user.id` replaced with `data = data.model_copy(update={"user_id": current_user.id})` (Pydantic v2 safe update); inline `ConversationShareSvc` import moved to module level; section-divider comments (`# Message Rating Endpoints`, `# Sharing endpoints`) removed
 
 ### Security
 
@@ -40,6 +52,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Conditional pydantic pin for CrewAI** — Generated `pyproject.toml` pins `pydantic[email]>=2.11.0,<2.12` when CrewAI is selected (CrewAI is incompatible with pydantic 2.12)
 - **Stricter `ty` rules in generated `pyproject.toml`** — `unknown-argument`, `invalid-await`, `invalid-context-manager`, `missing-argument`, `not-iterable`, `invalid-return-type`, `invalid-type-form` promoted to `warn`
 - **Integration test matrix** — `TestGeneratedTemplateMatrix` now exercises 14 framework/database/RAG/channel combinations (project names prefixed with `matrix_` to avoid package-name collisions). Suite: **405 passed, 3 skipped**
+- **`services/health.py`** — New `build_health_response(status, checks, details)` helper extracted from `health.py` route; `health.py` now imports and calls it instead of defining it inline
+- **`services/agent.py`** — New `AgentConnectionManager` class extracted from all 5 AI framework blocks in `agent.py`. Single canonical implementation shared via `from app.services.agent import AgentConnectionManager`
+- **`UserService.get_or_create_oauth_user(provider, provider_id, email, full_name)`** — Encapsulates the find-by-oauth-id → find-by-email → link-or-create orchestration that was previously duplicated inline in all three `google_callback` route handlers
+- **`SyncSourceService._to_read(source)` / `list_connectors()`** — `_to_read` converts a `SyncSource` ORM model to `SyncSourceRead` (including `json.loads` for SQLite config); `list_connectors()` is a `@staticmethod` that iterates `CONNECTOR_REGISTRY` and returns `ConnectorList` without requiring a DB session
+- **`BaseVectorStore.get_document_list(collection_name)`** — Concrete (non-abstract) method on the base class; calls `get_documents()` and maps to `RAGDocumentList`. All vector store implementations (Milvus, Qdrant, ChromaDB, pgvector) inherit it automatically
 
 ## [0.2.6] - 2026-04-18
 

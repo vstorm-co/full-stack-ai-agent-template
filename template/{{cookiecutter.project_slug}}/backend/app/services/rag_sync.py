@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.exceptions import NotFoundError
 from app.db.models.sync_log import SyncLog
 from app.repositories import sync_log_repo
+from app.schemas.rag import RAGSyncLogItem, RAGSyncLogList
 
 
 class RAGSyncService:
@@ -25,9 +26,23 @@ class RAGSyncService:
         self,
         collection_name: str | None = None,
         limit: int = 20,
-    ) -> list[SyncLog]:
+    ) -> RAGSyncLogList:
         """List sync operation logs, optionally filtered by collection."""
-        return await sync_log_repo.get_all(self.db, collection_name=collection_name, limit=limit)
+        logs = await sync_log_repo.get_all(self.db, collection_name=collection_name, limit=limit)
+        return RAGSyncLogList(
+            items=[
+                RAGSyncLogItem(
+                    id=str(log.id), source=log.source, collection_name=log.collection_name,
+                    status=log.status, mode=log.mode, total_files=log.total_files,
+                    ingested=log.ingested, updated=log.updated, skipped=log.skipped, failed=log.failed,
+                    error_message=log.error_message,
+                    started_at=log.started_at.isoformat() if log.started_at else None,
+                    completed_at=log.completed_at.isoformat() if log.completed_at else None,
+                )
+                for log in logs
+            ],
+            total=len(logs),
+        )
 
     async def get_sync_log(self, sync_id: str) -> SyncLog:
         """Get a sync log by ID.
@@ -120,6 +135,7 @@ from sqlalchemy.orm import Session
 from app.core.exceptions import NotFoundError
 from app.db.models.sync_log import SyncLog
 from app.repositories import sync_log_repo
+from app.schemas.rag import RAGSyncLogItem, RAGSyncLogList
 
 
 class RAGSyncService:
@@ -132,9 +148,23 @@ class RAGSyncService:
         self,
         collection_name: str | None = None,
         limit: int = 20,
-    ) -> list[SyncLog]:
+    ) -> RAGSyncLogList:
         """List sync operation logs, optionally filtered by collection."""
-        return sync_log_repo.get_all(self.db, collection_name=collection_name, limit=limit)
+        logs = sync_log_repo.get_all(self.db, collection_name=collection_name, limit=limit)
+        return RAGSyncLogList(
+            items=[
+                RAGSyncLogItem(
+                    id=str(log.id), source=log.source, collection_name=log.collection_name,
+                    status=log.status, mode=log.mode, total_files=log.total_files,
+                    ingested=log.ingested, updated=log.updated, skipped=log.skipped, failed=log.failed,
+                    error_message=log.error_message,
+                    started_at=log.started_at.isoformat() if log.started_at else None,
+                    completed_at=log.completed_at.isoformat() if log.completed_at else None,
+                )
+                for log in logs
+            ],
+            total=len(logs),
+        )
 
     def get_sync_log(self, sync_id: str) -> SyncLog:
         """Get a sync log by ID.

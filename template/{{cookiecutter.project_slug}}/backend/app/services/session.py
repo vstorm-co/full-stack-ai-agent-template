@@ -12,6 +12,7 @@ from app.core.config import settings
 from app.core.exceptions import NotFoundError
 from app.db.models.session import Session
 from app.repositories import session_repo
+from app.schemas.session import SessionListResponse, SessionRead
 
 
 def _hash_token(token: str) -> str:
@@ -110,6 +111,24 @@ class SessionService:
         token_hash = _hash_token(refresh_token)
         return await session_repo.deactivate_by_refresh_token_hash(self.db, token_hash)
 
+    async def list_sessions(self, user_id: UUID) -> SessionListResponse:
+        sessions = await self.get_user_sessions(user_id)
+        return SessionListResponse(
+            sessions=[
+                SessionRead(
+                    id=s.id,
+                    device_name=s.device_name,
+                    device_type=s.device_type,
+                    ip_address=s.ip_address,
+                    is_current=False,
+                    created_at=s.created_at,
+                    last_used_at=s.last_used_at,
+                )
+                for s in sessions
+            ],
+            total=len(sessions),
+        )
+
 
 {%- elif cookiecutter.use_sqlite %}
 """Session service (SQLite sync)."""
@@ -123,6 +142,7 @@ from app.core.config import settings
 from app.core.exceptions import NotFoundError
 from app.db.models.session import Session
 from app.repositories import session_repo
+from app.schemas.session import SessionListResponse, SessionRead
 
 
 def _hash_token(token: str) -> str:
@@ -221,6 +241,24 @@ class SessionService:
         token_hash = _hash_token(refresh_token)
         return session_repo.deactivate_by_refresh_token_hash(self.db, token_hash)
 
+    def list_sessions(self, user_id: str) -> SessionListResponse:
+        sessions = self.get_user_sessions(user_id)
+        return SessionListResponse(
+            sessions=[
+                SessionRead(
+                    id=s.id,
+                    device_name=s.device_name,
+                    device_type=s.device_type,
+                    ip_address=s.ip_address,
+                    is_current=False,
+                    created_at=s.created_at,
+                    last_used_at=s.last_used_at,
+                )
+                for s in sessions
+            ],
+            total=len(sessions),
+        )
+
 
 {%- elif cookiecutter.use_mongodb %}
 """Session service (MongoDB)."""
@@ -232,6 +270,7 @@ from app.core.config import settings
 from app.core.exceptions import NotFoundError
 from app.db.models.session import Session
 from app.repositories import session_repo
+from app.schemas.session import SessionListResponse, SessionRead
 
 
 def _hash_token(token: str) -> str:
@@ -325,6 +364,24 @@ class SessionService:
         """Logout session by refresh token."""
         token_hash = _hash_token(refresh_token)
         return await session_repo.deactivate_by_refresh_token_hash(token_hash)
+
+    async def list_sessions(self, user_id: str) -> SessionListResponse:
+        sessions = await self.get_user_sessions(user_id)
+        return SessionListResponse(
+            sessions=[
+                SessionRead(
+                    id=str(s.id),
+                    device_name=s.device_name,
+                    device_type=s.device_type,
+                    ip_address=s.ip_address,
+                    is_current=False,
+                    created_at=s.created_at,
+                    last_used_at=s.last_used_at,
+                )
+                for s in sessions
+            ],
+            total=len(sessions),
+        )
 
 
 {%- endif %}

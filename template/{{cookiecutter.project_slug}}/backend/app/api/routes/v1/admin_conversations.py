@@ -31,7 +31,7 @@ router = APIRouter()
 @router.get("", response_model=AdminConversationList)
 async def admin_list_conversations(
     service: ConversationSvc,
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
     skip: int = Query(0, ge=0, description="Items to skip"),
     limit: int = Query(50, ge=1, le=100, description="Max items to return"),
     search: str | None = Query(default=None, description="Search by title"),
@@ -51,7 +51,7 @@ async def admin_list_conversations(
 @router.get("/users", response_model=AdminUserList)
 async def admin_list_users(
     user_service: UserSvc,
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
     search: str | None = Query(default=None, description="Search by email or name"),
@@ -64,7 +64,7 @@ async def admin_list_users(
 async def admin_get_conversation(
     conversation_id: UUID,
     service: ConversationSvc,
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
 ) -> Any:
     """Get any conversation with messages (admin read-only access)."""
     return await service.get_conversation_with_messages(conversation_id)
@@ -76,7 +76,7 @@ async def admin_get_conversation(
 @router.get("", response_model=AdminConversationList)
 def admin_list_conversations(
     service: ConversationSvc,
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
     skip: int = Query(0, ge=0, description="Items to skip"),
     limit: int = Query(50, ge=1, le=100, description="Max items to return"),
     search: str | None = Query(default=None, description="Search by title"),
@@ -96,7 +96,7 @@ def admin_list_conversations(
 @router.get("/users", response_model=AdminUserList)
 def admin_list_users(
     user_service: UserSvc,
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
     search: str | None = Query(default=None, description="Search by email or name"),
@@ -109,7 +109,7 @@ def admin_list_users(
 def admin_get_conversation(
     conversation_id: str,
     service: ConversationSvc,
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
 ) -> Any:
     """Get any conversation with messages (admin read-only access)."""
     return service.get_conversation_with_messages(conversation_id)
@@ -121,7 +121,7 @@ def admin_get_conversation(
 @router.get("", response_model=AdminConversationList)
 async def admin_list_conversations(
     service: ConversationSvc,
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
     skip: int = Query(0, ge=0, description="Items to skip"),
     limit: int = Query(50, ge=1, le=100, description="Max items to return"),
     search: str | None = Query(default=None, description="Search by title"),
@@ -141,7 +141,7 @@ async def admin_list_conversations(
 @router.get("/users", response_model=AdminUserList)
 async def admin_list_users(
     user_service: UserSvc,
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
     search: str | None = Query(default=None, description="Search by email or name"),
@@ -154,7 +154,7 @@ async def admin_list_users(
 async def admin_get_conversation(
     conversation_id: str,
     service: ConversationSvc,
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
 ) -> Any:
     """Get any conversation with messages (admin read-only access)."""
     return await service.get_conversation_with_messages(conversation_id)

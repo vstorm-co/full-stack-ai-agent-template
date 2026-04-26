@@ -2,24 +2,24 @@
 # ruff: noqa: I001 - Imports structured for Jinja2 template conditionals
 """User management routes."""
 
-from typing import Annotated, Any
+from typing import Any
 {%- if cookiecutter.use_postgresql %}
 
 from uuid import UUID
 {%- endif %}
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, File, HTTPException, Query, UploadFile, status
 from fastapi.responses import FileResponse
 {%- if cookiecutter.enable_pagination %}
 from fastapi_pagination import Page
 {%- endif %}
 
 from app.api.deps import (
-    RoleChecker,
+    CurrentAdmin,
+    CurrentUser,
     UserSvc,
-    get_current_user,
 )
-from app.db.models.user import User, UserRole
+from app.db.models.user import UserRole
 from app.schemas.user import UserRead, UserUpdate
 from app.services.file_storage import get_file_storage
 
@@ -31,7 +31,7 @@ router = APIRouter()
 
 @router.get("/me", response_model=UserRead)
 async def read_current_user(
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: CurrentUser,
 ) -> Any:
     """Get current user.
 
@@ -43,7 +43,7 @@ async def read_current_user(
 @router.patch("/me", response_model=UserRead)
 async def update_current_user(
     user_in: UserUpdate,
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: CurrentUser,
     user_service: UserSvc,
 ) -> Any:
     """Update current user.
@@ -64,7 +64,7 @@ async def update_current_user(
 @router.post("/me/avatar", response_model=UserRead)
 async def upload_avatar(
     user_service: UserSvc,
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: CurrentUser,
     file: UploadFile = File(...),
 ) -> Any:
     """Upload or replace avatar image for the current user."""
@@ -98,7 +98,7 @@ async def get_avatar(user_id: UUID, user_service: UserSvc) -> Any:
 @router.get("", response_model=Page[UserRead])
 async def read_users(
     user_service: UserSvc,
-    current_user: Annotated[User, Depends(RoleChecker(UserRole.ADMIN))],
+    _: CurrentAdmin,
 ) -> Any:
     """Get all users (admin only)."""
     return await user_service.list_paginated()
@@ -110,7 +110,7 @@ async def read_users(
 @router.get("", response_model=list[UserRead])
 async def read_users(
     user_service: UserSvc,
-    current_user: Annotated[User, Depends(RoleChecker(UserRole.ADMIN))],
+    _: CurrentAdmin,
     skip: int = Query(0, ge=0, description="Items to skip"),
     limit: int = Query(100, ge=1, le=200, description="Max items to return"),
 ) -> Any:
@@ -126,7 +126,7 @@ async def read_users(
 async def read_user(
     user_id: UUID,
     user_service: UserSvc,
-    current_user: Annotated[User, Depends(RoleChecker(UserRole.ADMIN))],
+    _: CurrentAdmin,
 ) -> Any:
     """Get user by ID (admin only).
 
@@ -141,7 +141,7 @@ async def update_user_by_id(
     user_id: UUID,
     user_in: UserUpdate,
     user_service: UserSvc,
-    current_user: Annotated[User, Depends(RoleChecker(UserRole.ADMIN))],
+    _: CurrentAdmin,
 ) -> Any:
     """Update user by ID (admin only).
 
@@ -157,7 +157,7 @@ async def update_user_by_id(
 async def delete_user_by_id(
     user_id: UUID,
     user_service: UserSvc,
-    current_user: Annotated[User, Depends(RoleChecker(UserRole.ADMIN))],
+    _: CurrentAdmin,
 ) -> None:
     """Delete user by ID (admin only).
 
@@ -171,7 +171,7 @@ async def delete_user_by_id(
 
 @router.get("/me", response_model=UserRead)
 async def read_current_user(
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: CurrentUser,
 ) -> Any:
     """Get current user.
 
@@ -183,7 +183,7 @@ async def read_current_user(
 @router.patch("/me", response_model=UserRead)
 async def update_current_user(
     user_in: UserUpdate,
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: CurrentUser,
     user_service: UserSvc,
 ) -> Any:
     """Update current user.
@@ -201,7 +201,7 @@ async def update_current_user(
 @router.get("", response_model=list[UserRead])
 async def read_users(
     user_service: UserSvc,
-    current_user: Annotated[User, Depends(RoleChecker(UserRole.ADMIN))],
+    _: CurrentAdmin,
     skip: int = Query(0, ge=0, description="Items to skip"),
     limit: int = Query(100, ge=1, le=200, description="Max items to return"),
 ) -> Any:
@@ -214,7 +214,7 @@ async def read_users(
 async def read_user(
     user_id: str,
     user_service: UserSvc,
-    current_user: Annotated[User, Depends(RoleChecker(UserRole.ADMIN))],
+    _: CurrentAdmin,
 ) -> Any:
     """Get user by ID (admin only).
 
@@ -229,7 +229,7 @@ async def update_user_by_id(
     user_id: str,
     user_in: UserUpdate,
     user_service: UserSvc,
-    current_user: Annotated[User, Depends(RoleChecker(UserRole.ADMIN))],
+    _: CurrentAdmin,
 ) -> Any:
     """Update user by ID (admin only).
 
@@ -245,7 +245,7 @@ async def update_user_by_id(
 async def delete_user_by_id(
     user_id: str,
     user_service: UserSvc,
-    current_user: Annotated[User, Depends(RoleChecker(UserRole.ADMIN))],
+    _: CurrentAdmin,
 ) -> None:
     """Delete user by ID (admin only).
 
@@ -259,7 +259,7 @@ async def delete_user_by_id(
 
 @router.get("/me", response_model=UserRead)
 def read_current_user(
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: CurrentUser,
 ) -> Any:
     """Get current user.
 
@@ -271,7 +271,7 @@ def read_current_user(
 @router.patch("/me", response_model=UserRead)
 def update_current_user(
     user_in: UserUpdate,
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: CurrentUser,
     user_service: UserSvc,
 ) -> Any:
     """Update current user.
@@ -292,7 +292,7 @@ def update_current_user(
 @router.get("", response_model=Page[UserRead])
 def read_users(
     user_service: UserSvc,
-    current_user: Annotated[User, Depends(RoleChecker(UserRole.ADMIN))],
+    _: CurrentAdmin,
 ) -> Any:
     """Get all users (admin only)."""
     return user_service.list_paginated()
@@ -304,7 +304,7 @@ def read_users(
 @router.get("", response_model=list[UserRead])
 def read_users(
     user_service: UserSvc,
-    current_user: Annotated[User, Depends(RoleChecker(UserRole.ADMIN))],
+    _: CurrentAdmin,
     skip: int = Query(0, ge=0, description="Items to skip"),
     limit: int = Query(100, ge=1, le=200, description="Max items to return"),
 ) -> Any:
@@ -320,7 +320,7 @@ def read_users(
 def read_user(
     user_id: str,
     user_service: UserSvc,
-    current_user: Annotated[User, Depends(RoleChecker(UserRole.ADMIN))],
+    _: CurrentAdmin,
 ) -> Any:
     """Get user by ID (admin only).
 
@@ -335,7 +335,7 @@ def update_user_by_id(
     user_id: str,
     user_in: UserUpdate,
     user_service: UserSvc,
-    current_user: Annotated[User, Depends(RoleChecker(UserRole.ADMIN))],
+    _: CurrentAdmin,
 ) -> Any:
     """Update user by ID (admin only).
 
@@ -351,7 +351,7 @@ def update_user_by_id(
 def delete_user_by_id(
     user_id: str,
     user_service: UserSvc,
-    current_user: Annotated[User, Depends(RoleChecker(UserRole.ADMIN))],
+    _: CurrentAdmin,
 ) -> None:
     """Delete user by ID (admin only).
 

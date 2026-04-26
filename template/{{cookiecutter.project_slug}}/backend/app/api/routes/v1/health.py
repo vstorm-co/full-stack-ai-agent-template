@@ -18,31 +18,14 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 {%- endif %}
 
-from app.core.config import settings
 {%- if cookiecutter.use_database or cookiecutter.enable_redis %}
 from app.api.deps import {% if cookiecutter.use_database %}DBSession{% endif %}{% if cookiecutter.use_database and cookiecutter.enable_redis %}, {% endif %}{% if cookiecutter.enable_redis %}Redis{% endif %}
 
 {%- endif %}
+from app.core.config import settings
+from app.services.health import build_health_response
 
 router = APIRouter()
-
-
-def _build_health_response(
-    status: str,
-    checks: dict[str, Any] | None = None,
-    details: dict[str, Any] | None = None,
-) -> dict[str, Any]:
-    """Build a structured health response."""
-    response: dict[str, Any] = {
-        "status": status,
-        "timestamp": datetime.now(UTC).isoformat(),
-        "service": settings.PROJECT_NAME,
-    }
-    if checks is not None:
-        response["checks"] = checks
-    if details is not None:
-        response["details"] = details
-    return response
 
 
 @router.get("/health")
@@ -72,7 +55,7 @@ async def liveness_probe() -> dict[str, Any]:
     Returns:
         Structured response with timestamp and service info.
     """
-    return _build_health_response(
+    return build_health_response(
         status="alive",
         details={
             "version": getattr(settings, "VERSION", "1.0.0"),
@@ -195,7 +178,7 @@ async def readiness_probe(
         check.get("status") == "healthy" for check in checks.values()
     ) if checks else True
 
-    response_data = _build_health_response(
+    response_data = build_health_response(
         status="ready" if all_healthy else "not_ready",
         checks=checks,
     )

@@ -22,8 +22,6 @@ FRONTEND_URL = settings.FRONTEND_URL
 @router.get("/google/login")
 async def google_login(request: Request):
     """Redirect to Google OAuth2 login page."""
-    from app.core.config import settings
-
     redirect_uri = settings.GOOGLE_REDIRECT_URI
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
@@ -33,11 +31,7 @@ async def google_login(request: Request):
 
 @router.get("/google/callback")
 async def google_callback(request: Request, user_service: UserSvc):
-    """Handle Google OAuth2 callback.
-
-    Creates a new user if one doesn't exist with the Google email,
-    or returns tokens for existing user. Redirects to frontend with tokens.
-    """
+    """Handle Google OAuth2 callback."""
     try:
         token = await oauth.google.authorize_access_token(request)
         user_info = token.get("userinfo")
@@ -46,32 +40,16 @@ async def google_callback(request: Request, user_service: UserSvc):
             params = urlencode({"error": "Failed to get user info from Google"})
             return RedirectResponse(url=f"{FRONTEND_URL}/login?{params}")
 
-        email = user_info.get("email")
-        google_id = user_info.get("sub")
-        full_name = user_info.get("name")
-
-        # Try to find existing user by OAuth ID
-        user = await user_service.get_by_oauth("google", google_id)
-
-        if not user:
-            # Try to find by email (link existing account)
-            user = await user_service.get_by_email(email)
-            if user:
-                # Link OAuth to existing account
-                user = await user_service.link_oauth(user.id, "google", google_id)
-            else:
-                # Create new user
-                user = await user_service.create_oauth_user(
-                    email=email,
-                    full_name=full_name,
-                    oauth_provider="google",
-                    oauth_id=google_id,
-                )
+        user = await user_service.get_or_create_oauth_user(
+            provider="google",
+            provider_id=user_info.get("sub"),
+            email=user_info.get("email"),
+            full_name=user_info.get("name"),
+        )
 
         access_token = create_access_token(subject=str(user.id))
         refresh_token = create_refresh_token(subject=str(user.id))
 
-        # Redirect to frontend with tokens
         params = urlencode({
             "access_token": access_token,
             "refresh_token": refresh_token,
@@ -88,11 +66,7 @@ async def google_callback(request: Request, user_service: UserSvc):
 
 @router.get("/google/callback")
 async def google_callback(request: Request, user_service: UserSvc):
-    """Handle Google OAuth2 callback.
-
-    Creates a new user if one doesn't exist with the Google email,
-    or returns tokens for existing user. Redirects to frontend with tokens.
-    """
+    """Handle Google OAuth2 callback."""
     try:
         token = await oauth.google.authorize_access_token(request)
         user_info = token.get("userinfo")
@@ -101,32 +75,16 @@ async def google_callback(request: Request, user_service: UserSvc):
             params = urlencode({"error": "Failed to get user info from Google"})
             return RedirectResponse(url=f"{FRONTEND_URL}/login?{params}")
 
-        email = user_info.get("email")
-        google_id = user_info.get("sub")
-        full_name = user_info.get("name")
-
-        # Try to find existing user by OAuth ID
-        user = await user_service.get_by_oauth("google", google_id)
-
-        if not user:
-            # Try to find by email (link existing account)
-            user = await user_service.get_by_email(email)
-            if user:
-                # Link OAuth to existing account
-                user = await user_service.link_oauth(str(user.id), "google", google_id)
-            else:
-                # Create new user
-                user = await user_service.create_oauth_user(
-                    email=email,
-                    full_name=full_name,
-                    oauth_provider="google",
-                    oauth_id=google_id,
-                )
+        user = await user_service.get_or_create_oauth_user(
+            provider="google",
+            provider_id=user_info.get("sub"),
+            email=user_info.get("email"),
+            full_name=user_info.get("name"),
+        )
 
         access_token = create_access_token(subject=str(user.id))
         refresh_token = create_refresh_token(subject=str(user.id))
 
-        # Redirect to frontend with tokens
         params = urlencode({
             "access_token": access_token,
             "refresh_token": refresh_token,
@@ -143,47 +101,25 @@ async def google_callback(request: Request, user_service: UserSvc):
 
 @router.get("/google/callback")
 async def google_callback(request: Request, user_service: UserSvc):
-    """Handle Google OAuth2 callback.
-
-    Creates a new user if one doesn't exist with the Google email,
-    or returns tokens for existing user. Redirects to frontend with tokens.
-    """
+    """Handle Google OAuth2 callback."""
     try:
-        # OAuth token exchange is async
         token = await oauth.google.authorize_access_token(request)
-
         user_info = token.get("userinfo")
 
         if not user_info:
             params = urlencode({"error": "Failed to get user info from Google"})
             return RedirectResponse(url=f"{FRONTEND_URL}/login?{params}")
 
-        email = user_info.get("email")
-        google_id = user_info.get("sub")
-        full_name = user_info.get("name")
-
-        # Try to find existing user by OAuth ID
-        user = user_service.get_by_oauth("google", google_id)
-
-        if not user:
-            # Try to find by email (link existing account)
-            user = user_service.get_by_email(email)
-            if user:
-                # Link OAuth to existing account
-                user = user_service.link_oauth(user.id, "google", google_id)
-            else:
-                # Create new user
-                user = user_service.create_oauth_user(
-                    email=email,
-                    full_name=full_name,
-                    oauth_provider="google",
-                    oauth_id=google_id,
-                )
+        user = user_service.get_or_create_oauth_user(
+            provider="google",
+            provider_id=user_info.get("sub"),
+            email=user_info.get("email"),
+            full_name=user_info.get("name"),
+        )
 
         access_token = create_access_token(subject=user.id)
         refresh_token = create_refresh_token(subject=user.id)
 
-        # Redirect to frontend with tokens
         params = urlencode({
             "access_token": access_token,
             "refresh_token": refresh_token,

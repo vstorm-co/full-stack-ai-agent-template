@@ -137,7 +137,7 @@ function ModelSelector({ onChange }: { onChange: (model: string | null) => void 
   const [availableModels, setAvailableModels] = useState<{value: string; label: string}[]>([
     { value: "", label: "Default" },
   ]);
-  const [selected, setSelected] = useState(availableModels[0]);
+  const [selected, setSelected] = useState<{value: string; label: string}>(availableModels[0] ?? { value: "", label: "Default" });
 
   useEffect(() => {
     fetch("/api/v1/agent/models", { credentials: "include" })

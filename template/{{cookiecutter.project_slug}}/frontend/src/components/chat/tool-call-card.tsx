@@ -75,13 +75,13 @@ function parseRAGResults(result: string): RAGResultItem[] {
   let match;
   while ((match = pattern.exec(result)) !== null) {
     items.push({
-      index: parseInt(match[1]),
-      source: match[2].trim(),
+      index: parseInt(match[1] ?? "0"),
+      source: (match[2] ?? "").trim(),
       page: match[3],
       chunk: match[4],
       collection: match[5],
-      score: match[6],
-      content: match[7].trim(),
+      score: match[6] ?? "",
+      content: (match[7] ?? "").trim(),
     });
   }
   return items;
@@ -200,10 +200,10 @@ function parseWebResults(result: string): WebResultItem[] {
   let match;
   while ((match = pattern.exec(result)) !== null) {
     items.push({
-      index: parseInt(match[1]),
-      title: match[2].trim(),
-      url: match[3].trim(),
-      content: match[4].trim(),
+      index: parseInt(match[1] ?? "0"),
+      title: (match[2] ?? "").trim(),
+      url: (match[3] ?? "").trim(),
+      content: (match[4] ?? "").trim(),
     });
   }
   return items;

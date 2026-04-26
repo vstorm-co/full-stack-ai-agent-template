@@ -9,7 +9,7 @@ from uuid import UUID
 {%- endif %}
 
 from app.api.deps import CurrentUser, SessionSvc
-from app.schemas.session import LogoutAllResponse, SessionListResponse, SessionRead
+from app.schemas.session import LogoutAllResponse, SessionListResponse
 
 router = APIRouter()
 
@@ -23,22 +23,7 @@ async def list_sessions(
     session_service: SessionSvc,
 ) -> Any:
     """Get all active sessions for the current user."""
-    sessions = await session_service.get_user_sessions(current_user.id)
-    return SessionListResponse(
-        sessions=[
-            SessionRead(
-                id=s.id,
-                device_name=s.device_name,
-                device_type=s.device_type,
-                ip_address=s.ip_address,
-                is_current=False,  # TODO: compare with current session
-                created_at=s.created_at,
-                last_used_at=s.last_used_at,
-            )
-            for s in sessions
-        ],
-        total=len(sessions),
-    )
+    return await session_service.list_sessions(current_user.id)
 
 
 @router.delete("/{session_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
@@ -73,22 +58,7 @@ async def list_sessions(
     session_service: SessionSvc,
 ) -> Any:
     """Get all active sessions for the current user."""
-    sessions = await session_service.get_user_sessions(str(current_user.id))
-    return SessionListResponse(
-        sessions=[
-            SessionRead(
-                id=str(s.id),
-                device_name=s.device_name,
-                device_type=s.device_type,
-                ip_address=s.ip_address,
-                is_current=False,
-                created_at=s.created_at,
-                last_used_at=s.last_used_at,
-            )
-            for s in sessions
-        ],
-        total=len(sessions),
-    )
+    return await session_service.list_sessions(str(current_user.id))
 
 
 @router.delete("/{session_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
@@ -123,22 +93,7 @@ def list_sessions(
     session_service: SessionSvc,
 ) -> Any:
     """Get all active sessions for the current user."""
-    sessions = session_service.get_user_sessions(current_user.id)
-    return SessionListResponse(
-        sessions=[
-            SessionRead(
-                id=s.id,
-                device_name=s.device_name,
-                device_type=s.device_type,
-                ip_address=s.ip_address,
-                is_current=False,
-                created_at=s.created_at,
-                last_used_at=s.last_used_at,
-            )
-            for s in sessions
-        ],
-        total=len(sessions),
-    )
+    return session_service.list_sessions(current_user.id)
 
 
 @router.delete("/{session_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)

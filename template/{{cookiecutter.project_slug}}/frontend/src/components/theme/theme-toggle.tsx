@@ -24,9 +24,9 @@ export function ThemeToggle({ variant = "icon", className }: ThemeToggleProps) {
 
   const cycleTheme = () => {
     const themes: Theme[] = ["light", "dark", "system"];
-    const currentIndex = themes.indexOf(theme);
+    const currentIndex = themes.indexOf(theme ?? "system");
     const nextIndex = (currentIndex + 1) % themes.length;
-    setTheme(themes[nextIndex]);
+    setTheme(themes[nextIndex] ?? "system");
   };
 
   // Render placeholder during SSR to prevent hydration mismatch

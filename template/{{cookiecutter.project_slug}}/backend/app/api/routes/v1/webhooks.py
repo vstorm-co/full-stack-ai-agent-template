@@ -96,7 +96,7 @@ async def get_webhook(
     webhook_id: UUID,
     webhook_service: WebhookSvc,
 {%- if cookiecutter.use_jwt %}
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
 {%- endif %}
 ) -> Any:
     """Get a webhook by ID."""
@@ -119,7 +119,7 @@ async def update_webhook(
     data: WebhookUpdate,
     webhook_service: WebhookSvc,
 {%- if cookiecutter.use_jwt %}
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
 {%- endif %}
 ) -> Any:
     """Update a webhook."""
@@ -141,7 +141,7 @@ async def delete_webhook(
     webhook_id: UUID,
     webhook_service: WebhookSvc,
 {%- if cookiecutter.use_jwt %}
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
 {%- endif %}
 ) -> None:
     """Delete a webhook."""
@@ -153,7 +153,7 @@ async def test_webhook(
     webhook_id: UUID,
     webhook_service: WebhookSvc,
 {%- if cookiecutter.use_jwt %}
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
 {%- endif %}
 ) -> Any:
     """Send a test event to the webhook."""
@@ -166,7 +166,7 @@ async def regenerate_webhook_secret(
     webhook_id: UUID,
     webhook_service: WebhookSvc,
 {%- if cookiecutter.use_jwt %}
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
 {%- endif %}
 ) -> Any:
     """Regenerate the webhook secret."""
@@ -179,7 +179,7 @@ async def list_webhook_deliveries(
     webhook_id: UUID,
     webhook_service: WebhookSvc,
 {%- if cookiecutter.use_jwt %}
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
 {%- endif %}
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
@@ -275,7 +275,7 @@ def get_webhook(
     webhook_id: str,
     webhook_service: WebhookSvc,
 {%- if cookiecutter.use_jwt %}
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
 {%- endif %}
 ) -> Any:
     """Get a webhook by ID."""
@@ -298,7 +298,7 @@ def update_webhook(
     data: WebhookUpdate,
     webhook_service: WebhookSvc,
 {%- if cookiecutter.use_jwt %}
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
 {%- endif %}
 ) -> Any:
     """Update a webhook."""
@@ -320,7 +320,7 @@ def delete_webhook(
     webhook_id: str,
     webhook_service: WebhookSvc,
 {%- if cookiecutter.use_jwt %}
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
 {%- endif %}
 ) -> None:
     """Delete a webhook."""
@@ -332,7 +332,7 @@ def list_webhook_deliveries(
     webhook_id: str,
     webhook_service: WebhookSvc,
 {%- if cookiecutter.use_jwt %}
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
 {%- endif %}
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
@@ -428,7 +428,7 @@ async def get_webhook(
     webhook_id: str,
     webhook_service: WebhookSvc,
 {%- if cookiecutter.use_jwt %}
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
 {%- endif %}
 ) -> Any:
     """Get a webhook by ID."""
@@ -451,7 +451,7 @@ async def update_webhook(
     data: WebhookUpdate,
     webhook_service: WebhookSvc,
 {%- if cookiecutter.use_jwt %}
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
 {%- endif %}
 ) -> Any:
     """Update a webhook."""
@@ -473,7 +473,7 @@ async def delete_webhook(
     webhook_id: str,
     webhook_service: WebhookSvc,
 {%- if cookiecutter.use_jwt %}
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
 {%- endif %}
 ) -> None:
     """Delete a webhook."""
@@ -485,7 +485,7 @@ async def list_webhook_deliveries(
     webhook_id: str,
     webhook_service: WebhookSvc,
 {%- if cookiecutter.use_jwt %}
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
 {%- endif %}
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),

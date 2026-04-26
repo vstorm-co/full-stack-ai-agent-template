@@ -191,7 +191,8 @@ else:
         remove_file(os.path.join(backend_app, "rag", "connectors", "s3.py"))
     if not enable_google_drive_ingestion and not enable_s3_ingestion:
         remove_dir(os.path.join(backend_app, "rag", "sources"))
-        remove_dir(os.path.join(backend_app, "rag", "connectors"))
+        # Keep rag/connectors/ — its __init__.py defines CONNECTOR_REGISTRY which
+        # sync_source.py imports unconditionally even when no connectors are configured.
 
 # --- Messaging channels (Slack / Telegram) ---
 # Per-channel adapters & webhook routes
@@ -217,6 +218,7 @@ if not use_telegram and not use_slack:
     remove_file(os.path.join(backend_app, "db", "models", "channel_bot.py"))
     remove_file(os.path.join(backend_app, "db", "models", "channel_identity.py"))
     remove_file(os.path.join(backend_app, "db", "models", "channel_session.py"))
+    remove_file(os.path.join(backend_app, "tasks", "channel.py"))
 
 # --- DeepAgents project files (only when use_pydantic_deep is enabled) ---
 if not use_pydantic_deep:

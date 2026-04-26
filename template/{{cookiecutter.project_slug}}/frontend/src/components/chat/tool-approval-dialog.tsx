@@ -46,7 +46,7 @@ export function ToolApprovalDialog({
     // Validate all JSON
     for (const id of Object.keys(editedArgs)) {
       try {
-        JSON.parse(editedArgs[id]);
+        JSON.parse(editedArgs[id] ?? "");
       } catch {
         return; // Invalid JSON, don't save
       }
@@ -57,7 +57,7 @@ export function ToolApprovalDialog({
   const handleSubmit = () => {
     const decisions: Decision[] = actionRequests.map((a) => {
       try {
-        const parsed = JSON.parse(editedArgs[a.id]);
+        const parsed = JSON.parse(editedArgs[a.id] ?? "");
         const original = JSON.stringify(a.args);
         const edited = JSON.stringify(parsed);
 

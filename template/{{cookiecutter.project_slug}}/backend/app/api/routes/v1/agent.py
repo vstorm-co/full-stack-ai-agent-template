@@ -1,13 +1,12 @@
 {%- if cookiecutter.use_pydantic_ai %}
 """AI Agent WebSocket routes with streaming support (PydanticAI)."""
 
+import json
 import logging
+from datetime import UTC, datetime
 from typing import Any
-{%- if cookiecutter.use_database %}
-from datetime import datetime, UTC
 {%- if cookiecutter.use_postgresql %}
 from uuid import UUID
-{%- endif %}
 {%- endif %}
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect{%- if cookiecutter.websocket_auth_jwt %}, Depends{%- endif %}{%- if cookiecutter.websocket_auth_api_key %}, Query{%- endif %}
@@ -23,6 +22,7 @@ from pydantic_ai import (
     ToolCallPartDelta,
 )
 from pydantic_ai.messages import (
+    BinaryContent,
     ModelRequest,
     ModelResponse,
     SystemPromptPart,
@@ -32,6 +32,7 @@ from pydantic_ai.messages import (
 
 from app.agents.assistant import Deps, get_agent
 from app.core.config import settings
+from app.services.agent import AgentConnectionManager
 {%- if cookiecutter.websocket_auth_jwt %}
 from app.api.deps import get_current_user_ws
 from app.db.models.user import User
@@ -41,6 +42,7 @@ from app.db.session import get_db_context{% if cookiecutter.use_sqlite %}, get_d
 from contextlib import contextmanager{% endif %}
 from app.api.deps import ConversationSvc, get_conversation_service
 from app.schemas.conversation import ConversationCreate, ConversationUpdate, MessageCreate, ToolCallCreate, ToolCallComplete
+from app.services.file_storage import get_file_storage
 {%- elif cookiecutter.use_mongodb %}
 from app.api.deps import ConversationSvc, get_conversation_service
 from app.schemas.conversation import ConversationCreate, ConversationUpdate, MessageCreate, ToolCallCreate, ToolCallComplete
@@ -58,39 +60,6 @@ async def list_models() -> dict[str, Any]:
         "default": settings.AI_MODEL,
         "models": settings.AI_AVAILABLE_MODELS,
     }
-
-
-class AgentConnectionManager:
-    """WebSocket connection manager for AI agent."""
-
-    def __init__(self) -> None:
-        self.active_connections: list[WebSocket] = []
-
-    async def connect(self, websocket: WebSocket) -> None:
-        """Accept and store a new WebSocket connection."""
-        # Echo back the application subprotocol chosen during auth (if any)
-        subprotocol = getattr(websocket.state, "accept_subprotocol", None)
-        await websocket.accept(subprotocol=subprotocol)
-        self.active_connections.append(websocket)
-        logger.info(f"Agent WebSocket connected. Total connections: {len(self.active_connections)}")
-
-    def disconnect(self, websocket: WebSocket) -> None:
-        """Remove a WebSocket connection."""
-        if websocket in self.active_connections:
-            self.active_connections.remove(websocket)
-        logger.info(f"Agent WebSocket disconnected. Total connections: {len(self.active_connections)}")
-
-    async def send_event(self, websocket: WebSocket, event_type: str, data: Any) -> bool:
-        """Send a JSON event to a specific WebSocket client.
-
-        Returns True if sent successfully, False if connection is closed.
-        """
-        try:
-            await websocket.send_json({"type": event_type, "data": data})
-            return True
-        except (WebSocketDisconnect, RuntimeError):
-            # Connection already closed
-            return False
 
 
 manager = AgentConnectionManager()
@@ -333,9 +302,6 @@ async def agent_websocket(
 
 {%- if (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
                 # Load attached files and build multimodal input
-                from pydantic_ai.messages import BinaryContent
-                from app.services.file_storage import get_file_storage
-
                 user_input: str | list[Any] = user_message
                 file_context_parts: list[str] = []
 
@@ -511,8 +477,6 @@ async def agent_websocket(
                             )
                             assistant_msg_id = str(assistant_msg.id)
                             # Save tool calls
-                            from datetime import datetime, UTC
-                            import json
                             for tc in collected_tool_calls:
                                 try:
                                     args_dict = tc.get("args", {})
@@ -541,8 +505,6 @@ async def agent_websocket(
                             )
                             assistant_msg_id = str(assistant_msg.id)
                             # Save tool calls
-                            from datetime import datetime, UTC
-                            import json
                             for tc in collected_tool_calls:
                                 try:
                                     args_dict = tc.get("args", {})
@@ -614,7 +576,6 @@ async def agent_websocket(
 import logging
 from typing import Any
 {%- if cookiecutter.use_database %}
-from datetime import datetime, UTC
 {%- if cookiecutter.use_postgresql %}
 from uuid import UUID
 {%- endif %}
@@ -625,11 +586,12 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect{%- if cookiecutter
 from langchain.messages import AIMessage, AIMessageChunk, HumanMessage, SystemMessage, ToolMessage
 
 from app.agents.langchain_assistant import AgentContext, get_agent
+from app.core.config import settings
+from app.services.agent import AgentConnectionManager
 {%- if cookiecutter.websocket_auth_jwt %}
 from app.api.deps import get_current_user_ws
 from app.db.models.user import User
 {%- endif %}
-from app.core.config import settings
 {%- if (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
 from app.db.session import get_db_context{% if cookiecutter.use_sqlite %}, get_db_session
 from contextlib import contextmanager{% endif %}
@@ -652,39 +614,6 @@ async def list_models() -> dict[str, Any]:
         "default": settings.AI_MODEL,
         "models": settings.AI_AVAILABLE_MODELS,
     }
-
-
-class AgentConnectionManager:
-    """WebSocket connection manager for AI agent."""
-
-    def __init__(self) -> None:
-        self.active_connections: list[WebSocket] = []
-
-    async def connect(self, websocket: WebSocket) -> None:
-        """Accept and store a new WebSocket connection."""
-        # Echo back the application subprotocol chosen during auth (if any)
-        subprotocol = getattr(websocket.state, "accept_subprotocol", None)
-        await websocket.accept(subprotocol=subprotocol)
-        self.active_connections.append(websocket)
-        logger.info(f"Agent WebSocket connected. Total connections: {len(self.active_connections)}")
-
-    def disconnect(self, websocket: WebSocket) -> None:
-        """Remove a WebSocket connection."""
-        if websocket in self.active_connections:
-            self.active_connections.remove(websocket)
-        logger.info(f"Agent WebSocket disconnected. Total connections: {len(self.active_connections)}")
-
-    async def send_event(self, websocket: WebSocket, event_type: str, data: Any) -> bool:
-        """Send a JSON event to a specific WebSocket client.
-
-        Returns True if sent successfully, False if connection is closed.
-        """
-        try:
-            await websocket.send_json({"type": event_type, "data": data})
-            return True
-        except (WebSocketDisconnect, RuntimeError):
-            # Connection already closed
-            return False
 
 
 manager = AgentConnectionManager()
@@ -1107,7 +1036,6 @@ async def agent_websocket(
 import logging
 from typing import Any
 {%- if cookiecutter.use_database %}
-from datetime import datetime, UTC
 {%- if cookiecutter.use_postgresql %}
 from uuid import UUID
 {%- endif %}
@@ -1118,11 +1046,12 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect{%- if cookiecutter
 from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage, SystemMessage, ToolMessage
 
 from app.agents.langgraph_assistant import AgentContext, get_agent
+from app.core.config import settings
+from app.services.agent import AgentConnectionManager
 {%- if cookiecutter.websocket_auth_jwt %}
 from app.api.deps import get_current_user_ws
 from app.db.models.user import User
 {%- endif %}
-from app.core.config import settings
 {%- if (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
 from app.db.session import get_db_context{% if cookiecutter.use_sqlite %}, get_db_session
 from contextlib import contextmanager{% endif %}
@@ -1145,39 +1074,6 @@ async def list_models() -> dict[str, Any]:
         "default": settings.AI_MODEL,
         "models": settings.AI_AVAILABLE_MODELS,
     }
-
-
-class AgentConnectionManager:
-    """WebSocket connection manager for AI agent."""
-
-    def __init__(self) -> None:
-        self.active_connections: list[WebSocket] = []
-
-    async def connect(self, websocket: WebSocket) -> None:
-        """Accept and store a new WebSocket connection."""
-        # Echo back the application subprotocol chosen during auth (if any)
-        subprotocol = getattr(websocket.state, "accept_subprotocol", None)
-        await websocket.accept(subprotocol=subprotocol)
-        self.active_connections.append(websocket)
-        logger.info(f"Agent WebSocket connected. Total connections: {len(self.active_connections)}")
-
-    def disconnect(self, websocket: WebSocket) -> None:
-        """Remove a WebSocket connection."""
-        if websocket in self.active_connections:
-            self.active_connections.remove(websocket)
-        logger.info(f"Agent WebSocket disconnected. Total connections: {len(self.active_connections)}")
-
-    async def send_event(self, websocket: WebSocket, event_type: str, data: Any) -> bool:
-        """Send a JSON event to a specific WebSocket client.
-
-        Returns True if sent successfully, False if connection is closed.
-        """
-        try:
-            await websocket.send_json({"type": event_type, "data": data})
-            return True
-        except (WebSocketDisconnect, RuntimeError):
-            # Connection already closed
-            return False
 
 
 manager = AgentConnectionManager()
@@ -1604,7 +1500,6 @@ async def agent_websocket(
 import logging
 from typing import Any
 {%- if cookiecutter.use_database %}
-from datetime import datetime, UTC
 {%- if cookiecutter.use_postgresql %}
 from uuid import UUID
 {%- endif %}
@@ -1613,11 +1508,12 @@ from uuid import UUID
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect{%- if cookiecutter.websocket_auth_jwt %}, Depends{%- endif %}{%- if cookiecutter.websocket_auth_api_key %}, Query{%- endif %}
 
 from app.agents.crewai_assistant import CrewContext, get_crew
+from app.core.config import settings
+from app.services.agent import AgentConnectionManager
 {%- if cookiecutter.websocket_auth_jwt %}
 from app.api.deps import get_current_user_ws
 from app.db.models.user import User
 {%- endif %}
-from app.core.config import settings
 {%- if (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
 from app.db.session import get_db_context{% if cookiecutter.use_sqlite %}, get_db_session
 from contextlib import contextmanager{% endif %}
@@ -1640,39 +1536,6 @@ async def list_models() -> dict[str, Any]:
         "default": settings.AI_MODEL,
         "models": settings.AI_AVAILABLE_MODELS,
     }
-
-
-class AgentConnectionManager:
-    """WebSocket connection manager for AI agent."""
-
-    def __init__(self) -> None:
-        self.active_connections: list[WebSocket] = []
-
-    async def connect(self, websocket: WebSocket) -> None:
-        """Accept and store a new WebSocket connection."""
-        # Echo back the application subprotocol chosen during auth (if any)
-        subprotocol = getattr(websocket.state, "accept_subprotocol", None)
-        await websocket.accept(subprotocol=subprotocol)
-        self.active_connections.append(websocket)
-        logger.info(f"Agent WebSocket connected. Total connections: {len(self.active_connections)}")
-
-    def disconnect(self, websocket: WebSocket) -> None:
-        """Remove a WebSocket connection."""
-        if websocket in self.active_connections:
-            self.active_connections.remove(websocket)
-        logger.info(f"Agent WebSocket disconnected. Total connections: {len(self.active_connections)}")
-
-    async def send_event(self, websocket: WebSocket, event_type: str, data: Any) -> bool:
-        """Send a JSON event to a specific WebSocket client.
-
-        Returns True if sent successfully, False if connection is closed.
-        """
-        try:
-            await websocket.send_json({"type": event_type, "data": data})
-            return True
-        except (WebSocketDisconnect, RuntimeError):
-            # Connection already closed
-            return False
 
 
 manager = AgentConnectionManager()
@@ -2106,7 +1969,6 @@ import logging
 import uuid
 from typing import Any
 {%- if cookiecutter.use_database %}
-from datetime import datetime, UTC
 {%- if cookiecutter.use_postgresql %}
 from uuid import UUID
 {%- endif %}
@@ -2117,11 +1979,12 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect{%- if cookiecutter
 from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage, SystemMessage, ToolMessage
 
 from app.agents.deepagents_assistant import AgentContext, Decision, InterruptData, get_agent
+from app.core.config import settings
+from app.services.agent import AgentConnectionManager
 {%- if cookiecutter.websocket_auth_jwt %}
 from app.api.deps import get_current_user_ws
 from app.db.models.user import User
 {%- endif %}
-from app.core.config import settings
 {%- if (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
 from app.db.session import get_db_context{% if cookiecutter.use_sqlite %}, get_db_session
 from contextlib import contextmanager{% endif %}
@@ -2144,39 +2007,6 @@ async def list_models() -> dict[str, Any]:
         "default": settings.AI_MODEL,
         "models": settings.AI_AVAILABLE_MODELS,
     }
-
-
-class AgentConnectionManager:
-    """WebSocket connection manager for AI agent."""
-
-    def __init__(self) -> None:
-        self.active_connections: list[WebSocket] = []
-
-    async def connect(self, websocket: WebSocket) -> None:
-        """Accept and store a new WebSocket connection."""
-        # Echo back the application subprotocol chosen during auth (if any)
-        subprotocol = getattr(websocket.state, "accept_subprotocol", None)
-        await websocket.accept(subprotocol=subprotocol)
-        self.active_connections.append(websocket)
-        logger.info(f"Agent WebSocket connected. Total connections: {len(self.active_connections)}")
-
-    def disconnect(self, websocket: WebSocket) -> None:
-        """Remove a WebSocket connection."""
-        if websocket in self.active_connections:
-            self.active_connections.remove(websocket)
-        logger.info(f"Agent WebSocket disconnected. Total connections: {len(self.active_connections)}")
-
-    async def send_event(self, websocket: WebSocket, event_type: str, data: Any) -> bool:
-        """Send a JSON event to a specific WebSocket client.
-
-        Returns True if sent successfully, False if connection is closed.
-        """
-        try:
-            await websocket.send_json({"type": event_type, "data": data})
-            return True
-        except (WebSocketDisconnect, RuntimeError):
-            # Connection already closed
-            return False
 
 
 manager = AgentConnectionManager()
@@ -2756,13 +2586,12 @@ async def agent_websocket(
 {%- elif cookiecutter.use_pydantic_deep %}
 """AI Agent WebSocket routes with streaming support (PydanticDeep)."""
 
+import json
 import logging
+from datetime import UTC, datetime
 from typing import Any
-{%- if cookiecutter.use_database %}
-from datetime import datetime, UTC
 {%- if cookiecutter.use_postgresql %}
 from uuid import UUID
-{%- endif %}
 {%- endif %}
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect{%- if cookiecutter.websocket_auth_jwt %}, Depends{%- endif %}{%- if cookiecutter.websocket_auth_api_key %}, Query{%- endif %}
@@ -2777,19 +2606,25 @@ from pydantic_ai import (
     TextPartDelta,
     ToolCallPartDelta,
 )
-from pydantic_ai.messages import TextPart
+from pydantic_ai.messages import BinaryContent, TextPart
 
 from app.agents.pydantic_deep_assistant import PydanticDeepContext, get_agent
+from app.core.config import settings
+from app.services.agent import AgentConnectionManager
 {%- if cookiecutter.websocket_auth_jwt %}
 from app.api.deps import get_current_user_ws
 from app.db.models.user import User
 {%- endif %}
-from app.core.config import settings
 {%- if (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
 from app.db.session import get_db_context{% if cookiecutter.use_sqlite %}, get_db_session
 from contextlib import contextmanager{% endif %}
 from app.api.deps import ConversationSvc, get_conversation_service
 from app.schemas.conversation import ConversationCreate, ConversationUpdate, MessageCreate, ToolCallCreate, ToolCallComplete
+from app.services.file_storage import get_file_storage
+{%- if cookiecutter.use_postgresql %}
+from app.api.deps import get_project_service
+from pydantic_ai_backends import StateBackend
+{%- endif %}
 {%- elif cookiecutter.use_mongodb %}
 from app.api.deps import ConversationSvc, get_conversation_service
 from app.schemas.conversation import ConversationCreate, ConversationUpdate, MessageCreate, ToolCallCreate, ToolCallComplete
@@ -2807,36 +2642,6 @@ async def list_models() -> dict[str, Any]:
         "default": settings.AI_MODEL,
         "models": settings.AI_AVAILABLE_MODELS,
     }
-
-
-class AgentConnectionManager:
-    """WebSocket connection manager for AI agent."""
-
-    def __init__(self) -> None:
-        self.active_connections: list[WebSocket] = []
-
-    async def connect(self, websocket: WebSocket) -> None:
-        """Accept and store a new WebSocket connection."""
-        await websocket.accept()
-        self.active_connections.append(websocket)
-        logger.info(f"Agent WebSocket connected. Total connections: {len(self.active_connections)}")
-
-    def disconnect(self, websocket: WebSocket) -> None:
-        """Remove a WebSocket connection."""
-        if websocket in self.active_connections:
-            self.active_connections.remove(websocket)
-        logger.info(f"Agent WebSocket disconnected. Total connections: {len(self.active_connections)}")
-
-    async def send_event(self, websocket: WebSocket, event_type: str, data: Any) -> bool:
-        """Send a JSON event to a specific WebSocket client.
-
-        Returns True if sent successfully, False if connection is closed.
-        """
-        try:
-            await websocket.send_json({"type": event_type, "data": data})
-            return True
-        except (WebSocketDisconnect, RuntimeError):
-            return False
 
 
 manager = AgentConnectionManager()
@@ -3061,9 +2866,6 @@ async def agent_websocket(
 {%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
 
                 # Load attached files → write to workspace + augment input
-                from pydantic_ai.messages import BinaryContent
-                from app.services.file_storage import get_file_storage
-
                 user_input: str | list[Any] = user_message
                 file_refs: list[str] = []
                 image_parts: list[Any] = []
@@ -3257,7 +3059,6 @@ async def agent_websocket(
                                     model_name=assistant.model_name if hasattr(assistant, "model_name") else None,
                                 ),
                             )
-                            import json
                             for tc in collected_tool_calls:
                                 try:
                                     args_dict = tc.get("args", {})
@@ -3296,7 +3097,6 @@ async def agent_websocket(
                                     model_name=assistant.model_name if hasattr(assistant, "model_name") else None,
                                 ),
                             )
-                            import json
                             for tc in collected_tool_calls:
                                 try:
                                     args_dict = tc.get("args", {})
@@ -3404,9 +3204,6 @@ async def project_chat_websocket(
 
     try:
         # Verify project access and load project config
-        from app.db.session import get_db_context
-        from app.api.deps import get_project_service
-
         async with get_db_context() as db:
             project_service = get_project_service(db)
             try:
@@ -3420,8 +3217,6 @@ async def project_chat_websocket(
                 return
 
         # Build agent backend for this project
-        from pydantic_ai_backends import StateBackend
-
         backend: Any = StateBackend()
 
         assistant = get_agent(
@@ -3432,9 +3227,6 @@ async def project_chat_websocket(
 
         # Ensure the conversation record exists and is linked to the project
         async with get_db_context() as db:
-            from app.api.deps import get_conversation_service
-            from app.schemas.conversation import ConversationCreate
-
             conv_service = get_conversation_service(db)
             try:
                 conv = await conv_service.get_conversation(conversation_id
@@ -3466,9 +3258,6 @@ async def project_chat_websocket(
 
             # Persist user message
             async with get_db_context() as db:
-                from app.api.deps import get_conversation_service
-                from app.schemas.conversation import MessageCreate
-
                 conv_service = get_conversation_service(db)
                 try:
                     await conv_service.add_message(
@@ -3517,9 +3306,6 @@ async def project_chat_websocket(
 
                 # Persist assistant response
                 async with get_db_context() as db:
-                    from app.api.deps import get_conversation_service
-                    from app.schemas.conversation import MessageCreate
-
                     conv_service = get_conversation_service(db)
                     try:
                         await conv_service.add_message(

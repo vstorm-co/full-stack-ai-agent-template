@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.exceptions import NotFoundError
 from app.db.models.rag_document import RAGDocument
 from app.repositories import rag_document_repo
+from app.schemas.rag import RAGTrackedDocumentItem, RAGTrackedDocumentList
 from app.services.file_storage import get_file_storage
 
 
@@ -30,9 +31,23 @@ class RAGDocumentService:
     async def list_documents(
         self,
         collection_name: str | None = None,
-    ) -> list[RAGDocument]:
+    ) -> RAGTrackedDocumentList:
         """List tracked RAG documents, optionally filtered by collection."""
-        return await rag_document_repo.get_all(self.db, collection_name)
+        docs = await rag_document_repo.get_all(self.db, collection_name)
+        return RAGTrackedDocumentList(
+            items=[
+                RAGTrackedDocumentItem(
+                    id=str(d.id), collection_name=d.collection_name, filename=d.filename,
+                    filesize=d.filesize, filetype=d.filetype, status=d.status,
+                    error_message=d.error_message, vector_document_id=d.vector_document_id,
+                    chunk_count=d.chunk_count, has_file=bool(d.storage_path),
+                    created_at=d.created_at.isoformat() if d.created_at else None,
+                    completed_at=d.completed_at.isoformat() if d.completed_at else None,
+                )
+                for d in docs
+            ],
+            total=len(docs),
+        )
 
     async def get_document(self, doc_id: str) -> RAGDocument:
         """Get a RAG document by ID.
@@ -201,6 +216,7 @@ from sqlalchemy.orm import Session
 from app.core.exceptions import NotFoundError
 from app.db.models.rag_document import RAGDocument
 from app.repositories import rag_document_repo
+from app.schemas.rag import RAGTrackedDocumentItem, RAGTrackedDocumentList
 from app.services.file_storage import get_file_storage
 
 
@@ -216,9 +232,23 @@ class RAGDocumentService:
     def list_documents(
         self,
         collection_name: str | None = None,
-    ) -> list[RAGDocument]:
+    ) -> RAGTrackedDocumentList:
         """List tracked RAG documents, optionally filtered by collection."""
-        return rag_document_repo.get_all(self.db, collection_name)
+        docs = rag_document_repo.get_all(self.db, collection_name)
+        return RAGTrackedDocumentList(
+            items=[
+                RAGTrackedDocumentItem(
+                    id=str(d.id), collection_name=d.collection_name, filename=d.filename,
+                    filesize=d.filesize, filetype=d.filetype, status=d.status,
+                    error_message=d.error_message, vector_document_id=d.vector_document_id,
+                    chunk_count=d.chunk_count, has_file=bool(d.storage_path),
+                    created_at=d.created_at.isoformat() if d.created_at else None,
+                    completed_at=d.completed_at.isoformat() if d.completed_at else None,
+                )
+                for d in docs
+            ],
+            total=len(docs),
+        )
 
     def get_document(self, doc_id: str) -> RAGDocument:
         """Get a RAG document by ID.

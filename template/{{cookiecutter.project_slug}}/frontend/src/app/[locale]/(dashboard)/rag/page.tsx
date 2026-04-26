@@ -105,7 +105,7 @@ export default function RAGPage() {
         catch { items.push({ name, info: null }); }
       }
       setCollections(items);
-      setSelected(prev => (items.length > 0 && !prev) ? items[0].name : prev);
+      setSelected(prev => (items.length > 0 && !prev) ? (items[0]?.name ?? "") : prev);
     } catch { toast.error("Failed to load collections"); }
     finally { setLoading(false); }
   }, []);
@@ -270,7 +270,8 @@ export default function RAGPage() {
 
     setUploading(true);
     for (let i = 0; i < fileList.length; i++) {
-      const file = fileList[i];
+      const file: File | undefined = fileList[i];
+      if (!file) continue;
       setUploadProgress({ current: i + 1, total: fileList.length, filename: file.name });
 
       if (file.size > maxMb * 1024 * 1024) {

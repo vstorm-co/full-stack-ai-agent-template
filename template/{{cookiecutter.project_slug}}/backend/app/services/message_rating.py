@@ -1,7 +1,12 @@
 """Message rating service - business logic for ratings."""
 
 {%- if cookiecutter.use_postgresql %}
-from collections.abc import AsyncGenerator
+import csv
+from collections.abc import AsyncGenerator, AsyncIterable, AsyncIterator
+from datetime import UTC, datetime
+from io import StringIO
+
+from fastapi.responses import JSONResponse, StreamingResponse
 
 from uuid import UUID
 
@@ -284,11 +289,107 @@ class MessageRatingService:
         summary_data = await rating_repo.get_rating_summary(self.db, days=days)
         return RatingSummary(**summary_data)
 
+    _CSV_INJECTION_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+    _CSV_HEADER = [
+        "ID", "Message ID", "Conversation ID", "User ID",
+        "Rating", "Comment", "Message Content", "Message Role",
+        "User Email", "User Name", "Created At", "Updated At",
+    ]
+
+    def _csv_escape(self, value: str) -> str:
+        if value and value[0] in self._CSV_INJECTION_PREFIXES:
+            return "'" + value
+        return value
+
+    def _csv_row_values(self, item: MessageRatingWithDetails) -> list[str]:
+        return [
+            self._csv_escape(str(item.id)),
+            self._csv_escape(str(item.message_id)),
+            self._csv_escape(str(item.conversation_id)) if item.conversation_id else "",
+            self._csv_escape(str(item.user_id)),
+            "Like" if item.rating == 1 else "Dislike",
+            self._csv_escape(item.comment or ""),
+            self._csv_escape(item.message_content or ""),
+            self._csv_escape(item.message_role or ""),
+            self._csv_escape(item.user_email or ""),
+            self._csv_escape(item.user_name or ""),
+            item.created_at.isoformat() if item.created_at else "",
+            item.updated_at.isoformat() if item.updated_at else "",
+        ]
+
+    def _serialize_csv_row(self, values: list[str]) -> str:
+        buffer = StringIO()
+        csv.writer(buffer).writerow(values)
+        return buffer.getvalue()
+
+    def _validate_export_format(self, export_format: str) -> str:
+        fmt = export_format.lower()
+        if fmt not in ("json", "csv"):
+            raise ValidationError(
+                message="Invalid export format. Must be 'json' or 'csv'.",
+                details={"export_format": export_format},
+            )
+        return fmt
+
+    def _export_disposition(self, now: datetime, fmt: str) -> str:
+        return f'attachment; filename="ratings_export_{now.strftime("%Y%m%d_%H%M%S")}.{fmt}"'
+
+    def _json_export_response(
+        self, items: list[MessageRatingWithDetails], now: datetime
+    ) -> JSONResponse:
+        return JSONResponse(
+            content={
+                "ratings": [item.model_dump(mode="json") for item in items],
+                "total": len(items),
+                "exported_at": now.isoformat(),
+            },
+            headers={"Content-Disposition": self._export_disposition(now, "json")},
+        )
+
+    def _stream_csv_async(
+        self, chunks: AsyncIterable[list[MessageRatingWithDetails]], now: datetime
+    ) -> StreamingResponse:
+        async def generate() -> AsyncIterator[str]:
+            yield self._serialize_csv_row(self._CSV_HEADER)
+            async for chunk in chunks:
+                for item in chunk:
+                    yield self._serialize_csv_row(self._csv_row_values(item))
+        return StreamingResponse(
+            generate(),
+            media_type="text/csv",
+            headers={"Content-Disposition": self._export_disposition(now, "csv")},
+        )
+
+    async def export_ratings(
+        self,
+        *,
+        export_format: str,
+        rating_filter: int | None = None,
+        with_comments_only: bool = False,
+    ) -> JSONResponse | StreamingResponse:
+        fmt = self._validate_export_format(export_format)
+        now = datetime.now(UTC)
+        chunks = self.export_all_ratings(
+            rating_filter=rating_filter,
+            with_comments_only=with_comments_only,
+        )
+        if fmt == "csv":
+            return self._stream_csv_async(chunks, now)
+        all_items: list[MessageRatingWithDetails] = []
+        async for chunk in chunks:
+            all_items.extend(chunk)
+        return self._json_export_response(all_items, now)
+
 
 {%- elif cookiecutter.use_sqlite %}
 """Message rating service (SQLite sync)."""
 
-from collections.abc import Generator
+import csv
+from collections.abc import Generator, Iterable, Iterator
+from datetime import UTC, datetime
+from io import StringIO
+
+from fastapi.responses import JSONResponse, StreamingResponse
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -569,11 +670,107 @@ class MessageRatingService:
         summary_data = rating_repo.get_rating_summary(self.db, days=days)
         return RatingSummary(**summary_data)
 
+    _CSV_INJECTION_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+    _CSV_HEADER = [
+        "ID", "Message ID", "Conversation ID", "User ID",
+        "Rating", "Comment", "Message Content", "Message Role",
+        "User Email", "User Name", "Created At", "Updated At",
+    ]
+
+    def _csv_escape(self, value: str) -> str:
+        if value and value[0] in self._CSV_INJECTION_PREFIXES:
+            return "'" + value
+        return value
+
+    def _csv_row_values(self, item: MessageRatingWithDetails) -> list[str]:
+        return [
+            self._csv_escape(str(item.id)),
+            self._csv_escape(str(item.message_id)),
+            self._csv_escape(str(item.conversation_id)) if item.conversation_id else "",
+            self._csv_escape(str(item.user_id)),
+            "Like" if item.rating == 1 else "Dislike",
+            self._csv_escape(item.comment or ""),
+            self._csv_escape(item.message_content or ""),
+            self._csv_escape(item.message_role or ""),
+            self._csv_escape(item.user_email or ""),
+            self._csv_escape(item.user_name or ""),
+            item.created_at.isoformat() if item.created_at else "",
+            item.updated_at.isoformat() if item.updated_at else "",
+        ]
+
+    def _serialize_csv_row(self, values: list[str]) -> str:
+        buffer = StringIO()
+        csv.writer(buffer).writerow(values)
+        return buffer.getvalue()
+
+    def _validate_export_format(self, export_format: str) -> str:
+        fmt = export_format.lower()
+        if fmt not in ("json", "csv"):
+            raise ValidationError(
+                message="Invalid export format. Must be 'json' or 'csv'.",
+                details={"export_format": export_format},
+            )
+        return fmt
+
+    def _export_disposition(self, now: datetime, fmt: str) -> str:
+        return f'attachment; filename="ratings_export_{now.strftime("%Y%m%d_%H%M%S")}.{fmt}"'
+
+    def _json_export_response(
+        self, items: list[MessageRatingWithDetails], now: datetime
+    ) -> JSONResponse:
+        return JSONResponse(
+            content={
+                "ratings": [item.model_dump(mode="json") for item in items],
+                "total": len(items),
+                "exported_at": now.isoformat(),
+            },
+            headers={"Content-Disposition": self._export_disposition(now, "json")},
+        )
+
+    def _stream_csv_sync(
+        self, chunks: Iterable[list[MessageRatingWithDetails]], now: datetime
+    ) -> StreamingResponse:
+        def generate() -> Iterator[str]:
+            yield self._serialize_csv_row(self._CSV_HEADER)
+            for chunk in chunks:
+                for item in chunk:
+                    yield self._serialize_csv_row(self._csv_row_values(item))
+        return StreamingResponse(
+            generate(),
+            media_type="text/csv",
+            headers={"Content-Disposition": self._export_disposition(now, "csv")},
+        )
+
+    def export_ratings(
+        self,
+        *,
+        export_format: str,
+        rating_filter: int | None = None,
+        with_comments_only: bool = False,
+    ) -> JSONResponse | StreamingResponse:
+        fmt = self._validate_export_format(export_format)
+        now = datetime.now(UTC)
+        chunks = self.export_all_ratings(
+            rating_filter=rating_filter,
+            with_comments_only=with_comments_only,
+        )
+        if fmt == "csv":
+            return self._stream_csv_sync(chunks, now)
+        all_items: list[MessageRatingWithDetails] = []
+        for chunk in chunks:
+            all_items.extend(chunk)
+        return self._json_export_response(all_items, now)
+
 
 {%- elif cookiecutter.use_mongodb %}
 """Message rating service (MongoDB async)."""
 
-from collections.abc import AsyncGenerator
+import csv
+from collections.abc import AsyncGenerator, AsyncIterable, AsyncIterator
+from datetime import UTC, datetime
+from io import StringIO
+
+from fastapi.responses import JSONResponse, StreamingResponse
 
 from app.core.exceptions import NotFoundError, ValidationError
 from app.db.models.conversation import Message
@@ -874,6 +1071,97 @@ class MessageRatingService:
         """Get aggregated rating statistics."""
         summary_data = await rating_repo.get_rating_summary(days=days)
         return RatingSummary(**summary_data)
+
+    _CSV_INJECTION_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+    _CSV_HEADER = [
+        "ID", "Message ID", "Conversation ID", "User ID",
+        "Rating", "Comment", "Message Content", "Message Role",
+        "User Email", "User Name", "Created At", "Updated At",
+    ]
+
+    def _csv_escape(self, value: str) -> str:
+        if value and value[0] in self._CSV_INJECTION_PREFIXES:
+            return "'" + value
+        return value
+
+    def _csv_row_values(self, item: MessageRatingWithDetails) -> list[str]:
+        return [
+            self._csv_escape(str(item.id)),
+            self._csv_escape(str(item.message_id)),
+            self._csv_escape(str(item.conversation_id)) if item.conversation_id else "",
+            self._csv_escape(str(item.user_id)),
+            "Like" if item.rating == 1 else "Dislike",
+            self._csv_escape(item.comment or ""),
+            self._csv_escape(item.message_content or ""),
+            self._csv_escape(item.message_role or ""),
+            self._csv_escape(item.user_email or ""),
+            self._csv_escape(item.user_name or ""),
+            item.created_at.isoformat() if item.created_at else "",
+            item.updated_at.isoformat() if item.updated_at else "",
+        ]
+
+    def _serialize_csv_row(self, values: list[str]) -> str:
+        buffer = StringIO()
+        csv.writer(buffer).writerow(values)
+        return buffer.getvalue()
+
+    def _validate_export_format(self, export_format: str) -> str:
+        fmt = export_format.lower()
+        if fmt not in ("json", "csv"):
+            raise ValidationError(
+                message="Invalid export format. Must be 'json' or 'csv'.",
+                details={"export_format": export_format},
+            )
+        return fmt
+
+    def _export_disposition(self, now: datetime, fmt: str) -> str:
+        return f'attachment; filename="ratings_export_{now.strftime("%Y%m%d_%H%M%S")}.{fmt}"'
+
+    def _json_export_response(
+        self, items: list[MessageRatingWithDetails], now: datetime
+    ) -> JSONResponse:
+        return JSONResponse(
+            content={
+                "ratings": [item.model_dump(mode="json") for item in items],
+                "total": len(items),
+                "exported_at": now.isoformat(),
+            },
+            headers={"Content-Disposition": self._export_disposition(now, "json")},
+        )
+
+    def _stream_csv_async(
+        self, chunks: AsyncIterable[list[MessageRatingWithDetails]], now: datetime
+    ) -> StreamingResponse:
+        async def generate() -> AsyncIterator[str]:
+            yield self._serialize_csv_row(self._CSV_HEADER)
+            async for chunk in chunks:
+                for item in chunk:
+                    yield self._serialize_csv_row(self._csv_row_values(item))
+        return StreamingResponse(
+            generate(),
+            media_type="text/csv",
+            headers={"Content-Disposition": self._export_disposition(now, "csv")},
+        )
+
+    async def export_ratings(
+        self,
+        *,
+        export_format: str,
+        rating_filter: int | None = None,
+        with_comments_only: bool = False,
+    ) -> JSONResponse | StreamingResponse:
+        fmt = self._validate_export_format(export_format)
+        now = datetime.now(UTC)
+        chunks = self.export_all_ratings(
+            rating_filter=rating_filter,
+            with_comments_only=with_comments_only,
+        )
+        if fmt == "csv":
+            return self._stream_csv_async(chunks, now)
+        all_items: list[MessageRatingWithDetails] = []
+        async for chunk in chunks:
+            all_items.extend(chunk)
+        return self._json_export_response(all_items, now)
 
 
 {%- endif %}

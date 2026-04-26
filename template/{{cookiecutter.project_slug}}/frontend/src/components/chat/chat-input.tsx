@@ -80,10 +80,11 @@ export function ChatInput({ onSend, disabled, isProcessing }: ChatInputProps) {
       let interim = "";
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const result = event.results[i];
+        if (!result) continue;
         if (result.isFinal) {
-          finalTranscript += result[0].transcript;
+          finalTranscript += result[0]?.transcript ?? "";
         } else {
-          interim += result[0].transcript;
+          interim += result[0]?.transcript ?? "";
         }
       }
       setMessage(() => {

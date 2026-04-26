@@ -6,18 +6,17 @@ import os
 import tempfile
 from pathlib import Path
 from typing import Any
-{%- if (cookiecutter.use_postgresql or cookiecutter.use_sqlite) or ((cookiecutter.use_celery or cookiecutter.use_taskiq or cookiecutter.use_arq) and cookiecutter.enable_redis) %}
-import json
-{%- endif %}
 {%- if (cookiecutter.use_celery or cookiecutter.use_taskiq or cookiecutter.use_arq) and cookiecutter.enable_redis %}
+import asyncio
 from collections.abc import AsyncIterable
+
+import redis.asyncio as aioredis
+
+from fastapi.sse import EventSourceResponse, ServerSentEvent
 {%- endif %}
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, UploadFile, File, status
 from fastapi.responses import JSONResponse
-{%- if (cookiecutter.use_celery or cookiecutter.use_taskiq or cookiecutter.use_arq) and cookiecutter.enable_redis %}
-from fastapi.sse import EventSourceResponse, ServerSentEvent
-{%- endif %}
 
 from app.api.deps import IngestionSvc, RetrievalSvc, VectorStoreSvc
 {%- if cookiecutter.use_jwt %}
@@ -28,10 +27,7 @@ from app.api.deps import RAGDocumentSvc, RAGSyncSvc, SyncSourceSvc
 from app.core.config import settings as app_settings
 from app.core.exceptions import NotFoundError
 from app.rag.config import get_supported_formats
-from app.rag.connectors import CONNECTOR_REGISTRY
 from app.schemas.sync_source import (
-    ConnectorConfigField,
-    ConnectorInfo,
     ConnectorList,
     SyncSourceCreate,
     SyncSourceList,
@@ -42,12 +38,21 @@ from app.services.file_storage import get_file_storage
 {%- if not (cookiecutter.use_celery or cookiecutter.use_taskiq or cookiecutter.use_arq) %}
 from app.tasks.rag import ingest_document_in_background, sync_local_in_background, sync_source_in_background
 {%- endif %}
+{%- if cookiecutter.use_celery or cookiecutter.use_taskiq %}
+from app.worker.tasks.rag_tasks import ingest_document_task, sync_collection_task, sync_single_source_task
+{%- endif %}
+{%- if cookiecutter.use_arq %}
+from app.worker.arq_app import get_arq_pool
+{%- endif %}
 from fastapi.responses import FileResponse
+{%- endif %}
+{%- if cookiecutter.use_mongodb %}
+from app.core.config import settings as app_settings
+from app.rag.config import get_supported_formats
 {%- endif %}
 from app.schemas.rag import (
     RAGCollectionInfo,
     RAGCollectionList,
-    RAGDocumentItem,
     RAGDocumentList,
     RAGMessageResponse,
     RAGSearchRequest,
@@ -55,8 +60,8 @@ from app.schemas.rag import (
     RAGSearchResult,
 )
 {%- if (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
-from app.schemas.rag import RAGIngestResponse, RAGRetryResponse, RAGTrackedDocumentItem, RAGTrackedDocumentList
-from app.schemas.rag import RAGSyncLogItem, RAGSyncLogList, RAGSyncRequest, RAGSyncResponse
+from app.schemas.rag import RAGIngestResponse, RAGRetryResponse, RAGTrackedDocumentList
+from app.schemas.rag import RAGSyncLogList, RAGSyncRequest, RAGSyncResponse
 {%- endif %}
 
 logger = logging.getLogger(__name__)
@@ -68,23 +73,15 @@ router = APIRouter()
 async def get_supported_formats_endpoint() -> Any:
     """Return file formats supported by the current PDF parser configuration."""
 {%- if cookiecutter.use_all_pdf_parsers %}
-    from app.core.config import settings as _app_settings
-    from app.rag.config import get_supported_formats as _get_supported_formats
-    parser_name = getattr(_app_settings, "PDF_PARSER", "pymupdf")
-    return {"parser": parser_name, "formats": sorted(_get_supported_formats(parser_name))}
+    parser_name = getattr(app_settings, "PDF_PARSER", "pymupdf")
 {%- elif cookiecutter.use_llamaparse %}
-    from app.rag.config import get_supported_formats as _get_supported_formats
     parser_name = "llamaparse"
-    return {"parser": parser_name, "formats": sorted(_get_supported_formats(parser_name))}
 {%- elif cookiecutter.use_liteparse %}
-    from app.rag.config import get_supported_formats as _get_supported_formats
     parser_name = "liteparse"
-    return {"parser": parser_name, "formats": sorted(_get_supported_formats(parser_name))}
 {%- else %}
-    from app.rag.config import get_supported_formats as _get_supported_formats
     parser_name = "pymupdf"
-    return {"parser": parser_name, "formats": sorted(_get_supported_formats(parser_name))}
 {%- endif %}
+    return {"parser": parser_name, "formats": sorted(get_supported_formats(parser_name))}
 
 
 @router.get("/collections", response_model=RAGCollectionList)
@@ -154,21 +151,7 @@ async def list_documents(
 {%- endif %}
 ) -> Any:
     """List all documents in a specific collection."""
-    documents = await vector_store.get_documents(name)
-    return RAGDocumentList(
-        items=[
-            RAGDocumentItem(
-                document_id=doc.document_id,
-                filename=doc.filename,
-                filesize=doc.filesize,
-                filetype=doc.filetype,
-                chunk_count=doc.chunk_count,
-                additional_info=doc.additional_info,
-            )
-            for doc in documents
-        ],
-        total=len(documents),
-    )
+    return await vector_store.get_document_list(name)
 
 
 @router.post("/search", response_model=RAGSearchResponse)
@@ -288,7 +271,6 @@ async def ingest_file(
         f.write(data)
 
     # Dispatch async task
-    from app.worker.tasks.rag_tasks import ingest_document_task
 {%- if cookiecutter.use_celery %}
     ingest_document_task.delay(
         rag_document_id=str(doc_id), collection_name=name,
@@ -300,7 +282,6 @@ async def ingest_file(
         filepath=tmp_path, source_path=filename, replace=replace,
     )
 {%- elif cookiecutter.use_arq %}
-    from app.worker.arq_app import get_arq_pool
     pool = await get_arq_pool()
     await pool.enqueue_job("ingest_document_task",
         str(doc_id), name, tmp_path, filename, replace,
@@ -355,24 +336,10 @@ def list_rag_documents(
     """List tracked RAG documents."""
 
 {%- if cookiecutter.use_postgresql %}
-    docs = await rag_doc_svc.list_documents(collection_name)
+    return await rag_doc_svc.list_documents(collection_name)
 {%- else %}
-    docs = rag_doc_svc.list_documents(collection_name)
+    return rag_doc_svc.list_documents(collection_name)
 {%- endif %}
-    return RAGTrackedDocumentList(
-        items=[
-            RAGTrackedDocumentItem(
-                id=str(d.id), collection_name=d.collection_name, filename=d.filename,
-                filesize=d.filesize, filetype=d.filetype, status=d.status,
-                error_message=d.error_message, vector_document_id=d.vector_document_id,
-                chunk_count=d.chunk_count, has_file=bool(d.storage_path),
-                created_at=d.created_at.isoformat() if d.created_at else None,
-                completed_at=d.completed_at.isoformat() if d.completed_at else None,
-            )
-            for d in docs
-        ],
-        total=len(docs),
-    )
 
 
 @router.get("/documents/{doc_id}/download")
@@ -468,24 +435,10 @@ def list_sync_logs(
     """List sync operation logs."""
 
 {%- if cookiecutter.use_postgresql %}
-    logs = await rag_sync_svc.list_sync_logs(collection_name=collection_name, limit=limit)
+    return await rag_sync_svc.list_sync_logs(collection_name=collection_name, limit=limit)
 {%- else %}
-    logs = rag_sync_svc.list_sync_logs(collection_name=collection_name, limit=limit)
+    return rag_sync_svc.list_sync_logs(collection_name=collection_name, limit=limit)
 {%- endif %}
-    return RAGSyncLogList(
-        items=[
-            RAGSyncLogItem(
-                id=str(log.id), source=log.source, collection_name=log.collection_name,
-                status=log.status, mode=log.mode, total_files=log.total_files,
-                ingested=log.ingested, updated=log.updated, skipped=log.skipped, failed=log.failed,
-                error_message=log.error_message,
-                started_at=log.started_at.isoformat() if log.started_at else None,
-                completed_at=log.completed_at.isoformat() if log.completed_at else None,
-            )
-            for log in logs
-        ],
-        total=len(logs),
-    )
 
 
 @router.post("/sync/local", response_model=RAGSyncResponse)
@@ -510,19 +463,16 @@ async def trigger_local_sync(
 {%- endif %}
 
 {%- if cookiecutter.use_celery %}
-    from app.worker.tasks.rag_tasks import sync_collection_task
     sync_collection_task.delay(
         sync_log_id=str(sync_log.id), source="local",
         collection_name=request.collection_name, mode=request.mode, path=request.path,
     )
 {%- elif cookiecutter.use_taskiq %}
-    from app.worker.tasks.rag_tasks import sync_collection_task
     await sync_collection_task.kiq(
         sync_log_id=str(sync_log.id), source="local",
         collection_name=request.collection_name, mode=request.mode, path=request.path,
     )
 {%- elif cookiecutter.use_arq %}
-    from app.worker.arq_app import get_arq_pool
     pool = await get_arq_pool()
     await pool.enqueue_job("sync_collection_task",
         str(sync_log.id), "local", request.collection_name, request.mode, request.path,
@@ -561,9 +511,6 @@ def cancel_sync(
     return RAGMessageResponse(message="Sync cancelled")
 
 
-# --- Sync Source CRUD ---
-
-
 @router.get("/sync/sources", response_model=SyncSourceList)
 {%- if cookiecutter.use_postgresql %}
 async def list_sync_sources(
@@ -578,23 +525,10 @@ def list_sync_sources(
     """List all configured sync sources."""
 
 {%- if cookiecutter.use_postgresql %}
-    sources = await sync_source_svc.list_sources()
+    return await sync_source_svc.list_sources()
 {%- else %}
-    sources = sync_source_svc.list_sources()
+    return sync_source_svc.list_sources()
 {%- endif %}
-    return SyncSourceList(
-        items=[SyncSourceRead(
-            id=str(s.id), name=s.name, connector_type=s.connector_type,
-            collection_name=s.collection_name,
-            config=s.config if isinstance(s.config, dict) else json.loads(s.config) if s.config else {},
-            sync_mode=s.sync_mode, schedule_minutes=s.schedule_minutes,
-            is_active=s.is_active,
-            last_sync_at=s.last_sync_at.isoformat() if s.last_sync_at else None,
-            last_sync_status=s.last_sync_status, last_error=s.last_error,
-            created_at=s.created_at.isoformat() if s.created_at else None,
-        ) for s in sources],
-        total=len(sources),
-    )
 
 
 @router.post("/sync/sources", response_model=SyncSourceRead, status_code=status.HTTP_201_CREATED)
@@ -613,21 +547,12 @@ def create_sync_source(
 
     try:
 {%- if cookiecutter.use_postgresql %}
-        source = await sync_source_svc.create_source(data)
+        return await sync_source_svc.create_source(data)
 {%- else %}
-        source = sync_source_svc.create_source(data)
+        return sync_source_svc.create_source(data)
 {%- endif %}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
-    return SyncSourceRead(
-        id=str(source.id), name=source.name, connector_type=source.connector_type,
-        collection_name=source.collection_name,
-        config=source.config if isinstance(source.config, dict) else json.loads(source.config) if source.config else {},
-        sync_mode=source.sync_mode, schedule_minutes=source.schedule_minutes,
-        is_active=source.is_active,
-        last_sync_at=None, last_sync_status=None, last_error=None,
-        created_at=source.created_at.isoformat() if source.created_at else None,
-    )
 
 
 @router.patch("/sync/sources/{source_id}", response_model=SyncSourceRead)
@@ -647,22 +572,12 @@ def update_sync_source(
 
     try:
 {%- if cookiecutter.use_postgresql %}
-        source = await sync_source_svc.update_source(source_id, data)
+        return await sync_source_svc.update_source(source_id, data)
 {%- else %}
-        source = sync_source_svc.update_source(source_id, data)
+        return sync_source_svc.update_source(source_id, data)
 {%- endif %}
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=e.message) from e
-    return SyncSourceRead(
-        id=str(source.id), name=source.name, connector_type=source.connector_type,
-        collection_name=source.collection_name,
-        config=source.config if isinstance(source.config, dict) else json.loads(source.config) if source.config else {},
-        sync_mode=source.sync_mode, schedule_minutes=source.schedule_minutes,
-        is_active=source.is_active,
-        last_sync_at=source.last_sync_at.isoformat() if source.last_sync_at else None,
-        last_sync_status=source.last_sync_status, last_error=source.last_error,
-        created_at=source.created_at.isoformat() if source.created_at else None,
-    )
 
 
 @router.delete("/sync/sources/{source_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
@@ -711,13 +626,10 @@ async def trigger_sync_source(
 
     # Dispatch background task to execute the sync
 {%- if cookiecutter.use_celery %}
-    from app.worker.tasks.rag_tasks import sync_single_source_task
     sync_single_source_task.delay(source_id, str(sync_log.id))
 {%- elif cookiecutter.use_taskiq %}
-    from app.worker.tasks.rag_tasks import sync_single_source_task
     await sync_single_source_task.kiq(source_id, str(sync_log.id))
 {%- elif cookiecutter.use_arq %}
-    from app.worker.arq_app import get_arq_pool
     pool = await get_arq_pool()
     await pool.enqueue_job("sync_single_source_task", source_id, str(sync_log.id))
 {%- else %}
@@ -733,23 +645,13 @@ async def trigger_sync_source(
 
 @router.get("/sync/connectors", response_model=ConnectorList)
 async def list_connectors(
+    sync_source_svc: SyncSourceSvc,
 {%- if cookiecutter.use_jwt %}
     _: CurrentAdmin,
 {%- endif %}
 ) -> Any:
     """List available sync connector types with their config schemas."""
-    items = []
-    for _connector_type, connector_cls in CONNECTOR_REGISTRY.items():
-        schema_fields = {}
-        for field_name, field_spec in connector_cls.CONFIG_SCHEMA.items():
-            schema_fields[field_name] = ConnectorConfigField(**field_spec)
-        items.append(ConnectorInfo(
-            type=connector_cls.CONNECTOR_TYPE,
-            name=connector_cls.DISPLAY_NAME,
-            config_schema=schema_fields,
-            enabled=True,
-        ))
-    return ConnectorList(items=items)
+    return sync_source_svc.list_connectors()
 {%- endif %}
 
 {%- if (cookiecutter.use_celery or cookiecutter.use_taskiq or cookiecutter.use_arq) and cookiecutter.enable_redis %}
@@ -763,12 +665,7 @@ async def rag_status_stream() -> AsyncIterable[ServerSentEvent]:
     Subscribes to Redis pub/sub channel 'rag_status' and streams events.
     Browser auto-reconnects via EventSource API.
     """
-    import asyncio
-
-    import redis.asyncio as aioredis
-    from app.core.config import settings
-
-    r = aioredis.from_url(f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}/{settings.REDIS_DB}")  # type: ignore[no-untyped-call]
+    r = aioredis.from_url(f"redis://{app_settings.REDIS_HOST}:{app_settings.REDIS_PORT}/{app_settings.REDIS_DB}")  # type: ignore[no-untyped-call]
     pubsub = r.pubsub()
     await pubsub.subscribe("rag_status")
     event_id = 0

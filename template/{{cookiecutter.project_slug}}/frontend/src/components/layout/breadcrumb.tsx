@@ -26,7 +26,8 @@ export function Breadcrumb() {
 
   const crumbs = routeSegments.map((_, i) => {
     const path = "/" + routeSegments.slice(0, i + 1).join("/");
-    const label = ROUTE_LABELS[path] || routeSegments[i].charAt(0).toUpperCase() + routeSegments[i].slice(1);
+    const segment = routeSegments[i] ?? "";
+    const label = ROUTE_LABELS[path] || segment.charAt(0).toUpperCase() + segment.slice(1);
     const isLast = i === routeSegments.length - 1;
     return { path, label, isLast };
   });

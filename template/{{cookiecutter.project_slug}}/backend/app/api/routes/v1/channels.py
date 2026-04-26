@@ -40,7 +40,7 @@ router = APIRouter()
 @router.get("/bots", response_model=ChannelBotList)
 async def list_bots(
     service: ChannelBotSvc,
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
     skip: int = Query(0, ge=0, description="Items to skip"),
     limit: int = Query(50, ge=1, le=100, description="Max items to return"),
 ) -> Any:
@@ -53,7 +53,7 @@ async def list_bots(
 async def create_bot(
     data: ChannelBotCreate,
     service: ChannelBotSvc,
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
 ) -> Any:
     """Create a new channel bot. The bot token is encrypted before storage."""
     return await service.create(data)
@@ -63,7 +63,7 @@ async def create_bot(
 async def get_bot(
     bot_id: UUID,
     service: ChannelBotSvc,
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
 ) -> Any:
     """Get a channel bot by ID."""
     return await service.get(bot_id)
@@ -74,7 +74,7 @@ async def update_bot(
     bot_id: UUID,
     data: ChannelBotUpdate,
     service: ChannelBotSvc,
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
 ) -> Any:
     """Update a channel bot."""
     return await service.update(bot_id, data)
@@ -84,7 +84,7 @@ async def update_bot(
 async def delete_bot(
     bot_id: UUID,
     service: ChannelBotSvc,
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
 ) -> None:
     """Delete a channel bot and stop any active polling."""
     await service.delete(bot_id)
@@ -94,7 +94,7 @@ async def delete_bot(
 async def activate_bot(
     bot_id: UUID,
     service: ChannelBotSvc,
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
 ) -> Any:
     """Activate a channel bot."""
     return await service.activate(bot_id)
@@ -104,7 +104,7 @@ async def activate_bot(
 async def deactivate_bot(
     bot_id: UUID,
     service: ChannelBotSvc,
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
 ) -> Any:
     """Deactivate a channel bot."""
     return await service.deactivate(bot_id)
@@ -114,7 +114,7 @@ async def deactivate_bot(
 async def register_webhook(
     bot_id: UUID,
     service: ChannelBotSvc,
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
 ) -> Any:
     """Register webhook URL with Telegram for this bot."""
     from app.channels import get_adapter
@@ -139,7 +139,7 @@ async def register_webhook(
 async def delete_webhook(
     bot_id: UUID,
     service: ChannelBotSvc,
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
 ) -> Any:
     """Remove the webhook from Telegram (switches bot to polling mode)."""
     from app.channels import get_adapter
@@ -156,7 +156,7 @@ async def delete_webhook(
 async def list_sessions(
     bot_id: UUID,
     service: ChannelBotSvc,
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
 ) -> Any:
@@ -171,7 +171,7 @@ async def list_sessions(
 @router.get("/bots", response_model=ChannelBotList)
 def list_bots(
     service: ChannelBotSvc,
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
     skip: int = Query(0, ge=0, description="Items to skip"),
     limit: int = Query(50, ge=1, le=100, description="Max items to return"),
 ) -> Any:
@@ -184,7 +184,7 @@ def list_bots(
 def create_bot(
     data: ChannelBotCreate,
     service: ChannelBotSvc,
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
 ) -> Any:
     """Create a new channel bot. The bot token is encrypted before storage."""
     return service.create(data)
@@ -194,7 +194,7 @@ def create_bot(
 def get_bot(
     bot_id: str,
     service: ChannelBotSvc,
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
 ) -> Any:
     """Get a channel bot by ID."""
     return service.get(bot_id)
@@ -205,7 +205,7 @@ def update_bot(
     bot_id: str,
     data: ChannelBotUpdate,
     service: ChannelBotSvc,
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
 ) -> Any:
     """Update a channel bot."""
     return service.update(bot_id, data)
@@ -215,7 +215,7 @@ def update_bot(
 def delete_bot(
     bot_id: str,
     service: ChannelBotSvc,
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
 ) -> None:
     """Delete a channel bot."""
     service.delete(bot_id)
@@ -225,7 +225,7 @@ def delete_bot(
 def activate_bot(
     bot_id: str,
     service: ChannelBotSvc,
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
 ) -> Any:
     """Activate a channel bot."""
     return service.activate(bot_id)
@@ -235,7 +235,7 @@ def activate_bot(
 def deactivate_bot(
     bot_id: str,
     service: ChannelBotSvc,
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
 ) -> Any:
     """Deactivate a channel bot."""
     return service.deactivate(bot_id)
@@ -245,7 +245,7 @@ def deactivate_bot(
 async def register_webhook(
     bot_id: str,
     service: ChannelBotSvc,
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
 ) -> Any:
     """Register webhook URL with Telegram for this bot."""
     from app.channels import get_adapter
@@ -270,7 +270,7 @@ async def register_webhook(
 async def delete_webhook(
     bot_id: str,
     service: ChannelBotSvc,
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
 ) -> Any:
     """Remove the webhook from Telegram."""
     from app.channels import get_adapter
@@ -287,7 +287,7 @@ async def delete_webhook(
 def list_sessions(
     bot_id: str,
     service: ChannelBotSvc,
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
 ) -> Any:
@@ -302,7 +302,7 @@ def list_sessions(
 @router.get("/bots", response_model=ChannelBotList)
 async def list_bots(
     service: ChannelBotSvc,
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
     skip: int = Query(0, ge=0, description="Items to skip"),
     limit: int = Query(50, ge=1, le=100, description="Max items to return"),
 ) -> Any:
@@ -315,7 +315,7 @@ async def list_bots(
 async def create_bot(
     data: ChannelBotCreate,
     service: ChannelBotSvc,
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
 ) -> Any:
     """Create a new channel bot. The bot token is encrypted before storage."""
     return await service.create(data)
@@ -325,7 +325,7 @@ async def create_bot(
 async def get_bot(
     bot_id: str,
     service: ChannelBotSvc,
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
 ) -> Any:
     """Get a channel bot by ID."""
     return await service.get(bot_id)
@@ -336,7 +336,7 @@ async def update_bot(
     bot_id: str,
     data: ChannelBotUpdate,
     service: ChannelBotSvc,
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
 ) -> Any:
     """Update a channel bot."""
     return await service.update(bot_id, data)
@@ -346,7 +346,7 @@ async def update_bot(
 async def delete_bot(
     bot_id: str,
     service: ChannelBotSvc,
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
 ) -> None:
     """Delete a channel bot and stop any active polling."""
     await service.delete(bot_id)
@@ -356,7 +356,7 @@ async def delete_bot(
 async def activate_bot(
     bot_id: str,
     service: ChannelBotSvc,
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
 ) -> Any:
     """Activate a channel bot."""
     return await service.activate(bot_id)
@@ -366,7 +366,7 @@ async def activate_bot(
 async def deactivate_bot(
     bot_id: str,
     service: ChannelBotSvc,
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
 ) -> Any:
     """Deactivate a channel bot."""
     return await service.deactivate(bot_id)
@@ -376,7 +376,7 @@ async def deactivate_bot(
 async def register_webhook(
     bot_id: str,
     service: ChannelBotSvc,
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
 ) -> Any:
     """Register webhook URL with Telegram for this bot."""
     from app.channels import get_adapter
@@ -401,7 +401,7 @@ async def register_webhook(
 async def delete_webhook(
     bot_id: str,
     service: ChannelBotSvc,
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
 ) -> Any:
     """Remove the webhook from Telegram (switches bot to polling mode)."""
     from app.channels import get_adapter
@@ -418,7 +418,7 @@ async def delete_webhook(
 async def list_sessions(
     bot_id: str,
     service: ChannelBotSvc,
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
 ) -> Any:

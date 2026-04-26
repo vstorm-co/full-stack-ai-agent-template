@@ -217,6 +217,28 @@ class UserService:
             oauth_provider=oauth_provider,
             oauth_id=oauth_id,
         )
+
+    async def get_or_create_oauth_user(
+        self,
+        provider: str,
+        provider_id: str,
+        email: str,
+        full_name: str | None,
+    ) -> User:
+        """Find or create a user via OAuth. Links provider to existing account by email."""
+        user = await self.get_by_oauth(provider, provider_id)
+        if not user:
+            user = await user_repo.get_by_email(self.db, email)
+            if user:
+                user = await self.link_oauth(user.id, provider, provider_id)
+            else:
+                user = await self.create_oauth_user(
+                    email=email,
+                    full_name=full_name,
+                    oauth_provider=provider,
+                    oauth_id=provider_id,
+                )
+        return user
 {%- endif %}
 
 
@@ -410,6 +432,28 @@ class UserService:
             oauth_provider=oauth_provider,
             oauth_id=oauth_id,
         )
+
+    def get_or_create_oauth_user(
+        self,
+        provider: str,
+        provider_id: str,
+        email: str,
+        full_name: str | None,
+    ) -> User:
+        """Find or create a user via OAuth. Links provider to existing account by email."""
+        user = self.get_by_oauth(provider, provider_id)
+        if not user:
+            user = user_repo.get_by_email(self.db, email)
+            if user:
+                user = self.link_oauth(user.id, provider, provider_id)
+            else:
+                user = self.create_oauth_user(
+                    email=email,
+                    full_name=full_name,
+                    oauth_provider=provider,
+                    oauth_id=provider_id,
+                )
+        return user
 {%- endif %}
 
 
@@ -588,6 +632,28 @@ class UserService:
             oauth_provider=oauth_provider,
             oauth_id=oauth_id,
         )
+
+    async def get_or_create_oauth_user(
+        self,
+        provider: str,
+        provider_id: str,
+        email: str,
+        full_name: str | None,
+    ) -> User:
+        """Find or create a user via OAuth. Links provider to existing account by email."""
+        user = await self.get_by_oauth(provider, provider_id)
+        if not user:
+            user = await user_repo.get_by_email(email)
+            if user:
+                user = await self.link_oauth(str(user.id), provider, provider_id)
+            else:
+                user = await self.create_oauth_user(
+                    email=email,
+                    full_name=full_name,
+                    oauth_provider=provider,
+                    oauth_id=provider_id,
+                )
+        return user
 {%- endif %}
 
 

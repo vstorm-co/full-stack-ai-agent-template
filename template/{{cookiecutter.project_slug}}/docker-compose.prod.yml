@@ -359,7 +359,7 @@ services:
 {%- if cookiecutter.use_qdrant %}
 
   qdrant:
-    image: qdrant/qdrant:v1.13.2
+    image: qdrant/qdrant:v1.18.1
     container_name: {{ cookiecutter.project_slug }}_qdrant
     # NO external ports in production - only accessible within backend-internal network
     volumes:

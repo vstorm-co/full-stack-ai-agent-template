@@ -119,7 +119,7 @@ services:
     restart: unless-stopped
 
   milvus:
-    image: milvusdb/milvus:v2.5.10
+    image: milvusdb/milvus:v2.6.17
     container_name: ai_agent_test_milvus
     command: ["milvus", "run", "standalone"]
     ports:

@@ -324,7 +324,7 @@ services:
           memory: 256M
 
   milvus:
-    image: milvusdb/milvus:v2.5.10
+    image: milvusdb/milvus:v2.6.17
     container_name: {{ cookiecutter.project_slug }}_milvus
     command: ["milvus", "run", "standalone"]
     # NO external ports - only accessible within backend-internal network

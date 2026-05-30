@@ -1,0 +1,22 @@
+{
+  "$schema": "https://chieflab.io/spec/after-build-hook/v0.1.json",
+  "specVersion": "v0.1",
+  "specUrl": "https://chieflab.io/spec/after-build-hook",
+  "afterBuild": {
+    "growth": "chieflab",
+    "trigger": [
+      "get users",
+      "get first users",
+      "launch this",
+      "announce this",
+      "market this",
+      "find customers",
+      "make money",
+      "what now"
+    ],
+    "endpoint": "https://api.chieflab.io/api/mcp",
+    "primaryTool": "chieflab_get_users_after_build",
+    "command": "npx -y @chieflab/cli launch-here --intent \"<user phrase>\""
+  },
+  "license": "MIT"
+}

@@ -100,6 +100,26 @@ export interface ChartSpec {
   style: ChartStyle;
 }
 {%- endif %}
+{%- if cookiecutter.enable_antv_charts %}
+
+/** A single point on a `create_map` map. */
+export interface MapMarker {
+  lat: number;
+  lng: number;
+  label: string;
+  description?: string | null;
+  color?: string | null;
+}
+
+/** Structured map payload produced by the agent's `create_map` tool. */
+export interface MapSpec {
+  kind: "map";
+  title: string;
+  markers: MapMarker[];
+  center?: [number, number] | null;
+  zoom?: number | null;
+}
+{%- endif %}
 
 // WebSocket event types from backend
 export type WSEventType =

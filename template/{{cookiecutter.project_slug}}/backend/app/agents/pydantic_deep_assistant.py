@@ -24,6 +24,9 @@ Configuration via settings:
   PYDANTIC_DEEP_WEB_SEARCH        : enable built-in web search (default: True)
 """
 
+{%- if cookiecutter.enable_antv_charts %}
+import inspect
+{%- endif %}
 import logging
 from typing import Any, TypedDict
 
@@ -42,6 +45,10 @@ from app.agents.tools.rag_tool import search_knowledge_base
 {%- endif %}
 {%- if cookiecutter.enable_charts %}
 from app.agents.tools.chart_tool import create_chart
+{%- endif %}
+{%- if cookiecutter.enable_antv_charts %}
+from app.agents.tools.antv_chart import get_antv_toolset
+from app.agents.tools.map_tool import MapMarker, create_map
 {%- endif %}
 from app.core.config import settings
 
@@ -122,6 +129,38 @@ def create_chart_tool(
         series=series,
         x_key=x_key,
         style=style,
+    )
+
+
+{%- endif %}
+{%- if cookiecutter.enable_antv_charts %}
+
+
+def create_map_tool(
+    title: str,
+    markers: list[MapMarker],
+    center: list[float] | None = None,
+    zoom: int | None = None,
+) -> str:
+    """Create an interactive map to show places geographically for the user.
+
+    Use whenever the user asks to show, map, or locate places. Provide
+    latitude/longitude for each marker from your own knowledge (e.g. Warsaw ≈
+    52.23, 21.01). Do not repeat the returned JSON — just briefly describe the
+    map you created.
+
+    Args:
+        title: Short map title.
+        markers: One entry per place, each with lat, lng and a short label
+            (plus optional description and color). Must not be empty.
+        center: Optional [lat, lng] center (auto-fit to markers if omitted).
+        zoom: Optional zoom level 1-18 (mainly useful for a single marker).
+    """
+    return create_map(
+        title=title,
+        markers=[m.model_dump() for m in markers],
+        center=center,
+        zoom=zoom,
     )
 
 
@@ -222,7 +261,7 @@ class PydanticDeepAssistant:
             self.conversation_id,
         )
 
-{%- if cookiecutter.enable_rag or cookiecutter.enable_charts %}
+{%- if cookiecutter.enable_rag or cookiecutter.enable_charts or cookiecutter.enable_antv_charts %}
         # Extra tools exposed as standalone pydantic-ai Tools.
         # pydantic-deep merges them into the agent automatically.
         from pydantic_ai import Tool as PAITool
@@ -234,8 +273,20 @@ class PydanticDeepAssistant:
 {%- if cookiecutter.enable_charts %}
         extra_tools.append(PAITool(create_chart_tool))
 {%- endif %}
+{%- if cookiecutter.enable_antv_charts %}
+        extra_tools.append(PAITool(create_map_tool))
+{%- endif %}
 {%- else %}
         extra_tools: list[Any] = []
+{%- endif %}
+{%- if cookiecutter.enable_antv_charts %}
+
+        # Attach the AntV toolset only if this create_deep_agent build accepts a
+        # `toolsets` kwarg — guards against versions that don't expose it.
+        antv_toolset = get_antv_toolset()
+        antv_kwargs: dict[str, Any] = {}
+        if antv_toolset is not None and "toolsets" in inspect.signature(create_deep_agent).parameters:
+            antv_kwargs["toolsets"] = [antv_toolset]
 {%- endif %}
 
         agent = create_deep_agent(
@@ -268,6 +319,9 @@ class PydanticDeepAssistant:
             thinking=self.thinking_effort or "auto",
             # Extra tools (e.g. RAG search)
             **({"tools": extra_tools} if extra_tools else {}),
+{%- if cookiecutter.enable_antv_charts %}
+            **antv_kwargs,
+{%- endif %}
         )
 
         deps = DeepAgentDeps(backend=backend)

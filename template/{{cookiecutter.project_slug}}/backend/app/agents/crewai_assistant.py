@@ -301,6 +301,9 @@ class CrewAIAssistant:
 {%- else %}
         writer_tools = []
 {%- endif %}
+{%- if cookiecutter.enable_antv_charts %}
+        writer_tools.append("create_map")
+{%- endif %}
         return CrewConfig(
             name="assistant_crew",
             process="sequential",
@@ -445,7 +448,49 @@ class CrewAIAssistant:
 
             tool_map["create_chart"] = create_chart_tool
 {%- endif %}
-            return [tool_map[name] for name in agent_tools if name in tool_map]
+{%- if cookiecutter.enable_antv_charts %}
+            from app.agents.tools.antv_chart import get_antv_crewai_tools
+            from app.agents.tools.map_tool import MapMarker, create_map
+            from langchain_core.tools import tool as lc_tool_map
+
+            @lc_tool_map
+            def create_map_tool(
+                title: str,
+                markers: list[MapMarker],
+                center: list[float] | None = None,
+                zoom: int | None = None,
+            ) -> str:
+                """Create an interactive map to show places geographically.
+
+                Use whenever the user asks to show, map, or locate places.
+                Provide lat/lng for each marker from your own knowledge (e.g.
+                Warsaw ≈ 52.23, 21.01). Do not repeat the returned JSON — just
+                describe the map.
+
+                Args:
+                    title: Short map title.
+                    markers: One entry per place, each with lat, lng and a short
+                        label (plus optional description and color). Non-empty.
+                    center: Optional [lat, lng] center (auto-fit if omitted).
+                    zoom: Optional zoom level 1-18 (useful for a single marker).
+                """
+                return create_map(
+                    title=title,
+                    markers=[m.model_dump() for m in markers],
+                    center=center,
+                    zoom=zoom,
+                )
+
+            tool_map["create_map"] = create_map_tool
+{%- endif %}
+            resolved = [tool_map[name] for name in agent_tools if name in tool_map]
+{%- if cookiecutter.enable_antv_charts %}
+            # AntV diagram tools from the MCP sidecar go to the visual agent
+            # (the writer, which also carries create_map/create_chart).
+            if "create_map" in agent_tools or "create_chart" in agent_tools:
+                resolved.extend(get_antv_crewai_tools())
+{%- endif %}
+            return resolved
 
         for agent_config in self.config.agents:
             agent = Agent(

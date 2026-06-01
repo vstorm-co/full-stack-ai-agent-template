@@ -70,6 +70,10 @@
     "gray-matter": "^4.0.3",
     "next-mdx-remote": "^6.0.0"
 {%- endif %}
+{%- if cookiecutter.enable_antv_charts %},
+    "leaflet": "^1.9.4",
+    "react-leaflet": "^5.0.0"
+{%- endif %}
   },
   "devDependencies": {
     "typescript": "^5.7.2",
@@ -96,6 +100,9 @@
     "jsdom": "^25.0.1",
     "@vitest/coverage-v8": "^2.1.8",
     "@vitest/ui": "^2.1.8"
+{%- if cookiecutter.enable_antv_charts %},
+    "@types/leaflet": "^1.9.21"
+{%- endif %}
   },
   "lint-staged": {
     "*.{js,ts,jsx,tsx,mdx}": [

@@ -275,6 +275,19 @@ dependencies = [
 {%- if cookiecutter.charts_channel_png %}
     "matplotlib>=3.9.0",
 {%- endif %}
+{%- if cookiecutter.enable_antv_charts %}
+    # AntV chart MCP server client (advanced diagrams via mcp-server-chart sidecar).
+    # Each framework attaches MCP differently, so the client dep is gated per framework.
+{%- if cookiecutter.use_pydantic_ai or cookiecutter.use_pydantic_deep %}
+    "pydantic-ai-slim[mcp]>=1.80.0",
+{%- endif %}
+{%- if cookiecutter.use_langchain or cookiecutter.use_langgraph or cookiecutter.use_deepagents %}
+    "langchain-mcp-adapters>=0.1.0",
+{%- endif %}
+{%- if cookiecutter.use_crewai %}
+    "crewai-tools[mcp]>=1.0.0",
+{%- endif %}
+{%- endif %}
 {%- if cookiecutter.use_telegram or cookiecutter.use_slack %}
     "cryptography>=44.0.0",
 {%- endif %}

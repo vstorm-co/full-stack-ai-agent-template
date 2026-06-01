@@ -422,6 +422,20 @@ class Settings(BaseSettings):
     # === Web Search (Tavily) ===
     TAVILY_API_KEY: str = ""
 {%- endif %}
+{%- if cookiecutter.enable_antv_charts %}
+
+    # === AntV charts (advanced diagrams via mcp-server-chart sidecar) ===
+    # Opt-in at runtime: the code ships, but stays off until you flip this on
+    # and start the antvis-chart sidecar (docker compose --profile antv).
+    ENABLE_ANTV_CHARTS: bool = False
+    # MCP endpoint of the antvis-chart sidecar (streamable HTTP)
+    ANTV_MCP_URL: str = "http://antvis-chart:1122/mcp"
+    # Optional self-hosted GPT-Vis render backend (empty = AntV public service)
+    ANTV_VIS_REQUEST_SERVER: str = ""
+    # Comma-separated AntV tools to disable — defaults (set on the sidecar) drop
+    # the basic charts that overlap create_chart and the China-only maps.
+    ANTV_DISABLED_TOOLS: str = ""
+{%- endif %}
 {%- if cookiecutter.use_deepagents %}
 
     # === DeepAgents Configuration ===

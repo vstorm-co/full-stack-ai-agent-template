@@ -275,6 +275,36 @@ MATRIX_CONFIGS: dict[str, dict] = {
         use_telegram=True,
         use_slack=True,
     ),
+    # --- Charts / AntV maps -----------------------------------------------
+    # Three separate entries because each AI framework generates a different
+    "pydantic_ai_antv_charts": dict(
+        database=DatabaseType.SQLITE,
+        ai_framework=AIFrameworkType.PYDANTIC_AI,
+        enable_logfire=False,
+        enable_antv_charts=True,
+        background_tasks=BackgroundTaskType.NONE,
+    ),
+    "langchain_antv_charts": dict(
+        database=DatabaseType.SQLITE,
+        ai_framework=AIFrameworkType.LANGCHAIN,
+        enable_logfire=False,
+        enable_antv_charts=True,
+        background_tasks=BackgroundTaskType.NONE,
+    ),
+    "crewai_antv_charts": dict(
+        database=DatabaseType.SQLITE,
+        ai_framework=AIFrameworkType.CREWAI,
+        enable_logfire=False,
+        enable_antv_charts=True,
+        background_tasks=BackgroundTaskType.NONE,
+    ),
+    "pydantic_ai_charts": dict(
+        database=DatabaseType.SQLITE,
+        ai_framework=AIFrameworkType.PYDANTIC_AI,
+        enable_logfire=False,
+        enable_charts=True,
+        background_tasks=BackgroundTaskType.NONE,
+    ),
     "rag_pgvector": dict(
         database=DatabaseType.POSTGRESQL,
         background_tasks=BackgroundTaskType.NONE,
@@ -343,3 +373,86 @@ class TestGeneratedTemplateMatrix:
             cwd=backend_path,
         )
         assert result.returncode == 0, f"ty failed:\n{result.stdout}\n{result.stderr}"
+
+
+# ---------------------------------------------------------------------------
+# AntV charts / Leaflet maps — generated-content checks
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="module")
+def generated_project_antv(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """Generate a pydantic_ai + sqlite + antv_charts project for content checks."""
+    config = ProjectConfig(
+        project_name="test_antv",
+        database=DatabaseType.SQLITE,
+        ai_framework=AIFrameworkType.PYDANTIC_AI,
+        enable_logfire=False,
+        enable_antv_charts=True,
+        background_tasks=BackgroundTaskType.NONE,
+    )
+    return generate_project(config, tmp_path_factory.mktemp("antv"))
+
+
+@pytest.fixture(scope="module")
+def generated_project_antv_langchain(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """Generate a langchain + sqlite + antv_charts project for cache-code checks."""
+    config = ProjectConfig(
+        project_name="test_antv_lc",
+        database=DatabaseType.SQLITE,
+        ai_framework=AIFrameworkType.LANGCHAIN,
+        enable_logfire=False,
+        enable_antv_charts=True,
+        background_tasks=BackgroundTaskType.NONE,
+    )
+    return generate_project(config, tmp_path_factory.mktemp("antv_lc"))
+
+
+class TestGeneratedTemplateAntvCharts:
+    """Verify that the AntV-charts / Leaflet-map feature renders correctly.
+
+    These tests check specific implementation details that are easy to break
+    via a bad Jinja merge: the MCP cache variables, the typed-marker signature,
+    coordinate bounds validation, and the absence of removed dead code.
+    """
+
+    @pytest.mark.slow
+    def test_map_tool_has_typed_marker_import(self, generated_project_antv: Path) -> None:
+        """MapMarker must be defined in map_tool.py (typed schema for schema fidelity)."""
+        map_tool = generated_project_antv / "backend" / "app" / "agents" / "tools" / "map_tool.py"
+        assert map_tool.exists()
+        content = map_tool.read_text()
+        assert "class MapMarker" in content
+
+    @pytest.mark.slow
+    def test_map_tool_has_center_bounds_check(self, generated_project_antv: Path) -> None:
+        """_validate_center must range-check coordinates, not just length."""
+        content = (
+            generated_project_antv / "backend" / "app" / "agents" / "tools" / "map_tool.py"
+        ).read_text()
+        assert "-90 <= lat <= 90" in content
+        assert "-180 <= lng <= 180" in content
+
+    @pytest.mark.slow
+    def test_map_tool_no_parse_map_spec(self, generated_project_antv: Path) -> None:
+        """parse_map_spec was removed (dead export); must not appear in generated code."""
+        tools_dir = generated_project_antv / "backend" / "app" / "agents" / "tools"
+        for f in tools_dir.rglob("*.py"):
+            assert "parse_map_spec" not in f.read_text(), f"{f.name} still references parse_map_spec"
+
+    @pytest.mark.slow
+    def test_assistant_uses_typed_markers(self, generated_project_antv: Path) -> None:
+        """The pydantic_ai assistant must use list[MapMarker] in its create_map wrapper."""
+        assistant = generated_project_antv / "backend" / "app" / "agents" / "assistant.py"
+        content = assistant.read_text()
+        assert "list[MapMarker]" in content
+
+    @pytest.mark.slow
+    def test_antv_chart_langchain_has_module_cache(self, generated_project_antv_langchain: Path) -> None:
+        """get_antv_langchain_tools must use a module-level cache to avoid per-request MCP work."""
+        antv = (
+            generated_project_antv_langchain / "backend" / "app" / "agents" / "tools" / "antv_chart.py"
+        )
+        content = antv.read_text()
+        assert "_antv_langchain_tools" in content
+        assert "if _antv_langchain_tools is not None" in content

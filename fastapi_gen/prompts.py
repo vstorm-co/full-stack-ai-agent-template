@@ -896,6 +896,34 @@ def prompt_charts() -> bool:
     )
 
 
+def prompt_antv_charts() -> bool:
+    """Prompt for the AntV advanced-diagram tools + interactive map tool.
+
+    Returns:
+        Whether the AntV / map tools are enabled.
+    """
+    console.print()
+    console.print("[bold cyan]AntV Diagrams & Maps[/]")
+    console.print(
+        "Adds an interactive map tool (Leaflet/OpenStreetMap, works out of the "
+        "box) plus AntV advanced-diagram tools (flowchart, mind-map, org-chart, "
+        "sankey, ...) served by an mcp-server-chart Docker sidecar. The diagrams "
+        "need the sidecar running (docker compose --profile antv up -d); maps work "
+        "without it."
+    )
+    console.print()
+
+    return cast(
+        bool,
+        _check_cancelled(
+            questionary.confirm(
+                "Enable AntV diagram + map tools for the agent?",
+                default=False,
+            ).ask()
+        ),
+    )
+
+
 def prompt_langsmith() -> bool:
     """Prompt for LangSmith observability."""
     return cast(
@@ -1405,6 +1433,7 @@ def run_interactive_prompts() -> ProjectConfig:
         "enable_web_search": False,
         "enable_web_fetch": False,
         "enable_charts": False,
+        "enable_antv_charts": False,
         "rag_features": RAGFeatures(),
         "orm_type": OrmType.SQLALCHEMY,
         "sandbox_backend": "state",
@@ -1563,6 +1592,12 @@ def run_interactive_prompts() -> ProjectConfig:
         else:
             state["enable_charts"] = prompt_charts()
 
+    def step_antv_charts() -> None:
+        if state["ai_framework"] == AIFrameworkType.NONE:
+            state["enable_antv_charts"] = False
+        else:
+            state["enable_antv_charts"] = prompt_antv_charts()
+
     def step_langsmith() -> None:
         if state["ai_framework"] in (
             AIFrameworkType.LANGCHAIN,
@@ -1633,6 +1668,7 @@ def run_interactive_prompts() -> ProjectConfig:
         ("Web Search & Fetch", step_web_capabilities),
         ("RAG", step_rag_config),
         ("Chart Tool", step_charts),
+        ("AntV Diagrams & Maps", step_antv_charts),
         ("LangSmith", step_langsmith),
         ("Messaging Channels", step_channels),
         ("Teams & Billing", step_teams_billing),
@@ -1679,6 +1715,7 @@ def run_interactive_prompts() -> ProjectConfig:
     enable_web_search = state["enable_web_search"]
     enable_web_fetch = state["enable_web_fetch"]
     enable_charts = state["enable_charts"]
+    enable_antv_charts = state["enable_antv_charts"]
     rag_features = state["rag_features"]
     enable_langsmith = state["enable_langsmith"]
     use_telegram = state["use_telegram"]
@@ -1721,6 +1758,7 @@ def run_interactive_prompts() -> ProjectConfig:
         enable_web_search=enable_web_search,
         enable_web_fetch=enable_web_fetch,
         enable_charts=enable_charts,
+        enable_antv_charts=enable_antv_charts,
         use_telegram=use_telegram,
         use_slack=use_slack,
         rate_limit_requests=rate_limit_requests,

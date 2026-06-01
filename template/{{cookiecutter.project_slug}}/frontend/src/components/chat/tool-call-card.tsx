@@ -2,6 +2,8 @@
 
 {%- if cookiecutter.enable_charts %}
 import { useEffect, useMemo, useState, type MouseEvent } from "react";
+{%- elif cookiecutter.enable_antv_charts %}
+import { useEffect, useState, type MouseEvent } from "react";
 {%- else %}
 import { useState, type MouseEvent } from "react";
 {%- endif %}
@@ -18,14 +20,20 @@ import {
   ChevronDown,
   ChevronUp,
   Code2,
-{%- if cookiecutter.enable_charts %}
+{%- if cookiecutter.enable_charts or cookiecutter.enable_antv_charts %}
   BarChart3,
+{%- endif %}
+{%- if cookiecutter.enable_antv_charts %}
+  MapPin,
 {%- endif %}
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CopyButton } from "./copy-button";
 {%- if cookiecutter.enable_charts %}
 import { ChartMessage, parseChartResult } from "./chart-message";
+{%- endif %}
+{%- if cookiecutter.enable_antv_charts %}
+import { MapMessage, parseMapResult } from "./map-message";
 {%- endif %}
 
 interface ToolCallCardProps {
@@ -478,6 +486,62 @@ function GenericToolResult({
   );
 }
 
+{%- if cookiecutter.enable_antv_charts %}
+/** Extract a chart image URL from an AntV `generate_*` tool result.
+ *  AntV mcp-server-chart tools render server-side and return the image URL —
+ *  usually a bare URL string, sometimes wrapped in JSON ({url|resultObj|...}).
+ *  Returns null when no http(s) URL is present (caller falls back to raw text). */
+function parseAntvImageUrl(result: string): string | null {
+  const trimmed = result.trim();
+  if (/^https?:\/\/\S+$/.test(trimmed)) return trimmed;
+  try {
+    const p = JSON.parse(trimmed);
+    const candidate =
+      typeof p === "string" ? p : (p?.url ?? p?.resultObj ?? p?.image ?? p?.content);
+    if (typeof candidate === "string" && /^https?:\/\//.test(candidate.trim())) {
+      return candidate.trim();
+    }
+  } catch {
+    /* not JSON — fall through to regex */
+  }
+  const match = trimmed.match(/https?:\/\/[^\s")']+/);
+  return match ? match[0] : null;
+}
+
+/** "generate_mind_map" -> "Mind Map", "generate_line_chart" -> "Line Chart". */
+function antvToolLabel(name: string): string {
+  return name
+    .replace(/^generate_/, "")
+    .split("_")
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+/** Render a server-rendered AntV diagram image with an "open full size" link. */
+function AntvChartImage({ url, title }: { url: string; title: string }) {
+  return (
+    <div className="py-1">
+      <a href={url} target="_blank" rel="noopener noreferrer" className="block">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={url}
+          alt={title}
+          loading="lazy"
+          className="border-foreground/10 bg-background/60 max-h-[28rem] w-full rounded-xl border object-contain"
+        />
+      </a>
+      <div className="text-primary mt-1.5 flex items-center gap-1 text-[10px]">
+        <Link className="h-2.5 w-2.5 shrink-0" />
+        <a href={url} target="_blank" rel="noopener noreferrer" className="truncate hover:underline">
+          Open full size
+        </a>
+      </div>
+    </div>
+  );
+}
+{%- endif %}
+
 // --- Main component ---
 
 export function ToolCallCard({ toolCall }: ToolCallCardProps) {
@@ -485,10 +549,23 @@ export function ToolCallCard({ toolCall }: ToolCallCardProps) {
   // formatted view for args + raw output (the </> button). Charts are the
   // exception: they're only useful when visible, so expand them by default.
   const [expanded, setExpanded] = useState(
-{%- if cookiecutter.enable_charts %}
+{%- if cookiecutter.enable_charts and cookiecutter.enable_antv_charts %}
+    toolCall.status === "completed" &&
+      ((toolCall.name === "create_chart_tool" && parseChartResult(toolCall.result) !== null) ||
+        (toolCall.name === "create_map_tool" && parseMapResult(toolCall.result) !== null) ||
+        (toolCall.name.startsWith("generate_") &&
+          typeof toolCall.result === "string" &&
+          parseAntvImageUrl(toolCall.result) !== null)),
+{%- elif cookiecutter.enable_charts %}
     toolCall.name === "create_chart_tool" &&
       toolCall.status === "completed" &&
       parseChartResult(toolCall.result) !== null,
+{%- elif cookiecutter.enable_antv_charts %}
+    toolCall.status === "completed" &&
+      ((toolCall.name === "create_map_tool" && parseMapResult(toolCall.result) !== null) ||
+        (toolCall.name.startsWith("generate_") &&
+          typeof toolCall.result === "string" &&
+          parseAntvImageUrl(toolCall.result) !== null)),
 {%- else %}
     false,
 {%- endif %}
@@ -547,6 +624,27 @@ export function ToolCallCard({ toolCall }: ToolCallCardProps) {
     if (isChart) setExpanded(true);
   }, [isChart]);
 {%- endif %}
+{%- if cookiecutter.enable_antv_charts %}
+  const mapSpec =
+    toolCall.name === "create_map_tool" && toolCall.status === "completed"
+      ? parseMapResult(toolCall.result)
+      : null;
+  const isMap = mapSpec !== null;
+  // AntV mcp-server-chart tools (generate_line_chart, generate_mind_map, ...)
+  // return a server-rendered image URL.
+  const antvImageUrl =
+    toolCall.name.startsWith("generate_") &&
+    toolCall.status === "completed" &&
+    typeof toolCall.result === "string"
+      ? parseAntvImageUrl(toolCall.result)
+      : null;
+  const isAntvChart = antvImageUrl !== null;
+  // A map/image that finishes after this card mounted (live streaming) won't
+  // have triggered the initial-state default — expand it on transition.
+  useEffect(() => {
+    if (isMap || isAntvChart) setExpanded(true);
+  }, [isMap, isAntvChart]);
+{%- endif %}
 
   const hasSpecialRenderer =
     isDateTime ||
@@ -554,6 +652,10 @@ export function ToolCallCard({ toolCall }: ToolCallCardProps) {
     isWebSearch
 {%- if cookiecutter.enable_charts %}
     || isChart
+{%- endif %}
+{%- if cookiecutter.enable_antv_charts %}
+    || isMap
+    || isAntvChart
 {%- endif %}
   ;
 
@@ -567,6 +669,12 @@ export function ToolCallCard({ toolCall }: ToolCallCardProps) {
         : isChart
           ? "Chart"
 {%- endif %}
+{%- if cookiecutter.enable_antv_charts %}
+        : isMap
+          ? "Map"
+          : isAntvChart
+            ? antvToolLabel(toolCall.name)
+{%- endif %}
         : toolCall.name;
 
   const ToolIcon = isDateTime
@@ -578,6 +686,12 @@ export function ToolCallCard({ toolCall }: ToolCallCardProps) {
 {%- if cookiecutter.enable_charts %}
         : isChart
           ? BarChart3
+{%- endif %}
+{%- if cookiecutter.enable_antv_charts %}
+        : isMap
+          ? MapPin
+          : isAntvChart
+            ? BarChart3
 {%- endif %}
         : Wrench;
 
@@ -658,6 +772,12 @@ export function ToolCallCard({ toolCall }: ToolCallCardProps) {
 {%- if cookiecutter.enable_charts %}
           ) : toolCall.status === "completed" && isChart && chartSpec ? (
             <ChartMessage spec={chartSpec} />
+{%- endif %}
+{%- if cookiecutter.enable_antv_charts %}
+          ) : toolCall.status === "completed" && isMap && mapSpec ? (
+            <MapMessage spec={mapSpec} />
+          ) : toolCall.status === "completed" && isAntvChart && antvImageUrl ? (
+            <AntvChartImage url={antvImageUrl} title={friendlyName} />
 {%- endif %}
           ) : (
             <GenericToolResult toolCall={toolCall} resultText={resultText} />

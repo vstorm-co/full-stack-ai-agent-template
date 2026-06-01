@@ -48,6 +48,10 @@ from app.agents.tools.rag_tool import search_knowledge_base
 {%- if cookiecutter.enable_charts %}
 from app.agents.tools.chart_tool import create_chart
 {%- endif %}
+{%- if cookiecutter.enable_antv_charts %}
+from app.agents.tools.antv_chart import get_antv_langchain_tools
+from app.agents.tools.map_tool import MapMarker, create_map
+{%- endif %}
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -197,6 +201,37 @@ def create_chart_tool(
         style=style,
     )
 {%- endif %}
+{%- if cookiecutter.enable_antv_charts %}
+
+
+@tool
+def create_map_tool(
+    title: str,
+    markers: list[MapMarker],
+    center: list[float] | None = None,
+    zoom: int | None = None,
+) -> str:
+    """Create an interactive map to show places geographically for the user.
+
+    Use whenever the user asks to show, map, or locate places. Provide
+    latitude/longitude for each marker from your own knowledge (e.g. Warsaw ≈
+    52.23, 21.01). Do not repeat the returned JSON — just briefly describe the
+    map you created.
+
+    Args:
+        title: Short map title.
+        markers: One entry per place, each with lat, lng and a short label
+            (plus optional description and color). Must not be empty.
+        center: Optional [lat, lng] center (auto-fit to markers if omitted).
+        zoom: Optional zoom level 1-18 (mainly useful for a single marker).
+    """
+    return create_map(
+        title=title,
+        markers=[m.model_dump() for m in markers],
+        center=center,
+        zoom=zoom,
+    )
+{%- endif %}
 
 
 # List of all available tools
@@ -212,6 +247,10 @@ ALL_TOOLS.append(search_documents)
 {%- endif %}
 {%- if cookiecutter.enable_charts %}
 ALL_TOOLS.append(create_chart_tool)
+{%- endif %}
+{%- if cookiecutter.enable_antv_charts %}
+ALL_TOOLS.append(create_map_tool)
+ALL_TOOLS.extend(get_antv_langchain_tools())
 {%- endif %}
 
 

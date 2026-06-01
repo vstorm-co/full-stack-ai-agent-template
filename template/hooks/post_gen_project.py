@@ -48,6 +48,7 @@ enable_web_search = "{{ cookiecutter.enable_web_search }}" == "True"
 web_fetch_tool = "{{ cookiecutter.web_fetch_tool }}" == "True"
 enable_charts = "{{ cookiecutter.enable_charts }}" == "True"
 charts_channel_png = "{{ cookiecutter.charts_channel_png }}" == "True"
+enable_antv_charts = "{{ cookiecutter.enable_antv_charts }}" == "True"
 use_pydantic_deep = "{{ cookiecutter.use_pydantic_deep }}" == "True"
 use_telegram = "{{ cookiecutter.use_telegram }}" == "True"
 use_slack = "{{ cookiecutter.use_slack }}" == "True"
@@ -143,6 +144,14 @@ if not enable_charts:
 elif not charts_channel_png:
     # Chart tool enabled but no Slack/Telegram — PNG renderer not needed.
     remove_file(os.path.join(backend_app, "agents", "tools", "chart_render.py"))
+if not enable_antv_charts:
+    # AntV diagram MCP client + the create_map tool + its Leaflet renderer.
+    remove_file(os.path.join(backend_app, "agents", "tools", "antv_chart.py"))
+    remove_file(os.path.join(backend_app, "agents", "tools", "map_tool.py"))
+    if use_frontend:
+        frontend_src = os.path.join(os.getcwd(), "frontend", "src")
+        remove_file(os.path.join(frontend_src, "components", "chat", "map-leaflet.tsx"))
+        remove_file(os.path.join(frontend_src, "components", "chat", "map-message.tsx"))
 
 # --- No-AI mode: remove all AI/chat/conversation files ---
 if not use_ai:

@@ -286,6 +286,7 @@ These variables are set automatically by the generator.
 | `web_fetch_tool` | bool | `false` | Computed: portable `fetch_url` tool is generated | `enable_web_fetch` and framework is LangChain/LangGraph/CrewAI/DeepAgents |
 | `enable_charts` | bool | `false` | Enable the chart-generation tool (line/bar/pie/area/scatter); interactive in web chat, PNG on Slack/Telegram | Requires an AI framework |
 | `charts_channel_png` | bool | `false` | Computed: render charts to PNG for messaging channels | `enable_charts` and (`use_slack` or `use_telegram`) |
+| `enable_antv_charts` | bool | `false` | Adds the interactive `create_map` tool (Leaflet/OpenStreetMap, works out of the box) plus AntV advanced-diagram tools (flowchart, mind-map, org-chart, sankey, ...) via an `mcp-server-chart` Docker sidecar. Wired into all 5 frameworks. The AntV diagrams need the sidecar running (`docker compose --profile antv up -d`) and `ENABLE_ANTV_CHARTS=true` at runtime; maps work without it. Not wired into the production compose (internal network blocks AntV's render backend — self-host GPT-Vis-SSR for prod) | Requires an AI framework |
 
 **Notes:**
 

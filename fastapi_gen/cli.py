@@ -471,6 +471,13 @@ def new(output: Path | None, no_input: bool, name: str | None, minimal: bool) ->
     default=False,
     help="Enable the chart-generation tool for AI agents (line/bar/pie/area/scatter)",
 )
+@click.option(
+    "--antv-charts",
+    is_flag=True,
+    default=False,
+    help="Enable AntV advanced-diagram tools (flowchart, mind-map, sankey, ...) via an "
+    "mcp-server-chart sidecar, plus an interactive Leaflet/OpenStreetMap map tool",
+)
 @click.option("--session-management", is_flag=True, help="Enable session management")
 @click.option(
     "--reverse-proxy",
@@ -746,6 +753,7 @@ def create(
     web_search: bool,
     web_fetch: bool,
     charts: bool,
+    antv_charts: bool,
     session_management: bool,
     reverse_proxy: str,
     kubernetes: bool,
@@ -1174,6 +1182,7 @@ def create(
                 enable_web_search=web_search,
                 enable_web_fetch=web_fetch,
                 enable_charts=charts,
+                enable_antv_charts=antv_charts,
                 enable_session_management=session_management,
                 reverse_proxy=_rp_map[reverse_proxy],
                 enable_kubernetes=kubernetes,

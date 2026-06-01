@@ -38,7 +38,56 @@ You can render charts with the `create_chart` tool (line, bar, pie, area, scatte
 - You may override styling via `style` (palette, grid, legend, axis labels,
   stacked) when the user requests a specific look.
 - After the tool returns, do not repeat the JSON. Briefly describe the chart
-  and its key takeaway in plain language."""
+  and its key takeaway in plain language.
+- Each chart is rendered to the user the moment you call the tool. A chart from
+  an earlier turn is already on screen — never re-create it. Only call
+  `create_chart` for what the user is asking for right now."""
+{%- endif %}
+{%- if cookiecutter.enable_antv_charts %}
+
+DEFAULT_SYSTEM_PROMPT += """
+
+# Maps
+You can render an interactive map with the `create_map` tool. Use it whenever the
+user wants to see places located geographically (cities, offices, routes, points
+of interest). Supply latitude/longitude for each marker from your own knowledge
+(e.g. Warsaw ≈ 52.23, 21.01; New York ≈ 40.71, -74.01). Give each marker a short
+label, and an optional description. Don't repeat the JSON — briefly describe the
+map you created. Each map is rendered to the user the moment you call
+`create_map`; a map from an earlier turn is already on screen, so never re-create
+it — only call `create_map` for the user's current request."""
+
+
+# AntV diagram tools attach only at runtime (when ENABLE_ANTV_CHARTS is set), so
+# their guidance is gated the same way. `create_map` above is always available.
+ANTV_CHART_GUIDANCE = """
+
+# Advanced diagrams
+Beyond `create_chart`, you have AntV `generate_*` tools for diagram types the
+basic chart tool can't express — flowcharts, mind maps, org charts, sankey,
+fishbone, network/graph, treemap, word clouds, radar, funnel, histogram, and
+more. Use them when the user asks for that specific diagram, or when the
+relationship is structural (process, hierarchy, flow) rather than a plain
+numeric series. Prefer `create_chart` for ordinary line/bar/pie/area/scatter.
+
+Keep every node, label, and description short — a few words at most. Many of
+these diagrams render nodes in a fixed-width box and truncate longer text with
+an ellipsis ("…"), so write "Verify email", not "Send the verification email and
+wait for confirmation". Put any detail in your reply, not in the node.
+
+After the tool returns an image, briefly describe it — don't paste the URL. The
+image is shown to the user immediately; a diagram from an earlier turn is already
+on screen, so never regenerate it — only call these tools for the current request."""
+
+
+def _antv_guidance() -> str:
+    """AntV diagram guidance — included only when the MCP sidecar is enabled."""
+    from app.core.config import settings
+
+    return ANTV_CHART_GUIDANCE if settings.ENABLE_ANTV_CHARTS else ""
+
+
+DEFAULT_SYSTEM_PROMPT += _antv_guidance()
 {%- endif %}
 
 

@@ -12,6 +12,9 @@ adapter is unavailable — so the agent always starts, with or without AntV.
 """
 
 import logging
+{%- if cookiecutter.use_langchain or cookiecutter.use_langgraph or cookiecutter.use_deepagents or cookiecutter.use_crewai %}
+import threading
+{%- endif %}
 from typing import Any
 
 from app.core.config import settings
@@ -64,39 +67,48 @@ def get_antv_toolset() -> Any | None:
 
 
 _antv_langchain_tools: list[Any] | None = None
+_antv_langchain_lock = threading.Lock()
 
 
 def get_antv_langchain_tools() -> list[Any]:
     """Return AntV MCP tools as LangChain tools, or [] if disabled/unavailable.
 
-    Discovery is a blocking MCP round-trip, and the assistant is rebuilt on every
-    request, so the result is memoized for the process lifetime — we discover once
-    (the sidecar is long-lived), not on every agent construction.
+    Discovery is a blocking MCP round-trip and the assistant is rebuilt on every
+    request, so a successful result is memoized for the process lifetime — we
+    discover once (the sidecar is long-lived), not on every agent construction.
+    A module-level lock makes the check-and-load atomic across the FastAPI
+    threadpool, and we cache only on success so a transient failure (e.g. the
+    sidecar still warming up) is retried on the next request instead of pinning
+    AntV off until the process restarts.
     """
     global _antv_langchain_tools
     if not settings.ENABLE_ANTV_CHARTS:
         return []
     if _antv_langchain_tools is not None:
         return _antv_langchain_tools
-    try:
-        from langchain_mcp_adapters.client import MultiServerMCPClient
+    with _antv_langchain_lock:
+        if _antv_langchain_tools is not None:
+            return _antv_langchain_tools
+        try:
+            from langchain_mcp_adapters.client import MultiServerMCPClient
 
-        async def _load() -> list[Any]:
-            client = MultiServerMCPClient(
-                {"antv": {"url": settings.ANTV_MCP_URL, "transport": "streamable_http"}}
-            )
-            return await client.get_tools()
+            async def _load() -> list[Any]:
+                client = MultiServerMCPClient(
+                    {"antv": {"url": settings.ANTV_MCP_URL, "transport": "streamable_http"}}
+                )
+                return await client.get_tools()
 
-        _antv_langchain_tools = _run_sync(_load())
-    except Exception as exc:
-        logger.warning("AntV MCP tools unavailable, continuing without them: %s", exc)
-        _antv_langchain_tools = []
-    return _antv_langchain_tools
+            _antv_langchain_tools = _run_sync(_load())
+            return _antv_langchain_tools
+        except Exception as exc:
+            logger.warning("AntV MCP tools unavailable, continuing without them: %s", exc)
+            return []
 {%- endif %}
 {%- if cookiecutter.use_crewai %}
 
 
 _antv_crewai_tools: list[Any] | None = None
+_antv_crewai_lock = threading.Lock()
 
 
 def get_antv_crewai_tools() -> list[Any]:
@@ -106,23 +118,29 @@ def get_antv_crewai_tools() -> list[Any]:
     crew we start it once and keep the tools for the life of the process (the
     sidecar is always up). The assistant is rebuilt on every request, so the
     started adapter and its tools are memoized here — without this we would leak
-    a new adapter connection per request. Failures degrade to an empty list.
+    a new adapter connection per request. A module-level lock makes the
+    check-and-start atomic across the FastAPI threadpool (so two racing requests
+    can't each start an adapter), and we cache only on success so a transient
+    failure is retried — and never leaves a half-started adapter cached.
     """
     global _antv_crewai_tools
     if not settings.ENABLE_ANTV_CHARTS:
         return []
     if _antv_crewai_tools is not None:
         return _antv_crewai_tools
-    try:
-        from crewai_tools import MCPServerAdapter
+    with _antv_crewai_lock:
+        if _antv_crewai_tools is not None:
+            return _antv_crewai_tools
+        try:
+            from crewai_tools import MCPServerAdapter
 
-        server_params = {"url": settings.ANTV_MCP_URL, "transport": "streamable-http"}
-        adapter = MCPServerAdapter(server_params)
-        adapter.start()
-        _antv_crewai_tools = list(adapter.tools)
-    except Exception as exc:
-        logger.warning("AntV MCP tools unavailable, continuing without them: %s", exc)
-        _antv_crewai_tools = []
-    return _antv_crewai_tools
+            server_params = {"url": settings.ANTV_MCP_URL, "transport": "streamable-http"}
+            adapter = MCPServerAdapter(server_params)
+            adapter.start()
+            _antv_crewai_tools = list(adapter.tools)
+            return _antv_crewai_tools
+        except Exception as exc:
+            logger.warning("AntV MCP tools unavailable, continuing without them: %s", exc)
+            return []
 {%- endif %}
 {%- endif %}

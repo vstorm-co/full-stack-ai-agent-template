@@ -416,6 +416,9 @@ services:
       # Default drops basic charts (covered by create_chart/Recharts) and the
       # China-only map tools (covered by create_map/Leaflet). Override via ANTV_DISABLED_TOOLS.
       - DISABLED_TOOLS=${ANTV_DISABLED_TOOLS:-generate_area_chart,generate_bar_chart,generate_column_chart,generate_line_chart,generate_pie_chart,generate_scatter_chart,generate_district_map,generate_pin_map,generate_path_map}
+    # Dev only: publish the MCP/render port to the host for debugging. The
+    # backend reaches the sidecar over the internal network, so the prod
+    # compose omits this (avoids exposing an unauthenticated endpoint).
     ports:
       - "1122:1122"
     networks:

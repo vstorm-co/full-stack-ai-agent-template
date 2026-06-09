@@ -29,6 +29,15 @@ from app.agents.tools.datetime_tool import get_current_datetime
 {%- if cookiecutter.enable_antv_charts %}
 from app.agents.tools.map_tool import create_map
 {%- endif %}
+{%- if cookiecutter.enable_skills %}
+from app.agents.tools.financial_tools import (
+    get_asset_price,
+    get_bond_yield,
+    get_exchange_rate,
+    get_historical_annual_returns,
+    get_inflation_rate,
+)
+{%- endif %}
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -141,6 +150,29 @@ def _build_external_functions(emit: EmitToolEvent | None) -> dict[str, Callable[
 
     functions["current_datetime"] = _current_datetime
 
+{%- if cookiecutter.enable_skills %}
+
+    async def _get_exchange_rate(from_currency: str, to_currency: str) -> dict:
+        return await get_exchange_rate(from_currency, to_currency)
+
+    async def _get_asset_price(symbol: str) -> dict:
+        return await get_asset_price(symbol)
+
+    async def _get_historical_annual_returns(symbol: str, years: int = 10) -> dict:
+        return await get_historical_annual_returns(symbol, years)
+
+    async def _get_inflation_rate(country_code: str = "PL") -> dict:
+        return await get_inflation_rate(country_code)
+
+    async def _get_bond_yield(country_code: str = "US") -> dict:
+        return await get_bond_yield(country_code)
+
+    functions["get_exchange_rate"] = _get_exchange_rate
+    functions["get_asset_price"] = _get_asset_price
+    functions["get_historical_annual_returns"] = _get_historical_annual_returns
+    functions["get_inflation_rate"] = _get_inflation_rate
+    functions["get_bond_yield"] = _get_bond_yield
+{%- endif %}
 {%- if cookiecutter.enable_antv_charts %}
 
     async def _emit_antv(tool_name: str, args: dict[str, Any]) -> str:

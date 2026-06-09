@@ -50,6 +50,7 @@ enable_charts = "{{ cookiecutter.enable_charts }}" == "True"
 charts_channel_png = "{{ cookiecutter.charts_channel_png }}" == "True"
 enable_antv_charts = "{{ cookiecutter.enable_antv_charts }}" == "True"
 enable_code_execution = "{{ cookiecutter.enable_code_execution }}" == "True"
+enable_skills = "{{ cookiecutter.enable_skills }}" == "True"
 use_pydantic_deep = "{{ cookiecutter.use_pydantic_deep }}" == "True"
 use_telegram = "{{ cookiecutter.use_telegram }}" == "True"
 use_slack = "{{ cookiecutter.use_slack }}" == "True"
@@ -156,6 +157,9 @@ if not enable_antv_charts:
         remove_file(os.path.join(frontend_src, "components", "chat", "map-message.tsx"))
 if not enable_code_execution:
     remove_file(os.path.join(backend_app, "agents", "tools", "code_execution.py"))
+if not enable_skills:
+    remove_file(os.path.join(backend_app, "agents", "tools", "financial_tools.py"))
+    remove_dir(os.path.join(os.getcwd(), "backend", "skills"))
 
 # --- No-AI mode: remove all AI/chat/conversation files ---
 if not use_ai:

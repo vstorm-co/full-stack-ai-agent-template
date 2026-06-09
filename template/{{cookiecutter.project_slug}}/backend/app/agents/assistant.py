@@ -412,11 +412,20 @@ class AssistantAgent:
                   - ``create_map(title, markers, center=None, zoom=None)``
 {%- endif %}
                   - ``current_datetime()``
-                ``create_chart``{%- if cookiecutter.enable_antv_charts %}/``create_map``{%- endif %} are async — call them with ``await``,
+{%- if cookiecutter.enable_skills %}
+                  - ``get_exchange_rate(from_currency, to_currency)`` → FX rate
+                  - ``get_asset_price(symbol)`` → latest stock/ETF price
+                  - ``get_historical_annual_returns(symbol, years=10)`` → annual returns + avg
+                  - ``get_inflation_rate(country_code)`` → inflation estimate
+                  - ``get_bond_yield(country_code)`` → 10Y government bond yield
+{%- endif %}
+                ``create_chart``{%- if cookiecutter.enable_antv_charts %}/``create_map``{%- endif %}{%- if cookiecutter.enable_skills %} and all financial functions{%- endif %} are async — call them with ``await``,
                 and run several in parallel with ``await asyncio.gather(...)``. Each one
                 renders to the user immediately as an interactive chart/map.
 {%- else %}
-                Inside the code you can call ``current_datetime()``.
+                Inside the code you can call ``current_datetime()``{%- if cookiecutter.enable_skills %} and async financial helpers:
+                ``get_exchange_rate``, ``get_asset_price``, ``get_historical_annual_returns``,
+                ``get_inflation_rate``, ``get_bond_yield`` — call them with ``await``{%- endif %}.
 {%- endif %}
                 SANDBOX LIMITATIONS — violating these causes "Execution failed" errors:
                   - NO comma thousands separator in f-strings: ``{x:,}`` or ``{x:,.2f}``

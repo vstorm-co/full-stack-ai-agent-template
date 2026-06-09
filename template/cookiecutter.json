@@ -93,6 +93,7 @@
   "charts_channel_png": false,
   "enable_antv_charts": false,
   "enable_code_execution": false,
+  "enable_skills": false,
   "enable_webhooks": false,
   "websocket_auth": "jwt",
   "websocket_auth_jwt": true,

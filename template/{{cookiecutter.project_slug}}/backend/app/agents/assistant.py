@@ -64,6 +64,11 @@ from app.agents.tools.map_tool import MapMarker, create_map
 from app.agents.tools.code_execution import EmitToolEvent
 from app.agents.tools.code_execution import run_python as run_python_code
 {%- endif %}
+{%- if cookiecutter.enable_skills %}
+from pathlib import Path
+
+from pydantic_ai_skills import SkillsToolset
+{%- endif %}
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -225,6 +230,16 @@ class AssistantAgent:
         # None when AntV is disabled or the sidecar is unavailable.
         antv_toolset = get_antv_toolset()
         toolsets = [antv_toolset] if antv_toolset is not None else []
+{%- else %}
+{%- if cookiecutter.enable_skills %}
+        toolsets: list = []
+{%- endif %}
+{%- endif %}
+{%- if cookiecutter.enable_skills %}
+
+        skills_dir = Path(__file__).parent.parent.parent / "skills"
+        if skills_dir.exists():
+            toolsets.append(SkillsToolset(directories=[str(skills_dir)]))
 {%- endif %}
 
         agent = Agent[Deps, str](
@@ -232,7 +247,7 @@ class AssistantAgent:
             model_settings=model_settings,
             system_prompt=self.system_prompt,
             capabilities=capabilities,
-{%- if cookiecutter.enable_antv_charts %}
+{%- if cookiecutter.enable_antv_charts or cookiecutter.enable_skills %}
             toolsets=toolsets,
 {%- endif %}
         )

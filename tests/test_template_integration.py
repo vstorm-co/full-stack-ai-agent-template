@@ -90,10 +90,10 @@ class TestGeneratedTemplateRuff:
         """Test minimal project passes ruff check."""
         backend_path = generated_project_minimal / "backend"
         result = subprocess.run(
-            ["uv", "run", "ruff", "check", str(backend_path)],
+            ["uvx", "ruff", "check", str(backend_path)],
             capture_output=True,
             text=True,
-            cwd=generated_project_minimal,
+            cwd=backend_path,
         )
         assert result.returncode == 0, f"Ruff failed:\n{result.stdout}\n{result.stderr}"
 
@@ -102,10 +102,10 @@ class TestGeneratedTemplateRuff:
         """Test full project passes ruff check."""
         backend_path = generated_project_full / "backend"
         result = subprocess.run(
-            ["uv", "run", "ruff", "check", str(backend_path)],
+            ["uvx", "ruff", "check", str(backend_path)],
             capture_output=True,
             text=True,
-            cwd=generated_project_full,
+            cwd=backend_path,
         )
         assert result.returncode == 0, f"Ruff failed:\n{result.stdout}\n{result.stderr}"
 
@@ -314,6 +314,18 @@ MATRIX_CONFIGS: dict[str, dict] = {
         enable_antv_charts=True,
         background_tasks=BackgroundTaskType.NONE,
     ),
+    # SkillsToolset wiring: enable_skills attaches the toolset (no bundled
+    # skills here, so it no-ops at runtime) — generated together with code
+    # execution to confirm the two coexist and lint/type-check cleanly.
+    "pydantic_ai_skills": dict(
+        database=DatabaseType.SQLITE,
+        ai_framework=AIFrameworkType.PYDANTIC_AI,
+        enable_logfire=False,
+        enable_skills=True,
+        enable_code_execution=True,
+        enable_charts=True,
+        background_tasks=BackgroundTaskType.NONE,
+    ),
     "rag_pgvector": dict(
         database=DatabaseType.POSTGRESQL,
         background_tasks=BackgroundTaskType.NONE,
@@ -359,10 +371,10 @@ class TestGeneratedTemplateMatrix:
     def test_passes_ruff(self, matrix_project: Path) -> None:
         backend_path = matrix_project / "backend"
         result = subprocess.run(
-            ["uv", "run", "ruff", "check", str(backend_path)],
+            ["uvx", "ruff", "check", str(backend_path)],
             capture_output=True,
             text=True,
-            cwd=matrix_project,
+            cwd=backend_path,
         )
         assert result.returncode == 0, f"Ruff failed:\n{result.stdout}\n{result.stderr}"
 

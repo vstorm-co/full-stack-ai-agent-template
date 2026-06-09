@@ -520,6 +520,42 @@ function antvToolLabel(name: string): string {
 }
 {%- endif %}
 
+{%- if cookiecutter.enable_skills %}
+/** "market_data" -> "Market Data", "fire" -> "Fire". */
+function formatSkillName(name: string): string {
+  return name
+    .split("_")
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+/** Extract the description text from a `load_skill` XML result.
+ *  The library returns <skill><name>…</name><description>…</description>…</skill>. */
+function parseLoadSkillResult(result: string): { description: string } | null {
+  const m = result.match(/<description>([\s\S]*?)<\/description>/);
+  if (!m) return null;
+  return { description: m[1].trim() };
+}
+
+/** Clean card for a loaded skill — just the description, no raw XML. */
+function LoadSkillResult({ resultText, status }: { resultText: string; status: string }) {
+  if (!resultText || status !== "completed") {
+    return (
+      <p className="text-muted-foreground py-2 text-xs italic">
+        {status === "error" ? "Failed to load skill." : "Loading…"}
+      </p>
+    );
+  }
+  const parsed = parseLoadSkillResult(resultText);
+  if (!parsed) return null;
+
+  return (
+    <p className="text-foreground/75 py-1 text-[13px] leading-relaxed">{parsed.description}</p>
+  );
+}
+{%- endif %}
+
 {%- if cookiecutter.enable_antv_charts %}
 /** Render a server-rendered AntV diagram image with an "open full size" link. */
 function AntvChartImage({ url, title }: { url: string; title: string }) {
@@ -662,6 +698,15 @@ export function ToolCallCard({ toolCall }: ToolCallCardProps) {
       : null;
   const isWebSearch = webResults !== null;
   const isAskUser = toolCall.name === "ask_user";
+{%- if cookiecutter.enable_skills %}
+  // pydantic-ai-skills tool names
+  const isLoadSkill = toolCall.name === "load_skill";
+  const isListSkills = toolCall.name === "list_skills";
+  const loadedSkillName =
+    isLoadSkill && typeof toolCall.args?.skill_name === "string"
+      ? toolCall.args.skill_name
+      : null;
+{%- endif %}
 {%- if cookiecutter.enable_charts %}
   // Memoize the parsed chart spec — `parseChartResult` does `JSON.parse` for
   // string results, returning a NEW object each call. Without this memo, every
@@ -737,9 +782,21 @@ export function ToolCallCard({ toolCall }: ToolCallCardProps) {
 {%- endif %}
         : isAskUser
           ? "Question"
+{%- if cookiecutter.enable_skills %}
+          : isLoadSkill
+            ? loadedSkillName
+              ? formatSkillName(loadedSkillName)
+              : "Load Skill"
+            : isListSkills
+              ? "Available Skills"
+              : toolCall.name === "run_python"
+                ? "Run Python"
+                : toolCall.name;
+{%- else %}
           : toolCall.name === "run_python"
             ? "Run Python"
             : toolCall.name;
+{%- endif %}
 
   const ToolIcon = isDateTime
     ? Clock
@@ -847,7 +904,13 @@ export function ToolCallCard({ toolCall }: ToolCallCardProps) {
 {%- endif %}
           ) : isAskUser ? (
             <AskUserResult args={toolCall.args} resultText={resultText} />
+{%- if cookiecutter.enable_skills %}
+          ) : isLoadSkill ? (
+            <LoadSkillResult resultText={resultText} status={toolCall.status} />
+          ) : isListSkills ? null : (
+{%- else %}
           ) : (
+{%- endif %}
             <GenericToolResult toolCall={toolCall} resultText={resultText} />
           )}
         </CardContent>

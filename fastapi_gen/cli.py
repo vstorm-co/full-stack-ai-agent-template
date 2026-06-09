@@ -484,6 +484,12 @@ def new(output: Path | None, no_input: bool, name: str | None, minimal: bool) ->
     default=False,
     help="Enable the run_python code-execution tool backed by the Monty sandbox (PydanticAI only)",
 )
+@click.option(
+    "--skills",
+    is_flag=True,
+    default=False,
+    help="Enable the skills system (SkillsToolset loads SKILL.md files from backend/skills/, PydanticAI only)",
+)
 @click.option("--session-management", is_flag=True, help="Enable session management")
 @click.option(
     "--reverse-proxy",
@@ -761,6 +767,7 @@ def create(
     charts: bool,
     antv_charts: bool,
     code_execution: bool,
+    skills: bool,
     session_management: bool,
     reverse_proxy: str,
     kubernetes: bool,
@@ -1191,6 +1198,7 @@ def create(
                 enable_charts=charts,
                 enable_antv_charts=antv_charts,
                 enable_code_execution=code_execution,
+                enable_skills=skills,
                 enable_session_management=session_management,
                 reverse_proxy=_rp_map[reverse_proxy],
                 enable_kubernetes=kubernetes,

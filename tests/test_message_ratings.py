@@ -315,10 +315,10 @@ class TestRatingFeatureCodeQuality:
             / "message_rating.py"
         )
         result = subprocess.run(
-            ["uv", "run", "ruff", "check", str(model_path)],
+            ["uvx", "ruff", "check", str(model_path)],
             capture_output=True,
             text=True,
-            cwd=project_with_ratings,
+            cwd=project_with_ratings / "backend",
         )
         assert result.returncode == 0, f"Ruff failed for message_rating.py:\n{result.stdout}"
 
@@ -329,10 +329,10 @@ class TestRatingFeatureCodeQuality:
             project_with_ratings / "backend" / "app" / "repositories" / "message_rating.py"
         )
         result = subprocess.run(
-            ["uv", "run", "ruff", "check", str(repo_path)],
+            ["uvx", "ruff", "check", str(repo_path)],
             capture_output=True,
             text=True,
-            cwd=project_with_ratings,
+            cwd=project_with_ratings / "backend",
         )
         assert result.returncode == 0, f"Ruff failed for rating repository:\n{result.stdout}"
 
@@ -343,10 +343,10 @@ class TestRatingFeatureCodeQuality:
             project_with_ratings / "backend" / "app" / "services" / "message_rating.py"
         )
         result = subprocess.run(
-            ["uv", "run", "ruff", "check", str(service_path)],
+            ["uvx", "ruff", "check", str(service_path)],
             capture_output=True,
             text=True,
-            cwd=project_with_ratings,
+            cwd=project_with_ratings / "backend",
         )
         assert result.returncode == 0, f"Ruff failed for rating service:\n{result.stdout}"
 
@@ -357,10 +357,10 @@ class TestRatingFeatureCodeQuality:
             project_with_ratings / "backend" / "app" / "schemas" / "message_rating.py"
         )
         result = subprocess.run(
-            ["uv", "run", "ruff", "check", str(schema_path)],
+            ["uvx", "ruff", "check", str(schema_path)],
             capture_output=True,
             text=True,
-            cwd=project_with_ratings,
+            cwd=project_with_ratings / "backend",
         )
         assert result.returncode == 0, f"Ruff failed for rating schemas:\n{result.stdout}"
 
@@ -377,10 +377,10 @@ class TestRatingFeatureCodeQuality:
             / "admin_ratings.py"
         )
         result = subprocess.run(
-            ["uv", "run", "ruff", "check", str(route_path)],
+            ["uvx", "ruff", "check", str(route_path)],
             capture_output=True,
             text=True,
-            cwd=project_with_ratings,
+            cwd=project_with_ratings / "backend",
         )
         assert result.returncode == 0, f"Ruff failed for admin_ratings route:\n{result.stdout}"
 

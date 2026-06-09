@@ -75,3 +75,5 @@ export { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "./
 export { Checkbox } from "./checkbox";
 export { RadioGroup, RadioGroupItem } from "./radio-group";
 export { Spinner } from "./spinner";
+export { QuestionPrompt } from "./question-prompt";
+export type { QuestionPromptProps } from "./question-prompt";

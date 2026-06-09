@@ -142,6 +142,7 @@ export type WSEventType =
   | "message_saved"
   // DeepAgents Human-in-the-Loop event
   | "tool_approval_required"
+  | "ask_user"
   // CrewAI-specific events
   | "crew_start"
   | "crew_started"
@@ -234,5 +235,24 @@ export interface ToolApprovalRequiredEvent {
   data: {
     action_requests: ActionRequest[];
     review_configs: ReviewConfig[];
+  };
+}
+
+export interface AskUserQuestion {
+  question: string;
+  options: string[];
+  /** Whether the user may type a free-form answer instead of picking an option. */
+  allowCustom: boolean;
+}
+
+export interface AskUserAnswer {
+  answer: string;
+  skipped: boolean;
+}
+
+export interface AskUserEvent {
+  type: "ask_user";
+  data: {
+    questions: { question: string; options: string[]; allow_custom: boolean }[];
   };
 }

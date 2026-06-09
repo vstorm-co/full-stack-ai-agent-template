@@ -49,6 +49,7 @@ web_fetch_tool = "{{ cookiecutter.web_fetch_tool }}" == "True"
 enable_charts = "{{ cookiecutter.enable_charts }}" == "True"
 charts_channel_png = "{{ cookiecutter.charts_channel_png }}" == "True"
 enable_antv_charts = "{{ cookiecutter.enable_antv_charts }}" == "True"
+enable_code_execution = "{{ cookiecutter.enable_code_execution }}" == "True"
 use_pydantic_deep = "{{ cookiecutter.use_pydantic_deep }}" == "True"
 use_telegram = "{{ cookiecutter.use_telegram }}" == "True"
 use_slack = "{{ cookiecutter.use_slack }}" == "True"
@@ -118,6 +119,7 @@ print("Cleaning up unused files...")
 # --- AI Agent files (remove unused framework-specific files) ---
 if not use_pydantic_ai:
     remove_file(os.path.join(backend_app, "agents", "assistant.py"))
+    remove_file(os.path.join(backend_app, "agents", "tools", "ask_user_tool.py"))
 if not use_langchain:
     remove_file(os.path.join(backend_app, "agents", "langchain_assistant.py"))
 if not use_langgraph:
@@ -152,6 +154,8 @@ if not enable_antv_charts:
         frontend_src = os.path.join(os.getcwd(), "frontend", "src")
         remove_file(os.path.join(frontend_src, "components", "chat", "map-leaflet.tsx"))
         remove_file(os.path.join(frontend_src, "components", "chat", "map-message.tsx"))
+if not enable_code_execution:
+    remove_file(os.path.join(backend_app, "agents", "tools", "code_execution.py"))
 
 # --- No-AI mode: remove all AI/chat/conversation files ---
 if not use_ai:

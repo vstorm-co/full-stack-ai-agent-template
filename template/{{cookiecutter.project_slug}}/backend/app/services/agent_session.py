@@ -10,8 +10,14 @@ The route is left as a thin lifecycle wrapper that just feeds incoming messages 
 ``AgentSession.process_message``.
 """
 
+{%- if cookiecutter.enable_code_execution %}
+import asyncio
+{%- endif %}
 import logging
 from typing import Any
+{%- if cookiecutter.enable_code_execution %}
+from uuid import uuid4
+{%- endif %}
 
 from fastapi import WebSocket, WebSocketDisconnect
 from pydantic_ai import (
@@ -70,12 +76,21 @@ class AgentSession:
 {%- endif %}
         self.conversation_history: list[dict[str, str]] = []
         self.deps = Deps()
+        self.deps.ask_user = self._ask_user
+{%- if cookiecutter.enable_code_execution %}
+        self.deps.emit_tool_event = self._emit_tool_event
+        self._current_tool_calls: list[dict[str, Any]] | None = None
+        self._emit_lock = asyncio.Lock()
+{%- endif %}
 {%- if cookiecutter.use_database %}
         self.current_conversation_id: str | None = None
 {%- endif %}
 
     async def process_message(self, data: dict[str, Any]) -> None:
         """Process one user turn: persist input, run the agent, stream events, persist output."""
+        if data.get("type") == "ask_user_response":
+            return
+
         user_message = data.get("message", "")
         file_ids = data.get("file_ids", [])
 
@@ -140,10 +155,21 @@ class AgentSession:
 {%- endif %}
 
             collected_tool_calls: list[dict[str, Any]] = []
+{%- if cookiecutter.enable_code_execution %}
+            self._current_tool_calls = collected_tool_calls
+            try:
+                async with assistant.agent.iter(
+                    user_input, deps=self.deps, message_history=model_history
+                ) as agent_run:
+                    await self._stream_agent_run(agent_run, user_message, collected_tool_calls)
+            finally:
+                self._current_tool_calls = None
+{%- else %}
             async with assistant.agent.iter(
                 user_input, deps=self.deps, message_history=model_history
             ) as agent_run:
                 await self._stream_agent_run(agent_run, user_message, collected_tool_calls)
+{%- endif %}
 
             # Update in-memory history only after a complete agent run
             if agent_run.result is not None:
@@ -195,6 +221,59 @@ class AgentSession:
         except Exception as e:
             logger.exception(f"Error processing agent request: {e}")
             await send_event(self.websocket, "error", {"message": str(e)})
+
+    async def _ask_user(self, questions: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Pause the run: ask the client questions and block until they answer.
+
+        Emits an ``ask_user`` event with the whole batch, then reads frames off
+        this socket until an ``ask_user_response`` arrives. This is safe even
+        though the route also reads from the socket: while a tool runs, the agent
+        run (and therefore the route's receive loop) is suspended awaiting us, so
+        there is exactly one active reader. The client returns a list of answers
+        parallel to the questions ({answer, skipped}).
+        """
+        await send_event(self.websocket, "ask_user", {"questions": questions})
+        while True:
+            data = await self.websocket.receive_json()
+            if data.get("type") == "ask_user_response":
+                answers = data.get("answers")
+                return answers if isinstance(answers, list) else []
+            # Ignore unrelated frames while questions are pending (UI is modal).
+
+{%- if cookiecutter.enable_code_execution %}
+
+    async def _emit_tool_event(
+        self, tool_name: str, args: dict[str, Any], result: str
+    ) -> None:
+        """Surface a tool call made from *inside* the run_python sandbox.
+
+        Emits the same ``tool_call`` + ``tool_result`` event pair the streaming
+        loop sends for normal tool calls, so an in-code ``create_chart`` renders
+        as an interactive card, and records it in the in-flight turn's tool-call
+        list so it is persisted with the message.
+        """
+        tool_call_id = f"code-{uuid4().hex}"
+        async with self._emit_lock:
+            if self._current_tool_calls is not None:
+                self._current_tool_calls.append(
+                    {
+                        "tool_call_id": tool_call_id,
+                        "tool_name": tool_name,
+                        "args": args,
+                        "result": result,
+                    }
+                )
+            await send_event(
+                self.websocket,
+                "tool_call",
+                {"tool_call_id": tool_call_id, "tool_name": tool_name, "args": args},
+            )
+            await send_event(
+                self.websocket,
+                "tool_result",
+                {"tool_call_id": tool_call_id, "content": result},
+            )
+{%- endif %}
 
 {%- if cookiecutter.enable_billing and cookiecutter.enable_teams and cookiecutter.enable_credits_system and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
     async def _record_usage(
@@ -397,7 +476,7 @@ class AgentSession:
                 tc = {
                     "tool_call_id": tool_event.part.tool_call_id,
                     "tool_name": tool_event.part.tool_name,
-                    "args": tool_event.part.args,
+                    "args": tool_event.part.args_as_dict(raise_if_invalid=False),
                 }
                 collected_tool_calls.append(tc)
                 pending[tool_event.part.tool_call_id] = tc
@@ -2465,7 +2544,7 @@ class AgentSession:
                 tc = {
                     "tool_call_id": tool_event.part.tool_call_id,
                     "tool_name": tool_event.part.tool_name,
-                    "args": tool_event.part.args,
+                    "args": tool_event.part.args_as_dict(raise_if_invalid=False),
                 }
                 collected_tool_calls.append(tc)
                 pending[tool_event.part.tool_call_id] = tc

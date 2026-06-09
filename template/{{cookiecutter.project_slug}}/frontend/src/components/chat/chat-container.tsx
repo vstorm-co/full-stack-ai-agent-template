@@ -9,7 +9,8 @@ import { FilePreviewPanel } from "./file-preview-panel";
 import { MessageList } from "./message-list";
 import { PendingMessages } from "./pending-messages";
 import { ToolApprovalDialog } from "./tool-approval-dialog";
-import type { PendingApproval, Decision } from "@/types";
+import { QuestionPrompt } from "@/components/ui";
+import type { PendingApproval, AskUserQuestion, AskUserAnswer, Decision } from "@/types";
 import { useConversationStore, useChatStore } from "@/stores";
 import { useConversations } from "@/hooks";
 {%- if cookiecutter.use_auth %}
@@ -50,6 +51,8 @@ function AuthenticatedChatContainer() {
     setThinkingEffort,
     pendingApproval,
     sendResumeDecisions,
+    pendingQuestions,
+    sendAskUserResponses,
   } = useChat({
     conversationId: currentConversationId,
     onConversationCreated: handleConversationCreated,
@@ -238,6 +241,8 @@ function AuthenticatedChatContainer() {
       scrollContainerRef={scrollContainerRef}
       pendingApproval={pendingApproval}
       onResumeDecisions={sendResumeDecisions}
+      pendingQuestions={pendingQuestions}
+      onAnswerQuestions={sendAskUserResponses}
     />
   );
 }
@@ -265,6 +270,8 @@ interface ChatUIProps {
   scrollContainerRef: React.RefObject<HTMLDivElement | null>;
   pendingApproval?: PendingApproval | null;
   onResumeDecisions?: (decisions: Decision[]) => void;
+  pendingQuestions?: AskUserQuestion[] | null;
+  onAnswerQuestions?: (answers: AskUserAnswer[]) => void;
 }
 
 function ChatUI({
@@ -285,6 +292,8 @@ function ChatUI({
   scrollContainerRef,
   pendingApproval,
   onResumeDecisions,
+  pendingQuestions,
+  onAnswerQuestions,
 }: ChatUIProps) {
   return (
     <div className="flex h-full w-full">
@@ -317,6 +326,17 @@ function ChatUI({
           </div>
         )}
 
+        {/* ask_user: interactive question card while the run is paused */}
+        {pendingQuestions && pendingQuestions.length > 0 && onAnswerQuestions && (
+          <div className="px-2 pb-2 sm:px-4 sm:pb-2">
+            <QuestionPrompt
+              questions={pendingQuestions}
+              disabled={!isConnected}
+              onComplete={onAnswerQuestions}
+            />
+          </div>
+        )}
+
         <div className="px-2 pb-2 sm:px-4 sm:pb-4">
           {queuedMessages && queuedMessages.length > 0 && onCancelQueued && (
             <PendingMessages messages={queuedMessages} onCancel={onCancelQueued} />
@@ -325,7 +345,11 @@ function ChatUI({
             <div className="px-3 pt-3 sm:px-4 sm:pt-4">
               <ChatInput
                 onSend={sendMessage}
-                disabled={!isConnected || !!pendingApproval}
+                disabled={
+                  !isConnected ||
+                  !!pendingApproval ||
+                  !!(pendingQuestions && pendingQuestions.length)
+                }
                 isProcessing={isProcessing}
                 slashContext={slashContext}
                 commands={slashCommands}

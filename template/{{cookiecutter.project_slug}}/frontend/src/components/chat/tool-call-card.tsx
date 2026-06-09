@@ -20,6 +20,7 @@ import {
   ChevronDown,
   ChevronUp,
   Code2,
+  MessageCircleQuestion,
 {%- if cookiecutter.enable_charts or cookiecutter.enable_antv_charts %}
   BarChart3,
 {%- endif %}
@@ -517,7 +518,9 @@ function antvToolLabel(name: string): string {
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(" ");
 }
+{%- endif %}
 
+{%- if cookiecutter.enable_antv_charts %}
 /** Render a server-rendered AntV diagram image with an "open full size" link. */
 function AntvChartImage({ url, title }: { url: string; title: string }) {
   return (
@@ -542,6 +545,60 @@ function AntvChartImage({ url, title }: { url: string; title: string }) {
 }
 {%- endif %}
 
+/** Pull the question texts out of an `ask_user` tool's args (object or
+ *  JSON-string). Handles the `questions` list. Returns [] when none found. */
+function extractQuestions(args: unknown): string[] {
+  let obj: unknown = args;
+  if (typeof args === "string") {
+    try {
+      obj = JSON.parse(args);
+    } catch {
+      return [];
+    }
+  }
+  if (obj && typeof obj === "object" && Array.isArray((obj as { questions?: unknown }).questions)) {
+    return (obj as { questions: Array<{ question?: unknown }> }).questions.map((q) =>
+      String(q?.question ?? ""),
+    );
+  }
+  return [];
+}
+
+/** Transcript view of an `ask_user` turn. Once answered, the result is already a
+ *  "Q: …/A: …" transcript, so render it as-is; while waiting, list the
+ *  questions that were asked. */
+function AskUserResult({ args, resultText }: { args: unknown; resultText: string }) {
+  if (resultText) {
+    return (
+      <p className="text-foreground/85 py-1 text-sm leading-relaxed break-words whitespace-pre-wrap">
+        {resultText}
+      </p>
+    );
+  }
+  const questions = extractQuestions(args);
+  return (
+    <div className="space-y-2.5 py-1">
+      <div>
+        <p className="text-foreground/55 font-mono text-[10px] tracking-wider uppercase">
+          {questions.length > 1 ? "Questions" : "Question"}
+        </p>
+        {questions.length > 0 ? (
+          <ul className="text-foreground/85 mt-0.5 space-y-1 text-sm leading-relaxed">
+            {questions.map((q, i) => (
+              <li key={i}>{q}</li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-muted-foreground mt-0.5 text-xs italic">Waiting for the user…</p>
+        )}
+      </div>
+      {questions.length > 0 && (
+        <p className="text-muted-foreground text-xs italic">Waiting for the user…</p>
+      )}
+    </div>
+  );
+}
+
 // --- Main component ---
 
 export function ToolCallCard({ toolCall }: ToolCallCardProps) {
@@ -549,25 +606,26 @@ export function ToolCallCard({ toolCall }: ToolCallCardProps) {
   // formatted view for args + raw output (the </> button). Charts are the
   // exception: they're only useful when visible, so expand them by default.
   const [expanded, setExpanded] = useState(
+    toolCall.name === "ask_user" ||
 {%- if cookiecutter.enable_charts and cookiecutter.enable_antv_charts %}
-    toolCall.status === "completed" &&
-      ((toolCall.name === "create_chart_tool" && parseChartResult(toolCall.result) !== null) ||
-        (toolCall.name === "create_map_tool" && parseMapResult(toolCall.result) !== null) ||
-        (toolCall.name.startsWith("generate_") &&
-          typeof toolCall.result === "string" &&
-          parseAntvImageUrl(toolCall.result) !== null)),
+      (toolCall.status === "completed" &&
+        ((toolCall.name === "create_chart_tool" && parseChartResult(toolCall.result) !== null) ||
+          (toolCall.name === "create_map_tool" && parseMapResult(toolCall.result) !== null) ||
+          (toolCall.name.startsWith("generate_") &&
+            typeof toolCall.result === "string" &&
+            parseAntvImageUrl(toolCall.result) !== null))),
 {%- elif cookiecutter.enable_charts %}
-    toolCall.name === "create_chart_tool" &&
-      toolCall.status === "completed" &&
-      parseChartResult(toolCall.result) !== null,
+      (toolCall.name === "create_chart_tool" &&
+        toolCall.status === "completed" &&
+        parseChartResult(toolCall.result) !== null),
 {%- elif cookiecutter.enable_antv_charts %}
-    toolCall.status === "completed" &&
-      ((toolCall.name === "create_map_tool" && parseMapResult(toolCall.result) !== null) ||
-        (toolCall.name.startsWith("generate_") &&
-          typeof toolCall.result === "string" &&
-          parseAntvImageUrl(toolCall.result) !== null)),
+      (toolCall.status === "completed" &&
+        ((toolCall.name === "create_map_tool" && parseMapResult(toolCall.result) !== null) ||
+          (toolCall.name.startsWith("generate_") &&
+            typeof toolCall.result === "string" &&
+            parseAntvImageUrl(toolCall.result) !== null))),
 {%- else %}
-    false,
+      false,
 {%- endif %}
   );
   const [showRaw, setShowRaw] = useState(false);
@@ -603,6 +661,7 @@ export function ToolCallCard({ toolCall }: ToolCallCardProps) {
       ? parseWebSearch(toolCall.result)
       : null;
   const isWebSearch = webResults !== null;
+  const isAskUser = toolCall.name === "ask_user";
 {%- if cookiecutter.enable_charts %}
   // Memoize the parsed chart spec — `parseChartResult` does `JSON.parse` for
   // string results, returning a NEW object each call. Without this memo, every
@@ -649,7 +708,8 @@ export function ToolCallCard({ toolCall }: ToolCallCardProps) {
   const hasSpecialRenderer =
     isDateTime ||
     isRAGSearch ||
-    isWebSearch
+    isWebSearch ||
+    isAskUser
 {%- if cookiecutter.enable_charts %}
     || isChart
 {%- endif %}
@@ -675,7 +735,11 @@ export function ToolCallCard({ toolCall }: ToolCallCardProps) {
           : isAntvChart
             ? antvToolLabel(toolCall.name)
 {%- endif %}
-        : toolCall.name;
+        : isAskUser
+          ? "Question"
+          : toolCall.name === "run_python"
+            ? "Run Python"
+            : toolCall.name;
 
   const ToolIcon = isDateTime
     ? Clock
@@ -693,7 +757,9 @@ export function ToolCallCard({ toolCall }: ToolCallCardProps) {
           : isAntvChart
             ? BarChart3
 {%- endif %}
-        : Wrench;
+        : isAskUser
+          ? MessageCircleQuestion
+          : Wrench;
 
   const toggleExpanded = () => {
     setExpanded((prev) => {
@@ -779,6 +845,8 @@ export function ToolCallCard({ toolCall }: ToolCallCardProps) {
           ) : toolCall.status === "completed" && isAntvChart && antvImageUrl ? (
             <AntvChartImage url={antvImageUrl} title={friendlyName} />
 {%- endif %}
+          ) : isAskUser ? (
+            <AskUserResult args={toolCall.args} resultText={resultText} />
           ) : (
             <GenericToolResult toolCall={toolCall} resultText={resultText} />
           )}

@@ -5,10 +5,11 @@ The main conversational agent that can be extended with custom tools.
 """
 
 import logging
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Any
 
-from pydantic_ai import Agent, ModelRetry{%- if cookiecutter.enable_rag %}, RunContext{%- endif %}
+from pydantic_ai import Agent{%- if cookiecutter.enable_rag %}, ModelRetry{%- endif %}, RunContext
 from pydantic_ai.capabilities import (
     ReinjectSystemPrompt,
     Thinking,
@@ -48,6 +49,7 @@ from app.agents.prompts import DEFAULT_SYSTEM_PROMPT
 from app.agents.prompts import get_system_prompt_with_rag
 {%- endif %}
 from app.agents.tools import get_current_datetime
+from app.agents.tools.ask_user_tool import MAX_QUESTIONS, QuestionItem, format_answers
 {%- if cookiecutter.enable_rag %}
 from app.agents.tools.rag_tool import search_knowledge_base
 {%- endif %}
@@ -57,6 +59,10 @@ from app.agents.tools.chart_tool import create_chart
 {%- if cookiecutter.enable_antv_charts %}
 from app.agents.tools.antv_chart import get_antv_toolset
 from app.agents.tools.map_tool import MapMarker, create_map
+{%- endif %}
+{%- if cookiecutter.enable_code_execution %}
+from app.agents.tools.code_execution import EmitToolEvent
+from app.agents.tools.code_execution import run_python as run_python_code
 {%- endif %}
 from app.core.config import settings
 
@@ -135,6 +141,9 @@ def _build_model(model_name: str):
 {%- endif %}
 
 
+AskUserCallback = Callable[[list[dict[str, Any]]], Awaitable[list[dict[str, Any]]]]
+
+
 @dataclass
 class Deps:
     """Dependencies for the assistant agent.
@@ -149,6 +158,10 @@ class Deps:
     kb_collection_names: list[str] = field(default_factory=list)
 {%- endif %}
     metadata: dict[str, Any] = field(default_factory=dict)
+    ask_user: AskUserCallback | None = None
+{%- if cookiecutter.enable_code_execution %}
+    emit_tool_event: EmitToolEvent | None = None
+{%- endif %}
 
 
 class AssistantAgent:
@@ -337,6 +350,82 @@ class AssistantAgent:
             )
 {%- endif %}
 
+        @agent.tool
+        async def ask_user(ctx: RunContext[Deps], questions: list[QuestionItem]) -> str:
+            """Ask the user one or more questions and wait for their answers.
+
+            Use this when a decision or missing detail would materially change what
+            you do next and you can't reasonably assume it. You may pass several
+            questions at once — the user answers them one after another and you get
+            all the answers back together (good for an intake/setup flow). You can
+            also call this again later to follow up on what they said. Prefer
+            answering directly when the request is already clear.
+
+            Args:
+                questions: The questions to ask. Each has the question text, optional
+                    suggested `options`, and `allow_custom` (whether a free-form
+                    answer is allowed, default True).
+
+            Returns:
+                The user's answers as a Q/A transcript, with skipped questions marked.
+            """
+            if ctx.deps.ask_user is None:
+                return (
+                    "User interaction is unavailable here; proceed with a reasonable "
+                    "assumption and state it briefly."
+                )
+            if not questions:
+                return "No questions were provided."
+            payload = [q.model_dump() for q in questions[:MAX_QUESTIONS]]
+            answers = await ctx.deps.ask_user(payload)
+            return format_answers(payload, answers)
+
+{%- if cookiecutter.enable_code_execution %}
+
+        if settings.ENABLE_CODE_EXECUTION:
+
+            @agent.tool
+            async def run_python(ctx: RunContext[Deps], code: str) -> str:
+                """Run Python in a sandbox to compute and to build visualizations.
+
+                Use this for multi-step number-crunching (projections, aggregations,
+                simulations) and whenever you want to produce several charts at once.
+{%- if cookiecutter.enable_charts or cookiecutter.enable_antv_charts %}
+                Inside the code you can call:
+                  - ``create_chart(chart_type, title, data, series=None, x_key="x", style=None)``
+{%- if cookiecutter.enable_antv_charts %}
+                  - ``create_map(title, markers, center=None, zoom=None)``
+{%- endif %}
+                  - ``current_datetime()``
+                ``create_chart``{%- if cookiecutter.enable_antv_charts %}/``create_map``{%- endif %} are async — call them with ``await``,
+                and run several in parallel with ``await asyncio.gather(...)``. Each one
+                renders to the user immediately as an interactive chart/map.
+{%- else %}
+                Inside the code you can call ``current_datetime()``.
+{%- endif %}
+                SANDBOX LIMITATIONS — violating these causes "Execution failed" errors:
+                  - NO comma thousands separator in f-strings: ``{x:,}`` or ``{x:,.2f}``
+                    CRASHES. Use ``f"${int(x)}"`` or ``f"{x:.2f}"`` instead.
+                  - NO ``statistics``, ``random``, ``itertools``, ``collections``,
+                    numpy, pandas — compute stats manually with loops/math.
+                  - NO file I/O, network calls, or OS access.
+                  - NO ``import`` of any module not in: math, asyncio, json, datetime, re.
+                  - Walrus operator ``:=`` is unsupported.
+                  - f-string expressions must be simple: no ``!r``, no ``=`` suffix
+                    (``{x=}`` debug format crashes). Use ``print(f"x = {x}")``.
+
+                Print intermediate values you want to keep; don't paste the returned
+                chart JSON back to the user.
+
+                Args:
+                    code: The Python source to execute.
+
+                Returns:
+                    The captured stdout plus the final expression value, or an error
+                    message you can read and fix.
+                """
+                return await run_python_code(code, emit=ctx.deps.emit_tool_event)
+{%- endif %}
 
     @staticmethod
     def _build_model_history(

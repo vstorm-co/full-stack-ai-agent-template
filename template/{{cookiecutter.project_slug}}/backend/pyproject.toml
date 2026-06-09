@@ -288,6 +288,9 @@ dependencies = [
     "crewai-tools[mcp]>=1.0.0",
 {%- endif %}
 {%- endif %}
+{%- if cookiecutter.enable_code_execution %}
+    "pydantic-monty>=0.0.18",
+{%- endif %}
 {%- if cookiecutter.use_telegram or cookiecutter.use_slack %}
     "cryptography>=44.0.0",
 {%- endif %}

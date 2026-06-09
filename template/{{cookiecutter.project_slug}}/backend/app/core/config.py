@@ -436,6 +436,12 @@ class Settings(BaseSettings):
     # the basic charts that overlap create_chart and the China-only maps.
     ANTV_DISABLED_TOOLS: str = ""
 {%- endif %}
+{%- if cookiecutter.enable_code_execution %}
+
+    ENABLE_CODE_EXECUTION: bool = False
+    CODE_EXECUTION_TIMEOUT_SECS: float = 10.0
+    CODE_EXECUTION_MAX_ALLOCATIONS: int = 50_000_000
+{%- endif %}
 {%- if cookiecutter.use_deepagents %}
 
     # === DeepAgents Configuration ===

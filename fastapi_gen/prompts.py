@@ -924,6 +924,30 @@ def prompt_antv_charts() -> bool:
     )
 
 
+def prompt_code_execution() -> bool:
+    """Prompt for the Monty-backed run_python code-execution tool (PydanticAI only)."""
+    console.print()
+    console.print("[bold cyan]Code Execution (Monty sandbox)[/]")
+    console.print(
+        "Adds a `run_python` tool that lets the agent execute Python in a sandboxed "
+        "interpreter (pydantic-monty). The model can compute projections, run "
+        "aggregations, and call create_chart/create_map directly from inside the "
+        "code. Restricted stdlib: math, asyncio, json, datetime, re — no numpy/pandas. "
+        "PydanticAI only. Activate at runtime with ENABLE_CODE_EXECUTION=true."
+    )
+    console.print()
+
+    return cast(
+        bool,
+        _check_cancelled(
+            questionary.confirm(
+                "Enable the run_python code-execution tool (PydanticAI only)?",
+                default=False,
+            ).ask()
+        ),
+    )
+
+
 def prompt_langsmith() -> bool:
     """Prompt for LangSmith observability."""
     return cast(
@@ -1434,6 +1458,7 @@ def run_interactive_prompts() -> ProjectConfig:
         "enable_web_fetch": False,
         "enable_charts": False,
         "enable_antv_charts": False,
+        "enable_code_execution": False,
         "rag_features": RAGFeatures(),
         "orm_type": OrmType.SQLALCHEMY,
         "sandbox_backend": "state",
@@ -1598,6 +1623,12 @@ def run_interactive_prompts() -> ProjectConfig:
         else:
             state["enable_antv_charts"] = prompt_antv_charts()
 
+    def step_code_execution() -> None:
+        if state["ai_framework"] == AIFrameworkType.PYDANTIC_AI:
+            state["enable_code_execution"] = prompt_code_execution()
+        else:
+            state["enable_code_execution"] = False
+
     def step_langsmith() -> None:
         if state["ai_framework"] in (
             AIFrameworkType.LANGCHAIN,
@@ -1669,6 +1700,7 @@ def run_interactive_prompts() -> ProjectConfig:
         ("RAG", step_rag_config),
         ("Chart Tool", step_charts),
         ("AntV Diagrams & Maps", step_antv_charts),
+        ("Code Execution", step_code_execution),
         ("LangSmith", step_langsmith),
         ("Messaging Channels", step_channels),
         ("Teams & Billing", step_teams_billing),
@@ -1716,6 +1748,7 @@ def run_interactive_prompts() -> ProjectConfig:
     enable_web_fetch = state["enable_web_fetch"]
     enable_charts = state["enable_charts"]
     enable_antv_charts = state["enable_antv_charts"]
+    enable_code_execution = state["enable_code_execution"]
     rag_features = state["rag_features"]
     enable_langsmith = state["enable_langsmith"]
     use_telegram = state["use_telegram"]
@@ -1759,6 +1792,7 @@ def run_interactive_prompts() -> ProjectConfig:
         enable_web_fetch=enable_web_fetch,
         enable_charts=enable_charts,
         enable_antv_charts=enable_antv_charts,
+        enable_code_execution=enable_code_execution,
         use_telegram=use_telegram,
         use_slack=use_slack,
         rate_limit_requests=rate_limit_requests,

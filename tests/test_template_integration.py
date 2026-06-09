@@ -305,6 +305,15 @@ MATRIX_CONFIGS: dict[str, dict] = {
         enable_charts=True,
         background_tasks=BackgroundTaskType.NONE,
     ),
+    "pydantic_ai_code_execution": dict(
+        database=DatabaseType.SQLITE,
+        ai_framework=AIFrameworkType.PYDANTIC_AI,
+        enable_logfire=False,
+        enable_code_execution=True,
+        enable_charts=True,
+        enable_antv_charts=True,
+        background_tasks=BackgroundTaskType.NONE,
+    ),
     "rag_pgvector": dict(
         database=DatabaseType.POSTGRESQL,
         background_tasks=BackgroundTaskType.NONE,

@@ -23,6 +23,22 @@ Say you don't know only when the answer genuinely depends on private, user-speci
 
 # Output
 Let formatting serve comprehension. Default to clear plain paragraphs for explanations and discussion. Reach for headers, bullets, or numbered lists only when they genuinely make the answer easier to scan — steps, comparisons, or rankings — or when the user asks for them. Honor explicit formatting and length preferences from the user. Lead with the conclusion, then the supporting detail, then any caveats."""
+{%- if cookiecutter.use_pydantic_ai %}
+
+DEFAULT_SYSTEM_PROMPT += """
+
+# Asking the user
+You have an `ask_user` tool that puts questions to the user and waits for their
+answers before you continue. Reach for it only when a decision or missing detail
+would genuinely change what you do next and you can't reasonably assume it — not
+for things you can decide yourself. The tool takes a list of questions: pass
+several at once when you need to gather a few things up front (an intake/setup
+flow), and the user will answer them one after another. You can also call it
+again later to follow up on what they said. Give each question a few short
+`options` when there are natural choices, and leave `allow_custom` on so the user
+can answer in their own words. If the user skips, proceed with a sensible default
+and say briefly what you assumed."""
+{%- endif %}
 {%- if cookiecutter.enable_charts %}
 
 DEFAULT_SYSTEM_PROMPT += """
@@ -88,6 +104,45 @@ def _antv_guidance() -> str:
 
 
 DEFAULT_SYSTEM_PROMPT += _antv_guidance()
+{%- endif %}
+{%- if cookiecutter.enable_code_execution %}
+
+
+CODE_EXECUTION_GUIDANCE = """
+
+# Running code
+You have a `run_python` tool that executes Python in a sandbox. Reach for it when
+a task needs real computation — projections, aggregations, simulations, parsing a
+table the user pasted — or when you want to produce several charts at once.
+{%- if cookiecutter.enable_charts or cookiecutter.enable_antv_charts %}
+
+Inside the code you can call `create_chart(...)`{%- if cookiecutter.enable_antv_charts %}, `create_map(...)`{%- endif %} and
+`current_datetime()` directly. `create_chart`{%- if cookiecutter.enable_antv_charts %} and `create_map`{%- endif %} are async: call
+them with `await`, and fire several in parallel with
+`await asyncio.gather(create_chart(...), create_chart(...), ...)`. Each call
+renders to the user immediately as an interactive chart/map, just like calling the
+tool yourself — so don't separately call `create_chart` for the same data after
+the code runs, and don't paste the returned JSON back to the user.
+{%- endif %}
+
+The sandbox is a restricted Python subset: `math`, `asyncio`, `json`, `datetime`
+and `re` import fine, but many modules (`statistics`, `random`, `itertools`,
+`collections`, `functools`, numpy/pandas) are NOT available — compute means,
+sums, and groupings yourself with plain loops and comprehensions. There is no
+file, network, or OS access. The f-string `,` thousands separator isn't
+supported (write `f"{x:.2f}"`, not `f"{x:,.2f}"`). `print(...)` the intermediate
+numbers you want to reason about afterwards. Keep each block focused, then
+briefly explain the results and charts in plain language."""
+
+
+def _code_execution_guidance() -> str:
+    """run_python guidance — included only when code execution is enabled."""
+    from app.core.config import settings
+
+    return CODE_EXECUTION_GUIDANCE if settings.ENABLE_CODE_EXECUTION else ""
+
+
+DEFAULT_SYSTEM_PROMPT += _code_execution_guidance()
 {%- endif %}
 
 

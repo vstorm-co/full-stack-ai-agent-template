@@ -326,6 +326,7 @@ class ProjectConfig(BaseModel):
     enable_web_fetch: bool = False
     enable_charts: bool = False
     enable_antv_charts: bool = False
+    enable_code_execution: bool = False
     use_telegram: bool = False
     use_slack: bool = False
     enable_cors: bool = True
@@ -813,6 +814,7 @@ class ProjectConfig(BaseModel):
             "enable_charts": self.enable_charts,
             "charts_channel_png": self.enable_charts and (self.use_slack or self.use_telegram),
             "enable_antv_charts": self.enable_antv_charts,
+            "enable_code_execution": self.enable_code_execution,
             "enable_webhooks": self.enable_webhooks,
             # Legacy fixed values (WebSocket always uses JWT)
             "websocket_auth": "jwt",

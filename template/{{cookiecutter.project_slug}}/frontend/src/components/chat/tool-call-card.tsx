@@ -534,7 +534,7 @@ function formatSkillName(name: string): string {
  *  The library returns <skill><name>…</name><description>…</description>…</skill>. */
 function parseLoadSkillResult(result: string): { description: string } | null {
   const m = result.match(/<description>([\s\S]*?)<\/description>/);
-  if (!m) return null;
+  if (!m?.[1]) return null;
   return { description: m[1].trim() };
 }
 

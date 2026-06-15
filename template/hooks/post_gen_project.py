@@ -50,6 +50,7 @@ enable_charts = "{{ cookiecutter.enable_charts }}" == "True"
 charts_channel_png = "{{ cookiecutter.charts_channel_png }}" == "True"
 enable_antv_charts = "{{ cookiecutter.enable_antv_charts }}" == "True"
 enable_code_execution = "{{ cookiecutter.enable_code_execution }}" == "True"
+enable_deep_research = "{{ cookiecutter.enable_deep_research }}" == "True"
 use_pydantic_deep = "{{ cookiecutter.use_pydantic_deep }}" == "True"
 use_telegram = "{{ cookiecutter.use_telegram }}" == "True"
 use_slack = "{{ cookiecutter.use_slack }}" == "True"
@@ -156,6 +157,14 @@ if not enable_antv_charts:
         remove_file(os.path.join(frontend_src, "components", "chat", "map-message.tsx"))
 if not enable_code_execution:
     remove_file(os.path.join(backend_app, "agents", "tools", "code_execution.py"))
+if not enable_deep_research:
+    remove_file(os.path.join(backend_app, "services", "research.py"))
+    remove_file(os.path.join(backend_app, "db", "todo_pool.py"))
+    if use_frontend:
+        frontend_src = os.path.join(os.getcwd(), "frontend", "src")
+        remove_file(os.path.join(frontend_src, "components", "chat", "research-panel.tsx"))
+        remove_file(os.path.join(frontend_src, "stores", "research-store.ts"))
+        remove_file(os.path.join(frontend_src, "stores", "chat-mode-store.ts"))
 
 # --- No-AI mode: remove all AI/chat/conversation files ---
 if not use_ai:

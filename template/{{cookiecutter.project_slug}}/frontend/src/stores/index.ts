@@ -11,3 +11,7 @@ export { useOrgStore } from "./org-store";
 {%- if cookiecutter.enable_rag %}
 export { useKBSelectionStore } from "./kb-selection-store";
 {%- endif %}
+{%- if cookiecutter.enable_deep_research %}
+export { useResearchStore } from "./research-store";
+export { useChatModeStore } from "./chat-mode-store";
+{%- endif %}

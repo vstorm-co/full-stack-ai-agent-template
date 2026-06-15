@@ -143,6 +143,13 @@ export type WSEventType =
   // DeepAgents Human-in-the-Loop event
   | "tool_approval_required"
   | "ask_user"
+{%- if cookiecutter.enable_deep_research %}
+  // Deep research events
+  | "todo_event"
+  | "subagent_status"
+  | "context_usage"
+  | "context_compacted"
+{%- endif %}
   // CrewAI-specific events
   | "crew_start"
   | "crew_started"
@@ -256,3 +263,49 @@ export interface AskUserEvent {
     questions: { question: string; options: string[]; allow_custom: boolean }[];
   };
 }
+{%- if cookiecutter.enable_deep_research %}
+
+export type ResearchTodoStatus = "pending" | "in_progress" | "completed" | "blocked";
+
+export interface ResearchTodo {
+  id: string;
+  content: string;
+  status: ResearchTodoStatus;
+  active_form: string;
+  parent_id: string | null;
+  depends_on: string[];
+}
+
+export interface TodoEventFrame {
+  type: "todo_event";
+  data: {
+    event_type: "created" | "updated" | "status_changed" | "completed" | "deleted";
+    todo: ResearchTodo;
+    previous: ResearchTodo | null;
+    ts: string | null;
+  };
+}
+
+export type SubagentTaskStatus =
+  | "pending"
+  | "running"
+  | "waiting_for_answer"
+  | "completed"
+  | "failed"
+  | "cancelled"
+  | "retrying";
+
+export interface SubagentStatus {
+  task_id: string;
+  subagent_name: string;
+  description: string;
+  status: SubagentTaskStatus;
+  error: string | null;
+}
+
+export interface ContextUsage {
+  pct: number;
+  current: number;
+  max: number;
+}
+{%- endif %}

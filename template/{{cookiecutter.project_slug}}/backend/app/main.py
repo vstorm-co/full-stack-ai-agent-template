@@ -103,6 +103,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[{% if cookiecutter.enable_red
     await redis_client.connect()
     state["redis"] = redis_client
 {%- endif %}
+{%- if cookiecutter.enable_deep_research %}
+
+    if settings.ENABLE_DEEP_RESEARCH:
+        from app.db.todo_pool import init_todo_pool
+
+        await init_todo_pool()
+{%- endif %}
 
 {%- if cookiecutter.enable_caching and cookiecutter.enable_redis %}
     from app.core.cache import setup_cache
@@ -280,6 +287,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[{% if cookiecutter.enable_red
 {%- endif %}
 
     # === Shutdown ===
+{%- if cookiecutter.enable_deep_research %}
+    if settings.ENABLE_DEEP_RESEARCH:
+        from app.db.todo_pool import close_todo_pool
+
+        await close_todo_pool()
+{%- endif %}
 {%- if cookiecutter.enable_redis %}
     if "redis" in state:
         await state["redis"].close()

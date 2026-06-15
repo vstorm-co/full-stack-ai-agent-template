@@ -12,6 +12,9 @@ import { ToolApprovalDialog } from "./tool-approval-dialog";
 import { QuestionPrompt } from "@/components/ui";
 import type { PendingApproval, AskUserQuestion, AskUserAnswer, Decision } from "@/types";
 import { useConversationStore, useChatStore } from "@/stores";
+{%- if cookiecutter.enable_deep_research %}
+import { useResearchStore } from "@/stores";
+{%- endif %}
 import { useConversations } from "@/hooks";
 {%- if cookiecutter.use_auth %}
 import { useSlashCommands } from "@/hooks";
@@ -42,6 +45,7 @@ function AuthenticatedChatContainer() {
     connect,
     disconnect,
     sendMessage,
+    stopGeneration,
     clearMessages,
     queuedMessages,
     cancelQueued,
@@ -83,6 +87,9 @@ function AuthenticatedChatContainer() {
 
     if (shouldClear) {
       clearMessages();
+{%- if cookiecutter.enable_deep_research %}
+      useResearchStore.getState().resetAll();
+{%- endif %}
       // Drop any pending queue when switching threads — those messages were
       // typed in the previous conversation's context, sending them into a
       // different conversation would surprise the user.
@@ -243,6 +250,7 @@ function AuthenticatedChatContainer() {
       onResumeDecisions={sendResumeDecisions}
       pendingQuestions={pendingQuestions}
       onAnswerQuestions={sendAskUserResponses}
+      onStop={stopGeneration}
     />
   );
 }
@@ -272,6 +280,7 @@ interface ChatUIProps {
   onResumeDecisions?: (decisions: Decision[]) => void;
   pendingQuestions?: AskUserQuestion[] | null;
   onAnswerQuestions?: (answers: AskUserAnswer[]) => void;
+  onStop?: () => void;
 }
 
 function ChatUI({
@@ -294,6 +303,7 @@ function ChatUI({
   onResumeDecisions,
   pendingQuestions,
   onAnswerQuestions,
+  onStop,
 }: ChatUIProps) {
   return (
     <div className="flex h-full w-full">
@@ -351,6 +361,7 @@ function ChatUI({
                   !!(pendingQuestions && pendingQuestions.length)
                 }
                 isProcessing={isProcessing}
+                onStop={onStop}
                 slashContext={slashContext}
                 commands={slashCommands}
               />

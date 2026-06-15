@@ -970,6 +970,30 @@ def prompt_skills() -> bool:
     )
 
 
+def prompt_deep_research() -> bool:
+    """Prompt for the deep research agent (PydanticAI only)."""
+    console.print()
+    console.print("[bold cyan]Deep Research Agent[/]")
+    console.print(
+        "Turns the assistant into a deep research agent: a TODO planner, "
+        "researcher/analyst/writer subagents, and an automatic context manager. "
+        "The planner delegates web work to subagents and surfaces progress in a "
+        "live research panel. PydanticAI only. Activate at runtime with "
+        "ENABLE_DEEP_RESEARCH=true."
+    )
+    console.print()
+
+    return cast(
+        bool,
+        _check_cancelled(
+            questionary.confirm(
+                "Enable the deep research agent (PydanticAI only)?",
+                default=False,
+            ).ask()
+        ),
+    )
+
+
 def prompt_langsmith() -> bool:
     """Prompt for LangSmith observability."""
     return cast(
@@ -1482,6 +1506,7 @@ def run_interactive_prompts() -> ProjectConfig:
         "enable_antv_charts": False,
         "enable_code_execution": False,
         "enable_skills": False,
+        "enable_deep_research": False,
         "rag_features": RAGFeatures(),
         "orm_type": OrmType.SQLALCHEMY,
         "sandbox_backend": "state",
@@ -1658,6 +1683,12 @@ def run_interactive_prompts() -> ProjectConfig:
         else:
             state["enable_skills"] = False
 
+    def step_deep_research() -> None:
+        if state["ai_framework"] == AIFrameworkType.PYDANTIC_AI:
+            state["enable_deep_research"] = prompt_deep_research()
+        else:
+            state["enable_deep_research"] = False
+
     def step_langsmith() -> None:
         if state["ai_framework"] in (
             AIFrameworkType.LANGCHAIN,
@@ -1731,6 +1762,7 @@ def run_interactive_prompts() -> ProjectConfig:
         ("AntV Diagrams & Maps", step_antv_charts),
         ("Code Execution", step_code_execution),
         ("Skills System", step_skills),
+        ("Deep Research", step_deep_research),
         ("LangSmith", step_langsmith),
         ("Messaging Channels", step_channels),
         ("Teams & Billing", step_teams_billing),
@@ -1780,6 +1812,7 @@ def run_interactive_prompts() -> ProjectConfig:
     enable_antv_charts = state["enable_antv_charts"]
     enable_code_execution = state["enable_code_execution"]
     enable_skills = state["enable_skills"]
+    enable_deep_research = state["enable_deep_research"]
     rag_features = state["rag_features"]
     enable_langsmith = state["enable_langsmith"]
     use_telegram = state["use_telegram"]
@@ -1825,6 +1858,7 @@ def run_interactive_prompts() -> ProjectConfig:
         enable_antv_charts=enable_antv_charts,
         enable_code_execution=enable_code_execution,
         enable_skills=enable_skills,
+        enable_deep_research=enable_deep_research,
         use_telegram=use_telegram,
         use_slack=use_slack,
         rate_limit_requests=rate_limit_requests,

@@ -7,12 +7,14 @@ in code_execution.py, letting model-written Python fetch live market data and us
 it directly in calculations and charts.
 
 APIs used:
-- yfinance — stock/ETF prices and historical OHLCV data via Yahoo Finance
+- yfinance — stock/ETF prices, historical OHLCV, and 10Y government bond yields
 - Frankfurter (frankfurter.dev) — ECB-sourced FX rates, free, no key needed
+- World Bank (api.worldbank.org) — annual CPI inflation, free, no key needed
 """
 
 import asyncio
 import logging
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -21,10 +23,6 @@ logger = logging.getLogger(__name__)
 
 _TIMEOUT = 10.0
 
-
-# ---------------------------------------------------------------------------
-# Exchange rates — Frankfurter (ECB reference rates, free, no key)
-# ---------------------------------------------------------------------------
 
 async def get_exchange_rate(from_currency: str, to_currency: str) -> dict[str, Any]:
     """Return the latest exchange rate between two currencies.
@@ -60,12 +58,9 @@ async def get_exchange_rate(from_currency: str, to_currency: str) -> dict[str, A
         return {"error": str(e)}
 
 
-# ---------------------------------------------------------------------------
-# Market prices & historical returns — yfinance
-# ---------------------------------------------------------------------------
-
 def _fetch_asset_price_sync(symbol: str) -> dict[str, Any]:
     import yfinance as yf
+
     ticker = yf.Ticker(symbol)
     hist = ticker.history(period="5d", interval="1d")
     if hist.empty:
@@ -99,6 +94,7 @@ async def get_asset_price(symbol: str) -> dict[str, Any]:
 
 def _fetch_annual_returns_sync(symbol: str, years: int) -> dict[str, Any]:
     import yfinance as yf
+
     ticker = yf.Ticker(symbol)
     hist = ticker.history(period=f"{years}y", interval="1mo")
     if hist.empty:
@@ -107,7 +103,6 @@ def _fetch_annual_returns_sync(symbol: str, years: int) -> dict[str, Any]:
     info = ticker.fast_info
     currency = getattr(info, "currency", "") or ""
 
-    # Group by calendar year — keep last close price of each year
     hist.index = hist.index.tz_localize(None) if hist.index.tzinfo is not None else hist.index
     year_close: dict[int, float] = {}
     for dt, row in hist.iterrows():
@@ -156,94 +151,91 @@ async def get_historical_annual_returns(symbol: str, years: int = 10) -> dict[st
         return {"error": str(e)}
 
 
-# ---------------------------------------------------------------------------
-# Government bond yields — curated table + live ^TNX for US
-# ---------------------------------------------------------------------------
+_BOND_TICKERS: dict[str, str] = {
+    "US": "^TNX",
+    "DE": "^BUND",
+    "GB": "^TNX",
+}
 
-def _fetch_bond_yield_sync(country_code: str) -> float | None:
-    """Return the current 10Y government bond yield % for the given country.
-    Falls back to a curated 2024/2025 estimate when live data is unavailable.
-    """
+
+def _fetch_bond_yield_sync(ticker_sym: str) -> float | None:
     import yfinance as yf
 
-    # Live tickers for major markets
-    live_tickers: dict[str, str] = {
-        "US": "^TNX",   # US 10Y Treasury
-        "DE": "^BUND",  # German Bund
-        "GB": "^TNX",   # Approximate with US (no free UK gilt ticker on YF)
-    }
-    ticker_sym = live_tickers.get(country_code.upper())
-    if ticker_sym:
-        try:
-            hist = yf.Ticker(ticker_sym).history(period="5d", interval="1d")
-            if not hist.empty:
-                return round(float(hist["Close"].iloc[-1]), 2)
-        except Exception:
-            pass  # fall through to curated table
-
-    return None
+    hist = yf.Ticker(ticker_sym).history(period="5d", interval="1d")
+    if hist.empty:
+        return None
+    return round(float(hist["Close"].iloc[-1]), 2)
 
 
 async def get_bond_yield(country_code: str = "US") -> dict[str, Any]:
     """Return the current 10-year government bond yield for a country.
 
-    Useful for comparing risk-free rate vs equity returns in FIRE and portfolio
-    analysis (bond allocation yield, real return calculations).
+    Live data via yfinance.
 
     Args:
-        country_code: ISO 3166-1 alpha-2 code, e.g. ``"US"``, ``"DE"``, ``"PL"``.
+        country_code: ISO 3166-1 alpha-2 code, e.g. ``"US"``, ``"DE"``, ``"GB"``.
 
     Returns:
         ``{"country": "US", "yield_pct": 4.35, "maturity": "10Y", "source": "live"}``
+        or ``{"error": "..."}`` when no live series is available.
     """
-    # Curated fallback table (2025 estimates)
-    fallback: dict[str, float] = {
-        "US": 4.3, "DE": 2.5, "GB": 4.2, "PL": 5.6, "FR": 3.1,
-        "IT": 3.8, "ES": 3.3, "CZ": 4.1, "HU": 6.8, "JP": 1.1,
-        "AU": 4.4, "CA": 3.5,
-    }
     code = country_code.upper()
+    ticker_sym = _BOND_TICKERS.get(code)
+    if ticker_sym is None:
+        return {"error": f"No live 10Y bond yield series available for {code!r}"}
     try:
-        live = await asyncio.to_thread(_fetch_bond_yield_sync, code)
-        if live is not None:
-            return {"country": code, "yield_pct": live, "maturity": "10Y", "source": "live"}
+        live = await asyncio.to_thread(_fetch_bond_yield_sync, ticker_sym)
     except Exception as e:
-        logger.warning("get_bond_yield(%s) live fetch failed: %s", code, e)
+        logger.warning("get_bond_yield(%s) failed: %s", code, e)
+        return {"error": str(e)}
+    if live is None:
+        return {"error": f"No live 10Y bond yield data for {code!r}"}
+    return {"country": code, "yield_pct": live, "maturity": "10Y", "source": "live"}
 
-    rate = fallback.get(code, 3.5)
-    return {
-        "country": code,
-        "yield_pct": rate,
-        "maturity": "10Y",
-        "source": "estimate (2025)",
-        "note": "Verify against current market data for precise calculations.",
-    }
-
-
-# ---------------------------------------------------------------------------
-# Inflation estimates — curated fallback table
-# ---------------------------------------------------------------------------
 
 async def get_inflation_rate(country_code: str = "PL") -> dict[str, Any]:
-    """Return the latest available annual inflation rate for a country.
+    """Return the latest available annual CPI inflation rate for a country.
+
+    Live data via the World Bank indicator ``FP.CPI.TOTL.ZG`` (annual % change of
+    consumer prices). Returns the most recent year that has a value.
 
     Args:
         country_code: ISO 3166-1 alpha-2 country code, e.g. ``"PL"``, ``"US"``, ``"DE"``.
 
     Returns:
-        ``{"country": "PL", "inflation_pct": 4.9, "year": 2024, "source": "estimate"}``
+        ``{"country": "PL", "inflation_pct": 4.9, "year": 2024, "source": "World Bank"}``
+        or ``{"error": "..."}`` on failure.
     """
-    fallback: dict[str, float] = {
-        "US": 3.4, "PL": 4.9, "DE": 2.9, "GB": 3.2, "FR": 2.7,
-        "CZ": 2.8, "HU": 4.1, "RO": 5.9, "SK": 3.1, "EU": 2.6,
-    }
     code = country_code.upper()
-    rate = fallback.get(code, 3.0)
-    return {
-        "country": code,
-        "inflation_pct": rate,
-        "year": 2024,
-        "source": "IMF/Eurostat estimate",
-        "note": "Use as planning assumption; verify against latest official data.",
-    }
+    current_year = datetime.now(UTC).year
+    try:
+        async with httpx.AsyncClient(timeout=_TIMEOUT, follow_redirects=True) as client:
+            url = (
+                f"https://api.worldbank.org/v2/country/{code}/indicator/FP.CPI.TOTL.ZG"
+                f"?format=json&per_page=100&date={current_year - 6}:{current_year}"
+            )
+            r = await client.get(url)
+            r.raise_for_status()
+            data = r.json()
+            if not isinstance(data, list) or len(data) < 2 or not data[1]:
+                return {"error": f"No inflation data for {code!r}"}
+            latest: tuple[int, float] | None = None
+            for obs in data[1]:
+                value = obs.get("value")
+                if value is None:
+                    continue
+                year = int(obs["date"])
+                if latest is None or year > latest[0]:
+                    latest = (year, float(value))
+            if latest is None:
+                return {"error": f"No inflation data for {code!r}"}
+            return {
+                "country": code,
+                "inflation_pct": round(latest[1], 2),
+                "year": latest[0],
+                "source": "World Bank",
+            }
+    except Exception as e:
+        logger.warning("get_inflation_rate(%s) failed: %s", code, e)
+        return {"error": str(e)}
 {%- endif %}

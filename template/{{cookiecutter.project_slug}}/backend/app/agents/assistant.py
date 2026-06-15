@@ -57,7 +57,7 @@ from app.agents.tools.rag_tool import search_knowledge_base
 from app.agents.tools.chart_tool import create_chart
 {%- endif %}
 {%- if cookiecutter.enable_antv_charts %}
-from app.agents.tools.antv_chart import get_antv_toolset
+from app.agents.tools.antv_chart import get_antv_capability
 from app.agents.tools.map_tool import MapMarker, create_map
 {%- endif %}
 {%- if cookiecutter.enable_code_execution %}
@@ -227,16 +227,13 @@ class AssistantAgent:
 
 {%- if cookiecutter.enable_antv_charts %}
 
-        # None when AntV is disabled or the sidecar is unavailable.
-        antv_toolset = get_antv_toolset()
-        toolsets = [antv_toolset] if antv_toolset is not None else []
-{%- else %}
-{%- if cookiecutter.enable_skills %}
-        toolsets: list = []
-{%- endif %}
+        antv_capability = get_antv_capability()
+        if antv_capability is not None:
+            capabilities.append(antv_capability)
 {%- endif %}
 {%- if cookiecutter.enable_skills %}
 
+        toolsets: list = []
         skills_dir = Path(__file__).parent.parent.parent / "skills"
         if skills_dir.exists():
             toolsets.append(SkillsToolset(directories=[str(skills_dir)]))
@@ -247,7 +244,7 @@ class AssistantAgent:
             model_settings=model_settings,
             system_prompt=self.system_prompt,
             capabilities=capabilities,
-{%- if cookiecutter.enable_antv_charts or cookiecutter.enable_skills %}
+{%- if cookiecutter.enable_skills %}
             toolsets=toolsets,
 {%- endif %}
         )

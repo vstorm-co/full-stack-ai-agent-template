@@ -47,20 +47,21 @@ def _run_sync(coro: Any) -> Any:
 {%- if cookiecutter.use_pydantic_ai or cookiecutter.use_pydantic_deep %}
 
 
-def get_antv_toolset() -> Any | None:
-    """Return a PydanticAI MCP toolset for the AntV server, or None if disabled.
+def get_antv_capability() -> Any | None:
+    """Return a PydanticAI ``MCP`` capability for the AntV server, or None if disabled.
 
-    PydanticAI connects lazily when the agent runs, so nothing async happens
-    here — the toolset is simply handed to ``Agent(toolsets=[...])``.
+    Handed to ``Agent(capabilities=[...])`` and connects lazily when the agent
+    runs. ``native=False`` forces a local HTTP connection to the self-hosted
+    sidecar, since the model provider cannot reach the internal sidecar URL.
     """
     if not settings.ENABLE_ANTV_CHARTS:
         return None
     try:
-        from pydantic_ai.mcp import MCPServerStreamableHTTP
+        from pydantic_ai.capabilities import MCP
 
-        return MCPServerStreamableHTTP(settings.ANTV_MCP_URL)
+        return MCP(settings.ANTV_MCP_URL, native=False)
     except Exception as exc:
-        logger.warning("AntV MCP toolset unavailable, continuing without it: %s", exc)
+        logger.warning("AntV MCP capability unavailable, continuing without it: %s", exc)
         return None
 {%- endif %}
 {%- if cookiecutter.use_langchain or cookiecutter.use_langgraph or cookiecutter.use_deepagents %}

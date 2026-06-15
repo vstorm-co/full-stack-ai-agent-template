@@ -9,7 +9,7 @@ authors = [
 ]
 
 dependencies = [
-    "fastapi>=0.135.3",
+    "fastapi>=0.135.3,<0.137",
     "uvicorn[standard]>=0.43.0",
 {%- if cookiecutter.use_crewai %}
     # crewai 1.13.x pins pydantic<2.12 and pydantic-settings<2.11 transitively

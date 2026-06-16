@@ -56,7 +56,7 @@ logger = logging.getLogger(__name__)
 
 # Map LLM_PROVIDER settings value → pydantic-ai provider prefix
 _PROVIDER_PREFIXES: dict[str, str] = {
-    "openai": "openai",
+    "openai": "openai-responses",
     "anthropic": "anthropic",
     "google": "google-gla",  # Google AI (Gemini) via GOOGLE_API_KEY
     "openrouter": "openrouter",
@@ -201,16 +201,21 @@ class PydanticDeepAssistant:
     def _get_model_string(self) -> str:
         """Build pydantic-ai model string with provider prefix.
 
-        If the model name already contains ':', returns it unchanged.
-        Otherwise prepends the provider prefix from LLM_PROVIDER setting.
+        If the model name already contains ':', it is used as-is — except a bare
+        ``openai:`` prefix, which is rewritten to ``openai-responses:`` so it hits
+        the Responses API (tools + reasoning models). Otherwise the prefix from the
+        LLM_PROVIDER setting is prepended.
 
         Examples:
-            "gpt-5.5"             → "openai:gpt-5.5"
+            "gpt-5.5"             → "openai-responses:gpt-5.5"
             "claude-opus-4-7"     → "anthropic:claude-opus-4-7"
             "gemini-2.5-flash"    → "google-gla:gemini-2.5-flash"
-            "openai:gpt-5.5"      → "openai:gpt-5.5"  (unchanged)
+            "openai:gpt-5.5"      → "openai-responses:gpt-5.5"  (rewritten)
+            "openai-responses:gpt-5.5" → "openai-responses:gpt-5.5"  (unchanged)
         """
         if ":" in self.model_name:
+            if self.model_name.startswith("openai:"):
+                return f"openai-responses:{self.model_name.removeprefix('openai:')}"
             return self.model_name
         prefix = _PROVIDER_PREFIXES.get(settings.LLM_PROVIDER, settings.LLM_PROVIDER)
         return f"{prefix}:{self.model_name}"

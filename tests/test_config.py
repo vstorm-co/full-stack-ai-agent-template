@@ -439,6 +439,18 @@ class TestOptionCombinationValidation:
                 background_tasks=BackgroundTaskType.NONE,
             )
 
+    def test_deep_research_requires_pydantic_ai(self) -> None:
+        """Test that deep research is only supported with the PydanticAI framework."""
+        with pytest.raises(
+            ValidationError, match="Deep research requires the PydanticAI framework"
+        ):
+            ProjectConfig(
+                project_name="test",
+                ai_framework=AIFrameworkType.LANGCHAIN,
+                enable_deep_research=True,
+                background_tasks=BackgroundTaskType.NONE,
+            )
+
     def test_sqlmodel_requires_sql_database(self) -> None:
         """Test that SQLModel requires PostgreSQL or SQLite database."""
         with pytest.raises(
@@ -781,7 +793,9 @@ class TestEmailValidation:
             "user123@example.co.uk",
         ]
         for email in valid_emails:
-            config = ProjectConfig(project_name="test", author_email=email, background_tasks=BackgroundTaskType.NONE)
+            config = ProjectConfig(
+                project_name="test", author_email=email, background_tasks=BackgroundTaskType.NONE
+            )
             assert config.author_email == email
 
     def test_invalid_email_raises_error(self) -> None:
@@ -795,7 +809,11 @@ class TestEmailValidation:
         ]
         for email in invalid_emails:
             with pytest.raises(ValidationError):
-                ProjectConfig(project_name="test", author_email=email, background_tasks=BackgroundTaskType.NONE)
+                ProjectConfig(
+                    project_name="test",
+                    author_email=email,
+                    background_tasks=BackgroundTaskType.NONE,
+                )
 
 
 class TestRateLimitConfig:

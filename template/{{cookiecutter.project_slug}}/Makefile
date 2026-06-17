@@ -283,8 +283,8 @@ taskiq-scheduler:
 
 # === Docker: Backend (Development) ===
 docker-up:
-	docker-compose build app
-	docker-compose up -d
+	docker compose build app
+	docker compose up -d
 	@echo ""
 	@echo "✅ Backend services started!"
 	@echo "   API: http://localhost:{{ cookiecutter.backend_port }}"
@@ -300,25 +300,25 @@ docker-up:
 {%- endif %}
 
 docker-down:
-	docker-compose down
+	docker compose down
 {%- if cookiecutter.use_frontend %}
-	docker-compose -f docker-compose.frontend.yml down 2>/dev/null || true
+	docker compose -f docker-compose.frontend.yml down 2>/dev/null || true
 {%- endif %}
 
 docker-logs:
-	docker-compose logs -f
+	docker compose logs -f
 
 docker-build:
-	docker-compose build
+	docker compose build
 
 docker-shell:
-	docker-compose exec app /bin/bash
+	docker compose exec app /bin/bash
 
 {%- if cookiecutter.use_frontend %}
 
 # === Docker: Frontend (Development) ===
 docker-frontend:
-	docker-compose -f docker-compose.frontend.yml up -d
+	docker compose -f docker-compose.frontend.yml up -d
 	@echo ""
 	@echo "✅ Frontend started!"
 	@echo "   URL: http://localhost:{{ cookiecutter.frontend_port }}"
@@ -326,18 +326,18 @@ docker-frontend:
 	@echo "Note: Backend must be running (make docker-up)"
 
 docker-frontend-down:
-	docker-compose -f docker-compose.frontend.yml down
+	docker compose -f docker-compose.frontend.yml down
 
 docker-frontend-logs:
-	docker-compose -f docker-compose.frontend.yml logs -f
+	docker compose -f docker-compose.frontend.yml logs -f
 
 docker-frontend-build:
-	docker-compose -f docker-compose.frontend.yml build
+	docker compose -f docker-compose.frontend.yml build
 {%- endif %}
 
 # === Docker: Production (with Traefik) ===
 docker-prod:
-	docker-compose -f docker-compose.prod.yml up -d
+	docker compose -f docker-compose.prod.yml up -d
 	@echo ""
 	@echo "✅ Production services started with Traefik!"
 	@echo ""
@@ -352,36 +352,36 @@ docker-prod:
 	@echo "   Traefik: https://traefik.$$DOMAIN"
 
 docker-prod-down:
-	docker-compose -f docker-compose.prod.yml down
+	docker compose -f docker-compose.prod.yml down
 
 docker-prod-logs:
-	docker-compose -f docker-compose.prod.yml logs -f
+	docker compose -f docker-compose.prod.yml logs -f
 
 docker-prod-build:
-	docker-compose -f docker-compose.prod.yml build
+	docker compose -f docker-compose.prod.yml build
 
 {%- if cookiecutter.use_postgresql %}
 
 # === Docker: Individual Services ===
 docker-db:
-	docker-compose up -d db
+	docker compose up -d db
 	@echo ""
 	@echo "✅ PostgreSQL started on port 5432"
 	@echo "   Connection: postgresql://postgres:postgres@localhost:5432/{{ cookiecutter.project_slug }}"
 
 docker-db-stop:
-	docker-compose stop db
+	docker compose stop db
 {%- endif %}
 
 {%- if cookiecutter.enable_redis %}
 
 docker-redis:
-	docker-compose up -d redis
+	docker compose up -d redis
 	@echo ""
 	@echo "✅ Redis started on port 6379"
 
 docker-redis-stop:
-	docker-compose stop redis
+	docker compose stop redis
 {%- endif %}
 
 {%- if cookiecutter.use_frontend %}

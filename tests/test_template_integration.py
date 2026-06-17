@@ -652,3 +652,48 @@ class TestGeneratedDeepResearch:
         content = session.read_text()
         assert "RESEARCH_TOOL_NAMES" not in content
         assert "made_research_call" not in content
+
+
+# ---------------------------------------------------------------------------
+# Makefile — generated-content checks
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="module")
+def generated_project_makefile(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """Generate a postgres + redis + docker + frontend project for Makefile checks."""
+    config = ProjectConfig(
+        project_name="test_makefile",
+        database=DatabaseType.POSTGRESQL,
+        ai_framework=AIFrameworkType.PYDANTIC_AI,
+        enable_logfire=False,
+        enable_redis=True,
+        frontend=FrontendType.NEXTJS,
+        enable_docker=True,
+        background_tasks=BackgroundTaskType.NONE,
+    )
+    return generate_project(config, tmp_path_factory.mktemp("makefile"))
+
+
+class TestGeneratedMakefile:
+    """Guard the Makefile against the Compose v1 regression in issue #96.
+
+    `make docker-db` (and the other docker-* targets) shelled out to the legacy
+    `docker-compose` binary, which errors with "No such file or directory" on
+    systems that only ship the Compose v2 plugin (`docker compose`).
+    """
+
+    @pytest.mark.slow
+    def test_no_legacy_compose_v1_command(self, generated_project_makefile: Path) -> None:
+        """No recipe may invoke the hyphenated `docker-compose` command."""
+        makefile = (generated_project_makefile / "Makefile").read_text()
+        # The command is `docker-compose ` + args; the `.yml` filenames keep the hyphen.
+        assert "docker-compose " not in makefile
+
+    @pytest.mark.slow
+    def test_docker_db_uses_compose_v2(self, generated_project_makefile: Path) -> None:
+        """The docker-db target must drive the v2 `docker compose` plugin."""
+        makefile = (generated_project_makefile / "Makefile").read_text()
+        assert "docker compose up -d db" in makefile
+        # Compose filenames are still hyphenated — only the command changed.
+        assert "docker-compose.frontend.yml" in makefile

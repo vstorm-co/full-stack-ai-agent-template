@@ -4,8 +4,9 @@ FROM oven/bun:1 AS base
 FROM base AS deps
 WORKDIR /app
 
-# Copy package files
-COPY package.json bun.lockb* ./
+# Copy package files (bun.lock is the current text lockfile; bun.lockb is the
+# legacy binary one — match both so --frozen-lockfile has a lockfile to use).
+COPY package.json bun.lock* ./
 
 # Install dependencies
 RUN bun install --frozen-lockfile
@@ -17,7 +18,22 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Build arguments for environment variables
+# Build arguments for environment variables. NEXT_PUBLIC_* are inlined into the
+# client bundle at build time, and .env.local is dockerignored, so they must be
+# passed as build args (see docker-compose.frontend.yml) or the browser bundle
+# bakes in stale defaults.
+ARG NEXT_PUBLIC_API_URL=http://localhost:{{ cookiecutter.backend_port }}
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_WS_URL=ws://localhost:{{ cookiecutter.backend_port }}
+ENV NEXT_PUBLIC_WS_URL=$NEXT_PUBLIC_WS_URL
+ARG NEXT_PUBLIC_SITE_URL=http://localhost:{{ cookiecutter.frontend_port }}
+ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
+ARG NEXT_PUBLIC_MAX_UPLOAD_SIZE_MB=50
+ENV NEXT_PUBLIC_MAX_UPLOAD_SIZE_MB=$NEXT_PUBLIC_MAX_UPLOAD_SIZE_MB
+{%- if cookiecutter.enable_oauth %}
+ARG NEXT_PUBLIC_OAUTH_PROVIDERS={% if cookiecutter.enable_oauth_google %}google{% endif %}
+ENV NEXT_PUBLIC_OAUTH_PROVIDERS=$NEXT_PUBLIC_OAUTH_PROVIDERS
+{%- endif %}
 ARG NEXT_PUBLIC_RAG_ENABLED=false
 ENV NEXT_PUBLIC_RAG_ENABLED=$NEXT_PUBLIC_RAG_ENABLED
 
@@ -34,7 +50,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 
 RUN useradd --system --uid 1001 nextjs
 
-COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:bun /app/public ./public
 COPY --from=builder --chown=nextjs:bun /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:bun /app/.next/static ./.next/static
 

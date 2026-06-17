@@ -11,6 +11,15 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
+        # NEXT_PUBLIC_* are baked into the browser bundle at build time. The
+        # browser runs on the host, so it reaches the backend on localhost.
+        - NEXT_PUBLIC_API_URL=http://localhost:{{ cookiecutter.backend_port }}
+        - NEXT_PUBLIC_WS_URL=ws://localhost:{{ cookiecutter.backend_port }}
+        - NEXT_PUBLIC_SITE_URL=http://localhost:{{ cookiecutter.frontend_port }}
+        - NEXT_PUBLIC_MAX_UPLOAD_SIZE_MB=50
+{%- if cookiecutter.enable_oauth %}
+        - NEXT_PUBLIC_OAUTH_PROVIDERS={% if cookiecutter.enable_oauth_google %}google{% endif %}
+{%- endif %}
         - NEXT_PUBLIC_RAG_ENABLED={% if cookiecutter.enable_rag %}true{% else %}false{% endif %}
     container_name: {{ cookiecutter.project_slug }}_frontend
     ports:
@@ -26,7 +35,14 @@ services:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:{{ cookiecutter.frontend_port }}/api/health"]
+      # The oven/bun image has no curl/wget, so probe with bun's built-in fetch.
+      test:
+        [
+          "CMD",
+          "bun",
+          "-e",
+          "fetch('http://localhost:{{ cookiecutter.frontend_port }}/api/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))",
+        ]
       interval: 30s
       timeout: 10s
       start_period: 40s

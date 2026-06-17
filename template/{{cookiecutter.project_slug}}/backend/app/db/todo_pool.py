@@ -49,7 +49,7 @@ async def close_todo_pool() -> None:
 
 
 def get_todo_pool() -> asyncpg.Pool | None:
-    """Return the shared."""
+    """Return the shared asyncpg pool, or ``None`` when it could not be created."""
     return _todo_pool
 {%- else %}
 """Deep-research TODO pool — no-op without PostgreSQL.
@@ -63,7 +63,7 @@ from typing import Any
 
 
 async def init_todo_pool() -> Any | None:
-    """Return ``None`` — Postgres-backed."""
+    """Return ``None`` — the TODO pool is Postgres-only."""
     return None
 
 

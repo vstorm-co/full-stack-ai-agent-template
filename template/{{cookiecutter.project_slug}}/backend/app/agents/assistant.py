@@ -171,6 +171,7 @@ class Deps:
     emit_tool_event: EmitToolEvent | None = None
 {%- endif %}
 {%- if cookiecutter.enable_deep_research %}
+    # Required by SubAgentDepsProtocol; kept empty (capabilities carry the agents).
     subagents: dict[str, Any] = field(default_factory=dict)
 
     def clone_for_subagent(self, max_depth: int = 0) -> "Deps":
@@ -254,6 +255,8 @@ class AssistantAgent:
         if self.thinking_effort:
             capabilities.append(Thinking(effort=self.thinking_effort))
 {%- if cookiecutter.enable_web_search or cookiecutter.enable_web_fetch %}
+        # Local DuckDuckGo / fetch (the installed extras) — works uniformly across
+        # all providers, unlike provider-native web search.
 {%- if cookiecutter.enable_deep_research %}
         if not self.deep_research:
 {%- if cookiecutter.enable_web_search %}

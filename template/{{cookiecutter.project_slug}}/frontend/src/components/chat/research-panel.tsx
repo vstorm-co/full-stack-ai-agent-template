@@ -22,7 +22,8 @@ import { cn } from "@/lib/utils";
  * Deep-research tool names hidden from the transcript and surfaced in the panel
  * instead. A research turn spans several step-messages, so these calls would
  * otherwise render as dozens of separate cards. `message-item.tsx` imports this
- * to drop them; this panel aggregates them into one live expander.
+ * to drop them; this panel aggregates them into one live expander. Mirrors the
+ * backend `RESEARCH_TOOL_NAMES` in `app/services/research.py`.
  */
 export const RESEARCH_TOOL_NAMES = new Set([
   "add_todo",

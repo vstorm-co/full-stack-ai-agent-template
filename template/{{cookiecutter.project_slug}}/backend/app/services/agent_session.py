@@ -65,7 +65,7 @@ from app.services.usage import UsageService
 {%- endif %}
 {%- if cookiecutter.enable_deep_research %}
 from app.core.config import settings
-from app.services.research import ResearchToolkit
+from app.services.research import RESEARCH_TOOL_NAMES, ResearchToolkit
 {%- endif %}
 
 logger = logging.getLogger(__name__)
@@ -138,7 +138,9 @@ class AgentSession:
             self._turn_task = None
         if not task.cancelled():
             exc = task.exception()
-            if exc is not None:
+            if isinstance(exc, WebSocketDisconnect):
+                logger.info("Client disconnected during agent turn")
+            elif exc is not None:
                 logger.error("Agent turn task crashed", exc_info=exc)
 
     async def _run_turn(self, data: dict[str, Any]) -> None:
@@ -208,6 +210,10 @@ class AgentSession:
             if deep_research and self.current_conversation_id:
                 self._research = ResearchToolkit(self._send, model_name=data.get("model"))
                 research_capabilities = await self._research.build(self.current_conversation_id)
+            else:
+                # No conversation_id to scope the capabilities → run the normal
+                # assistant, not the research persona without its tools.
+                deep_research = False
 {%- endif %}
             assistant = get_agent(
                 model_name=data.get("model"),
@@ -274,6 +280,8 @@ class AgentSession:
                     poller.cancel()
                     with contextlib.suppress(asyncio.CancelledError):
                         await poller
+                if self._research is not None:
+                    await self._research.flush()
 {%- endif %}
 {%- else %}
             async with assistant.agent.iter(
@@ -584,16 +592,17 @@ class AgentSession:
 {%- if cookiecutter.enable_deep_research %}
 
         During a deep research turn the model narrates every delegation step.
-        A plain-text response ends a PydanticAI run, so any step that also
-        issues tool calls is interstitial: its text is buffered and dropped,
-        while a step with no tool calls is the final answer and its text is
-        released. Reasoning and tool events are always forwarded.
+        A plain-text response ends a PydanticAI run, so a step that issues a
+        planning/delegation tool call (``RESEARCH_TOOL_NAMES``) is interstitial:
+        its text is buffered and dropped. A step with only content tools (charts,
+        RAG) or no tool calls is the final answer and its text is released.
+        Reasoning and tool events are always forwarded.
 {%- endif %}
         """
 {%- if cookiecutter.enable_deep_research %}
         deep_research = self._research is not None
         buffered_text: list[tuple[int, str]] = []
-        made_tool_call = False
+        tool_names: dict[int, str] = {}
 
         async def emit_text(index: int, content: str) -> None:
             if not content:
@@ -614,7 +623,8 @@ class AgentSession:
                 )
 {%- if cookiecutter.enable_deep_research %}
                 if isinstance(event.part, ToolCallPart):
-                    made_tool_call = True
+                    if event.part.tool_name:
+                        tool_names[event.index] = event.part.tool_name
                 elif isinstance(event.part, TextPart) and event.part.content:
                     await emit_text(event.index, event.part.content)
 {%- else %}
@@ -651,7 +661,10 @@ class AgentSession:
                         )
                 elif isinstance(event.delta, ToolCallPartDelta):
 {%- if cookiecutter.enable_deep_research %}
-                    made_tool_call = True
+                    if event.delta.tool_name_delta:
+                        tool_names[event.index] = (
+                            tool_names.get(event.index, "") + event.delta.tool_name_delta
+                        )
 {%- endif %}
                     await send_event(
                         self.websocket,
@@ -666,7 +679,8 @@ class AgentSession:
                 )
 {%- if cookiecutter.enable_deep_research %}
 
-        if deep_research and buffered_text and not made_tool_call:
+        made_research_call = any(name in RESEARCH_TOOL_NAMES for name in tool_names.values())
+        if deep_research and buffered_text and not made_research_call:
             for index, content in buffered_text:
                 await send_event(
                     self.websocket, "text_delta", {"index": index, "content": content}
@@ -788,7 +802,9 @@ class AgentSession:
             self._turn_task = None
         if not task.cancelled():
             exc = task.exception()
-            if exc is not None:
+            if isinstance(exc, WebSocketDisconnect):
+                logger.info("Client disconnected during agent turn")
+            elif exc is not None:
                 logger.error("Agent turn task crashed", exc_info=exc)
 
     async def _run_turn(self, data: dict[str, Any]) -> None:
@@ -1249,7 +1265,9 @@ class AgentSession:
             self._turn_task = None
         if not task.cancelled():
             exc = task.exception()
-            if exc is not None:
+            if isinstance(exc, WebSocketDisconnect):
+                logger.info("Client disconnected during agent turn")
+            elif exc is not None:
                 logger.error("Agent turn task crashed", exc_info=exc)
 
     async def _run_turn(self, data: dict[str, Any]) -> None:
@@ -1703,7 +1721,9 @@ class AgentSession:
             self._turn_task = None
         if not task.cancelled():
             exc = task.exception()
-            if exc is not None:
+            if isinstance(exc, WebSocketDisconnect):
+                logger.info("Client disconnected during agent turn")
+            elif exc is not None:
                 logger.error("Agent turn task crashed", exc_info=exc)
 
     async def _run_turn(self, data: dict[str, Any]) -> None:
@@ -2111,7 +2131,9 @@ class AgentSession:
             self._turn_task = None
         if not task.cancelled():
             exc = task.exception()
-            if exc is not None:
+            if isinstance(exc, WebSocketDisconnect):
+                logger.info("Client disconnected during agent turn")
+            elif exc is not None:
                 logger.error("Agent turn task crashed", exc_info=exc)
 
     async def _run_turn(self, data: dict[str, Any]) -> None:
@@ -2728,7 +2750,9 @@ class AgentSession:
             self._turn_task = None
         if not task.cancelled():
             exc = task.exception()
-            if exc is not None:
+            if isinstance(exc, WebSocketDisconnect):
+                logger.info("Client disconnected during agent turn")
+            elif exc is not None:
                 logger.error("Agent turn task crashed", exc_info=exc)
 
     async def _run_turn(self, data: dict[str, Any]) -> None:

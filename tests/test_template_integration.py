@@ -326,6 +326,24 @@ MATRIX_CONFIGS: dict[str, dict] = {
         enable_charts=True,
         background_tasks=BackgroundTaskType.NONE,
     ),
+    # Deep research: PG path (asyncpg TODO pool + persistence) with the frontend
+    # panel, plus a sqlite path that exercises the in-memory TODO fallback.
+    "pydantic_ai_deep_research_pg": dict(
+        database=DatabaseType.POSTGRESQL,
+        ai_framework=AIFrameworkType.PYDANTIC_AI,
+        enable_logfire=False,
+        enable_deep_research=True,
+        enable_charts=True,
+        frontend=FrontendType.NEXTJS,
+        background_tasks=BackgroundTaskType.NONE,
+    ),
+    "pydantic_ai_deep_research_sqlite": dict(
+        database=DatabaseType.SQLITE,
+        ai_framework=AIFrameworkType.PYDANTIC_AI,
+        enable_logfire=False,
+        enable_deep_research=True,
+        background_tasks=BackgroundTaskType.NONE,
+    ),
     "rag_pgvector": dict(
         database=DatabaseType.POSTGRESQL,
         background_tasks=BackgroundTaskType.NONE,
@@ -352,7 +370,9 @@ MATRIX_CONFIGS: dict[str, dict] = {
 
 
 @pytest.fixture(params=sorted(MATRIX_CONFIGS), scope="module")
-def matrix_project(tmp_path_factory: pytest.TempPathFactory, request: pytest.FixtureRequest) -> Path:
+def matrix_project(
+    tmp_path_factory: pytest.TempPathFactory, request: pytest.FixtureRequest
+) -> Path:
     """Generate a project for a single matrix entry, shared across checks."""
     name: str = request.param
     out_dir = tmp_path_factory.mktemp(f"matrix_{name}")
@@ -459,7 +479,9 @@ class TestGeneratedTemplateAntvCharts:
         """parse_map_spec was removed (dead export); must not appear in generated code."""
         tools_dir = generated_project_antv / "backend" / "app" / "agents" / "tools"
         for f in tools_dir.rglob("*.py"):
-            assert "parse_map_spec" not in f.read_text(), f"{f.name} still references parse_map_spec"
+            assert "parse_map_spec" not in f.read_text(), (
+                f"{f.name} still references parse_map_spec"
+            )
 
     @pytest.mark.slow
     def test_assistant_uses_typed_markers(self, generated_project_antv: Path) -> None:
@@ -469,11 +491,164 @@ class TestGeneratedTemplateAntvCharts:
         assert "list[MapMarker]" in content
 
     @pytest.mark.slow
-    def test_antv_chart_langchain_has_module_cache(self, generated_project_antv_langchain: Path) -> None:
+    def test_antv_chart_langchain_has_module_cache(
+        self, generated_project_antv_langchain: Path
+    ) -> None:
         """get_antv_langchain_tools must use a module-level cache to avoid per-request MCP work."""
         antv = (
-            generated_project_antv_langchain / "backend" / "app" / "agents" / "tools" / "antv_chart.py"
+            generated_project_antv_langchain
+            / "backend"
+            / "app"
+            / "agents"
+            / "tools"
+            / "antv_chart.py"
         )
         content = antv.read_text()
         assert "_antv_langchain_tools" in content
         assert "if _antv_langchain_tools is not None" in content
+
+
+# ---------------------------------------------------------------------------
+# Deep research — generated-content checks
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="module")
+def generated_project_deep_research(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """Generate a pydantic_ai + PG + deep_research + frontend project for content checks."""
+    config = ProjectConfig(
+        project_name="test_deep_research",
+        database=DatabaseType.POSTGRESQL,
+        ai_framework=AIFrameworkType.PYDANTIC_AI,
+        enable_logfire=False,
+        enable_deep_research=True,
+        enable_charts=True,
+        frontend=FrontendType.NEXTJS,
+        background_tasks=BackgroundTaskType.NONE,
+    )
+    return generate_project(config, tmp_path_factory.mktemp("deep_research"))
+
+
+@pytest.fixture(scope="module")
+def generated_project_deep_research_off(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """Generate the same project with deep research OFF to assert cleanup."""
+    config = ProjectConfig(
+        project_name="test_no_deep_research",
+        database=DatabaseType.POSTGRESQL,
+        ai_framework=AIFrameworkType.PYDANTIC_AI,
+        enable_logfire=False,
+        enable_deep_research=False,
+        frontend=FrontendType.NEXTJS,
+        background_tasks=BackgroundTaskType.NONE,
+    )
+    return generate_project(config, tmp_path_factory.mktemp("no_deep_research"))
+
+
+class TestGeneratedDeepResearch:
+    """Verify the deep-research feature renders correctly and is fully gated.
+
+    Guards the production-readiness fixes: the interstitial-tool gate (so a final
+    report carrying a chart still streams), the no-conversation_id fallback, the
+    shared RESEARCH_TOOL_NAMES set, and the post_gen cleanup when the flag is off.
+    """
+
+    @pytest.mark.slow
+    def test_research_module_defines_shared_tool_names(
+        self, generated_project_deep_research: Path
+    ) -> None:
+        """research.py owns the canonical interstitial-tool set and a telemetry flush."""
+        research = generated_project_deep_research / "backend" / "app" / "services" / "research.py"
+        assert research.exists()
+        content = research.read_text()
+        assert "RESEARCH_TOOL_NAMES = frozenset(" in content
+        assert "async def flush(self)" in content
+
+    @pytest.mark.slow
+    def test_session_gates_buffer_on_research_tools(
+        self, generated_project_deep_research: Path
+    ) -> None:
+        """The buffer drops text only for research-tool steps, not content tools (charts)."""
+        session = (
+            generated_project_deep_research / "backend" / "app" / "services" / "agent_session.py"
+        )
+        content = session.read_text()
+        assert "from app.services.research import RESEARCH_TOOL_NAMES, ResearchToolkit" in content
+        assert "made_research_call = any(name in RESEARCH_TOOL_NAMES" in content
+        # The old indiscriminate drop must be gone.
+        assert "made_tool_call" not in content
+
+    @pytest.mark.slow
+    def test_session_falls_back_without_conversation_id(
+        self, generated_project_deep_research: Path
+    ) -> None:
+        """Without a conversation_id, deep_research is disabled rather than left tool-less."""
+        session = (
+            generated_project_deep_research / "backend" / "app" / "services" / "agent_session.py"
+        )
+        content = session.read_text()
+        assert "if deep_research and self.current_conversation_id:" in content
+        assert "deep_research = False" in content
+
+    @pytest.mark.slow
+    def test_frontend_panel_mirrors_backend(self, generated_project_deep_research: Path) -> None:
+        """The frontend tool-name set is generated and documents the backend mirror."""
+        panel = (
+            generated_project_deep_research
+            / "frontend"
+            / "src"
+            / "components"
+            / "chat"
+            / "research-panel.tsx"
+        )
+        assert panel.exists()
+        content = panel.read_text()
+        assert "RESEARCH_TOOL_NAMES" in content
+        assert "app/services/research.py" in content
+
+    @pytest.mark.slow
+    def test_no_jinja_leftovers(self, generated_project_deep_research: Path) -> None:
+        """No unrendered Jinja markers in the deep-research files."""
+        files = [
+            generated_project_deep_research / "backend" / "app" / "services" / "research.py",
+            generated_project_deep_research / "backend" / "app" / "db" / "todo_pool.py",
+            generated_project_deep_research / "backend" / "app" / "services" / "agent_session.py",
+            generated_project_deep_research
+            / "frontend"
+            / "src"
+            / "components"
+            / "chat"
+            / "research-panel.tsx",
+        ]
+        for f in files:
+            content = f.read_text()
+            assert "{%" not in content and "{{" not in content, f"Jinja leftover in {f.name}"
+
+    @pytest.mark.slow
+    def test_files_removed_when_disabled(self, generated_project_deep_research_off: Path) -> None:
+        """post_gen removes every deep-research file when the flag is off."""
+        root = generated_project_deep_research_off
+        removed = [
+            root / "backend" / "app" / "services" / "research.py",
+            root / "backend" / "app" / "db" / "todo_pool.py",
+            root / "frontend" / "src" / "components" / "chat" / "research-panel.tsx",
+            root / "frontend" / "src" / "stores" / "research-store.ts",
+            root / "frontend" / "src" / "stores" / "chat-mode-store.ts",
+        ]
+        for f in removed:
+            assert not f.exists(), f"{f} should be removed when deep research is off"
+
+    @pytest.mark.slow
+    def test_disabled_session_keeps_original_streaming(
+        self, generated_project_deep_research_off: Path
+    ) -> None:
+        """With the flag off, the session has no research buffering."""
+        session = (
+            generated_project_deep_research_off
+            / "backend"
+            / "app"
+            / "services"
+            / "agent_session.py"
+        )
+        content = session.read_text()
+        assert "RESEARCH_TOOL_NAMES" not in content
+        assert "made_research_call" not in content

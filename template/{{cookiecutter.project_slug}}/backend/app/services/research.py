@@ -3,8 +3,8 @@
 The deep-research assistant is the normal assistant plus three composable
 capabilities:
 
-    storage's async event emitter streams each change to the client as a live
-    checklist.
+  - **todo planner** (``pydantic-ai-todo``) — a shared plan whose async storage
+    event emitter streams each change to the client as a live checklist.
   - **subagents** (``subagents-pydantic-ai``) — parallel researcher/analyst/writer
     delegates, polled for live status cards.
   - **context manager** (``summarization-pydantic-ai``) — keeps the planner's
@@ -43,6 +43,29 @@ from app.db.todo_pool import get_todo_pool
 {%- endif %}
 
 logger = logging.getLogger(__name__)
+
+# Planning/delegation tools the planner narrates around. A model step that calls
+# one of these is interstitial (its text is dropped); content tools (charts, RAG)
+# are not, so a final report carrying a chart still streams. Mirrors the frontend
+# ``RESEARCH_TOOL_NAMES`` in ``components/chat/research-panel.tsx``.
+RESEARCH_TOOL_NAMES = frozenset(
+    {
+        "add_todo",
+        "update_todo_status",
+        "write_todos",
+        "remove_todo",
+        "add_subtask",
+        "set_dependency",
+        "read_todos",
+        "get_available_tasks",
+        "task",
+        "wait_tasks",
+        "check_task",
+        "list_active_tasks",
+        "send_message_to_subagent",
+        "answer_subagent",
+    }
+)
 
 
 def _subagent_configs() -> list[SubAgentConfig]:
@@ -132,14 +155,14 @@ def _todo_event_payload(event: TodoEvent) -> dict[str, Any]:
 class ResearchToolkit:
     """Builds and owns the deep-research capabilities for a single turn.
 
-    One instance per turn. :meth:`build` wires the
-    the session's WebSocket and returns the capabilities to hand to the agent.
+    One instance per turn. :meth:`build` wires the capabilities to the session's
+    WebSocket emitter and returns them to hand to the agent.
     """
 
     def __init__(self, emit: EmitEvent, model_name: str | None = None) -> None:
         self._emit = emit
         self._model_name = model_name or settings.AI_MODEL
-        self._storage: AsyncMemoryStorage | None = None
+        self._storage: Any = None
         self.subagent_capability: SubAgentCapability | None = None
         self.context_manager: ContextManagerCapability | None = None
         self._bg_tasks: set[asyncio.Task[Any]] = set()
@@ -147,7 +170,7 @@ class ResearchToolkit:
     async def build(self, conversation_id: str) -> list[Any]:
         """Build the ordered capability list for this turn.
 
-        ``conversation_id`` scopes the
+        ``conversation_id`` scopes the TODO storage. The context manager is kept
         last, as ``summarization-pydantic-ai`` requires.
         """
         capabilities: list[Any] = []
@@ -169,6 +192,12 @@ class ResearchToolkit:
             return
         self._bg_tasks.add(task)
         task.add_done_callback(self._bg_tasks.discard)
+
+    async def flush(self) -> None:
+        """Await the fire-and-forget telemetry emits so the last usage/compaction
+        frame lands before the turn's terminal ``complete``."""
+        if self._bg_tasks:
+            await asyncio.gather(*self._bg_tasks, return_exceptions=True)
 
     def _build_context_manager(self) -> ContextManagerCapability:
         """Build the bounded-context capability with usage + compaction telemetry.
@@ -211,7 +240,8 @@ class ResearchToolkit:
         return cap
 
     async def _build_todo_capability(self, conversation_id: str) -> TodoCapability | None:
-        """
+        """Build the TODO planner capability and stream its events to the client.
+
         Use the shared asyncpg pool when available (events + persistence), else an
         in-memory backend (events still fire, no persistence).
         """

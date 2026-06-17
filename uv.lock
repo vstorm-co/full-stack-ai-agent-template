@@ -602,7 +602,7 @@ wheels = [
 
 [[package]]
 name = "fastapi-fullstack"
-version = "0.2.11"
+version = "0.2.12"
 source = { editable = "." }
 dependencies = [
     { name = "arq" },

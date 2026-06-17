@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.12] - 2026-06-17
+
+### Added
+
+- **Deep Research mode** (`enable_deep_research`, `--deep-research`, PydanticAI only) — turns the assistant into a deep-research agent: a TODO planner (`pydantic-ai-todo`), parallel researcher/analyst/writer subagents (`subagents-pydantic-ai`), and an automatic context manager (`summarization-pydantic-ai`). The planner clarifies scope, plans the work, delegates web research to subagents, and composes a cited report; progress streams to a dedicated live research panel (plan checklist, subagent status cards, context-usage meter) while the final report streams back as a normal message. TODO state persists in PostgreSQL when available, else in memory. Activated at runtime with `ENABLE_DEEP_RESEARCH=true`; a client can opt a single turn out with `deep_research=false`. Gated behind the new flag and PydanticAI-only by a config validator — when off, the template generates exactly as before. Ships with a stop control and a per-turn research store in the web chat (#90)
+
+### Fixed
+
+- **`make install` failed with `Failed to spawn: pre-commit`** — dev tools (`pytest`, `ruff`, `ty`, `pre-commit`, …) lived under `[project.optional-dependencies].dev`, which uv only installs via its deprecated `dev`-extra special-casing; on uv versions where `uv sync --dev` targets the PEP 735 group instead, they were skipped entirely. Moved them to `[dependency-groups]` so `uv sync` / `uv sync --dev` install them deterministically and `--no-dev` (prod Dockerfile) still excludes them (#95, #101)
+- **`make docker-db` (and the other `docker-*` / `docker-prod-*` / `docker-redis` targets) errored `docker-compose: No such file or directory`** — those recipes shelled out to the legacy Compose v1 binary while the dev/quickstart targets already used Compose v2. Every recipe now invokes `docker compose`; the `docker-compose.*.yml` filenames are unchanged (#96, #100)
+- **Frontend Docker build (`make dev-frontend`) failed to build the image** — the Dockerfile copied a `bun.lockb*` glob that never matched the current text `bun.lock` (so `bun install --frozen-lockfile` had no lockfile and errored), the healthcheck shelled out to a `curl` the `oven/bun` image doesn't ship, and the `NEXT_PUBLIC_*` client vars were never passed as build args. Copies `bun.lock*`, passes the public env vars as build args (Dockerfile + compose), probes the healthcheck with bun's `fetch`, chowns the copied `public/`, and guards `parseLoadSkillResult` so `bun run build` type-checks (#97, #99)
+- **PydanticDeep OpenAI models** are now routed to the OpenAI Responses API (#93)
+- **Taskiq worker and scheduler containers stay healthy**; the taskiq-only worker regression test is removed from celery/arq/none projects so it doesn't linger as an empty file (#94)
+
+### Dependencies
+
+- Pinned `fastapi>=0.135.3,<0.137` in generated backends — FastAPI 0.137 made prefix-less `include_router` reject the documented `@router.get("")` empty-path idiom, breaking every generated project at import (#90)
+- Added `pydantic-ai-todo`, `subagents-pydantic-ai`, and `summarization-pydantic-ai` to generated backends when `enable_deep_research` is on (#90)
+- Bumped `codecov/codecov-action` 6 → 7 in the CI actions group (#89)
+
 ## [0.2.11] - 2026-06-12
 
 ### Added

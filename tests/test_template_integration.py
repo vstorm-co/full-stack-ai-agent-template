@@ -655,6 +655,79 @@ class TestGeneratedDeepResearch:
 
 
 # ---------------------------------------------------------------------------
+# Frontend Docker build — generated-content checks
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="module")
+def generated_project_frontend_docker(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """Generate a frontend + docker + oauth project for Dockerfile/compose checks."""
+    config = ProjectConfig(
+        project_name="test_fe_docker",
+        database=DatabaseType.POSTGRESQL,
+        ai_framework=AIFrameworkType.PYDANTIC_AI,
+        enable_logfire=False,
+        frontend=FrontendType.NEXTJS,
+        oauth_provider=OAuthProvider.GOOGLE,
+        enable_docker=True,
+        background_tasks=BackgroundTaskType.NONE,
+    )
+    return generate_project(config, tmp_path_factory.mktemp("fe_docker"))
+
+
+class TestGeneratedFrontendDocker:
+    """Guard the frontend Docker build against the regressions in issue #97.
+
+    `make dev-frontend` failed because the Dockerfile copied a `bun.lockb*` glob
+    that never matched the current text `bun.lock`, the healthcheck shelled out to
+    a `curl` the oven/bun image doesn't ship, and the NEXT_PUBLIC_* client vars
+    were never passed as build args.
+    """
+
+    @pytest.mark.slow
+    def test_dockerfile_copies_text_lockfile(self, generated_project_frontend_docker: Path) -> None:
+        """The COPY glob must match bun.lock (text), not only the legacy bun.lockb."""
+        dockerfile = (generated_project_frontend_docker / "frontend" / "Dockerfile").read_text()
+        assert "COPY package.json bun.lock* ./" in dockerfile
+        assert "bun.lockb* ./" not in dockerfile
+
+    @pytest.mark.slow
+    def test_dockerfile_passes_public_env_build_args(
+        self, generated_project_frontend_docker: Path
+    ) -> None:
+        """NEXT_PUBLIC_* are inlined at build time, so they must be build args."""
+        dockerfile = (generated_project_frontend_docker / "frontend" / "Dockerfile").read_text()
+        assert "ARG NEXT_PUBLIC_API_URL=" in dockerfile
+        assert "ARG NEXT_PUBLIC_WS_URL=" in dockerfile
+        # oauth project → providers baked into the client bundle for the buttons.
+        assert "ARG NEXT_PUBLIC_OAUTH_PROVIDERS=google" in dockerfile
+
+    @pytest.mark.slow
+    def test_dockerfile_public_copy_has_chown(
+        self, generated_project_frontend_docker: Path
+    ) -> None:
+        """The public/ copy must set ownership like the other runner copies."""
+        dockerfile = (generated_project_frontend_docker / "frontend" / "Dockerfile").read_text()
+        assert "COPY --from=builder --chown=nextjs:bun /app/public ./public" in dockerfile
+
+    @pytest.mark.slow
+    def test_compose_healthcheck_avoids_curl(self, generated_project_frontend_docker: Path) -> None:
+        """The healthcheck must invoke bun, not the curl the oven/bun image lacks."""
+        compose = (generated_project_frontend_docker / "docker-compose.frontend.yml").read_text()
+        assert '"curl"' not in compose
+        assert '"bun"' in compose
+
+    @pytest.mark.slow
+    def test_compose_passes_public_env_build_args(
+        self, generated_project_frontend_docker: Path
+    ) -> None:
+        """Compose must forward the NEXT_PUBLIC_* build args to the image."""
+        compose = (generated_project_frontend_docker / "docker-compose.frontend.yml").read_text()
+        assert "NEXT_PUBLIC_API_URL=http://localhost:" in compose
+        assert "NEXT_PUBLIC_WS_URL=ws://localhost:" in compose
+
+
+# ---------------------------------------------------------------------------
 # Makefile — generated-content checks
 # ---------------------------------------------------------------------------
 

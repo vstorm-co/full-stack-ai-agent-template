@@ -6,11 +6,9 @@
 
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
-{%- if cookiecutter.use_sqlite %}
-ServiceMock = MagicMock
-{%- else %}
+
+# UserService methods are async for every database, so mock them with AsyncMock.
 ServiceMock = AsyncMock
-{%- endif %}
 from uuid import uuid4
 
 import pytest
@@ -74,17 +72,10 @@ def mock_superuser() -> MockUser:
 def mock_user_service(mock_user: MockUser) -> MagicMock:
     """Create a mock user service."""
     service = MagicMock()
-{%- if cookiecutter.use_sqlite %}
-    service.get_by_id = MagicMock(return_value=mock_user)
-    service.get_multi = MagicMock(return_value=[mock_user])
-    service.update = MagicMock(return_value=mock_user)
-    service.delete = MagicMock(return_value=mock_user)
-{%- else %}
     service.get_by_id = ServiceMock(return_value=mock_user)
     service.get_multi = ServiceMock(return_value=[mock_user])
     service.update = ServiceMock(return_value=mock_user)
     service.delete = ServiceMock(return_value=mock_user)
-{%- endif %}
     return service
 
 

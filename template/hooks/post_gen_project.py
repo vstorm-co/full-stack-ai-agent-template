@@ -440,12 +440,14 @@ if not use_any_background_tasks:
     remove_file(os.path.join(worker_dir, "taskiq_app.py"))
     remove_file(os.path.join(worker_dir, "arq_app.py"))
     remove_dir(os.path.join(worker_dir, "tasks"))
+    remove_file(os.path.join(backend_tests, "test_worker_taskiq.py"))
 else:
     if not use_celery:
         remove_file(os.path.join(worker_dir, "celery_app.py"))
     if not use_taskiq:
         remove_file(os.path.join(worker_dir, "taskiq_app.py"))
         remove_file(os.path.join(worker_dir, "tasks", "schedules.py"))
+        remove_file(os.path.join(backend_tests, "test_worker_taskiq.py"))
     if not use_arq:
         remove_file(os.path.join(worker_dir, "arq_app.py"))
 

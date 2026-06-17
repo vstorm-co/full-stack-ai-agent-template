@@ -422,6 +422,22 @@ invalid-return-type = "warn"
 # CrewAI/langgraph runtime classes use kwargs that ty stubs don't enumerate
 invalid-type-form = "warn"
 
+# The framework agent wrappers (langchain/langgraph/deepagents/pydantic-deep)
+# are thin adapters over heavily-untyped third-party libraries — LangGraph's
+# Pregel.ainvoke/astream, create_agent/create_deep_agent overloads, RunnableConfig
+# TypedDicts, Agent[...] generic variance. ty can't reconcile their stubs, but the
+# calls are correct at runtime; silence those rule families in the adapters only
+# (name-resolution rules stay on, so real typos are still caught).
+[[tool.ty.overrides]]
+include = ["app/agents/*_assistant.py"]
+
+[tool.ty.overrides.rules]
+invalid-argument-type = "ignore"
+no-matching-overload = "ignore"
+invalid-return-type = "ignore"
+invalid-assignment = "ignore"
+unknown-argument = "ignore"
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 

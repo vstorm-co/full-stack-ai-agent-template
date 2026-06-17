@@ -48,14 +48,14 @@ class WebhookHandler:
         if existing is not None:
             db_event = existing
             db_event.status = "pending"
-            db_event.payload = dict(event)
+            db_event.payload = dict(event)  # ty: ignore[no-matching-overload]
             await self.db.flush()
         else:
             db_event = await stripe_event_repo.create(
                 self.db,
                 stripe_event_id=event.id,
                 event_type=event.type,
-                payload=dict(event),
+                payload=dict(event),  # ty: ignore[no-matching-overload]
             )
 
         handler = EVENT_HANDLERS.get(event.type)

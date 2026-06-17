@@ -118,9 +118,11 @@ class InvitationCreate(BaseSchema):
 
 class InvitationRead(BaseSchema):
     id: _ID
+    organization_id: _ID
     email: str
     role: str
     status: str
+    token: str
     expires_at: datetime
     created_at: datetime
     invited_by: Optional[UserRead] = None

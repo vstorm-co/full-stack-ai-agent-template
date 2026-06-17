@@ -45,7 +45,7 @@ async def list_projects(
         limit=limit,
         include_archived=include_archived,
     )
-    return ProjectList(items=items, total=total)
+    return ProjectList(items=items, total=total)  # ty: ignore[invalid-argument-type]
 
 
 @router.post("", response_model=ProjectRead, status_code=status.HTTP_201_CREATED)
@@ -133,7 +133,7 @@ async def list_members(
 ) -> Any:
     """List all members of a project. Requires viewer access."""
     members = await service.list_members(project_id, user_id=user.id)
-    return ProjectMemberList(items=members, total=len(members))
+    return ProjectMemberList(items=members, total=len(members))  # ty: ignore[invalid-argument-type]
 
 
 @router.post(

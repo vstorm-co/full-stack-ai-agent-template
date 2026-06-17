@@ -3,6 +3,7 @@
 
 import uuid
 import logging
+from typing import NoReturn
 
 import stripe
 
@@ -25,7 +26,7 @@ class StripeClient:
     """
 
     @staticmethod
-    def _handle_error(exc: Exception, context: dict | None = None) -> None:
+    def _handle_error(exc: Exception, context: dict | None = None) -> NoReturn:
         logger.exception("stripe_error", extra=context or {})
         if isinstance(exc, stripe.CardError):
             raise StripeCardError(message=str(exc), details={"stripe_code": exc.code}) from exc
@@ -41,7 +42,7 @@ class StripeClient:
         try:
             return await stripe.Customer.create_async(
                 email=email,
-                name=name,
+                name=name,  # ty: ignore[invalid-argument-type]
                 metadata={"org_id": str(org_id)},
                 idempotency_key=f"customer_create_{org_id}",
             )
@@ -52,7 +53,7 @@ class StripeClient:
         try:
             return stripe.Customer.create(
                 email=email,
-                name=name,
+                name=name,  # ty: ignore[invalid-argument-type]
                 metadata={"org_id": org_id},
                 idempotency_key=f"customer_create_{org_id}",
             )
@@ -125,7 +126,7 @@ class StripeClient:
             return await stripe.Subscription.modify_async(
                 subscription_id,
                 items=[{"id": item_id, "price": new_stripe_price_id}],
-                proration_behavior=proration_behavior,
+                proration_behavior=proration_behavior,  # ty: ignore[invalid-argument-type]
             )
         except Exception as exc:
             StripeClient._handle_error(exc, {"subscription_id": subscription_id})
@@ -157,7 +158,7 @@ class StripeClient:
             return stripe.Subscription.modify(
                 subscription_id,
                 items=[{"id": item_id, "price": new_stripe_price_id}],
-                proration_behavior=proration_behavior,
+                proration_behavior=proration_behavior,  # ty: ignore[invalid-argument-type]
             )
         except Exception as exc:
             StripeClient._handle_error(exc, {"subscription_id": subscription_id})

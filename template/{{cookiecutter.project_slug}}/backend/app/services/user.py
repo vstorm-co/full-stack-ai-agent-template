@@ -114,7 +114,7 @@ class UserService:
 {%- if cookiecutter.use_mongodb %}
         from fastapi_pagination.ext.beanie import apaginate
 
-        return await apaginate(User)
+        return await apaginate(User)  # ty: ignore[invalid-argument-type]
 {%- else %}
         from fastapi_pagination.ext.sqlalchemy import paginate
 

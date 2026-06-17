@@ -95,7 +95,7 @@ class BillingService:
 
         price_uuid = uuid.UUID(price_id) if isinstance(price_id, str) else price_id
         result = await self._checkout.create_checkout(
-            user=user,
+            user=user,  # ty: ignore[invalid-argument-type]
             org_id=org.id,
             price_id=price_uuid,
             seats=seats,
@@ -298,7 +298,7 @@ class BillingService:
                 message="Organization not found", details={"org_id": str(org_id)}
             )
         result = self._checkout.create_checkout(
-            user=user,
+            user=user,  # ty: ignore[invalid-argument-type]
             org_id=str(org.id),
             price_id=price_id,
             seats=seats,

@@ -46,12 +46,12 @@ router = APIRouter()
 async def list_plans(billing_service: BillingSvc) -> Any:
     """Return all active plans with their prices. Suitable for the pricing page."""
     plans = await billing_service.list_active_plans()
-    return PlanList(plans=plans)
+    return PlanList(plans=plans)  # ty: ignore[invalid-argument-type]
 {%- else %}
 def list_plans(billing_service: BillingSvc) -> Any:
     """Return all active plans with their prices."""
     plans = billing_service.list_active_plans()
-    return PlanList(plans=plans)
+    return PlanList(plans=plans)  # ty: ignore[invalid-argument-type]
 {%- endif %}
 
 
@@ -281,7 +281,7 @@ async def list_credit_transactions(
     items, total = await billing_service.list_credit_transactions(
         active_org.id, skip=skip, limit=limit
     )
-    return CreditTransactionList(items=items, total=total)
+    return CreditTransactionList(items=items, total=total)  # ty: ignore[invalid-argument-type]
 {%- else %}
 def list_credit_transactions(
     current_user: CurrentUser,
@@ -294,7 +294,7 @@ def list_credit_transactions(
     items, total = billing_service.list_credit_transactions(
         str(active_org.id), skip=skip, limit=limit
     )
-    return CreditTransactionList(items=items, total=total)
+    return CreditTransactionList(items=items, total=total)  # ty: ignore[invalid-argument-type]
 {%- endif %}
 
 

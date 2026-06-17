@@ -110,7 +110,7 @@ async def expire_stale(db: AsyncSession) -> int:
         .values(status=InvitationStatus.EXPIRED.value)
     )
     await db.flush()
-    return result.rowcount
+    return result.rowcount  # ty: ignore[unresolved-attribute]
 
 
 {%- elif cookiecutter.use_sqlite %}
@@ -212,7 +212,7 @@ def expire_stale(db: Session) -> int:
         .values(status=InvitationStatus.EXPIRED.value)
     )
     db.flush()
-    return result.rowcount
+    return result.rowcount  # ty: ignore[unresolved-attribute]
 
 
 {%- elif cookiecutter.use_mongodb %}

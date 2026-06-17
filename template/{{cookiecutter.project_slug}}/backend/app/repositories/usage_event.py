@@ -159,7 +159,7 @@ async def delete_older_than(
         sql_delete(UsageEvent).where(UsageEvent.created_at < cutoff)
     )
     await db.flush()
-    return result.rowcount
+    return result.rowcount  # ty: ignore[unresolved-attribute]
 
 {%- elif cookiecutter.use_sqlite %}
 from datetime import datetime
@@ -329,7 +329,7 @@ def delete_older_than(
     """Delete usage events older than cutoff. Returns number of deleted rows."""
     result = db.execute(sql_delete(UsageEvent).where(UsageEvent.created_at < cutoff))
     db.flush()
-    return result.rowcount
+    return result.rowcount  # ty: ignore[unresolved-attribute]
 
 {%- elif cookiecutter.use_mongodb %}
 from datetime import datetime

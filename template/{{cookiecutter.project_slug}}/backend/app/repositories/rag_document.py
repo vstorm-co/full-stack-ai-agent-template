@@ -144,7 +144,7 @@ async def delete_by_collection(db: AsyncSession, collection_name: str) -> int:
         sql_delete(RAGDocument).where(RAGDocument.collection_name == collection_name)
     )
     await db.flush()
-    return result.rowcount  # type: ignore[no-any-return, attr-defined]
+    return result.rowcount  # ty: ignore[unresolved-attribute]
 
 
 {%- elif cookiecutter.use_sqlite %}
@@ -261,7 +261,7 @@ def delete_by_collection(db: Session, collection_name: str) -> int:
         sql_delete(RAGDocument).where(RAGDocument.collection_name == collection_name)
     )
     db.flush()
-    return result.rowcount  # type: ignore[no-any-return, attr-defined]
+    return result.rowcount  # ty: ignore[unresolved-attribute]
 
 
 {%- endif %}

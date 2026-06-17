@@ -28,7 +28,7 @@ async def _sync_from_stripe(
 ) -> Subscription:
     price_obj = stripe_sub["items"]["data"][0]["price"]
     price = await plan_repo.get_price_by_stripe_id(db, price_obj["id"])
-    org = await org_repo.get_by_stripe_customer(db, stripe_sub.customer)
+    org = await org_repo.get_by_stripe_customer(db, stripe_sub.customer)  # ty: ignore[invalid-argument-type]
 
     if not org:
         logger.error(
@@ -45,8 +45,8 @@ async def _sync_from_stripe(
         "organization_id": org.id,
         "seats_quantity": stripe_sub["items"]["data"][0].get("quantity", 1),
         "status": SubscriptionStatus(stripe_sub.status),
-        "current_period_start": datetime.fromtimestamp(stripe_sub.current_period_start, UTC),
-        "current_period_end": datetime.fromtimestamp(stripe_sub.current_period_end, UTC),
+        "current_period_start": datetime.fromtimestamp(stripe_sub.current_period_start, UTC),  # ty: ignore[unresolved-attribute]
+        "current_period_end": datetime.fromtimestamp(stripe_sub.current_period_end, UTC),  # ty: ignore[unresolved-attribute]
         "cancel_at_period_end": stripe_sub.cancel_at_period_end,
         "canceled_at": datetime.fromtimestamp(stripe_sub.canceled_at, UTC) if stripe_sub.canceled_at else None,
         "trial_start": datetime.fromtimestamp(stripe_sub.trial_start, UTC) if stripe_sub.trial_start else None,
@@ -92,7 +92,7 @@ async def _grant_subscription_credits_if_needed(db: AsyncSession, sub: Subscript
 
 async def handle_created(db: AsyncSession, event: stripe.Event) -> None:
 {%- if cookiecutter.enable_credits_system %}
-    sub = await _sync_from_stripe(db, event.data.object)
+    sub = await _sync_from_stripe(db, event.data.object)  # ty: ignore[invalid-argument-type]
     if sub.status in (SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIALING):
         await _grant_subscription_credits_if_needed(db, sub)
 {%- else %}
@@ -103,7 +103,7 @@ async def handle_created(db: AsyncSession, event: stripe.Event) -> None:
 async def handle_updated(db: AsyncSession, event: stripe.Event) -> None:
     stripe_sub = event.data.object
 {%- if cookiecutter.enable_credits_system %}
-    sub = await _sync_from_stripe(db, stripe_sub)
+    sub = await _sync_from_stripe(db, stripe_sub)  # ty: ignore[invalid-argument-type]
 {%- else %}
     await _sync_from_stripe(db, stripe_sub)
 {%- endif %}
@@ -244,8 +244,8 @@ def _sync_from_stripe(db: Session, stripe_sub: stripe.Subscription) -> Subscript
         "organization_id": str(org.id),
         "seats_quantity": stripe_sub["items"]["data"][0].get("quantity", 1),
         "status": stripe_sub.status,
-        "current_period_start": datetime.fromtimestamp(stripe_sub.current_period_start, UTC),
-        "current_period_end": datetime.fromtimestamp(stripe_sub.current_period_end, UTC),
+        "current_period_start": datetime.fromtimestamp(stripe_sub.current_period_start, UTC),  # ty: ignore[unresolved-attribute]
+        "current_period_end": datetime.fromtimestamp(stripe_sub.current_period_end, UTC),  # ty: ignore[unresolved-attribute]
         "cancel_at_period_end": stripe_sub.cancel_at_period_end,
     }
 
@@ -375,7 +375,7 @@ logger = logging.getLogger(__name__)
 async def _sync_from_stripe(db: AsyncIOMotorDatabase, stripe_sub: stripe.Subscription) -> Subscription:
     price_obj = stripe_sub["items"]["data"][0]["price"]
     price = await plan_repo.get_price_by_stripe_id(db, price_obj["id"])
-    org = await org_repo.get_by_stripe_customer(db, stripe_sub.customer)
+    org = await org_repo.get_by_stripe_customer(db, stripe_sub.customer)  # ty: ignore[invalid-argument-type]
 
     if not org:
         raise ValueError(f"No org found for customer {stripe_sub.customer}")
@@ -387,8 +387,8 @@ async def _sync_from_stripe(db: AsyncIOMotorDatabase, stripe_sub: stripe.Subscri
             db_sub=existing,
             status=SubscriptionStatus(stripe_sub.status),
             cancel_at_period_end=stripe_sub.cancel_at_period_end,
-            current_period_start=datetime.fromtimestamp(stripe_sub.current_period_start, UTC),
-            current_period_end=datetime.fromtimestamp(stripe_sub.current_period_end, UTC),
+            current_period_start=datetime.fromtimestamp(stripe_sub.current_period_start, UTC),  # ty: ignore[unresolved-attribute]
+            current_period_end=datetime.fromtimestamp(stripe_sub.current_period_end, UTC),  # ty: ignore[unresolved-attribute]
         )
 
     return await sub_repo.create(
@@ -400,8 +400,8 @@ async def _sync_from_stripe(db: AsyncIOMotorDatabase, stripe_sub: stripe.Subscri
         price_id=str(price.id) if price else "",
         seats_quantity=stripe_sub["items"]["data"][0].get("quantity", 1),
         status=SubscriptionStatus(stripe_sub.status),
-        current_period_start=datetime.fromtimestamp(stripe_sub.current_period_start, UTC),
-        current_period_end=datetime.fromtimestamp(stripe_sub.current_period_end, UTC),
+        current_period_start=datetime.fromtimestamp(stripe_sub.current_period_start, UTC),  # ty: ignore[unresolved-attribute]
+        current_period_end=datetime.fromtimestamp(stripe_sub.current_period_end, UTC),  # ty: ignore[unresolved-attribute]
         cancel_at_period_end=stripe_sub.cancel_at_period_end,
     )
 

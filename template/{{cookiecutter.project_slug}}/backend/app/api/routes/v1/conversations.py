@@ -135,7 +135,7 @@ async def list_conversations(
         limit=limit,
         include_archived=include_archived,
     )
-    return ConversationList(items=items, total=total)  # type: ignore[arg-type]
+    return ConversationList(items=items, total=total)  # ty: ignore[invalid-argument-type]
 
 
 @router.post("", response_model=ConversationRead, status_code=status.HTTP_201_CREATED)
@@ -178,7 +178,7 @@ async def get_tool_stats(
     items = await conversation_service.aggregate_tool_calls(
         active_org.id, days=days, limit=limit
     )
-    return ToolCallStatList(items=items, days=days)  # type: ignore[arg-type]
+    return ToolCallStatList(items=items, days=days)  # ty: ignore[invalid-argument-type]
 {%- endif %}
 
 
@@ -317,7 +317,7 @@ async def list_messages(
         user_id=uid,
 {%- endif %}
     )
-    return MessageList(items=items, total=total)  # type: ignore[arg-type]
+    return MessageList(items=items, total=total)  # ty: ignore[invalid-argument-type]
 
 
 @router.post(
@@ -475,7 +475,7 @@ def list_conversations(
         limit=limit,
         include_archived=include_archived,
     )
-    return ConversationList(items=items, total=total)  # type: ignore[arg-type]
+    return ConversationList(items=items, total=total)  # ty: ignore[invalid-argument-type]
 
 
 @router.post("", response_model=ConversationRead, status_code=status.HTTP_201_CREATED)
@@ -633,7 +633,7 @@ def list_messages(
         user_id=str(current_user.id),
 {%- endif %}
     )
-    return MessageList(items=items, total=total)  # type: ignore[arg-type]
+    return MessageList(items=items, total=total)  # ty: ignore[invalid-argument-type]
 
 
 @router.post(
@@ -780,7 +780,7 @@ async def list_conversations(
         limit=limit,
         include_archived=include_archived,
     )
-    return ConversationList(items=items, total=total)  # type: ignore[arg-type]
+    return ConversationList(items=items, total=total)  # ty: ignore[invalid-argument-type]
 
 
 @router.post("", response_model=ConversationRead, status_code=status.HTTP_201_CREATED)
@@ -938,7 +938,7 @@ async def list_messages(
         user_id=str(current_user.id),
 {%- endif %}
     )
-    return MessageList(items=items, total=total)  # type: ignore[arg-type]
+    return MessageList(items=items, total=total)  # ty: ignore[invalid-argument-type]
 
 
 @router.post(

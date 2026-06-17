@@ -14,7 +14,6 @@ from typing import Any
 {%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
 
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 {%- if cookiecutter.use_ai %}
 from app.db.models.conversation import Conversation, Message
@@ -25,7 +24,9 @@ logger = logging.getLogger(__name__)
 
 
 class AdminService:
-    def __init__(self, db: AsyncSession) -> None:
+    # ``db`` is an AsyncSession (Postgres) or a sync Session (SQLite); typed as
+    # ``Any`` so the one shared implementation accepts both.
+    def __init__(self, db: Any) -> None:
         self.db = db
 
     async def workspace_stats(self) -> dict[str, Any]:
@@ -38,8 +39,9 @@ class AdminService:
 
         # Active in last 24h via session.last_used_at — best-effort, returns 0
         # when session_management isn't enabled in this deployment.
-        cutoff = datetime.now(UTC) - timedelta(hours=24)
         active_24h: int = 0
+{%- if cookiecutter.enable_session_management %}
+        cutoff = datetime.now(UTC) - timedelta(hours=24)
         try:
             from app.db.models.session import Session as UserSession
 
@@ -54,6 +56,7 @@ class AdminService:
             )
         except Exception:  # noqa: BLE001
             logger.exception("admin_stats_active_users_query_failed")
+{%- endif %}
 
         # Conversations + messages totals — 0 when AI/chat is disabled
 {%- if cookiecutter.use_ai %}
@@ -71,6 +74,7 @@ class AdminService:
         # Billing — best-effort, only if tables exist + billing on
         credits_30d = 0
         mrr_cents = 0
+{%- if cookiecutter.enable_billing and cookiecutter.enable_credits_system %}
         try:
             from app.db.models.credit_transaction import CreditTransaction
 
@@ -86,10 +90,11 @@ class AdminService:
             credits_30d = int(credits_30d_raw)
         except Exception:  # noqa: BLE001
             logger.exception("admin_stats_credits_query_failed")
-
+{%- endif %}
+{%- if cookiecutter.enable_billing %}
         try:
-            from app.db.models.subscription import Subscription
             from app.db.models.plan import Price
+            from app.db.models.subscription import Subscription
 
             # Sum active subscription unit_amount * quantity, monthly equiv.
             stmt = (
@@ -106,6 +111,7 @@ class AdminService:
             mrr_cents = int((await self.db.execute(stmt)).scalar_one() or 0)
         except Exception:  # noqa: BLE001
             logger.exception("admin_stats_mrr_query_failed")
+{%- endif %}
 
         return {
             "total_users": int(total_users),

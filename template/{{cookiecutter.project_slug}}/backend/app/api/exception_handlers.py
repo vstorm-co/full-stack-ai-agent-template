@@ -105,6 +105,8 @@ def register_exception_handlers(app: FastAPI) -> None:
 
     Call this after creating the FastAPI application instance.
     """
-    app.add_exception_handler(AppException, app_exception_handler)
+    # Handler returns None for WebSocket connections (no JSONResponse there),
+    # which Starlette's HTTP-handler type doesn't model.
+    app.add_exception_handler(AppException, app_exception_handler)  # ty: ignore[invalid-argument-type]
     # Uncomment to catch all unhandled exceptions:
     # app.add_exception_handler(Exception, unhandled_exception_handler)

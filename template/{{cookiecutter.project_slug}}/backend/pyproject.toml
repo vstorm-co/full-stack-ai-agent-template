@@ -391,12 +391,17 @@ invalid-assignment = "warn"
 unresolved-attribute = "warn"
 # datetime.utcnow deprecation warnings
 deprecated = "warn"
-# Optional deps imported inside try/except (pymupdf, docx, faker)
-unresolved-import = "warn"
+# Optional deps imported inside try/except (pymupdf, docx, faker) and
+# feature-gated models referenced best-effort by the admin dashboard. These are
+# expected to be absent in some configs, so don't surface them at all.
+unresolved-import = "ignore"
 # dict() overload matching on dynamic types from validators
 no-matching-overload = "warn"
 # Template uses mypy-style `# type: ignore` comments which ty doesn't recognize
 unused-type-ignore-comment = "warn"
+# A `# ty: ignore` needed in one database/feature config can be unused in
+# another generated from the same template — don't fail on that.
+unused-ignore-comment = "ignore"
 # Operations on Unknown types from untyped libraries (pymupdf, etc.)
 unsupported-operator = "warn"
 # Third-party libs (langchain, redis-py) ship without complete type stubs;

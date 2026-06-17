@@ -138,52 +138,52 @@ async def impersonate_user(
 {%- elif cookiecutter.use_sqlite %}
 
 @router.get("", response_model=AdminUserList)
-def list_users(
+async def list_users(
     _: CurrentAdmin,
     service: UserSvc,
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=500),
     search: str | None = Query(None),
 ) -> Any:
-    return service.admin_list_with_counts(skip=skip, limit=limit, search=search)
+    return await service.admin_list_with_counts(skip=skip, limit=limit, search=search)
 
 
 @router.get("/{user_id}", response_model=UserRead)
-def get_user(
+async def get_user(
     user_id: str,
     _: CurrentAdmin,
     service: UserSvc,
 ) -> Any:
-    return service.get_by_id(user_id)
+    return await service.get_by_id(user_id)
 
 
 @router.patch("/{user_id}", response_model=UserRead)
-def update_user(
+async def update_user(
     user_id: str,
     user_in: UserUpdate,
     _: CurrentAdmin,
     service: UserSvc,
 ) -> Any:
-    return service.update(user_id, user_in)
+    return await service.update(user_id, user_in)
 
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
-def delete_user(
+async def delete_user(
     user_id: str,
     _: CurrentAdmin,
     service: UserSvc,
 ) -> None:
-    service.get_by_id(user_id)
-    service.delete(user_id)
+    await service.get_by_id(user_id)
+    await service.delete(user_id)
 
 
 @router.post("/{user_id}/impersonate", response_model=dict)
-def impersonate_user(
+async def impersonate_user(
     user_id: str,
     admin: CurrentAdmin,
     service: UserSvc,
 ) -> Any:
-    target = service.get_by_id(user_id)
+    target = await service.get_by_id(user_id)
     token = create_access_token(
         subject=str(target.id),
         expires_delta=timedelta(hours=1),

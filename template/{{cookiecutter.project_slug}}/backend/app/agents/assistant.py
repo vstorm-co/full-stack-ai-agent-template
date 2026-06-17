@@ -251,9 +251,9 @@ class AssistantAgent:
         """Create and configure the PydanticAI agent."""
         model = _build_model(self.model_name)
 
-        capabilities = [ReinjectSystemPrompt()]
+        capabilities: list[Any] = [ReinjectSystemPrompt()]
         if self.thinking_effort:
-            capabilities.append(Thinking(effort=self.thinking_effort))
+            capabilities.append(Thinking(effort=self.thinking_effort))  # ty: ignore[invalid-argument-type]
 {%- if cookiecutter.enable_web_search or cookiecutter.enable_web_fetch %}
         # Local DuckDuckGo / fetch (the installed extras) — works uniformly across
         # all providers, unlike provider-native web search.

@@ -200,8 +200,8 @@ class ConversationService:
                 self.db, message_ids=message_ids
             )
             for msg in conversation.messages:
-                msg.user_rating = user_ratings.get(msg.id)  # type: ignore[attr-defined]
-                msg.rating_count = rating_counts.get(msg.id)  # type: ignore[attr-defined]
+                msg.user_rating = user_ratings.get(msg.id)  # ty: ignore[unresolved-attribute]
+                msg.rating_count = rating_counts.get(msg.id)  # ty: ignore[unresolved-attribute]
 {%- endif %}
         return conversation
 

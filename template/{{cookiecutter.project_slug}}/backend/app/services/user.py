@@ -5,14 +5,24 @@ Contains business logic for user operations. Uses UserRepository for database ac
 
 import logging
 from typing import TYPE_CHECKING, Any
-from uuid import UUID
 
 {%- if cookiecutter.use_postgresql %}
+from uuid import UUID
+
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+# Postgres primary keys are UUIDs.
+UserId = UUID
 {%- elif cookiecutter.use_sqlite %}
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
+
+# SQLite stores UUIDs as text, so IDs flow through the service as ``str``.
+UserId = str
+{%- else %}
+# MongoDB document ids are strings.
+UserId = str
 {%- endif %}
 
 from app.core.config import settings
@@ -72,7 +82,7 @@ class UserService:
         return await func(self.db, *args, **kwargs)
 {%- endif %}
 
-    async def get_by_id(self, user_id: UUID) -> User:
+    async def get_by_id(self, user_id: UserId) -> User:
         """Get user by ID.
 
         Raises:
@@ -356,7 +366,7 @@ class UserService:
             raise AuthenticationError(message="User account is disabled")
         return user
 
-    async def update(self, user_id: UUID, user_in: UserUpdate) -> User:
+    async def update(self, user_id: UserId, user_in: UserUpdate) -> User:
         """Update user.
 
         Raises:
@@ -371,7 +381,7 @@ class UserService:
         return await self._repo(user_repo.update, db_user=user, update_data=update_data)
 
     async def update_avatar(
-        self, user_id: UUID, file_data: bytes, filename: str, content_type: str
+        self, user_id: UserId, file_data: bytes, filename: str, content_type: str
     ) -> User:
         """Upload or replace avatar image.
 
@@ -400,7 +410,7 @@ class UserService:
         storage_path = await storage.save(f"avatars/{user_id}", filename, file_data)
         return await self._repo(user_repo.update, db_user=user, update_data={"avatar_url": storage_path})
 
-    async def delete(self, user_id: UUID) -> User:
+    async def delete(self, user_id: UserId) -> User:
         """Delete user.
 
         Raises:
@@ -443,12 +453,16 @@ class UserService:
         payload = verify_special_token(token, expected_type="password_reset")
         if payload is None or "sub" not in payload:
             raise AuthenticationError(message="Reset link is invalid or has expired")
+{%- if cookiecutter.use_postgresql %}
         try:
             user_id = UUID(str(payload["sub"]))
         except (TypeError, ValueError) as exc:
             raise AuthenticationError(
                 message="Reset link is invalid or has expired"
             ) from exc
+{%- else %}
+        user_id = str(payload["sub"])
+{%- endif %}
 
         user = await self.get_by_id(user_id)
         if not user.is_active:
@@ -485,12 +499,16 @@ class UserService:
         payload = verify_special_token(token, expected_type="magic_link")
         if payload is None or "sub" not in payload:
             raise AuthenticationError(message="Magic link is invalid or has expired")
+{%- if cookiecutter.use_postgresql %}
         try:
             user_id = UUID(str(payload["sub"]))
         except (TypeError, ValueError) as exc:
             raise AuthenticationError(
                 message="Magic link is invalid or has expired"
             ) from exc
+{%- else %}
+        user_id = str(payload["sub"])
+{%- endif %}
 
         user = await self.get_by_id(user_id)
         if not user.is_active:

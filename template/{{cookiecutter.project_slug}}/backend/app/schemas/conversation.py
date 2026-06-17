@@ -41,7 +41,9 @@ class ToolCallBase(BaseSchema):
                 return result
             except (json.JSONDecodeError, TypeError):
                 return {}
-        return dict(v) if isinstance(v, dict) else {}
+        if isinstance(v, dict):
+            return {str(k): val for k, val in v.items()}
+        return {}
 {%- endif %}
 
 

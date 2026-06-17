@@ -48,6 +48,9 @@ from app.agents.prompts import DEFAULT_SYSTEM_PROMPT
 {%- if cookiecutter.enable_rag %}
 from app.agents.prompts import get_system_prompt_with_rag
 {%- endif %}
+{%- if cookiecutter.enable_deep_research %}
+from app.agents.prompts import get_research_prompt
+{%- endif %}
 from app.agents.tools import get_current_datetime
 from app.agents.tools.ask_user_tool import MAX_QUESTIONS, QuestionItem, format_answers
 {%- if cookiecutter.enable_rag %}
@@ -167,6 +170,32 @@ class Deps:
 {%- if cookiecutter.enable_code_execution %}
     emit_tool_event: EmitToolEvent | None = None
 {%- endif %}
+{%- if cookiecutter.enable_deep_research %}
+    # Required by SubAgentDepsProtocol; kept empty (capabilities carry the agents).
+    subagents: dict[str, Any] = field(default_factory=dict)
+
+    def clone_for_subagent(self, max_depth: int = 0) -> "Deps":
+        """Create isolated deps for a delegated subagent.
+
+        Required by ``subagents-pydantic-ai`` (``SubAgentDepsProtocol``). Shares
+        the lightweight context but drops the interactive hooks and hands over an
+        empty ``subagents`` dict when ``max_depth <= 0`` so a subagent cannot
+        recurse.
+        """
+        return Deps(
+            user_id=self.user_id,
+            user_name=self.user_name,
+{%- if cookiecutter.enable_teams and cookiecutter.enable_rag %}
+            kb_collection_names=self.kb_collection_names,
+{%- endif %}
+            metadata=self.metadata,
+            ask_user=None,
+{%- if cookiecutter.enable_code_execution %}
+            emit_tool_event=None,
+{%- endif %}
+            subagents={} if max_depth <= 0 else self.subagents,
+        )
+{%- endif %}
 
 
 class AssistantAgent:
@@ -181,7 +210,15 @@ class AssistantAgent:
         temperature: float | None = None,
         system_prompt: str | None = None,
         thinking_effort: str | None = None,
+{%- if cookiecutter.enable_deep_research %}
+        deep_research: bool = False,
+        research_capabilities: list[Any] | None = None,
+{%- endif %}
     ):
+{%- if cookiecutter.enable_deep_research %}
+        self.deep_research = deep_research
+        self.research_capabilities = research_capabilities or []
+{%- endif %}
         self.model_name = model_name or settings.AI_MODEL
         # ``temperature`` stays ``None`` when caller didn't set it — don't fall
         # back to settings.AI_TEMPERATURE here. Reasoning/o-series models
@@ -191,10 +228,22 @@ class AssistantAgent:
         self.thinking_effort = thinking_effort if thinking_effort is not None else (
             settings.AI_THINKING_EFFORT if settings.AI_THINKING_ENABLED else None
         )
+{%- if cookiecutter.enable_deep_research %}
+        if deep_research:
+            self.system_prompt = system_prompt or get_research_prompt()
+{%- if cookiecutter.enable_rag %}
+        else:
+            self.system_prompt = system_prompt or get_system_prompt_with_rag()
+{%- else %}
+        else:
+            self.system_prompt = system_prompt or DEFAULT_SYSTEM_PROMPT
+{%- endif %}
+{%- else %}
 {%- if cookiecutter.enable_rag %}
         self.system_prompt = system_prompt or get_system_prompt_with_rag()
 {%- else %}
         self.system_prompt = system_prompt or DEFAULT_SYSTEM_PROMPT
+{%- endif %}
 {%- endif %}
         self._agent: Agent[Deps, str] | None = None
 
@@ -205,11 +254,25 @@ class AssistantAgent:
         capabilities = [ReinjectSystemPrompt()]
         if self.thinking_effort:
             capabilities.append(Thinking(effort=self.thinking_effort))
+{%- if cookiecutter.enable_web_search or cookiecutter.enable_web_fetch %}
+        # Local DuckDuckGo / fetch (the installed extras) — works uniformly across
+        # all providers, unlike provider-native web search.
+{%- if cookiecutter.enable_deep_research %}
+        if not self.deep_research:
 {%- if cookiecutter.enable_web_search %}
-        capabilities.append(WebSearch())
+            capabilities.append(WebSearch(native=False, local="duckduckgo"))
 {%- endif %}
 {%- if cookiecutter.enable_web_fetch %}
-        capabilities.append(WebFetch())
+            capabilities.append(WebFetch(native=False, local=True))
+{%- endif %}
+{%- else %}
+{%- if cookiecutter.enable_web_search %}
+        capabilities.append(WebSearch(native=False, local="duckduckgo"))
+{%- endif %}
+{%- if cookiecutter.enable_web_fetch %}
+        capabilities.append(WebFetch(native=False, local=True))
+{%- endif %}
+{%- endif %}
 {%- endif %}
 
         # The unified ``Thinking()`` capability enables reasoning, but for the
@@ -240,6 +303,10 @@ class AssistantAgent:
         skills_dir = Path(__file__).parent.parent.parent / "skills"
         if skills_dir.exists():
             toolsets.append(SkillsToolset(directories=[str(skills_dir)]))
+{%- endif %}
+{%- if cookiecutter.enable_deep_research %}
+
+        capabilities.extend(self.research_capabilities)
 {%- endif %}
 
         agent = Agent[Deps, str](
@@ -530,6 +597,10 @@ def get_agent(
     model_name: str | None = None,
     thinking_effort: str | None = None,
     temperature: float | None = None,
+{%- if cookiecutter.enable_deep_research %}
+    deep_research: bool = False,
+    research_capabilities: list[Any] | None = None,
+{%- endif %}
 ) -> AssistantAgent:
     """Factory function to create an AssistantAgent.
 
@@ -538,6 +609,12 @@ def get_agent(
         thinking_effort: Override thinking effort ("low", "medium", "high", or None to disable).
         temperature: Sampling temperature (typically 0.0-2.0). ``None`` falls back to
             ``settings.AI_TEMPERATURE``.
+{%- if cookiecutter.enable_deep_research %}
+        deep_research: Build the planner persona and drop the planner's own web
+            tools so it delegates to subagents.
+        research_capabilities: Pre-built deep-research capabilities (
+            subagents, context manager), already ordered with the context manager last.
+{%- endif %}
 
     Returns:
         Configured AssistantAgent instance.
@@ -546,6 +623,10 @@ def get_agent(
         model_name=model_name,
         thinking_effort=thinking_effort,
         temperature=temperature,
+{%- if cookiecutter.enable_deep_research %}
+        deep_research=deep_research,
+        research_capabilities=research_capabilities,
+{%- endif %}
     )
 
 

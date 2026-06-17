@@ -10,9 +10,8 @@ The route is left as a thin lifecycle wrapper that just feeds incoming messages 
 ``AgentSession.process_message``.
 """
 
-{%- if cookiecutter.enable_code_execution %}
 import asyncio
-{%- endif %}
+import contextlib
 import logging
 from typing import Any
 {%- if cookiecutter.enable_code_execution %}
@@ -30,7 +29,15 @@ from pydantic_ai import (
     TextPartDelta,
     ToolCallPartDelta,
 )
-from pydantic_ai.messages import BinaryContent, TextPart, ThinkingPart, ThinkingPartDelta
+from pydantic_ai.messages import (
+    BinaryContent,
+    TextPart,
+    ThinkingPart,
+    ThinkingPartDelta,
+{%- if cookiecutter.enable_deep_research %}
+    ToolCallPart,
+{%- endif %}
+)
 
 from app.agents.assistant import Deps, get_agent
 from app.services.agent import (
@@ -55,6 +62,10 @@ from app.services.file_storage import get_file_storage
 {%- endif %}
 {%- if cookiecutter.enable_billing and cookiecutter.enable_teams and cookiecutter.enable_credits_system and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
 from app.services.usage import UsageService
+{%- endif %}
+{%- if cookiecutter.enable_deep_research %}
+from app.core.config import settings
+from app.services.research import RESEARCH_TOOL_NAMES, ResearchToolkit
 {%- endif %}
 
 logger = logging.getLogger(__name__)
@@ -85,12 +96,85 @@ class AgentSession:
 {%- if cookiecutter.use_database %}
         self.current_conversation_id: str | None = None
 {%- endif %}
+        self._turn_task: asyncio.Task[None] | None = None
+        self._ask_user_future: asyncio.Future[list[dict[str, Any]]] | None = None
+{%- if cookiecutter.enable_deep_research %}
+        self._research: ResearchToolkit | None = None
+{%- endif %}
+
+    async def handle_frame(self, data: dict[str, Any]) -> None:
+        """Dispatch one incoming WebSocket frame.
+
+        A ``stop`` cancels the running turn; an ``ask_user_response`` unblocks a
+        paused run; any other control frame is ignored; a bare message starts a
+        new turn as a cancellable background task.
+        """
+        msg_type = data.get("type")
+
+        if msg_type == "stop":
+            await self._cancel_turn()
+            return
+
+        if msg_type == "ask_user_response":
+            fut = self._ask_user_future
+            if fut is not None and not fut.done():
+                answers = data.get("answers")
+                fut.set_result(answers if isinstance(answers, list) else [])
+            return
+
+        if msg_type is not None:
+            return
+
+        if self._turn_task is not None and not self._turn_task.done():
+            logger.warning("Ignoring message received while a turn is already in progress")
+            return
+        task = asyncio.create_task(self._run_turn(data))
+        self._turn_task = task
+        task.add_done_callback(self._on_turn_done)
+
+    def _on_turn_done(self, task: asyncio.Task[None]) -> None:
+        """Clear the turn slot and surface unexpected crashes."""
+        if self._turn_task is task:
+            self._turn_task = None
+        if not task.cancelled():
+            exc = task.exception()
+            if isinstance(exc, WebSocketDisconnect):
+                logger.info("Client disconnected during agent turn")
+            elif exc is not None:
+                logger.error("Agent turn task crashed", exc_info=exc)
+
+    async def _run_turn(self, data: dict[str, Any]) -> None:
+        """Run one turn, emitting a terminal ``complete`` even when stopped."""
+        try:
+            await self.process_message(data)
+        except asyncio.CancelledError:
+            await send_event(
+                self.websocket,
+                "complete",
+                {
+{%- if cookiecutter.use_database %}
+                    "conversation_id": self.current_conversation_id,
+{%- endif %}
+                    "stopped": True,
+                },
+            )
+            raise
+
+    async def _cancel_turn(self) -> None:
+        """Cancel the in-flight turn task and wait for it to unwind."""
+        task = self._turn_task
+        if task is None or task.done():
+            return
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
+
+    async def shutdown(self) -> None:
+        """Cancel any in-flight turn."""
+        await self._cancel_turn()
 
     async def process_message(self, data: dict[str, Any]) -> None:
         """Process one user turn: persist input, run the agent, stream events, persist output."""
-        if data.get("type") == "ask_user_response":
-            return
-
         user_message = data.get("message", "")
         file_ids = data.get("file_ids", [])
 
@@ -119,9 +203,25 @@ class AgentSession:
         await send_event(self.websocket, "user_prompt", {"content": user_message})
 
         try:
+{%- if cookiecutter.enable_deep_research %}
+            deep_research = settings.ENABLE_DEEP_RESEARCH and bool(data.get("deep_research", True))
+            research_capabilities: list[Any] = []
+            self._research = None
+            if deep_research and self.current_conversation_id:
+                self._research = ResearchToolkit(self._send, model_name=data.get("model"))
+                research_capabilities = await self._research.build(self.current_conversation_id)
+            else:
+                # No conversation_id to scope the capabilities → run the normal
+                # assistant, not the research persona without its tools.
+                deep_research = False
+{%- endif %}
             assistant = get_agent(
                 model_name=data.get("model"),
                 thinking_effort=data.get("thinking_effort"),
+{%- if cookiecutter.enable_deep_research %}
+                deep_research=deep_research,
+                research_capabilities=research_capabilities,
+{%- endif %}
             )
             model_history = build_message_history(self.conversation_history)
 {%- if (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
@@ -157,13 +257,32 @@ class AgentSession:
             collected_tool_calls: list[dict[str, Any]] = []
 {%- if cookiecutter.enable_code_execution %}
             self._current_tool_calls = collected_tool_calls
+{%- endif %}
+{%- if cookiecutter.enable_deep_research %}
+            poller = (
+                asyncio.create_task(self._poll_subagent_status())
+                if self._research is not None
+                else None
+            )
+{%- endif %}
+{%- if cookiecutter.enable_code_execution or cookiecutter.enable_deep_research %}
             try:
                 async with assistant.agent.iter(
                     user_input, deps=self.deps, message_history=model_history
                 ) as agent_run:
                     await self._stream_agent_run(agent_run, user_message, collected_tool_calls)
             finally:
+{%- if cookiecutter.enable_code_execution %}
                 self._current_tool_calls = None
+{%- endif %}
+{%- if cookiecutter.enable_deep_research %}
+                if poller is not None:
+                    poller.cancel()
+                    with contextlib.suppress(asyncio.CancelledError):
+                        await poller
+                if self._research is not None:
+                    await self._research.flush()
+{%- endif %}
 {%- else %}
             async with assistant.agent.iter(
                 user_input, deps=self.deps, message_history=model_history
@@ -225,20 +344,74 @@ class AgentSession:
     async def _ask_user(self, questions: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Pause the run: ask the client questions and block until they answer.
 
-        Emits an ``ask_user`` event with the whole batch, then reads frames off
-        this socket until an ``ask_user_response`` arrives. This is safe even
-        though the route also reads from the socket: while a tool runs, the agent
-        run (and therefore the route's receive loop) is suspended awaiting us, so
-        there is exactly one active reader. The client returns a list of answers
-        parallel to the questions ({answer, skipped}).
+        Emits an ``ask_user`` event with the whole batch, then awaits a future the
+        frame dispatcher completes when the matching ``ask_user_response`` arrives.
+        The client returns a list of answers parallel to the questions.
         """
-        await send_event(self.websocket, "ask_user", {"questions": questions})
-        while True:
-            data = await self.websocket.receive_json()
-            if data.get("type") == "ask_user_response":
-                answers = data.get("answers")
-                return answers if isinstance(answers, list) else []
-            # Ignore unrelated frames while questions are pending (UI is modal).
+        loop = asyncio.get_running_loop()
+        fut: asyncio.Future[list[dict[str, Any]]] = loop.create_future()
+        self._ask_user_future = fut
+        try:
+            await send_event(self.websocket, "ask_user", {"questions": questions})
+            return await fut
+        finally:
+            self._ask_user_future = None
+{%- if cookiecutter.enable_deep_research %}
+
+    async def _send(self, event_type: str, data: Any) -> bool:
+        """Emit a WebSocket event on this session's socket (bound for callbacks)."""
+        return await send_event(self.websocket, event_type, data)
+
+    async def _poll_subagent_status(self) -> None:
+        """Emit ``subagent_status`` frames for changing async subagent tasks.
+
+        Polls the subagent capability's task manager ~1/s and forwards a frame
+        whenever a task's status changes (or is first seen). Cancelled in the
+        run's ``finally``.
+        """
+        seen: dict[str, str] = {}
+        cap = self._research.subagent_capability if self._research else None
+        if cap is None:
+            return
+        try:
+            while True:
+                task_manager = cap.task_manager
+                if task_manager is not None:
+                    for handle in task_manager.list_handles():
+                        status = getattr(handle.status, "value", str(handle.status))
+                        task_id = handle.task_id
+                        if seen.get(task_id) == status:
+                            continue
+                        seen[task_id] = status
+                        await self._send(
+                            "subagent_status",
+                            {
+                                "task_id": task_id,
+                                "subagent_name": handle.subagent_name,
+                                "description": handle.description,
+                                "status": status,
+                                "error": handle.error,
+                            },
+                        )
+                await asyncio.sleep(1.0)
+        except asyncio.CancelledError:
+            task_manager = cap.task_manager
+            if task_manager is not None:
+                for handle in task_manager.list_handles():
+                    status = getattr(handle.status, "value", str(handle.status))
+                    if seen.get(handle.task_id) != status:
+                        await self._send(
+                            "subagent_status",
+                            {
+                                "task_id": handle.task_id,
+                                "subagent_name": handle.subagent_name,
+                                "description": handle.description,
+                                "status": status,
+                                "error": handle.error,
+                            },
+                        )
+            raise
+{%- endif %}
 
 {%- if cookiecutter.enable_code_execution %}
 
@@ -415,7 +588,32 @@ class AgentSession:
                 )
 
     async def _stream_request_events(self, request_stream: Any) -> None:
-        """Forward model-request events (text/thinking/tool deltas + final-result start)."""
+        """Forward model-request events (text/thinking/tool deltas + final-result start).
+{%- if cookiecutter.enable_deep_research %}
+
+        During a deep research turn the model narrates every delegation step.
+        A plain-text response ends a PydanticAI run, so a step that issues a
+        planning/delegation tool call (``RESEARCH_TOOL_NAMES``) is interstitial:
+        its text is buffered and dropped. A step with only content tools (charts,
+        RAG) or no tool calls is the final answer and its text is released.
+        Reasoning and tool events are always forwarded.
+{%- endif %}
+        """
+{%- if cookiecutter.enable_deep_research %}
+        deep_research = self._research is not None
+        buffered_text: list[tuple[int, str]] = []
+        tool_names: dict[int, str] = {}
+
+        async def emit_text(index: int, content: str) -> None:
+            if not content:
+                return
+            if deep_research:
+                buffered_text.append((index, content))
+            else:
+                await send_event(
+                    self.websocket, "text_delta", {"index": index, "content": content}
+                )
+{%- endif %}
         async for event in request_stream:
             if isinstance(event, PartStartEvent):
                 await send_event(
@@ -423,15 +621,21 @@ class AgentSession:
                     "part_start",
                     {"index": event.index, "part_type": type(event.part).__name__},
                 )
+{%- if cookiecutter.enable_deep_research %}
+                if isinstance(event.part, ToolCallPart):
+                    if event.part.tool_name:
+                        tool_names[event.index] = event.part.tool_name
+                elif isinstance(event.part, TextPart) and event.part.content:
+                    await emit_text(event.index, event.part.content)
+{%- else %}
                 if isinstance(event.part, TextPart) and event.part.content:
                     await send_event(
                         self.websocket,
                         "text_delta",
                         {"index": event.index, "content": event.part.content},
                     )
+{%- endif %}
                 elif isinstance(event.part, ThinkingPart) and event.part.content:
-                    # Surface the model's reasoning trace to the UI. Anthropic +
-                    # OpenAI-reasoning models emit these as the model "thinks".
                     await send_event(
                         self.websocket,
                         "thinking_delta",
@@ -439,11 +643,15 @@ class AgentSession:
                     )
             elif isinstance(event, PartDeltaEvent):
                 if isinstance(event.delta, TextPartDelta):
+{%- if cookiecutter.enable_deep_research %}
+                    await emit_text(event.index, event.delta.content_delta)
+{%- else %}
                     await send_event(
                         self.websocket,
                         "text_delta",
                         {"index": event.index, "content": event.delta.content_delta},
                     )
+{%- endif %}
                 elif isinstance(event.delta, ThinkingPartDelta):
                     if event.delta.content_delta:
                         await send_event(
@@ -452,6 +660,12 @@ class AgentSession:
                             {"index": event.index, "content": event.delta.content_delta},
                         )
                 elif isinstance(event.delta, ToolCallPartDelta):
+{%- if cookiecutter.enable_deep_research %}
+                    if event.delta.tool_name_delta:
+                        tool_names[event.index] = (
+                            tool_names.get(event.index, "") + event.delta.tool_name_delta
+                        )
+{%- endif %}
                     await send_event(
                         self.websocket,
                         "tool_call_delta",
@@ -463,6 +677,15 @@ class AgentSession:
                     "final_result_start",
                     {"tool_name": event.tool_name},
                 )
+{%- if cookiecutter.enable_deep_research %}
+
+        made_research_call = any(name in RESEARCH_TOOL_NAMES for name in tool_names.values())
+        if deep_research and buffered_text and not made_research_call:
+            for index, content in buffered_text:
+                await send_event(
+                    self.websocket, "text_delta", {"index": index, "content": content}
+                )
+{%- endif %}
 
     async def _stream_tool_events(
         self,
@@ -496,6 +719,8 @@ class AgentSession:
 {%- elif cookiecutter.use_langchain %}
 """Per-connection AI agent session (LangChain)."""
 
+import asyncio
+import contextlib
 import logging
 from typing import Any
 
@@ -551,6 +776,66 @@ class AgentSession:
 {%- if cookiecutter.use_database %}
         self.current_conversation_id: str | None = None
 {%- endif %}
+        self._turn_task: asyncio.Task[None] | None = None
+
+    async def handle_frame(self, data: dict[str, Any]) -> None:
+        """Dispatch one incoming WebSocket frame.
+
+        A ``stop`` cancels the running turn; any other frame starts a new turn as
+        a cancellable background task. Clients serialize turns, so a frame that
+        arrives while a turn is running is ignored.
+        """
+        if data.get("type") == "stop":
+            await self._cancel_turn()
+            return
+
+        if self._turn_task is not None and not self._turn_task.done():
+            logger.warning("Ignoring message received while a turn is already in progress")
+            return
+        task = asyncio.create_task(self._run_turn(data))
+        self._turn_task = task
+        task.add_done_callback(self._on_turn_done)
+
+    def _on_turn_done(self, task: asyncio.Task[None]) -> None:
+        """Clear the turn slot and surface unexpected crashes."""
+        if self._turn_task is task:
+            self._turn_task = None
+        if not task.cancelled():
+            exc = task.exception()
+            if isinstance(exc, WebSocketDisconnect):
+                logger.info("Client disconnected during agent turn")
+            elif exc is not None:
+                logger.error("Agent turn task crashed", exc_info=exc)
+
+    async def _run_turn(self, data: dict[str, Any]) -> None:
+        """Run one turn, emitting a terminal ``complete`` even when stopped."""
+        try:
+            await self.process_message(data)
+        except asyncio.CancelledError:
+            await send_event(
+                self.websocket,
+                "complete",
+                {
+{%- if cookiecutter.use_database %}
+                    "conversation_id": self.current_conversation_id,
+{%- endif %}
+                    "stopped": True,
+                },
+            )
+            raise
+
+    async def _cancel_turn(self) -> None:
+        """Cancel the in-flight turn task and wait for it to unwind."""
+        task = self._turn_task
+        if task is None or task.done():
+            return
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
+
+    async def shutdown(self) -> None:
+        """Cancel any in-flight turn."""
+        await self._cancel_turn()
 
     async def process_message(self, data: dict[str, Any]) -> None:
         """Process one user turn: persist input, run the agent, stream events, persist output."""
@@ -898,6 +1183,8 @@ class AgentSession:
 {%- elif cookiecutter.use_langgraph %}
 """Per-connection AI agent session (LangGraph)."""
 
+import asyncio
+import contextlib
 import logging
 from typing import Any
 
@@ -952,6 +1239,66 @@ class AgentSession:
 {%- if cookiecutter.use_database %}
         self.current_conversation_id: str | None = None
 {%- endif %}
+        self._turn_task: asyncio.Task[None] | None = None
+
+    async def handle_frame(self, data: dict[str, Any]) -> None:
+        """Dispatch one incoming WebSocket frame.
+
+        A ``stop`` cancels the running turn; any other frame starts a new turn as
+        a cancellable background task. Clients serialize turns, so a frame that
+        arrives while a turn is running is ignored.
+        """
+        if data.get("type") == "stop":
+            await self._cancel_turn()
+            return
+
+        if self._turn_task is not None and not self._turn_task.done():
+            logger.warning("Ignoring message received while a turn is already in progress")
+            return
+        task = asyncio.create_task(self._run_turn(data))
+        self._turn_task = task
+        task.add_done_callback(self._on_turn_done)
+
+    def _on_turn_done(self, task: asyncio.Task[None]) -> None:
+        """Clear the turn slot and surface unexpected crashes."""
+        if self._turn_task is task:
+            self._turn_task = None
+        if not task.cancelled():
+            exc = task.exception()
+            if isinstance(exc, WebSocketDisconnect):
+                logger.info("Client disconnected during agent turn")
+            elif exc is not None:
+                logger.error("Agent turn task crashed", exc_info=exc)
+
+    async def _run_turn(self, data: dict[str, Any]) -> None:
+        """Run one turn, emitting a terminal ``complete`` even when stopped."""
+        try:
+            await self.process_message(data)
+        except asyncio.CancelledError:
+            await send_event(
+                self.websocket,
+                "complete",
+                {
+{%- if cookiecutter.use_database %}
+                    "conversation_id": self.current_conversation_id,
+{%- endif %}
+                    "stopped": True,
+                },
+            )
+            raise
+
+    async def _cancel_turn(self) -> None:
+        """Cancel the in-flight turn task and wait for it to unwind."""
+        task = self._turn_task
+        if task is None or task.done():
+            return
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
+
+    async def shutdown(self) -> None:
+        """Cancel any in-flight turn."""
+        await self._cancel_turn()
 
     async def process_message(self, data: dict[str, Any]) -> None:
         """Process one user turn: persist input, run the agent, stream events, persist output."""
@@ -1294,6 +1641,8 @@ class AgentSession:
 {%- elif cookiecutter.use_crewai %}
 """Per-connection AI agent session (CrewAI Multi-Agent)."""
 
+import asyncio
+import contextlib
 import logging
 from typing import Any
 
@@ -1346,6 +1695,66 @@ class AgentSession:
 {%- if cookiecutter.use_database %}
         self.current_conversation_id: str | None = None
 {%- endif %}
+        self._turn_task: asyncio.Task[None] | None = None
+
+    async def handle_frame(self, data: dict[str, Any]) -> None:
+        """Dispatch one incoming WebSocket frame.
+
+        A ``stop`` cancels the running turn; any other frame starts a new turn as
+        a cancellable background task. Clients serialize turns, so a frame that
+        arrives while a turn is running is ignored.
+        """
+        if data.get("type") == "stop":
+            await self._cancel_turn()
+            return
+
+        if self._turn_task is not None and not self._turn_task.done():
+            logger.warning("Ignoring message received while a turn is already in progress")
+            return
+        task = asyncio.create_task(self._run_turn(data))
+        self._turn_task = task
+        task.add_done_callback(self._on_turn_done)
+
+    def _on_turn_done(self, task: asyncio.Task[None]) -> None:
+        """Clear the turn slot and surface unexpected crashes."""
+        if self._turn_task is task:
+            self._turn_task = None
+        if not task.cancelled():
+            exc = task.exception()
+            if isinstance(exc, WebSocketDisconnect):
+                logger.info("Client disconnected during agent turn")
+            elif exc is not None:
+                logger.error("Agent turn task crashed", exc_info=exc)
+
+    async def _run_turn(self, data: dict[str, Any]) -> None:
+        """Run one turn, emitting a terminal ``complete`` even when stopped."""
+        try:
+            await self.process_message(data)
+        except asyncio.CancelledError:
+            await send_event(
+                self.websocket,
+                "complete",
+                {
+{%- if cookiecutter.use_database %}
+                    "conversation_id": self.current_conversation_id,
+{%- endif %}
+                    "stopped": True,
+                },
+            )
+            raise
+
+    async def _cancel_turn(self) -> None:
+        """Cancel the in-flight turn task and wait for it to unwind."""
+        task = self._turn_task
+        if task is None or task.done():
+            return
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
+
+    async def shutdown(self) -> None:
+        """Cancel any in-flight turn."""
+        await self._cancel_turn()
 
     async def process_message(self, data: dict[str, Any]) -> None:
         """Process one user turn: persist input, run the crew, stream events."""
@@ -1620,6 +2029,8 @@ class AgentSession:
 {%- elif cookiecutter.use_deepagents %}
 """Per-connection AI agent session (DeepAgents) with human-in-the-loop support."""
 
+import asyncio
+import contextlib
 import logging
 import uuid
 from typing import Any
@@ -1694,6 +2105,66 @@ class AgentSession:
 {%- if cookiecutter.use_database %}
         self.current_conversation_id: str | None = None
 {%- endif %}
+        self._turn_task: asyncio.Task[None] | None = None
+
+    async def handle_frame(self, data: dict[str, Any]) -> None:
+        """Dispatch one incoming WebSocket frame.
+
+        A ``stop`` cancels the running turn; any other frame (a message or a
+        ``resume``) starts a new turn as a cancellable background task. Clients
+        serialize turns, so a frame that arrives while a turn is running is ignored.
+        """
+        if data.get("type") == "stop":
+            await self._cancel_turn()
+            return
+
+        if self._turn_task is not None and not self._turn_task.done():
+            logger.warning("Ignoring message received while a turn is already in progress")
+            return
+        task = asyncio.create_task(self._run_turn(data))
+        self._turn_task = task
+        task.add_done_callback(self._on_turn_done)
+
+    def _on_turn_done(self, task: asyncio.Task[None]) -> None:
+        """Clear the turn slot and surface unexpected crashes."""
+        if self._turn_task is task:
+            self._turn_task = None
+        if not task.cancelled():
+            exc = task.exception()
+            if isinstance(exc, WebSocketDisconnect):
+                logger.info("Client disconnected during agent turn")
+            elif exc is not None:
+                logger.error("Agent turn task crashed", exc_info=exc)
+
+    async def _run_turn(self, data: dict[str, Any]) -> None:
+        """Run one turn, emitting a terminal ``complete`` even when stopped."""
+        try:
+            await self.process_message(data)
+        except asyncio.CancelledError:
+            await send_event(
+                self.websocket,
+                "complete",
+                {
+{%- if cookiecutter.use_database %}
+                    "conversation_id": self.current_conversation_id,
+{%- endif %}
+                    "stopped": True,
+                },
+            )
+            raise
+
+    async def _cancel_turn(self) -> None:
+        """Cancel the in-flight turn task and wait for it to unwind."""
+        task = self._turn_task
+        if task is None or task.done():
+            return
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
+
+    async def shutdown(self) -> None:
+        """Cancel any in-flight turn."""
+        await self._cancel_turn()
 
     async def process_message(self, data: dict[str, Any]) -> None:
         """Dispatch incoming WebSocket payload to the appropriate handler."""
@@ -2189,6 +2660,8 @@ PydanticDeep manages conversation history internally via the backend
 (history_messages_path), so this session does not maintain ``conversation_history``.
 """
 
+import asyncio
+import contextlib
 import logging
 from typing import Any
 
@@ -2251,6 +2724,66 @@ class AgentSession:
 {%- if cookiecutter.use_database %}
         self.current_conversation_id: str | None = None
 {%- endif %}
+        self._turn_task: asyncio.Task[None] | None = None
+
+    async def handle_frame(self, data: dict[str, Any]) -> None:
+        """Dispatch one incoming WebSocket frame.
+
+        A ``stop`` cancels the running turn; any other frame starts a new turn as
+        a cancellable background task. Clients serialize turns, so a frame that
+        arrives while a turn is running is ignored.
+        """
+        if data.get("type") == "stop":
+            await self._cancel_turn()
+            return
+
+        if self._turn_task is not None and not self._turn_task.done():
+            logger.warning("Ignoring message received while a turn is already in progress")
+            return
+        task = asyncio.create_task(self._run_turn(data))
+        self._turn_task = task
+        task.add_done_callback(self._on_turn_done)
+
+    def _on_turn_done(self, task: asyncio.Task[None]) -> None:
+        """Clear the turn slot and surface unexpected crashes."""
+        if self._turn_task is task:
+            self._turn_task = None
+        if not task.cancelled():
+            exc = task.exception()
+            if isinstance(exc, WebSocketDisconnect):
+                logger.info("Client disconnected during agent turn")
+            elif exc is not None:
+                logger.error("Agent turn task crashed", exc_info=exc)
+
+    async def _run_turn(self, data: dict[str, Any]) -> None:
+        """Run one turn, emitting a terminal ``complete`` even when stopped."""
+        try:
+            await self.process_message(data)
+        except asyncio.CancelledError:
+            await send_event(
+                self.websocket,
+                "complete",
+                {
+{%- if cookiecutter.use_database %}
+                    "conversation_id": self.current_conversation_id,
+{%- endif %}
+                    "stopped": True,
+                },
+            )
+            raise
+
+    async def _cancel_turn(self) -> None:
+        """Cancel the in-flight turn task and wait for it to unwind."""
+        task = self._turn_task
+        if task is None or task.done():
+            return
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
+
+    async def shutdown(self) -> None:
+        """Cancel any in-flight turn."""
+        await self._cancel_turn()
 
     async def process_message(self, data: dict[str, Any]) -> None:
         """Process one user turn: persist input, run the agent, stream events, persist output."""

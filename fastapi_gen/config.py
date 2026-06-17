@@ -328,6 +328,7 @@ class ProjectConfig(BaseModel):
     enable_antv_charts: bool = False
     enable_code_execution: bool = False
     enable_skills: bool = False
+    enable_deep_research: bool = False
     use_telegram: bool = False
     use_slack: bool = False
     enable_cors: bool = True
@@ -488,6 +489,12 @@ class ProjectConfig(BaseModel):
             raise ValueError(
                 "LangSmith requires LangChain, LangGraph, or DeepAgents framework. "
                 "PydanticDeep uses Logfire for observability."
+            )
+
+        if self.enable_deep_research and self.ai_framework != AIFrameworkType.PYDANTIC_AI:
+            raise ValueError(
+                "Deep research requires the PydanticAI framework. "
+                "Quick fix: set --ai-framework pydantic_ai, or drop --deep-research."
             )
 
         # CrewAI 1.13.x pins opentelemetry-sdk<1.35 which conflicts with
@@ -817,6 +824,7 @@ class ProjectConfig(BaseModel):
             "enable_antv_charts": self.enable_antv_charts,
             "enable_code_execution": self.enable_code_execution,
             "enable_skills": self.enable_skills,
+            "enable_deep_research": self.enable_deep_research,
             "enable_webhooks": self.enable_webhooks,
             # Legacy fixed values (WebSocket always uses JWT)
             "websocket_auth": "jwt",

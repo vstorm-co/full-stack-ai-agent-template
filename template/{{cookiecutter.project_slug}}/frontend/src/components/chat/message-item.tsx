@@ -11,6 +11,10 @@ import { Bot, FileText, Paperclip, RefreshCw, User } from "lucide-react";
 import Image from "next/image";
 import { useAuthStore } from "@/stores";
 import { getFileUrl } from "@/lib/file-api";
+{%- if cookiecutter.enable_deep_research %}
+import type { MessagePart } from "@/types";
+import { RESEARCH_TOOL_NAMES } from "./research-panel";
+{%- endif %}
 
 interface MessageItemProps {
   message: ChatMessage;
@@ -24,6 +28,30 @@ export function MessageItem({ message, groupPosition, onRegenerate }: MessageIte
   const openPreview = useFilePreviewStore((s) => s.open);
   const { user: authUser } = useAuthStore();
   const isGrouped = groupPosition && groupPosition !== "single";
+{%- if cookiecutter.enable_deep_research %}
+
+  if (!isUser) {
+    const stepParts = message.parts ?? [];
+    const hasFiles = (message.files?.length ?? 0) > 0 || (message.fileIds?.length ?? 0) > 0;
+    const showPlaceholder =
+      message.isStreaming &&
+      !message.content &&
+      stepParts.length === 0 &&
+      (!message.toolCalls || message.toolCalls.length === 0);
+    const hasVisibleParts =
+      stepParts.length > 0
+        ? visibleParts(stepParts).some(
+            (p) =>
+              (p.type === "thinking" && Boolean(p.content)) ||
+              (p.type === "tool" && Boolean(p.toolCall)) ||
+              (p.type === "text" && Boolean(p.content)),
+          )
+        : Boolean(message.thinking) ||
+          Boolean(message.content) ||
+          Boolean(message.toolCalls?.some((tc) => !RESEARCH_TOOL_NAMES.has(tc.name)));
+    if (!showPlaceholder && !hasVisibleParts && !hasFiles) return null;
+  }
+{%- endif %}
 
   return (
     <div
@@ -120,7 +148,12 @@ export function MessageItem({ message, groupPosition, onRegenerate }: MessageIte
           })()}
 
         {(() => {
-          const parts = message.parts ?? [];
+          const rawParts = message.parts ?? [];
+{%- if cookiecutter.enable_deep_research %}
+          const parts = visibleParts(rawParts);
+{%- else %}
+          const parts = rawParts;
+{%- endif %}
           const useParts = !isUser && parts.length > 0;
 
           // "Thinking…" placeholder — shown until anything streams in.
@@ -242,9 +275,13 @@ export function MessageItem({ message, groupPosition, onRegenerate }: MessageIte
                     )}
                     {message.toolCalls && message.toolCalls.length > 0 && (
                       <div className="w-full space-y-2">
-                        {message.toolCalls.map((toolCall) => (
-                          <ToolCallCard key={toolCall.id} toolCall={toolCall} />
-                        ))}
+                        {message.toolCalls
+{%- if cookiecutter.enable_deep_research %}
+                          .filter((tc) => !RESEARCH_TOOL_NAMES.has(tc.name))
+{%- endif %}
+                          .map((toolCall) => (
+                            <ToolCallCard key={toolCall.id} toolCall={toolCall} />
+                          ))}
                       </div>
                     )}
                   </>}
@@ -302,6 +339,14 @@ export function MessageItem({ message, groupPosition, onRegenerate }: MessageIte
     </div>
   );
 }
+
+{%- if cookiecutter.enable_deep_research %}
+function visibleParts(parts: MessagePart[]): MessagePart[] {
+  return parts.filter(
+    (p) => !(p.type === "tool" && !!p.toolCall && RESEARCH_TOOL_NAMES.has(p.toolCall.name)),
+  );
+}
+{%- endif %}
 
 // --- Attachment helpers ---------------------------------------------------
 

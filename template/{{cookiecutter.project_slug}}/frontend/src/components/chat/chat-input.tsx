@@ -18,6 +18,8 @@ interface ChatInputProps {
   onSend: (message: string, fileIds?: string[], files?: FileUploadResponse[]) => void;
   disabled?: boolean;
   isProcessing?: boolean;
+  /** When set, a stop control replaces the send button while processing. */
+  onStop?: () => void;
   /** Local actions for slash commands. Wire from <ChatContainer>. */
   slashContext?: SlashCommandContext;
   /** Effective slash commands (built-ins + user customs, after overrides). */
@@ -28,6 +30,7 @@ export function ChatInput({
   onSend,
   disabled,
   isProcessing,
+  onStop,
   slashContext,
   commands,
 }: ChatInputProps) {
@@ -329,16 +332,29 @@ export function ChatInput({
             className="hidden"
           />
 
-          {/* Send */}
-          <Button
-            type="submit"
-            size="icon"
-            disabled={disabled || isUploading || (!message.trim() && attachedFiles.length === 0)}
-            className="h-9 w-9 rounded-lg"
-          >
-            {isProcessing ? <Spinner className="h-4 w-4" /> : <Send className="h-4 w-4" />}
-            <span className="sr-only">Send message</span>
-          </Button>
+          {/* Send / Stop */}
+          {isProcessing && onStop ? (
+            <Button
+              type="button"
+              size="icon"
+              onClick={onStop}
+              className="h-9 w-9 rounded-lg"
+              title="Stop generating"
+            >
+              <span className="h-3 w-3 rounded-[3px] bg-current" aria-hidden="true" />
+              <span className="sr-only">Stop generating</span>
+            </Button>
+          ) : (
+            <Button
+              type="submit"
+              size="icon"
+              disabled={disabled || isUploading || (!message.trim() && attachedFiles.length === 0)}
+              className="h-9 w-9 rounded-lg"
+            >
+              {isProcessing ? <Spinner className="h-4 w-4" /> : <Send className="h-4 w-4" />}
+              <span className="sr-only">Send message</span>
+            </Button>
+          )}
         </div>
       </div>
     </form>

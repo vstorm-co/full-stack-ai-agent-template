@@ -442,6 +442,12 @@ class Settings(BaseSettings):
     CODE_EXECUTION_TIMEOUT_SECS: float = 10.0
     CODE_EXECUTION_MAX_ALLOCATIONS: int = 50_000_000
 {%- endif %}
+{%- if cookiecutter.enable_deep_research %}
+
+    ENABLE_DEEP_RESEARCH: bool = False
+    DEEP_RESEARCH_MAX_TOKENS: int = 120_000
+    DEEP_RESEARCH_COMPRESS_THRESHOLD: float = 0.8
+{%- endif %}
 {%- if cookiecutter.use_deepagents %}
 
     # === DeepAgents Configuration ===

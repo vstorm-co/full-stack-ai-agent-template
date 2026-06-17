@@ -490,6 +490,12 @@ def new(output: Path | None, no_input: bool, name: str | None, minimal: bool) ->
     default=False,
     help="Enable the skills system (SkillsToolset loads SKILL.md files from backend/skills/, PydanticAI only)",
 )
+@click.option(
+    "--deep-research",
+    is_flag=True,
+    default=False,
+    help="Enable the deep research agent (TODO planner + subagents + context manager, PydanticAI only)",
+)
 @click.option("--session-management", is_flag=True, help="Enable session management")
 @click.option(
     "--reverse-proxy",
@@ -768,6 +774,7 @@ def create(
     antv_charts: bool,
     code_execution: bool,
     skills: bool,
+    deep_research: bool,
     session_management: bool,
     reverse_proxy: str,
     kubernetes: bool,
@@ -1199,6 +1206,7 @@ def create(
                 enable_antv_charts=antv_charts,
                 enable_code_execution=code_execution,
                 enable_skills=skills,
+                enable_deep_research=deep_research,
                 enable_session_management=session_management,
                 reverse_proxy=_rp_map[reverse_proxy],
                 enable_kubernetes=kubernetes,

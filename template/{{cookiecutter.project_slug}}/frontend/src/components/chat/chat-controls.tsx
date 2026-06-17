@@ -22,6 +22,9 @@ import {
   Sparkles,
   Users,
 {%- endif %}
+{%- if cookiecutter.enable_deep_research %}
+  Telescope,
+{%- endif %}
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -32,6 +35,9 @@ import { useKnowledgeBases, useConversations } from "@/hooks";
 import { useConversationStore, useKBSelectionStore } from "@/stores";
 {%- else %}
 import { useConversationStore } from "@/stores";
+{%- endif %}
+{%- if cookiecutter.enable_deep_research %}
+import { useChatModeStore } from "@/stores";
 {%- endif %}
 import { cn } from "@/lib/utils";
 {%- if cookiecutter.enable_teams and cookiecutter.enable_rag %}
@@ -180,28 +186,26 @@ export function ChatControls({
   const [temperature, setTemperature] = useState<number | null>(null);
   const [effort, setEffort] = useState<ThinkingEffort>("off");
   const settingsOverridden = temperature !== null || effort !== "off";
+{%- if cookiecutter.enable_deep_research %}
+  const deepResearch = useChatModeStore((s) => s.deepResearch);
+{%- endif %}
 
   // ── Trigger summary ─────────────────────────────────────────────────────
   const triggerSummary = useMemo(() => {
     const parts: string[] = [];
+{%- if cookiecutter.enable_deep_research %}
+    if (deepResearch) parts.push("Research");
+{%- endif %}
 {%- if cookiecutter.enable_teams and cookiecutter.enable_rag %}
     if (activeCount > 0) parts.push(`${activeCount} KB${activeCount === 1 ? "" : "s"}`);
 {%- endif %}
     if (selectedModel.value) parts.push(selectedModel.value);
     if (settingsOverridden) parts.push("Custom");
     return parts.length ? parts.join(" · ") : "Controls";
-{%- if cookiecutter.enable_teams and cookiecutter.enable_rag %}
-  }, [activeCount, selectedModel, settingsOverridden]);
-{%- else %}
-  }, [selectedModel, settingsOverridden]);
-{%- endif %}
+  }, [{% if cookiecutter.enable_deep_research %}deepResearch, {% endif %}{% if cookiecutter.enable_teams and cookiecutter.enable_rag %}activeCount, {% endif %}selectedModel, settingsOverridden]);
 
   const hasOverrides =
-{%- if cookiecutter.enable_teams and cookiecutter.enable_rag %}
-    activeCount > 0 || selectedModel.value !== "" || settingsOverridden;
-{%- else %}
-    selectedModel.value !== "" || settingsOverridden;
-{%- endif %}
+    {% if cookiecutter.enable_deep_research %}deepResearch || {% endif %}{% if cookiecutter.enable_teams and cookiecutter.enable_rag %}activeCount > 0 || {% endif %}selectedModel.value !== "" || settingsOverridden;
 
   return (
     <Popover>
@@ -507,8 +511,44 @@ function SettingsPanel({
   onTemperatureChange: (v: number | null) => void;
   onEffortChange: (v: ThinkingEffort) => void;
 }) {
+{%- if cookiecutter.enable_deep_research %}
+  const deepResearch = useChatModeStore((s) => s.deepResearch);
+  const setDeepResearch = useChatModeStore((s) => s.setDeepResearch);
+{%- endif %}
   return (
     <div className="space-y-6">
+{%- if cookiecutter.enable_deep_research %}
+      <div className="space-y-2.5">
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-foreground inline-flex items-center gap-1.5 text-sm font-semibold">
+            <Telescope className="h-3.5 w-3.5" />
+            Deep research
+          </span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={deepResearch}
+            onClick={() => setDeepResearch(!deepResearch)}
+            className={cn(
+              "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors",
+              deepResearch ? "bg-primary" : "bg-foreground/20",
+            )}
+          >
+            <span
+              className={cn(
+                "bg-background inline-block h-4 w-4 transform rounded-full shadow transition-transform",
+                deepResearch ? "translate-x-4" : "translate-x-0.5",
+              )}
+            />
+          </button>
+        </div>
+        <p className="text-foreground/55 text-[11px] leading-relaxed">
+          {deepResearch
+            ? "Plans the work, delegates to parallel subagents, then composes a cited report — asking you to clarify the scope first when the request is vague."
+            : "Answers directly in a single fast pass, with no planning or delegation."}
+        </p>
+      </div>
+{%- endif %}
       {/* Temperature */}
       <div className="space-y-2.5">
         <div className="flex items-baseline justify-between">

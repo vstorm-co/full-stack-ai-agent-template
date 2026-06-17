@@ -9,7 +9,8 @@ authors = [
 ]
 
 dependencies = [
-    "fastapi>=0.135.3",
+    # TODO: unpin once FastAPI fixes empty-path routes (regression in 0.137).
+    "fastapi>=0.135.3,<0.137",
     "uvicorn[standard]>=0.43.0",
 {%- if cookiecutter.use_crewai %}
     # crewai 1.13.x pins pydantic<2.12 and pydantic-settings<2.11 transitively
@@ -293,6 +294,11 @@ dependencies = [
 {%- endif %}
 {%- if cookiecutter.enable_skills %}
     "pydantic-ai-skills>=0.11.0",
+{%- endif %}
+{%- if cookiecutter.enable_deep_research %}
+    "pydantic-ai-todo>=0.2.1",
+    "subagents-pydantic-ai>=0.2.7",
+    "summarization-pydantic-ai>=0.1.7",
 {%- endif %}
 {%- if cookiecutter.use_telegram or cookiecutter.use_slack %}
     "cryptography>=44.0.0",

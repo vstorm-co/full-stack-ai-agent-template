@@ -19,6 +19,10 @@ import type {
 } from "@/types";
 import { WS_URL } from "@/lib/constants";
 import { useConversationStore } from "@/stores";
+{%- if cookiecutter.enable_deep_research %}
+import { useResearchStore, useChatModeStore } from "@/stores";
+import type { ContextUsage, ResearchTodo, SubagentStatus } from "@/types";
+{%- endif %}
 /** A message the user typed while the agent was busy / socket offline.
  *  Held outside the chat history until the drainer ships it. */
 export interface QueuedMessage {
@@ -430,6 +434,32 @@ export function useChat(options: UseChatOptions = {}) {
           );
           break;
         }
+{%- if cookiecutter.enable_deep_research %}
+
+        case "todo_event": {
+          const { event_type, todo } = wsEvent.data as {
+            event_type: string;
+            todo: ResearchTodo;
+          };
+          useResearchStore.getState().applyTodoEvent(event_type, todo);
+          break;
+        }
+
+        case "subagent_status": {
+          useResearchStore.getState().upsertSubagent(wsEvent.data as SubagentStatus);
+          break;
+        }
+
+        case "context_usage": {
+          useResearchStore.getState().setContextUsage(wsEvent.data as ContextUsage);
+          break;
+        }
+
+        case "context_compacted": {
+          useResearchStore.getState().incrementCompaction();
+          break;
+        }
+{%- endif %}
 
         case "complete": {
           setIsProcessing(false);
@@ -481,8 +511,9 @@ export function useChat(options: UseChatOptions = {}) {
 
   const doSend = useCallback(
     (content: string, fileIds?: string[], files?: ChatMessageFile[]) => {
+      const userMessageId = nanoid();
       addMessage({
-        id: nanoid(),
+        id: userMessageId,
         role: "user",
         content,
         timestamp: new Date(),
@@ -490,6 +521,9 @@ export function useChat(options: UseChatOptions = {}) {
         fileIds,
         files,
       });
+{%- if cookiecutter.enable_deep_research %}
+      useResearchStore.getState().beginTurn(userMessageId);
+{%- endif %}
       setIsProcessing(true);
       const payload: Record<string, unknown> = {
         message: content,
@@ -502,6 +536,9 @@ export function useChat(options: UseChatOptions = {}) {
 {%- if cookiecutter.enable_rag %}
       const activeKBIds = useKBSelectionStore.getState().activeKBIds;
       if (activeKBIds.length) payload.active_knowledge_base_ids = activeKBIds;
+{%- endif %}
+{%- if cookiecutter.enable_deep_research %}
+      payload.deep_research = useChatModeStore.getState().deepResearch;
 {%- endif %}
       sendMessage(payload);
     },
@@ -586,6 +623,21 @@ export function useChat(options: UseChatOptions = {}) {
     [isConnected, sendMessage],
   );
 
+  const stopGeneration = useCallback(() => {
+    sendMessage({ type: "stop" });
+    if (currentMessageIdRef.current) {
+      updateMessage(currentMessageIdRef.current, (msg) => ({ ...msg, isStreaming: false }));
+    }
+    setCurrentMessageId(null);
+    currentGroupIdRef.current = null;
+    setIsProcessing(false);
+    setPendingApproval(null);
+    setPendingQuestions(null);
+{%- if cookiecutter.enable_deep_research %}
+    useResearchStore.getState().markCurrentTurnStopped();
+{%- endif %}
+  }, [sendMessage, updateMessage, setCurrentMessageId]);
+
   // Drain message queue when processing finishes AND we're back online.
   // Re-runs on either flip so a reconnect after offline → drains; a busy turn
   // ending → drains the next one.
@@ -608,6 +660,7 @@ export function useChat(options: UseChatOptions = {}) {
     connect,
     disconnect,
     sendMessage: sendChatMessage,
+    stopGeneration,
     clearMessages,
     queuedMessages,
     cancelQueued,

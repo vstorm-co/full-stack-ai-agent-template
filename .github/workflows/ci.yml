@@ -150,7 +150,7 @@ jobs:
 
       - name: Install generated project
         working-directory: /tmp/projects/test_minimal/backend
-        run: uv sync --extra dev
+        run: uv sync --dev
 
       - name: Run linting
         working-directory: /tmp/projects/test_minimal/backend
@@ -225,7 +225,7 @@ jobs:
 
       - name: Install backend
         working-directory: /tmp/projects/test_pg/backend
-        run: uv sync --extra dev
+        run: uv sync --dev
 
       - name: Run backend linting
         working-directory: /tmp/projects/test_pg/backend
@@ -286,7 +286,7 @@ jobs:
 
       - name: Install generated project
         working-directory: /tmp/projects/test_mongo/backend
-        run: uv sync --extra dev
+        run: uv sync --dev
 
       - name: Run linting
         working-directory: /tmp/projects/test_mongo/backend
@@ -363,7 +363,7 @@ jobs:
 
       - name: Install backend
         working-directory: /tmp/projects/test_pg_billing/backend
-        run: uv sync --extra dev
+        run: uv sync --dev
 
       - name: Run linting
         working-directory: /tmp/projects/test_pg_billing/backend
@@ -446,7 +446,7 @@ jobs:
 
       - name: Install backend
         working-directory: /tmp/projects/test_pg_credits/backend
-        run: uv sync --extra dev
+        run: uv sync --dev
 
       - name: Run linting
         working-directory: /tmp/projects/test_pg_credits/backend
@@ -516,7 +516,7 @@ jobs:
 
       - name: Install backend
         working-directory: /tmp/projects/test_pg_langchain/backend
-        run: uv sync --extra dev
+        run: uv sync --dev
 
       - name: Run linting
         working-directory: /tmp/projects/test_pg_langchain/backend
@@ -576,7 +576,7 @@ jobs:
 
       - name: Install generated project
         working-directory: /tmp/projects/test_mongo_teams/backend
-        run: uv sync --extra dev
+        run: uv sync --dev
 
       - name: Run linting
         working-directory: /tmp/projects/test_mongo_teams/backend
@@ -629,7 +629,7 @@ jobs:
 
       - name: Install generated project
         working-directory: /tmp/projects/test_sqlite_teams/backend
-        run: uv sync --extra dev
+        run: uv sync --dev
 
       - name: Run linting
         working-directory: /tmp/projects/test_sqlite_teams/backend

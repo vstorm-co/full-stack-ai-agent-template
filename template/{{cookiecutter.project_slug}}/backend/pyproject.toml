@@ -113,7 +113,7 @@ dependencies = [
     "flower>=2.0.0",
 {%- endif %}
 {%- if cookiecutter.use_taskiq %}
-    "taskiq>=0.11.0",
+    "taskiq[reload]>=0.11.0",
     "taskiq-redis>=1.0.0",
     "taskiq-dependencies>=0.1.0",
 {%- endif %}

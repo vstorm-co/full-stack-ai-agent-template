@@ -2,6 +2,7 @@
 """Taskiq application configuration."""
 
 from taskiq import TaskiqScheduler
+from taskiq.schedule_sources import LabelScheduleSource
 from taskiq_redis import ListQueueBroker, RedisAsyncResultBackend
 
 from app.core.config import settings
@@ -18,7 +19,7 @@ broker = ListQueueBroker(
 # Create scheduler for periodic tasks
 scheduler = TaskiqScheduler(
     broker=broker,
-    sources=["app.worker.tasks.schedules"],
+    sources=[LabelScheduleSource(broker)],
 )
 
 
@@ -33,6 +34,9 @@ async def startup() -> None:
 async def shutdown() -> None:
     """Cleanup on shutdown."""
     pass
+
+
+import app.worker.tasks.schedules  # noqa: F401
 {%- else %}
 # Taskiq not enabled for this project
 {%- endif %}

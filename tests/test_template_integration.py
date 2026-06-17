@@ -770,3 +770,37 @@ class TestGeneratedMakefile:
         assert "docker compose up -d db" in makefile
         # Compose filenames are still hyphenated — only the command changed.
         assert "docker-compose.frontend.yml" in makefile
+
+
+# ---------------------------------------------------------------------------
+# Dev dependencies — generated-content checks
+# ---------------------------------------------------------------------------
+
+
+class TestGeneratedDevDependencies:
+    """Guard `make install` against the pre-commit spawn failure in issue #95.
+
+    Dev tools lived under `[project.optional-dependencies].dev`, which only got
+    installed via uv's deprecated `dev`-extra special-casing. On uv versions
+    where `uv sync --dev` targets the PEP 735 group instead, the extra was
+    skipped and `pre-commit`/`ruff`/`ty` were never installed — so `make install`
+    failed with "Failed to spawn: pre-commit". They must live in
+    `[dependency-groups]`, which `--dev` installs deterministically.
+    """
+
+    @pytest.mark.slow
+    def test_dev_tools_in_dependency_group(self, generated_project_makefile: Path) -> None:
+        """Dev tools must be a PEP 735 dependency group, not an optional-deps extra."""
+        pyproject = (generated_project_makefile / "backend" / "pyproject.toml").read_text()
+        assert "[dependency-groups]" in pyproject
+        # The fragile dev-extra form must be gone (check the table header line,
+        # not an incidental mention in a comment).
+        assert "[project.optional-dependencies]" not in pyproject.splitlines()
+
+    @pytest.mark.slow
+    def test_precommit_in_dev_group(self, generated_project_makefile: Path) -> None:
+        """pre-commit must be declared so `uv sync --dev` can install it."""
+        pyproject = (generated_project_makefile / "backend" / "pyproject.toml").read_text()
+        group = pyproject.split("[dependency-groups]", 1)[1]
+        assert "pre-commit" in group
+        assert "ruff" in group and "ty" in group

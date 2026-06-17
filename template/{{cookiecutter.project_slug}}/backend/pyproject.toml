@@ -314,7 +314,11 @@ dependencies = [
 {%- endif %}
 ]
 
-[project.optional-dependencies]
+# PEP 735 dependency group — installed by `uv sync` / `uv sync --dev` and
+# excluded by `--no-dev`. (A `dev` extra under [project.optional-dependencies]
+# only installed via uv's deprecated dev-extra special-casing, so `uv sync --dev`
+# could skip it on some uv versions and leave pre-commit/ruff/ty unspawnable.)
+[dependency-groups]
 dev = [
     "pytest>=9.0.0",
     "anyio[trio]>=4.9.0",

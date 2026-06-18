@@ -3,7 +3,6 @@ notes/
 .vscode/
 .DS_Store
 test7/
-ai_agent_test/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

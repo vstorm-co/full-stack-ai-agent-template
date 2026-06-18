@@ -1,0 +1,18 @@
+# SSL Certificates Directory
+#
+# Place your SSL certificates here:
+# - cert.pem (certificate chain)
+# - key.pem (private key)
+#
+# For Let's Encrypt with certbot:
+# certbot certonly --standalone -d api.yourdomain.com -d yourdomain.com
+#
+# Then copy certificates:
+# cp /etc/letsencrypt/live/yourdomain.com/fullchain.pem nginx/ssl/cert.pem
+# cp /etc/letsencrypt/live/yourdomain.com/privkey.pem nginx/ssl/key.pem
+#
+# For development, you can generate self-signed certificates:
+# openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+#   -keyout nginx/ssl/key.pem \
+#   -out nginx/ssl/cert.pem \
+#   -subj "/CN=localhost"

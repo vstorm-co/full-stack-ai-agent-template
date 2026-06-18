@@ -1,0 +1,274 @@
+
+# Backend development configuration
+# Usage: docker-compose up -d
+
+services:
+  app:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: ai_agent_test_backend:dev
+    container_name: ai_agent_test_backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/app:/app/app:ro
+      - ./backend/cli:/app/cli:ro
+      - media_data:/app/media
+      # email/templates.py reads pre-compiled HTML/text from /app/emails/compiled.
+      # Build context is ./backend so the dir isn't in the image — mount it.
+      - ./emails:/app/emails:ro
+    env_file:
+      - ./backend/.env
+    environment:
+      - DEBUG=true
+      - ENVIRONMENT=local
+      - POSTGRES_HOST=db
+      - REDIS_HOST=redis
+      - MILVUS_HOST=milvus
+      - MILVUS_PORT=19530
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - backend
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      milvus:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    container_name: ai_agent_test_db
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_DB=${POSTGRES_DB:-ai_agent_test}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    # Port exposed only for local development - remove in production
+    ports:
+      - "5432:5432"
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: ai_agent_test_redis
+    # Port exposed only for local development - remove in production
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  etcd:
+    image: quay.io/coreos/etcd:v3.6.12
+    container_name: ai_agent_test_etcd
+    command: >
+      etcd --advertise-client-urls http://etcd:2379
+      --listen-client-urls http://0.0.0.0:2379
+      --data-dir /var/lib/etcd
+    volumes:
+      - etcd_data:/var/lib/etcd
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:RELEASE.2024-09-22T00-33-43Z
+    container_name: ai_agent_test_minio
+    ports:
+      - "9010:9000"
+      - "9011:9001"
+    volumes:
+      - minio_data:/data
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    command: server /data --console-address ":9001"
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  milvus:
+    image: milvusdb/milvus:v2.6.17
+    container_name: ai_agent_test_milvus
+    command: ["milvus", "run", "standalone"]
+    ports:
+      - "19530:19530"
+      - "9091:9091"
+    volumes:
+      - milvus_data:/var/lib/milvus
+    environment:
+      - ETCD_ENDPOINTS=etcd:2379
+      - MINIO_ADDRESS=minio:9000
+    depends_on:
+      etcd:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
+      # Milvus standalone needs querycoord/datacoord/proxy to converge before
+      # /healthz returns 200. On Apple Silicon Macs first boot can take 60-180s.
+      # start_period suppresses failures during warm-up; 10 retries × 30s gives
+      # 5 more minutes after that before compose gives up.
+      start_period: 90s
+      interval: 30s
+      timeout: 10s
+      retries: 10
+    restart: unless-stopped
+
+  celery_worker:
+    image: ai_agent_test_backend:dev
+    pull_policy: never
+    container_name: ai_agent_test_celery_worker
+    volumes:
+      - ./backend/app:/app/app:ro
+      - media_data:/app/media
+      - ./emails:/app/emails:ro
+    command: celery -A app.worker.celery_app worker --loglevel=debug
+    env_file:
+      - ./backend/.env
+    environment:
+      - DEBUG=true
+      - POSTGRES_HOST=db
+      - REDIS_HOST=redis
+      - MILVUS_HOST=milvus
+      - MILVUS_PORT=19530
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    networks:
+      - backend
+    depends_on:
+      app:
+        condition: service_started
+      redis:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+      milvus:
+        condition: service_healthy
+    restart: unless-stopped
+
+  celery_beat:
+    image: ai_agent_test_backend:dev
+    pull_policy: never
+    container_name: ai_agent_test_celery_beat
+    volumes:
+      - ./backend/app:/app/app:ro
+    command: celery -A app.worker.celery_app beat --loglevel=debug
+    env_file:
+      - ./backend/.env
+    environment:
+      - DEBUG=true
+      - REDIS_HOST=redis
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    networks:
+      - backend
+    depends_on:
+      app:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  flower:
+    image: ai_agent_test_backend:dev
+    pull_policy: never
+    container_name: ai_agent_test_flower
+    command: celery -A app.worker.celery_app flower --port=5555
+    ports:
+      - "5555:5555"
+    env_file:
+      - ./backend/.env
+    environment:
+      - DEBUG=true
+      - REDIS_HOST=redis
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    networks:
+      - backend
+    depends_on:
+      app:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # AntV mcp-server-chart sidecar: advanced diagram tools over MCP. Opt-in —
+  # starts only with the "antv" profile; the agent connects when ENABLE_ANTV_CHARTS=true.
+  antvis-chart:
+    image: node:20-alpine
+    container_name: ai_agent_test_antvis_chart
+    profiles: ["antv"]
+    command: >
+      npx -y @antv/mcp-server-chart
+      --transport streamable --host 0.0.0.0 --port 1122 --endpoint /mcp
+    environment:
+      # Empty = AntV's public rendering backend. Point at a self-hosted
+      # GPT-Vis-SSR for private deployments (data never leaves your infra).
+      - VIS_REQUEST_SERVER=${ANTV_VIS_REQUEST_SERVER:-}
+      # Default drops basic charts (covered by create_chart/Recharts) and the
+      # China-only map tools (covered by create_map/Leaflet). Override via ANTV_DISABLED_TOOLS.
+      - DISABLED_TOOLS=${ANTV_DISABLED_TOOLS:-generate_area_chart,generate_bar_chart,generate_column_chart,generate_line_chart,generate_pie_chart,generate_scatter_chart,generate_district_map,generate_pin_map,generate_path_map}
+    networks:
+      - backend
+    healthcheck:
+      # The MCP streamable-HTTP endpoint rejects a plain GET, so a bare `wget`
+      # would report the container unhealthy even while it serves fine. Use node
+      # (always present in this image) and treat ANY HTTP response — including a
+      # 4xx — as "process is up"; only a connection error counts as a failure.
+      test:
+        - "CMD"
+        - "node"
+        - "-e"
+        - "require('http').get('http://localhost:1122/mcp',r=>process.exit(0)).on('error',()=>process.exit(1))"
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+networks:
+  backend:
+    driver: bridge
+
+volumes:
+  media_data:
+  postgres_data:
+  redis_data:
+  etcd_data:
+  minio_data:
+  milvus_data:

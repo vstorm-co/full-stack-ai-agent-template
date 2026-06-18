@@ -1,0 +1,10 @@
+Subject: Your [[app_name]] plan has been updated
+
+Hi [[name]],
+
+Your subscription has been updated from [[old_plan]] to [[new_plan]].
+
+Manage your subscription:
+[[portal_url]]
+
+— The [[app_name]] Team

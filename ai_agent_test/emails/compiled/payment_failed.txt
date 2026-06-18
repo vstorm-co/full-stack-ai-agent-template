@@ -1,0 +1,12 @@
+Subject: Action required — payment failed on [[app_name]]
+
+Hi [[name]],
+
+We were unable to process your payment of [[amount]]. To keep your subscription active, please update your payment method.
+
+Update payment method:
+[[update_url]]
+
+If you have any questions, reply to this email.
+
+— The [[app_name]] Team

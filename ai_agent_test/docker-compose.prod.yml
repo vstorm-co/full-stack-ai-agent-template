@@ -1,0 +1,306 @@
+
+# Production configuration
+# with external Nginx (config template provided)
+#
+# Usage:
+#   1. Fill backend/.env with real production secrets (cp backend/.env.example
+#      backend/.env if it doesn't exist yet). The same file is used for dev and
+#      prod — there is no separate .env.prod.
+#   2. Run: make prod   (or: docker compose --env-file backend/.env -f docker-compose.prod.yml up -d)
+#
+# Prerequisites:
+#   1. Configure your external Nginx using nginx/nginx.conf as reference
+#   2. Configure backend/.env with DOMAIN
+
+services:
+
+  app:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ai_agent_test_backend
+    volumes:
+      - media_data:/app/media
+      # email/templates.py reads pre-compiled HTML/text from /app/emails/compiled.
+      # Build context is ./backend so the dir isn't in the image — mount it.
+      - ./emails:/app/emails:ro
+    env_file:
+      - ./backend/.env
+    environment:
+      - DEBUG=false
+      - ENVIRONMENT=production
+      - POSTGRES_HOST=db
+      - REDIS_HOST=redis
+      - MILVUS_HOST=milvus
+      - MILVUS_PORT=19530
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+    networks:
+      - backend-internal
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      milvus:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+
+  db:
+    image: postgres:16-alpine
+    container_name: ai_agent_test_db
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB:-ai_agent_test}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    # NO external ports - only accessible within backend-internal network
+    networks:
+      - backend-internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+
+  redis:
+    image: redis:7-alpine
+    container_name: ai_agent_test_redis
+    command: redis-server --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+    # NO external ports - only accessible within backend-internal network
+    volumes:
+      - redis_data:/data
+    networks:
+      - backend-internal
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+
+  etcd:
+    image: quay.io/coreos/etcd:v3.6.12
+    container_name: ai_agent_test_etcd
+    volumes:
+      - etcd_data:/var/lib/etcd
+    networks:
+      - backend-internal
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+
+  minio:
+    image: minio/minio:RELEASE.2024-09-22T00-33-43Z
+    container_name: ai_agent_test_minio
+    command: server /data --console-address ":9001"
+    # NO external ports - only accessible within backend-internal network
+    volumes:
+      - minio_data:/data
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-changeme}
+    networks:
+      - backend-internal
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+
+  milvus:
+    image: milvusdb/milvus:v2.6.17
+    container_name: ai_agent_test_milvus
+    command: ["milvus", "run", "standalone"]
+    # NO external ports - only accessible within backend-internal network
+    volumes:
+      - milvus_data:/var/lib/milvus
+    environment:
+      - ETCD_ENDPOINTS=etcd:2379
+      - MINIO_ADDRESS=minio:9000
+    depends_on:
+      etcd:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - backend-internal
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
+      # Milvus standalone needs querycoord/datacoord/proxy to converge before
+      # /healthz returns 200 — first boot can take 60-180s on Apple Silicon.
+      start_period: 90s
+      interval: 30s
+      timeout: 10s
+      retries: 10
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+
+  celery_worker:
+    image: ai_agent_test_backend:dev
+    container_name: ai_agent_test_celery_worker
+    volumes:
+      - media_data:/app/media
+      - ./emails:/app/emails:ro
+    command: celery -A app.worker.celery_app worker --loglevel=warning --concurrency=4
+    env_file:
+      - ./backend/.env
+    environment:
+      - DEBUG=false
+      - REDIS_HOST=redis
+      - MILVUS_HOST=milvus
+      - MILVUS_PORT=19530
+      - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://:${REDIS_PASSWORD}@redis:6379/0
+    networks:
+      - backend-internal
+    depends_on:
+      app:
+        condition: service_started
+      redis:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+      milvus:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+  celery_beat:
+    image: ai_agent_test_backend:dev
+    container_name: ai_agent_test_celery_beat
+    command: celery -A app.worker.celery_app beat --loglevel=warning
+    env_file:
+      - ./backend/.env
+    environment:
+      - DEBUG=false
+      - REDIS_HOST=redis
+      - MILVUS_HOST=milvus
+      - MILVUS_PORT=19530
+      - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://:${REDIS_PASSWORD}@redis:6379/0
+    networks:
+      - backend-internal
+    depends_on:
+      app:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+
+  flower:
+    image: ai_agent_test_backend:dev
+    container_name: ai_agent_test_flower
+    command: celery -A app.worker.celery_app flower --port=5555
+    env_file:
+      - ./backend/.env
+    environment:
+      - DEBUG=false
+      - REDIS_HOST=redis
+      - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - FLOWER_BASIC_AUTH=${FLOWER_USER:-admin}:${FLOWER_PASSWORD:?FLOWER_PASSWORD is required}
+    networks:
+      - backend-internal
+    ports:
+      - "5555:5555"
+    depends_on:
+      app:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ai_agent_test_frontend
+    environment:
+      - NODE_ENV=production
+      - BACKEND_URL=http://app:8000
+      - BACKEND_WS_URL=ws://app:8000
+    networks:
+      - backend-internal
+    ports:
+      - "3000:3000"
+    depends_on:
+      - app
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+
+networks:
+  backend-internal:
+    driver: bridge
+    internal: true
+
+volumes:
+  media_data:
+  postgres_data:
+  redis_data:
+  etcd_data:
+  minio_data:
+  milvus_data:

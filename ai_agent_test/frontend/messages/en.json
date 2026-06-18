@@ -1,0 +1,906 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "search": "Search",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "submit": "Submit",
+    "close": "Close",
+    "confirm": "Confirm",
+    "yes": "Yes",
+    "no": "No"
+  },
+  "navigation": {
+    "home": "Home",
+    "dashboard": "Dashboard",
+    "profile": "Profile",
+    "settings": "Settings",
+    "logout": "Logout"
+  },
+  "auth": {
+    "login": "Login",
+    "register": "Register",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "forgotPassword": "Forgot Password?",
+    "noAccount": "Don't have an account?",
+    "hasAccount": "Already have an account?",
+    "loginSuccess": "Successfully logged in",
+    "registerSuccess": "Account created successfully",
+    "logoutSuccess": "Successfully logged out",
+    "invalidCredentials": "Invalid email or password",
+    "emailRequired": "Email is required",
+    "passwordRequired": "Password is required",
+    "passwordMismatch": "Passwords do not match",
+    "continueWithGoogle": "Continue with Google",
+    "signUpWithGoogle": "Sign up with Google",
+    "orContinueWith": "Or continue with",
+    "orRegisterWith": "Or register with email",
+    "redirecting": "Redirecting...",
+    "loggingIn": "Logging in...",
+    "creatingAccount": "Creating account...",
+    "nameOptional": "Name (optional)",
+    "createAccount": "Create Account",
+    "welcomeBack": "Welcome back",
+    "getStarted": "Let's set you up",
+    "forgotShort": "Forgot?",
+    "namePlaceholder": "How should we call you?",
+    "emailPlaceholder": "name@company.com",
+    "orSignInWith": "or sign in with",
+    "orSignUpWith": "or sign up with",
+    "resetPassword": {
+      "eyebrow": "Reset password",
+      "heading": "Set a new password",
+      "intro": "Pick something you haven't used elsewhere. 8+ characters, mixed case, numbers.",
+      "newPassword": "New password",
+      "confirm": "Confirm",
+      "passwordsMatch": "Match",
+      "passwordsDontMatch": "Passwords don't match",
+      "submit": "Update password",
+      "submitting": "Updating…",
+      "minLength": "Password must be at least 8 characters",
+      "successToast": "Password updated. Sign in to continue.",
+      "invalidLink": "Reset link is invalid or expired.",
+      "backToSignIn": "Back to sign in",
+      "strengthWeak": "Weak",
+      "strengthFair": "Fair",
+      "strengthGood": "Good",
+      "strengthStrong": "Strong"
+    },
+    "magicLink": {
+      "verifying": "Signing you in…",
+      "verifyingHint": "Hold tight while we verify your magic link.",
+      "success": "Signed in",
+      "successHint": "Redirecting to your workspace…",
+      "errorHeading": "Couldn't sign you in",
+      "errorMissingToken": "No token provided. Request a new sign-in link.",
+      "errorInvalid": "Magic link is invalid or has expired.",
+      "signInWithPassword": "Sign in with password",
+      "requestNewLink": "Request a new link"
+    }
+  },
+  "profile": {
+    "title": "Profile",
+    "personalInfo": "Personal Information",
+    "name": "Name",
+    "email": "Email",
+    "changePassword": "Change Password",
+    "currentPassword": "Current Password",
+    "newPassword": "New Password",
+    "updateProfile": "Update Profile",
+    "deleteAccount": "Delete Account",
+    "deleteAccountWarning": "This action cannot be undone. All your data will be permanently deleted."
+  },
+  "chat": {
+    "title": "Chat",
+    "newChat": "New Chat",
+    "sendMessage": "Send a message...",
+    "thinking": "Thinking...",
+    "noConversations": "No conversations yet",
+    "startNewChat": "Start a new chat to begin",
+    "deleteConversation": "Delete conversation",
+    "archiveConversation": "Archive conversation",
+    "renameConversation": "Rename conversation",
+    "conversations": "Conversations",
+    "rename": "Rename",
+    "share": "Share",
+    "archive": "Archive",
+    "delete": "Delete",
+    "newConversation": "New conversation",
+    "analyzeFiles": "Analyze the attached file(s)",
+    "copyMessage": "Copy",
+    "helpful": "Helpful",
+    "notHelpful": "Not helpful",
+    "saveConversationToRate": "Save conversation first to rate",
+    "ratingRemoved": "Rating removed",
+    "thankYouFeedback": "Thanks for your feedback!",
+    "ratingFailed": "Failed to submit rating",
+    "whatWentWrong": "What went wrong?",
+    "feedbackHelp": "Help us improve by optionally letting us know what wasn't helpful.",
+    "describeIssue": "Describe the issue... (optional)",
+    "skipComment": "Skip comment",
+    "shareConversation": "Share Conversation",
+    "shareDescription": "Share this conversation with other users or generate a public link.",
+    "userIdOrEmail": "User ID or email",
+    "generateShareLink": "Generate share link",
+    "sharedWith": "Shared with",
+    "conversationShared": "Conversation shared",
+    "linkGenerated": "Share link generated",
+    "accessRevoked": "Access revoked",
+    "copyLink": "Link copied to clipboard",
+    "failedToShare": "Failed to share conversation",
+    "failedToGenerateLink": "Failed to generate link",
+    "failedToRevoke": "Failed to revoke access"
+  },
+  "admin": {
+    "conversationsTitle": "Admin: Conversations",
+    "conversationsDesc": "Browse and manage all conversations and users.",
+    "ratingsTitle": "Response Ratings",
+    "conversations": "Conversations",
+    "users": "Users",
+    "search": "Search...",
+    "clearUserFilter": "Clear user filter",
+    "title": "Title",
+    "owner": "Owner",
+    "messages": "Messages",
+    "created": "Created",
+    "status": "Status",
+    "untitled": "Untitled",
+    "readOnly": "messages (read-only)",
+    "noConversations": "No conversations found.",
+    "noUsers": "No users found.",
+    "view": "View",
+    "viewChats": "View chats",
+    "email": "Email",
+    "name": "Name",
+    "joined": "Joined",
+    "pageOf": "Page {page} of {total}",
+    "total": "{count} total",
+    "allRatings": "All Ratings",
+    "likesOnly": "Likes Only",
+    "dislikesOnly": "Dislikes Only",
+    "withCommentsOnly": "With comments only",
+    "export": "Export",
+    "totalRatings": "Total Ratings",
+    "likes": "Likes",
+    "dislikes": "Dislikes",
+    "averageRating": "Average Rating",
+    "ratingsOverTime": "Ratings Over Time",
+    "date": "Date",
+    "rating": "Rating",
+    "comment": "Comment",
+    "message": "Message",
+    "user": "User",
+    "actions": "Actions",
+    "viewConversation": "View conversation",
+    "accessDenied": "Access denied"
+  },
+  "errors": {
+    "generic": "Something went wrong",
+    "notFound": "Page not found",
+    "unauthorized": "You are not authorized to view this page",
+    "forbidden": "Access forbidden",
+    "serverError": "Server error. Please try again later.",
+    "networkError": "Network error. Please check your connection."
+  },
+  "organizations": {
+    "title": "Organizations",
+    "description": "Manage your organizations and switch between them.",
+    "newOrg": "New organization",
+    "personal": "Personal",
+    "manage": "Manage",
+    "switchTo": "Switch to",
+    "noOrgs": "No organizations yet",
+    "createFirst": "Create your first organization",
+    "createTitle": "Create organization",
+    "nameLabel": "Organization name",
+    "namePlaceholder": "My Team",
+    "creating": "Creating...",
+    "created": "Organization created",
+    "updated": "Organization updated",
+    "deleted": "Organization deleted",
+    "failedLoad": "Failed to load organizations",
+    "failedCreate": "Failed to create organization"
+  },
+  "members": {
+    "title": "Members",
+    "invite": "Invite",
+    "inviteTitle": "Invite member",
+    "emailLabel": "Email address",
+    "emailPlaceholder": "colleague@example.com",
+    "roleLabel": "Role",
+    "roleMember": "Member",
+    "roleAdmin": "Admin",
+    "roleOwner": "Owner",
+    "sending": "Sending...",
+    "sendInvite": "Send invite",
+    "inviteSent": "Invitation sent to {email}",
+    "failedInvite": "Failed to send invitation",
+    "roleUpdated": "Role updated",
+    "failedRole": "Failed to update role",
+    "memberRemoved": "Member removed",
+    "failedRemove": "Failed to remove member",
+    "you": "(you)",
+    "joined": "Joined",
+    "pendingInvitations": "Pending invitations",
+    "pendingDescription": "Invites that haven't been accepted yet",
+    "revoke": "Revoke",
+    "revokeSuccess": "Invitation revoked",
+    "failedRevoke": "Failed to revoke invitation"
+  },
+  "knowledgeBases": {
+    "title": "Knowledge Bases",
+    "description": "Manage your document collections used for AI retrieval.",
+    "newKB": "New knowledge base",
+    "createTitle": "Create knowledge base",
+    "nameLabel": "Name",
+    "namePlaceholder": "Product docs",
+    "descriptionLabel": "Description (optional)",
+    "descriptionPlaceholder": "What documents will this KB contain?",
+    "scopeLabel": "Scope",
+    "scopePersonal": "Personal — only you",
+    "scopeOrganization": "Organization — all members",
+    "scopeApp": "App-wide",
+    "active": "Active",
+    "inactive": "Inactive",
+    "created": "Knowledge base created",
+    "updated": "Knowledge base updated",
+    "deleted": "Knowledge base deleted",
+    "failedLoad": "Failed to load knowledge bases",
+    "failedCreate": "Failed to create knowledge base"
+  },
+  "billing": {
+    "title": "Billing",
+    "description": "Manage your subscription for {org}.",
+    "subscription": "Billing & Subscription",
+    "subscriptionDesc": "Upgrade to add more seats and unlock features.",
+    "subscriptionDescPaid": "Manage your subscription and billing details.",
+    "seatsUsed": "Seats used",
+    "upgrade": "Upgrade plan",
+    "manageBilling": "Manage billing",
+    "redirecting": "Redirecting...",
+    "successMessage": "Subscription updated successfully!",
+    "tierFree": "Free",
+    "tierSolo": "Solo",
+    "tierTeam": "Team",
+    "tierBusiness": "Business"
+  },
+  "invitations": {
+    "title": "Team invitation",
+    "description": "You've been invited to join an organization.",
+    "accept": "Accept invitation",
+    "accepting": "Joining...",
+    "acceptSuccess": "Joined organization!",
+    "redirecting": "Redirecting to your organizations...",
+    "failedTitle": "Failed to accept invitation",
+    "failedDesc": "The invitation may have expired or already been used.",
+    "goDashboard": "Go to dashboard"
+  },
+  "footer": {
+    "copyright": "All rights reserved"
+  },
+  "landing": {
+    "heroTitle": "Build Intelligent",
+    "heroHighlight": "Applications",
+    "heroTitleEnd": "with Confidence",
+    "heroSubtitle": "A production-ready full-stack platform with AI-powered chat, knowledge base retrieval, secure authentication, and a modern dashboard.",
+    "getStarted": "Get Started",
+    "signIn": "Sign In",
+    "featureAiChat": "AI-Powered Chat",
+    "featureAiChatDesc": "Conversational AI assistant with real-time streaming, conversation history, and tool-calling capabilities.",
+    "featureRag": "Knowledge Base",
+    "featureRagDesc": "Vector search across your documents with retrieval-augmented generation. Ingest PDFs, DOCX, and more.",
+    "featureAuth": "Secure Authentication",
+    "featureAuthDesc": "JWT-based auth with refresh tokens, OAuth integration, session management, and role-based access control.",
+    "featureDashboard": "Dashboard",
+    "featureDashboardDesc": "System health monitoring, user management, and collection statistics at a glance.",
+    "featureApi": "REST API",
+    "featureApiDesc": "Auto-documented FastAPI backend with OpenAPI specs, versioned endpoints, and async database access.",
+    "featureRealtime": "Real-time",
+    "featureRealtimeDesc": "WebSocket-powered streaming for instant AI responses and live updates across the application.",
+    "techStackTitle": "Built with modern technologies",
+    "ctaTitle": "Ready to get started?",
+    "ctaSubtitle": "Create your account and start exploring the platform.",
+    "createAccount": "Create Account",
+    "exploreApi": "Explore API",
+    "footerDesc": "Full-stack AI application platform with enterprise-grade features.",
+    "footerProduct": "Product",
+    "footerResources": "Resources",
+    "apiDocs": "API Documentation",
+    "learnMore": "Learn More",
+    "copyright": "All rights reserved."
+  },
+  "marketing": {
+    "nav": {
+      "features": "Features",
+      "howItWorks": "How it works",
+      "pricing": "Pricing",
+      "faq": "FAQ",
+      "blog": "Blog",
+      "changelog": "Changelog",
+      "about": "About",
+      "contact": "Contact",
+      "help": "Help",
+      "community": "Community",
+      "security": "Security",
+      "getStarted": "Get started",
+      "signIn": "Sign in",
+      "platform": "Platform",
+      "solutions": "Solutions",
+      "customers": "Customers",
+      "resources": "Resources"
+    },
+    "footer": {
+      "tagline": "The AI assistant that knows your work.",
+      "product": "Product",
+      "company": "Company",
+      "resources": "Resources",
+      "helpCenter": "Help center",
+      "apiDocs": "API docs",
+      "terms": "Terms",
+      "privacy": "Privacy",
+      "cookies": "Cookies",
+      "operational": "All systems operational"
+    },
+    "cookies": {
+      "title": "We use cookies",
+      "description": "Essential cookies keep you signed in. Optional ones help us understand how the product is used.",
+      "policyLink": "cookie policy",
+      "acceptAll": "Accept all",
+      "rejectOptional": "Reject optional",
+      "preferences": "Preferences",
+      "savePreferences": "Save preferences",
+      "back": "Back",
+      "essential": "Essential",
+      "essentialDesc": "Required to keep you signed in. Cannot be disabled.",
+      "analytics": "Analytics",
+      "analyticsDesc": "Aggregated, anonymized usage data.",
+      "functional": "Functional",
+      "functionalDesc": "Remembers preferences (theme, onboarding state)."
+    },
+    "common": {
+      "lastUpdated": "Last updated {date}",
+      "readPost": "Read post",
+      "read": "Read",
+      "backToBlog": "Back to blog",
+      "keepReading": "Keep reading",
+      "seeAlso": "See also",
+      "minRead": "{count} min read",
+      "needHelp": "Need a custom integration?",
+      "contactUs": "Contact us"
+    },
+    "legal": {
+      "eyebrow": "Legal",
+      "terms": {
+        "title": "Terms of Service",
+        "summary": "The legal agreement between you and {appName}. Plain language where we can; precise where we must."
+      },
+      "privacy": {
+        "title": "Privacy Policy",
+        "summary": "What we collect, why, and what you can do about it. We don't train on your data — ever."
+      },
+      "cookies": {
+        "title": "Cookie Policy",
+        "summary": "What we store in your browser, why, and how to opt out."
+      }
+    },
+    "about": {
+      "eyebrow": "About",
+      "title": "We build {appName} so other founders don't have to.",
+      "description": "The fastest way to ship a real AI SaaS — auth, billing, RAG, agents, the whole boring stack — without rewiring the same plumbing every time.",
+      "whyTitle": "Why this exists",
+      "why1": "Every AI side-project starts the same way: a beautiful idea, then four weeks of YAML, three decisions about session storage, and one regretful hand-rolled webhook handler.",
+      "why2": "We open-sourced the plumbing — and kept iterating on it across real production apps — so the next person shipping an AI product can start the day on the actual product.",
+      "byTheNumbers": "By the numbers",
+      "stat_apps": "Production apps shipped",
+      "stat_deploy": "Avg time to first deploy",
+      "stat_frameworks": "AI frameworks supported",
+      "stat_license": "License",
+      "valuesEyebrow": "What we believe",
+      "valuesTitle": "Principles, not tasteful platitudes.",
+      "values": [
+        {
+          "key": "shipBoring",
+          "title": "Ship the boring parts",
+          "description": "Auth, billing, observability — wired and tested so you can focus on what makes your product different."
+        },
+        {
+          "key": "defaults",
+          "title": "Defaults that age well",
+          "description": "We pick conventions that hold up at scale: typed APIs, repository-service split, async everywhere."
+        },
+        {
+          "key": "openOpinionated",
+          "title": "Open, but opinionated",
+          "description": "MIT-licensed source you can fork freely. Strong defaults so the path of least resistance is also the right one."
+        },
+        {
+          "key": "aiTool",
+          "title": "AI as a tool, not a goal",
+          "description": "RAG, agents, streaming — first-class but optional. Build calm products that happen to use AI well."
+        }
+      ],
+      "teamLabel": "Team",
+      "teamTitle": "Small team. Big surface area.",
+      "team": [
+        {
+          "initials": "F",
+          "role": "Founders",
+          "line": "Engineering · Product"
+        },
+        {
+          "initials": "OS",
+          "role": "Open source",
+          "line": "Community contributions"
+        },
+        {
+          "initials": "B",
+          "role": "Beta testers",
+          "line": "Early-access customers"
+        }
+      ],
+      "quoteLine1": "Build the product.",
+      "quoteLine2": "We'll handle",
+      "quoteLine3": "the boring part.",
+      "quoteByline": "manifesto",
+      "seePricing": "See pricing",
+      "ctaEyebrow": "Ready?",
+      "ctaTitle": "Try it — no card needed.",
+      "ctaPrimary": "Get started",
+      "ctaSecondary": "Talk to us"
+    },
+    "contact": {
+      "eyebrow": "Contact",
+      "title": "Talk to us.",
+      "description": "Sales, support, partnerships, or just to say hi — pick the channel that fits, we'll get back to you.",
+      "channels": "Channels",
+      "sendMessage": "Send us a message",
+      "office": "Office",
+      "officeNote": "Remote-first team. Working hours overlap roughly UTC 08:00–18:00.",
+      "channelsList": [
+        {
+          "key": "support",
+          "label": "Email support",
+          "description": "We reply within {sla} on weekdays."
+        },
+        {
+          "key": "help",
+          "label": "Help center",
+          "value": "FAQs and guides",
+          "description": "Most questions are answered there."
+        },
+        {
+          "key": "discord",
+          "label": "Community Discord",
+          "value": "Async chat with builders",
+          "description": "Fastest way to get unstuck."
+        },
+        {
+          "key": "github",
+          "label": "GitHub issues",
+          "value": "Bugs, feature requests",
+          "description": "Source code questions."
+        }
+      ],
+      "responseSla": "{sla} response SLA",
+      "formNote": "Form tries the backend /api/v1/contact endpoint first. If it's not implemented, it opens your mail client (mailto). Update contact info in",
+      "form": {
+        "name": "Name",
+        "email": "Email",
+        "topic": "Topic",
+        "topic_support": "Support",
+        "topic_sales": "Sales",
+        "topic_partnerships": "Partnerships",
+        "topic_press": "Press / other",
+        "message": "Message",
+        "messagePlaceholder": "Tell us a bit about what you're working on…",
+        "send": "Send message",
+        "sending": "Sending…",
+        "sentTitle": "Message sent",
+        "sentBody": "Thanks — we'll get back to you within 24 hours on weekdays.",
+        "fallbackOpened": "Email opened",
+        "fallbackBody": "Your mail client should be drafting a message. If nothing happened, email us directly.",
+        "errorRequired": "Please fill out name, email, and message.",
+        "errorEmail": "Please enter a valid email address.",
+        "policyHint": "We reply within 24 hours on weekdays. By sending this you agree to our",
+        "policy": "privacy policy"
+      }
+    },
+    "help": {
+      "eyebrow": "Help",
+      "title": "How can we help?",
+      "description": "Browse topics or jump straight to a question. Still stuck? Email support — we reply fast.",
+      "browseLabel": "Browse",
+      "topics": [
+        {
+          "id": "getting-started",
+          "iconKey": "key",
+          "title": "Getting started",
+          "description": "Sign up, first chat, connect your data."
+        },
+        {
+          "id": "chat",
+          "iconKey": "message",
+          "title": "Chat & agents",
+          "description": "Streaming, tool calls, switching models."
+        },
+        {
+          "id": "kb",
+          "iconKey": "book",
+          "title": "Knowledge bases",
+          "description": "Collections, sync sources, search."
+        },
+        {
+          "id": "billing",
+          "iconKey": "credit",
+          "title": "Billing",
+          "description": "Plans, credits, invoices, seats."
+        },
+        {
+          "id": "workspace",
+          "iconKey": "settings",
+          "title": "Workspace",
+          "description": "Members, invitations, API keys."
+        },
+        {
+          "id": "security",
+          "iconKey": "shield",
+          "title": "Security",
+          "description": "Auth, data retention, encryption."
+        }
+      ],
+      "faqGroups": [
+        {
+          "id": "getting-started",
+          "title": "Getting started",
+          "items": [
+            {
+              "q": "How do I create my first conversation?",
+              "a": "Sign in, click 'New chat' from the dashboard, then type a prompt. The agent will stream the response, including any tool calls it makes along the way."
+            },
+            {
+              "q": "Can I import data from Google Drive?",
+              "a": "Yes — under Knowledge bases, add a sync source for Google Drive. You'll authenticate via OAuth and pick a folder. Files re-sync on a schedule you choose."
+            },
+            {
+              "q": "Which AI model is used by default?",
+              "a": "We default to a sensible cost/quality balance per provider. You can switch models per-conversation from the model picker in the chat input."
+            }
+          ]
+        },
+        {
+          "id": "chat",
+          "title": "Chat & agents",
+          "items": [
+            {
+              "q": "Why does the assistant pause to ask for approval?",
+              "a": "Some tools (write actions, sending messages, web fetches) can be configured to require human approval. You'll see a confirmation panel inline — approve or reject and the agent resumes."
+            },
+            {
+              "q": "Can I regenerate a response?",
+              "a": "Hover the most recent assistant message and click the regenerate icon. The agent re-runs the last prompt with the same model and tools."
+            }
+          ]
+        },
+        {
+          "id": "kb",
+          "title": "Knowledge bases",
+          "items": [
+            {
+              "q": "What file formats are supported?",
+              "a": "PDF, DOCX, MD, TXT out of the box. With LlamaParse enabled, 130+ formats including PPT, XLSX, images and more."
+            },
+            {
+              "q": "How is search ranked?",
+              "a": "Cosine similarity over embeddings. Score thresholds and re-ranking can be configured per collection."
+            }
+          ]
+        },
+        {
+          "id": "billing",
+          "title": "Billing",
+          "items": [
+            {
+              "q": "Do unused credits roll over?",
+              "a": "Monthly subscription credits expire at the end of each billing cycle. Pay-as-you-go top-ups never expire."
+            },
+            {
+              "q": "How do seats work?",
+              "a": "Each plan includes a base seat count. Add seats from the billing portal — pro-rated and charged immediately."
+            }
+          ]
+        },
+        {
+          "id": "workspace",
+          "title": "Workspace",
+          "items": [
+            {
+              "q": "How do I invite teammates?",
+              "a": "From the dashboard, click 'Invite team'. Enter emails — they'll get a magic link to join your workspace."
+            },
+            {
+              "q": "Where do I generate an API key?",
+              "a": "Settings → API keys. Keys are revealed once on creation; store yours in a secret manager. Revoke anytime."
+            }
+          ]
+        },
+        {
+          "id": "security",
+          "title": "Security",
+          "items": [
+            {
+              "q": "How is my data encrypted?",
+              "a": "TLS in transit, AES-256 at rest. Database backups encrypted with KMS-managed keys. See the Security page for details."
+            },
+            {
+              "q": "Do you train on my data?",
+              "a": "No. Your prompts and uploaded documents are never used to train any model — ours or third-party."
+            }
+          ]
+        }
+      ],
+      "stillStuckEyebrow": "Still stuck?",
+      "stillStuckTitle": "Talk to a real person.",
+      "stillStuckBody": "Email is the fastest way to get unstuck. We reply within 24 hours on weekdays.",
+      "stillStuckCta": "Contact support"
+    },
+    "changelog": {
+      "eyebrow": "Changelog",
+      "title": "What's new",
+      "description": "Releases, improvements, and fixes shipping in {appName}."
+    },
+    "community": {
+      "eyebrow": "Community",
+      "title": "Builders ship faster together.",
+      "description": "A small, opinionated community of devs and founders shipping AI products on top of the template. Async, technical, low-noise.",
+      "channels": [
+        {
+          "key": "discord",
+          "title": "Discord",
+          "description": "Real-time async chat with other builders. Share what you're shipping, get unstuck.",
+          "cta": "Join the server",
+          "eyebrow": "Most active"
+        },
+        {
+          "key": "github",
+          "title": "GitHub",
+          "description": "Source code, issues, discussions. Star to bookmark, file an issue if you hit a bug.",
+          "cta": "View repository"
+        },
+        {
+          "key": "twitter",
+          "title": "Twitter / X",
+          "description": "Build-in-public updates, release notes, and the occasional technical thread.",
+          "cta": "Follow"
+        },
+        {
+          "key": "youtube",
+          "title": "Office hours",
+          "description": "Weekly office-hours stream — we walk through real builds and answer questions.",
+          "cta": "Watch on YouTube"
+        }
+      ],
+      "guidelinesTitle": "Guidelines",
+      "guidelinesIntro": "We keep the bar high but the rules short. Treat each other well, post in the right place, don't spam.",
+      "guidelines": [
+        {
+          "title": "Be helpful",
+          "description": "Answer questions when you can. Even pointing someone to the right doc page is meaningful."
+        },
+        {
+          "title": "Be specific",
+          "description": "Sharing what you tried beats sharing what you want. Logs, code, screenshots — concrete beats abstract."
+        },
+        {
+          "title": "Share wins",
+          "description": "Shipped something? Tell us. We boost cool launches in newsletter and on social."
+        },
+        {
+          "title": "No selling",
+          "description": "Don't DM-spam to pitch. Don't post your unrelated startup in the help channels. We mute, we don't ban — usually."
+        }
+      ]
+    },
+    "security": {
+      "eyebrow": "Security",
+      "title": "We treat your data like ours.",
+      "description": "Practical, no-nonsense security posture. We default to the boring choices, document what we do, and patch fast.",
+      "pillars": [
+        {
+          "iconKey": "lock",
+          "title": "Encryption everywhere",
+          "description": "TLS 1.2+ in transit, AES-256 at rest. Encrypted backups with KMS-managed keys, rotated quarterly."
+        },
+        {
+          "iconKey": "key",
+          "title": "Strong auth, by default",
+          "description": "Bcrypt password hashing, JWT access + refresh tokens, optional OAuth providers, API keys constant-time-compared."
+        },
+        {
+          "iconKey": "userCheck",
+          "title": "Least-privilege access",
+          "description": "Role-based access control inside the app, scoped database roles in production, audit-logged admin actions."
+        },
+        {
+          "iconKey": "database",
+          "title": "Tenant isolation",
+          "description": "Per-organization data partitioning. Cross-tenant queries are guarded at the repository layer, never trusted at the API."
+        },
+        {
+          "iconKey": "eye",
+          "title": "We don't train on your data",
+          "description": "Prompts, documents, and conversations are never used to train any model. Period."
+        },
+        {
+          "iconKey": "shield",
+          "title": "Vulnerability response",
+          "description": "Patches for CVEs in dependencies merged within 72 hours. Coordinated disclosure for issues reported by researchers."
+        }
+      ],
+      "checklistTitle": "What we do, plainly",
+      "checklist": [
+        "TLS 1.2+ on all traffic; HSTS preload",
+        "AES-256 encryption at rest for database and object storage",
+        "JWT short-lived access tokens (15 min) + httpOnly refresh tokens",
+        "API keys hashed in database; never logged or echoed",
+        "Per-org row-level scoping at the repository layer",
+        "Stripe handles all card data — we never see PAN/CVV",
+        "Daily automated backups, 30-day retention",
+        "Incident postmortems published for any user-facing incident"
+      ],
+      "vulnTitle": "Reporting a vulnerability",
+      "vulnBody": "Found something? We want to know. Email {email} with steps to reproduce. We'll acknowledge within 48 hours and credit researchers who follow coordinated disclosure.",
+      "vulnContactCta": "Contact us"
+    },
+    "blog": {
+      "eyebrow": "Blog",
+      "title": "Notes from the workshop.",
+      "description": "Engineering deep-dives, product decisions, and the occasional rant. Posts every couple of weeks, no marketing fluff.",
+      "featured": "Featured",
+      "noPostsTitle": "No posts yet",
+      "noPostsDesc": "Drop the first MDX into content/blog and rebuild — the index renders automatically.",
+      "endOfPost": "end of post"
+    },
+    "landing": {
+      "metaDescription": "An AI assistant that knows your team's work. Plug in your docs, your tools, and your data — get answers grounded in everything your team has ever shipped.",
+      "hero": {
+        "eyebrow": "Meet your team's AI co-worker",
+        "titlePre": "AI that",
+        "titleHighlight": "knows",
+        "titleEm": "your work.",
+        "description": "Plug in your docs, your tools, and your data. Ask anything — get answers grounded in everything your team has ever shipped.",
+        "ctaPrimary": "Start free",
+        "ctaSecondary": "Book a demo",
+        "stat_teams": "Teams using",
+        "stat_speed": "Faster answers",
+        "stat_uptime": "Always on"
+      },
+      "social": {
+        "title": "Trusted by teams across industries"
+      },
+      "how": {
+        "eyebrow": "How it works",
+        "title": "Three steps to a smarter team"
+      },
+      "features": {
+        "eyebrow": "Features",
+        "title": "Built-in features that ship today",
+        "subtitle": "The boring infrastructure parts you'd otherwise spend a quarter wiring up."
+      },
+      "data": {
+        "eyebrow": "How retrieval works",
+        "title": "Your sources, ranked + cited"
+      },
+      "testimonials": {
+        "eyebrow": "Loved by teams",
+        "titlePre": "Teams that ship faster",
+        "titleEm": "with us."
+      },
+      "pricing": {
+        "eyebrow": "Pricing",
+        "titlePre": "Pay only for what",
+        "titleEm": "your team needs.",
+        "subtitle": "Drag the slider — your plan, your price, in real time.",
+        "teaser": {
+          "seats": "Team size",
+          "seatsUnit": "users",
+          "perMonth": "/mo",
+          "seeFull": "See full comparison →",
+          "custom": "Let's talk",
+          "billedMonthly": "billed monthly · cancel anytime"
+        }
+      },
+      "faq": {
+        "eyebrow": "FAQ",
+        "title": "Frequently asked.",
+        "items": [
+          {
+            "q": "What does {appName} actually do?",
+            "a": "It's an AI assistant that lives on top of your team's documents, conversations, and tools. Ask it questions in natural language; get answers grounded in your own data, with sources cited."
+          },
+          {
+            "q": "Where does my data live?",
+            "a": "Your data stays in your workspace. We never train on your content, and we encrypt everything at rest and in transit. Bring your own keys if you need extra control."
+          },
+          {
+            "q": "Which tools can I connect?",
+            "a": "Out of the box: Google Drive, Notion, Slack, GitHub, Confluence, and any S3-compatible bucket. More integrations ship every month, and you can always pipe data in via the public API."
+          },
+          {
+            "q": "Can I cancel anytime?",
+            "a": "Yes — every paid plan is month-to-month and you can cancel from the billing dashboard. Your account stays active until the end of the period you've already paid for."
+          },
+          {
+            "q": "Do you offer SSO and audit logs?",
+            "a": "SSO (Google, Okta, Microsoft Entra) and audit logs come with the Business plan. SCIM provisioning and DLP controls are available on Enterprise — get in touch."
+          },
+          {
+            "q": "Is there an API?",
+            "a": "Yes. Every feature in the dashboard is also available over a JSON API. Stream chat responses, ingest documents, manage users, subscribe to events — see the developer docs."
+          }
+        ]
+      },
+      "finalCta": {
+        "statValue": "12,840",
+        "statLabel": "Questions answered this week",
+        "titlePre": "Your team's next answer is",
+        "titleEm": "one ask away.",
+        "description": "Free 14-day trial. No credit card. Cancel anytime.",
+        "primary": "Start free",
+        "secondary": "See pricing"
+      }
+    },
+    "pricing": {
+      "eyebrow": "Pricing",
+      "title": "Simple, transparent pricing",
+      "description": "Start free. Upgrade when you're ready — every plan includes a 14-day trial.",
+      "monthly": "Monthly",
+      "annual": "Annual",
+      "savePill": "−20%",
+      "startTrial": "Start free trial",
+      "mostPopular": "Most popular",
+      "demoBanner": "Showing template plans — connect Stripe to see your real catalog.",
+      "loved": "Loved by builders",
+      "lovedTitle": "Teams shipping with us",
+      "faqTitle": "Pricing questions, answered",
+      "perMonth": "/ month",
+      "perYear": "/ year",
+      "trialBadge": "{days}-day free trial",
+      "faqs": [
+        {
+          "q": "Can I change plans later?",
+          "a": "Yes — upgrade, downgrade, or cancel at any time from your billing portal. Changes pro-rate automatically."
+        },
+        {
+          "q": "Do unused credits roll over?",
+          "a": "Unused monthly credits expire at the end of each billing cycle. Top-up credit packs you purchase separately never expire."
+        },
+        {
+          "q": "What payment methods do you accept?",
+          "a": "All major credit and debit cards via Stripe, plus ACH and SEPA on annual plans. Enterprise can pay via invoice."
+        },
+        {
+          "q": "Is there a free trial?",
+          "a": "Yes. Every paid plan comes with a 14-day free trial — no credit card required to start."
+        },
+        {
+          "q": "Can I self-host?",
+          "a": "Yes. The template is open-source. Self-host on your own infra, or pay us to manage it."
+        },
+        {
+          "q": "Do you offer discounts for annual billing?",
+          "a": "Annual plans get 2 months free (~17% saving). Toggle the billing switch above to see annual pricing."
+        }
+      ]
+    }
+  }
+}

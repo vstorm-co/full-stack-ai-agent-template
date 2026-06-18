@@ -1,0 +1,906 @@
+{
+  "common": {
+    "loading": "Ładowanie...",
+    "error": "Błąd",
+    "success": "Sukces",
+    "save": "Zapisz",
+    "cancel": "Anuluj",
+    "delete": "Usuń",
+    "edit": "Edytuj",
+    "create": "Utwórz",
+    "search": "Szukaj",
+    "back": "Wstecz",
+    "next": "Dalej",
+    "previous": "Wstecz",
+    "submit": "Wyślij",
+    "close": "Zamknij",
+    "confirm": "Potwierdź",
+    "yes": "Tak",
+    "no": "Nie"
+  },
+  "navigation": {
+    "home": "Strona główna",
+    "dashboard": "Panel",
+    "profile": "Profil",
+    "settings": "Ustawienia",
+    "logout": "Wyloguj"
+  },
+  "auth": {
+    "login": "Zaloguj się",
+    "register": "Zarejestruj się",
+    "email": "Email",
+    "password": "Hasło",
+    "confirmPassword": "Potwierdź hasło",
+    "forgotPassword": "Zapomniałeś hasła?",
+    "noAccount": "Nie masz konta?",
+    "hasAccount": "Masz już konto?",
+    "loginSuccess": "Zalogowano pomyślnie",
+    "registerSuccess": "Konto utworzone pomyślnie",
+    "logoutSuccess": "Wylogowano pomyślnie",
+    "invalidCredentials": "Nieprawidłowy email lub hasło",
+    "emailRequired": "Email jest wymagany",
+    "passwordRequired": "Hasło jest wymagane",
+    "passwordMismatch": "Hasła nie są takie same",
+    "continueWithGoogle": "Kontynuuj z Google",
+    "signUpWithGoogle": "Zarejestruj się przez Google",
+    "orContinueWith": "Lub kontynuuj przez",
+    "orRegisterWith": "Lub zarejestruj się emailem",
+    "redirecting": "Przekierowuję...",
+    "loggingIn": "Loguję...",
+    "creatingAccount": "Tworzę konto...",
+    "nameOptional": "Imię (opcjonalnie)",
+    "createAccount": "Utwórz konto",
+    "welcomeBack": "Witaj z powrotem",
+    "getStarted": "Zaczynamy",
+    "forgotShort": "Zapomniałeś?",
+    "namePlaceholder": "Jak Cię nazywać?",
+    "emailPlaceholder": "imie@firma.com",
+    "orSignInWith": "lub zaloguj przez",
+    "orSignUpWith": "lub załóż konto przez",
+    "resetPassword": {
+      "eyebrow": "Reset hasła",
+      "heading": "Ustaw nowe hasło",
+      "intro": "Wybierz hasło, którego nie używasz nigdzie indziej. 8+ znaków, mieszane wielkości liter, cyfry.",
+      "newPassword": "Nowe hasło",
+      "confirm": "Potwierdź",
+      "passwordsMatch": "Pasują",
+      "passwordsDontMatch": "Hasła nie są takie same",
+      "submit": "Zaktualizuj hasło",
+      "submitting": "Aktualizuję…",
+      "minLength": "Hasło musi mieć co najmniej 8 znaków",
+      "successToast": "Hasło zaktualizowane. Zaloguj się aby kontynuować.",
+      "invalidLink": "Link resetujący jest nieprawidłowy lub wygasł.",
+      "backToSignIn": "Wróć do logowania",
+      "strengthWeak": "Słabe",
+      "strengthFair": "Średnie",
+      "strengthGood": "Dobre",
+      "strengthStrong": "Mocne"
+    },
+    "magicLink": {
+      "verifying": "Logujemy Cię…",
+      "verifyingHint": "Chwilę cierpliwości, weryfikujemy magiczny link.",
+      "success": "Zalogowano",
+      "successHint": "Przekierowujemy do Twojego workspace…",
+      "errorHeading": "Nie udało się zalogować",
+      "errorMissingToken": "Brak tokenu. Poproś o nowy link logowania.",
+      "errorInvalid": "Magiczny link jest nieprawidłowy lub wygasł.",
+      "signInWithPassword": "Zaloguj się hasłem",
+      "requestNewLink": "Poproś o nowy link"
+    }
+  },
+  "profile": {
+    "title": "Profil",
+    "personalInfo": "Dane osobowe",
+    "name": "Imię",
+    "email": "Email",
+    "changePassword": "Zmień hasło",
+    "currentPassword": "Obecne hasło",
+    "newPassword": "Nowe hasło",
+    "updateProfile": "Zaktualizuj profil",
+    "deleteAccount": "Usuń konto",
+    "deleteAccountWarning": "Tej akcji nie można cofnąć. Wszystkie Twoje dane zostaną trwale usunięte."
+  },
+  "chat": {
+    "title": "Czat",
+    "newChat": "Nowy czat",
+    "sendMessage": "Napisz wiadomość...",
+    "thinking": "Myślę...",
+    "noConversations": "Brak konwersacji",
+    "startNewChat": "Zacznij nowy czat",
+    "deleteConversation": "Usuń konwersację",
+    "archiveConversation": "Archiwizuj konwersację",
+    "renameConversation": "Zmień nazwę konwersacji",
+    "conversations": "Konwersacje",
+    "rename": "Zmień nazwę",
+    "share": "Udostępnij",
+    "archive": "Archiwizuj",
+    "delete": "Usuń",
+    "newConversation": "Nowa konwersacja",
+    "analyzeFiles": "Przeanalizuj załączone pliki",
+    "copyMessage": "Kopiuj",
+    "helpful": "Pomocne",
+    "notHelpful": "Nieprzydatne",
+    "saveConversationToRate": "Najpierw zapisz konwersację, aby ocenić",
+    "ratingRemoved": "Ocena usunięta",
+    "thankYouFeedback": "Dziękujemy za opinię!",
+    "ratingFailed": "Nie udało się przesłać oceny",
+    "whatWentWrong": "Co poszło nie tak?",
+    "feedbackHelp": "Pomóż nam się poprawić — opcjonalnie opisz, co było nieprzydatne.",
+    "describeIssue": "Opisz problem... (opcjonalnie)",
+    "skipComment": "Pomiń komentarz",
+    "shareConversation": "Udostępnij konwersację",
+    "shareDescription": "Udostępnij tę konwersację innym użytkownikom lub wygeneruj publiczny link.",
+    "userIdOrEmail": "ID użytkownika lub email",
+    "generateShareLink": "Wygeneruj link do udostępnienia",
+    "sharedWith": "Udostępniono dla",
+    "conversationShared": "Konwersacja udostępniona",
+    "linkGenerated": "Link do udostępnienia wygenerowany",
+    "accessRevoked": "Dostęp cofnięty",
+    "copyLink": "Link skopiowany do schowka",
+    "failedToShare": "Nie udało się udostępnić konwersacji",
+    "failedToGenerateLink": "Nie udało się wygenerować linku",
+    "failedToRevoke": "Nie udało się cofnąć dostępu"
+  },
+  "admin": {
+    "conversationsTitle": "Admin: Konwersacje",
+    "conversationsDesc": "Przeglądaj i zarządzaj wszystkimi konwersacjami i użytkownikami.",
+    "ratingsTitle": "Oceny odpowiedzi",
+    "conversations": "Konwersacje",
+    "users": "Użytkownicy",
+    "search": "Szukaj...",
+    "clearUserFilter": "Wyczyść filtr użytkownika",
+    "title": "Tytuł",
+    "owner": "Właściciel",
+    "messages": "Wiadomości",
+    "created": "Utworzono",
+    "status": "Status",
+    "untitled": "Bez tytułu",
+    "readOnly": "wiadomości (tylko odczyt)",
+    "noConversations": "Nie znaleziono konwersacji.",
+    "noUsers": "Nie znaleziono użytkowników.",
+    "view": "Podgląd",
+    "viewChats": "Zobacz czaty",
+    "email": "Email",
+    "name": "Imię",
+    "joined": "Dołączył",
+    "pageOf": "Strona {page} z {total}",
+    "total": "{count} łącznie",
+    "allRatings": "Wszystkie oceny",
+    "likesOnly": "Tylko polubienia",
+    "dislikesOnly": "Tylko nieprzydatne",
+    "withCommentsOnly": "Tylko z komentarzem",
+    "export": "Eksportuj",
+    "totalRatings": "Łączna liczba ocen",
+    "likes": "Polubienia",
+    "dislikes": "Nieprzydatne",
+    "averageRating": "Średnia ocena",
+    "ratingsOverTime": "Oceny w czasie",
+    "date": "Data",
+    "rating": "Ocena",
+    "comment": "Komentarz",
+    "message": "Wiadomość",
+    "user": "Użytkownik",
+    "actions": "Akcje",
+    "viewConversation": "Zobacz konwersację",
+    "accessDenied": "Brak dostępu"
+  },
+  "errors": {
+    "generic": "Coś poszło nie tak",
+    "notFound": "Strona nie znaleziona",
+    "unauthorized": "Nie masz uprawnień do wyświetlenia tej strony",
+    "forbidden": "Dostęp zabroniony",
+    "serverError": "Błąd serwera. Spróbuj ponownie później.",
+    "networkError": "Błąd sieci. Sprawdź połączenie."
+  },
+  "organizations": {
+    "title": "Organizacje",
+    "description": "Zarządzaj organizacjami i przełączaj się między nimi.",
+    "newOrg": "Nowa organizacja",
+    "personal": "Osobista",
+    "manage": "Zarządzaj",
+    "switchTo": "Przełącz na",
+    "noOrgs": "Brak organizacji",
+    "createFirst": "Utwórz pierwszą organizację",
+    "createTitle": "Utwórz organizację",
+    "nameLabel": "Nazwa organizacji",
+    "namePlaceholder": "Mój Zespół",
+    "creating": "Tworzę...",
+    "created": "Organizacja utworzona",
+    "updated": "Organizacja zaktualizowana",
+    "deleted": "Organizacja usunięta",
+    "failedLoad": "Nie udało się załadować organizacji",
+    "failedCreate": "Nie udało się utworzyć organizacji"
+  },
+  "members": {
+    "title": "Członkowie",
+    "invite": "Zaproś",
+    "inviteTitle": "Zaproś członka",
+    "emailLabel": "Adres e-mail",
+    "emailPlaceholder": "kolega@example.com",
+    "roleLabel": "Rola",
+    "roleMember": "Członek",
+    "roleAdmin": "Administrator",
+    "roleOwner": "Właściciel",
+    "sending": "Wysyłam...",
+    "sendInvite": "Wyślij zaproszenie",
+    "inviteSent": "Zaproszenie wysłane do {email}",
+    "failedInvite": "Nie udało się wysłać zaproszenia",
+    "roleUpdated": "Rola zaktualizowana",
+    "failedRole": "Nie udało się zaktualizować roli",
+    "memberRemoved": "Członek usunięty",
+    "failedRemove": "Nie udało się usunąć członka",
+    "you": "(ty)",
+    "joined": "Dołączył",
+    "pendingInvitations": "Oczekujące zaproszenia",
+    "pendingDescription": "Zaproszenia, które nie zostały jeszcze zaakceptowane",
+    "revoke": "Cofnij",
+    "revokeSuccess": "Zaproszenie cofnięte",
+    "failedRevoke": "Nie udało się cofnąć zaproszenia"
+  },
+  "knowledgeBases": {
+    "title": "Bazy wiedzy",
+    "description": "Zarządzaj kolekcjami dokumentów używanymi przez AI.",
+    "newKB": "Nowa baza wiedzy",
+    "createTitle": "Utwórz bazę wiedzy",
+    "nameLabel": "Nazwa",
+    "namePlaceholder": "Dokumentacja produktu",
+    "descriptionLabel": "Opis (opcjonalnie)",
+    "descriptionPlaceholder": "Jakie dokumenty będzie zawierać ta baza?",
+    "scopeLabel": "Zakres",
+    "scopePersonal": "Osobisty — tylko Ty",
+    "scopeOrganization": "Organizacja — wszyscy członkowie",
+    "scopeApp": "Cała aplikacja",
+    "active": "Aktywna",
+    "inactive": "Nieaktywna",
+    "created": "Baza wiedzy utworzona",
+    "updated": "Baza wiedzy zaktualizowana",
+    "deleted": "Baza wiedzy usunięta",
+    "failedLoad": "Nie udało się załadować baz wiedzy",
+    "failedCreate": "Nie udało się utworzyć bazy wiedzy"
+  },
+  "billing": {
+    "title": "Rozliczenia",
+    "description": "Zarządzaj subskrypcją dla {org}.",
+    "subscription": "Rozliczenia i subskrypcja",
+    "subscriptionDesc": "Ulepsz plan, aby dodać więcej miejsc i odblokować funkcje.",
+    "subscriptionDescPaid": "Zarządzaj subskrypcją i szczegółami rozliczeń.",
+    "seatsUsed": "Zajęte miejsca",
+    "upgrade": "Ulepsz plan",
+    "manageBilling": "Zarządzaj rozliczeniami",
+    "redirecting": "Przekierowuję...",
+    "successMessage": "Subskrypcja zaktualizowana!",
+    "tierFree": "Darmowy",
+    "tierSolo": "Solo",
+    "tierTeam": "Zespół",
+    "tierBusiness": "Biznes"
+  },
+  "invitations": {
+    "title": "Zaproszenie do zespołu",
+    "description": "Zostałeś zaproszony do organizacji.",
+    "accept": "Akceptuj zaproszenie",
+    "accepting": "Dołączam...",
+    "acceptSuccess": "Dołączono do organizacji!",
+    "redirecting": "Przekierowuję do Twoich organizacji...",
+    "failedTitle": "Nie udało się zaakceptować zaproszenia",
+    "failedDesc": "Zaproszenie mogło wygasnąć lub zostało już użyte.",
+    "goDashboard": "Przejdź do panelu"
+  },
+  "footer": {
+    "copyright": "Wszelkie prawa zastrzeżone"
+  },
+  "landing": {
+    "heroTitle": "Twórz inteligentne",
+    "heroHighlight": "aplikacje",
+    "heroTitleEnd": "z pewnością",
+    "heroSubtitle": "Gotowa do produkcji platforma full-stack z czatem AI, wyszukiwaniem w bazie wiedzy, bezpiecznym uwierzytelnianiem i nowoczesnym panelem.",
+    "getStarted": "Rozpocznij",
+    "signIn": "Zaloguj się",
+    "featureAiChat": "Czat z AI",
+    "featureAiChatDesc": "Konwersacyjny asystent AI ze strumieniowaniem w czasie rzeczywistym, historią rozmów i wywoływaniem narzędzi.",
+    "featureRag": "Baza wiedzy",
+    "featureRagDesc": "Wyszukiwanie wektorowe w dokumentach z generowaniem wspomaganym wyszukiwaniem. Import PDF, DOCX i więcej.",
+    "featureAuth": "Bezpieczne uwierzytelnianie",
+    "featureAuthDesc": "Uwierzytelnianie JWT z tokenami odświeżającymi, integracja OAuth, zarządzanie sesjami i kontrola dostępu.",
+    "featureDashboard": "Panel",
+    "featureDashboardDesc": "Monitorowanie stanu systemu, zarządzanie użytkownikami i statystyki kolekcji na pierwszy rzut oka.",
+    "featureApi": "REST API",
+    "featureApiDesc": "Automatycznie dokumentowany backend FastAPI ze specyfikacją OpenAPI, wersjonowanymi endpointami i asynchroniczną bazą.",
+    "featureRealtime": "Czas rzeczywisty",
+    "featureRealtimeDesc": "Strumieniowanie przez WebSocket dla natychmiastowych odpowiedzi AI i aktualizacji na żywo.",
+    "techStackTitle": "Zbudowane z nowoczesnymi technologiami",
+    "ctaTitle": "Gotowy, żeby zacząć?",
+    "ctaSubtitle": "Załóż konto i zacznij odkrywać platformę.",
+    "createAccount": "Załóż konto",
+    "exploreApi": "Przeglądaj API",
+    "footerDesc": "Platforma AI full-stack z funkcjami klasy enterprise.",
+    "footerProduct": "Produkt",
+    "footerResources": "Zasoby",
+    "apiDocs": "Dokumentacja API",
+    "learnMore": "Dowiedz się więcej",
+    "copyright": "Wszelkie prawa zastrzeżone."
+  },
+  "marketing": {
+    "nav": {
+      "features": "Funkcje",
+      "howItWorks": "Jak to działa",
+      "pricing": "Cennik",
+      "faq": "FAQ",
+      "blog": "Blog",
+      "changelog": "Zmiany",
+      "about": "O nas",
+      "contact": "Kontakt",
+      "help": "Pomoc",
+      "community": "Społeczność",
+      "security": "Bezpieczeństwo",
+      "getStarted": "Zacznij teraz",
+      "signIn": "Zaloguj się",
+      "platform": "Platforma",
+      "solutions": "Rozwiązania",
+      "customers": "Klienci",
+      "resources": "Materiały"
+    },
+    "footer": {
+      "tagline": "Asystent AI, który zna Twoją pracę.",
+      "product": "Produkt",
+      "company": "Firma",
+      "resources": "Zasoby",
+      "helpCenter": "Centrum pomocy",
+      "apiDocs": "Dokumentacja API",
+      "terms": "Regulamin",
+      "privacy": "Prywatność",
+      "cookies": "Cookies",
+      "operational": "Wszystko działa"
+    },
+    "cookies": {
+      "title": "Używamy plików cookie",
+      "description": "Niezbędne cookies utrzymują Twoją sesję. Opcjonalne pomagają nam zrozumieć, jak korzystasz z produktu.",
+      "policyLink": "polityka cookies",
+      "acceptAll": "Akceptuj wszystkie",
+      "rejectOptional": "Odrzuć opcjonalne",
+      "preferences": "Preferencje",
+      "savePreferences": "Zapisz preferencje",
+      "back": "Wstecz",
+      "essential": "Niezbędne",
+      "essentialDesc": "Wymagane do utrzymania sesji. Nie można wyłączyć.",
+      "analytics": "Analityka",
+      "analyticsDesc": "Anonimowe, zagregowane dane o używaniu.",
+      "functional": "Funkcjonalne",
+      "functionalDesc": "Pamiętają preferencje (motyw, stan onboardingu)."
+    },
+    "common": {
+      "lastUpdated": "Ostatnia aktualizacja {date}",
+      "readPost": "Czytaj wpis",
+      "read": "Czytaj",
+      "backToBlog": "Wróć na blog",
+      "keepReading": "Czytaj dalej",
+      "seeAlso": "Zobacz też",
+      "minRead": "{count} min czytania",
+      "needHelp": "Potrzebujesz integracji na zamówienie?",
+      "contactUs": "Skontaktuj się"
+    },
+    "legal": {
+      "eyebrow": "Dokumenty",
+      "terms": {
+        "title": "Regulamin",
+        "summary": "Umowa prawna między Tobą a {appName}. Prostym językiem gdzie się da; precyzyjnie gdzie musimy."
+      },
+      "privacy": {
+        "title": "Polityka Prywatności",
+        "summary": "Co zbieramy, po co i co możesz z tym zrobić. Nie trenujemy na Twoich danych — nigdy."
+      },
+      "cookies": {
+        "title": "Polityka Cookies",
+        "summary": "Co przechowujemy w Twojej przeglądarce, po co i jak to wyłączyć."
+      }
+    },
+    "about": {
+      "eyebrow": "O nas",
+      "title": "Budujemy {appName}, żebyś Ty nie musiał.",
+      "description": "Najszybszy sposób na uruchomienie prawdziwego AI SaaS — auth, billing, RAG, agenci, cały ten nudny szkielet — bez przepisywania tej samej infrastruktury od zera.",
+      "whyTitle": "Dlaczego to powstało",
+      "why1": "Każdy projekt AI zaczyna się tak samo: piękny pomysł, potem cztery tygodnie YAML-a, trzy decyzje o sesjach i jeden żałosny ręcznie pisany webhook handler.",
+      "why2": "Wyciągnęliśmy infrastrukturę na open-source — i iterujemy nad nią w realnych produkcyjnych appkach — żeby kolejna osoba shipująca produkt AI mogła od dnia pierwszego pracować nad samym produktem.",
+      "byTheNumbers": "W liczbach",
+      "stat_apps": "Produkcyjnych appek wdrożonych",
+      "stat_deploy": "Średni czas do pierwszego deploya",
+      "stat_frameworks": "Wspieranych frameworków AI",
+      "stat_license": "Licencja",
+      "valuesEyebrow": "W co wierzymy",
+      "valuesTitle": "Zasady, nie ładnie brzmiące slogany.",
+      "values": [
+        {
+          "key": "shipBoring",
+          "title": "Zrób te nudne części",
+          "description": "Auth, billing, obserwowalność — podłączone i przetestowane, żebyś mógł skupić się na tym, co wyróżnia Twój produkt."
+        },
+        {
+          "key": "defaults",
+          "title": "Defaulty, które się starzeją dobrze",
+          "description": "Wybieramy konwencje, które trzymają się w skali: typowane API, podział repository-service, async wszędzie."
+        },
+        {
+          "key": "openOpinionated",
+          "title": "Otwarte, ale z opinią",
+          "description": "Kod na licencji MIT — forkuj swobodnie. Silne defaultsy, więc droga najmniejszego oporu jest też tą właściwą."
+        },
+        {
+          "key": "aiTool",
+          "title": "AI jako narzędzie, nie cel",
+          "description": "RAG, agenci, streaming — pierwszorzędne, ale opcjonalne. Buduj spokojne produkty, które po prostu dobrze używają AI."
+        }
+      ],
+      "teamLabel": "Zespół",
+      "teamTitle": "Mały zespół. Szeroki wpływ.",
+      "team": [
+        {
+          "initials": "F",
+          "role": "Założyciele",
+          "line": "Inżynieria · Produkt"
+        },
+        {
+          "initials": "OS",
+          "role": "Open source",
+          "line": "Wkład społeczności"
+        },
+        {
+          "initials": "B",
+          "role": "Beta testerzy",
+          "line": "Klienci wczesnej fazy"
+        }
+      ],
+      "quoteLine1": "Buduj produkt.",
+      "quoteLine2": "My zajmiemy się",
+      "quoteLine3": "nudną częścią.",
+      "quoteByline": "manifest",
+      "seePricing": "Zobacz cennik",
+      "ctaEyebrow": "Gotowy?",
+      "ctaTitle": "Wypróbuj — bez karty.",
+      "ctaPrimary": "Zacznij teraz",
+      "ctaSecondary": "Pogadajmy"
+    },
+    "contact": {
+      "eyebrow": "Kontakt",
+      "title": "Pogadajmy.",
+      "description": "Sprzedaż, wsparcie, partnerstwa, albo żeby przywitać się — wybierz kanał i odezwiemy się.",
+      "channels": "Kanały",
+      "sendMessage": "Wyślij wiadomość",
+      "office": "Biuro",
+      "officeNote": "Zespół w pełni zdalny. Godziny pracy nakładają się ok. UTC 08:00–18:00.",
+      "channelsList": [
+        {
+          "key": "support",
+          "label": "Wsparcie email",
+          "description": "Odpowiadamy w ciągu {sla} w dni robocze."
+        },
+        {
+          "key": "help",
+          "label": "Centrum pomocy",
+          "value": "Najczęstsze pytania i przewodniki",
+          "description": "Większość pytań ma tam odpowiedź."
+        },
+        {
+          "key": "discord",
+          "label": "Discord",
+          "value": "Async chat z buildersami",
+          "description": "Najszybsza droga do odbicia się od ściany."
+        },
+        {
+          "key": "github",
+          "label": "GitHub",
+          "value": "Bugi, feature requesty",
+          "description": "Pytania o source code."
+        }
+      ],
+      "responseSla": "Cel: odpowiedź w {sla}",
+      "formNote": "Formularz próbuje endpointu /api/v1/contact w backendzie. Jeśli nie istnieje, otwiera klienta poczty (mailto). Edytuj dane kontaktowe w",
+      "form": {
+        "name": "Imię",
+        "email": "Email",
+        "topic": "Temat",
+        "topic_support": "Wsparcie",
+        "topic_sales": "Sprzedaż",
+        "topic_partnerships": "Partnerstwa",
+        "topic_press": "Prasa / inne",
+        "message": "Wiadomość",
+        "messagePlaceholder": "Powiedz coś o tym, nad czym pracujesz…",
+        "send": "Wyślij wiadomość",
+        "sending": "Wysyłanie…",
+        "sentTitle": "Wysłano wiadomość",
+        "sentBody": "Dzięki — odezwiemy się w ciągu 24 godzin w dni robocze.",
+        "fallbackOpened": "Otworzyliśmy klienta poczty",
+        "fallbackBody": "Twój klient pocztowy powinien przygotować wiadomość. Jeśli nic się nie stało, napisz bezpośrednio.",
+        "errorRequired": "Wypełnij imię, email i wiadomość.",
+        "errorEmail": "Podaj poprawny adres email.",
+        "policyHint": "Odpowiadamy w ciągu 24 godzin w dni robocze. Wysyłając akceptujesz",
+        "policy": "politykę prywatności"
+      }
+    },
+    "help": {
+      "eyebrow": "Pomoc",
+      "title": "W czym możemy pomóc?",
+      "description": "Przejrzyj tematy lub przeskocz wprost do pytania. Nadal nie wiesz? Napisz na support — odpowiadamy szybko.",
+      "browseLabel": "Przeglądaj",
+      "topics": [
+        {
+          "id": "getting-started",
+          "iconKey": "key",
+          "title": "Pierwsze kroki",
+          "description": "Rejestracja, pierwszy chat, podpięcie danych."
+        },
+        {
+          "id": "chat",
+          "iconKey": "message",
+          "title": "Chat i agenci",
+          "description": "Streaming, tool calls, zmiana modelu."
+        },
+        {
+          "id": "kb",
+          "iconKey": "book",
+          "title": "Bazy wiedzy",
+          "description": "Kolekcje, źródła sync, wyszukiwanie."
+        },
+        {
+          "id": "billing",
+          "iconKey": "credit",
+          "title": "Płatności",
+          "description": "Plany, kredyty, faktury, miejsca."
+        },
+        {
+          "id": "workspace",
+          "iconKey": "settings",
+          "title": "Workspace",
+          "description": "Członkowie, zaproszenia, klucze API."
+        },
+        {
+          "id": "security",
+          "iconKey": "shield",
+          "title": "Bezpieczeństwo",
+          "description": "Auth, retencja danych, szyfrowanie."
+        }
+      ],
+      "faqGroups": [
+        {
+          "id": "getting-started",
+          "title": "Pierwsze kroki",
+          "items": [
+            {
+              "q": "Jak utworzyć pierwszą rozmowę?",
+              "a": "Zaloguj się, kliknij 'Nowy chat' z dashboardu, wpisz prompt. Agent zwróci odpowiedź w streamie, razem z wszystkimi tool calls które wykonał po drodze."
+            },
+            {
+              "q": "Czy mogę zaimportować dane z Google Drive?",
+              "a": "Tak — w Bazach wiedzy dodaj sync source dla Google Drive. Uwierzytelnisz się przez OAuth i wybierzesz folder. Pliki sync'ują się według harmonogramu."
+            },
+            {
+              "q": "Który model AI jest używany domyślnie?",
+              "a": "Domyślnie wybieramy rozsądny balans cost/quality dla każdego providera. Możesz przełączyć model per-rozmowa z model picker'a w chat input."
+            }
+          ]
+        },
+        {
+          "id": "chat",
+          "title": "Chat i agenci",
+          "items": [
+            {
+              "q": "Dlaczego agent zatrzymuje się i prosi o akceptację?",
+              "a": "Niektóre tool'e (akcje zapisu, wysyłka wiadomości, web fetches) można skonfigurować tak, by wymagały zatwierdzenia. Zobaczysz panel inline — zatwierdź lub odrzuć i agent wznowi pracę."
+            },
+            {
+              "q": "Czy mogę wygenerować odpowiedź ponownie?",
+              "a": "Najedź na ostatnią wiadomość asystenta i kliknij ikonę regenerate. Agent odpali ostatni prompt z tym samym modelem i tool'ami."
+            }
+          ]
+        },
+        {
+          "id": "kb",
+          "title": "Bazy wiedzy",
+          "items": [
+            {
+              "q": "Jakie formaty plików są wspierane?",
+              "a": "PDF, DOCX, MD, TXT od ręki. Z LlamaParse 130+ formatów w tym PPT, XLSX, obrazy i więcej."
+            },
+            {
+              "q": "Jak rankowane jest wyszukiwanie?",
+              "a": "Cosine similarity nad embeddingami. Score thresholds i re-ranking konfigurujesz per kolekcja."
+            }
+          ]
+        },
+        {
+          "id": "billing",
+          "title": "Płatności",
+          "items": [
+            {
+              "q": "Czy niewykorzystane kredyty się przenoszą?",
+              "a": "Miesięczne kredyty subskrypcyjne wygasają na końcu cyklu. Top-upy pay-as-you-go nie wygasają."
+            },
+            {
+              "q": "Jak działają miejsca?",
+              "a": "Każdy plan ma bazowy limit miejsc. Dodajesz miejsca z portalu Stripe — naliczane pro-rata, fakturowane natychmiast."
+            }
+          ]
+        },
+        {
+          "id": "workspace",
+          "title": "Workspace",
+          "items": [
+            {
+              "q": "Jak zaprosić zespół?",
+              "a": "Z dashboardu kliknij 'Zaproś zespół'. Wpisz emaile — dostaną magic link do dołączenia."
+            },
+            {
+              "q": "Gdzie wygenerować klucz API?",
+              "a": "Ustawienia → Klucze API. Klucze pokazują się tylko raz przy tworzeniu — zapisz w secret managerze. Możesz je wyłączyć w każdej chwili."
+            }
+          ]
+        },
+        {
+          "id": "security",
+          "title": "Bezpieczeństwo",
+          "items": [
+            {
+              "q": "Jak szyfrowane są moje dane?",
+              "a": "TLS in transit, AES-256 at rest. Backupy bazy szyfrowane kluczami zarządzanymi przez KMS. Szczegóły na stronie Bezpieczeństwo."
+            },
+            {
+              "q": "Czy trenujecie na moich danych?",
+              "a": "Nie. Twoje prompty i wgrane dokumenty nigdy nie są używane do trenowania żadnego modelu — naszego ani trzeciego."
+            }
+          ]
+        }
+      ],
+      "stillStuckEyebrow": "Nadal nie wiesz?",
+      "stillStuckTitle": "Pogadaj z prawdziwą osobą.",
+      "stillStuckBody": "Email to najszybsza droga. Odpowiadamy w ciągu 24 godzin w dni robocze.",
+      "stillStuckCta": "Skontaktuj się ze wsparciem"
+    },
+    "changelog": {
+      "eyebrow": "Zmiany",
+      "title": "Co nowego",
+      "description": "Wydania, ulepszenia i poprawki wchodzące do {appName}."
+    },
+    "community": {
+      "eyebrow": "Społeczność",
+      "title": "Razem buduje się szybciej.",
+      "description": "Mała, jasno zdefiniowana społeczność devów i founderów shipujących produkty AI na bazie templatu. Asynchronicznie, technicznie, bez szumu.",
+      "channels": [
+        {
+          "key": "discord",
+          "title": "Discord",
+          "description": "Async chat w czasie rzeczywistym z innymi buildersami. Pochwal się czym shipujesz, odbij się od ściany.",
+          "cta": "Dołącz do serwera",
+          "eyebrow": "Najaktywniejszy"
+        },
+        {
+          "key": "github",
+          "title": "GitHub",
+          "description": "Source code, issuesy, dyskusje. Star do bookmark, file issue jeśli trafisz na bug.",
+          "cta": "Zobacz repo"
+        },
+        {
+          "key": "twitter",
+          "title": "Twitter / X",
+          "description": "Build-in-public update'y, release notes i czasem techniczny wątek.",
+          "cta": "Obserwuj"
+        },
+        {
+          "key": "youtube",
+          "title": "Office hours",
+          "description": "Cotygodniowy stream office hours — przechodzimy przez realne buildy i odpowiadamy na pytania.",
+          "cta": "Oglądaj na YouTube"
+        }
+      ],
+      "guidelinesTitle": "Zasady",
+      "guidelinesIntro": "Stawiamy wysoki poziom, ale reguł jest mało. Traktujcie się dobrze, piszcie w odpowiednim miejscu, nie spamujcie.",
+      "guidelines": [
+        {
+          "title": "Bądź pomocny",
+          "description": "Odpowiadaj jak możesz. Nawet skierowanie kogoś do właściwej strony docs ma znaczenie."
+        },
+        {
+          "title": "Bądź konkretny",
+          "description": "Lepiej powiedzieć co próbowałeś niż czego chcesz. Logi, kod, screenshoty — konkret bije abstrakcję."
+        },
+        {
+          "title": "Pochwal się sukcesem",
+          "description": "Zashipowałeś coś? Powiedz nam. Boostujemy fajne launche w newsletterze i social."
+        },
+        {
+          "title": "Bez sprzedaży",
+          "description": "Bez DM-spamu z pitchem. Nie wrzucaj swojego startupu w help channels. Mute'ujemy, nie banujemy — zazwyczaj."
+        }
+      ]
+    },
+    "security": {
+      "eyebrow": "Bezpieczeństwo",
+      "title": "Traktujemy Twoje dane jak swoje.",
+      "description": "Pragmatyczne podejście do bezpieczeństwa. Wybieramy nudne sprawdzone rozwiązania, dokumentujemy co robimy i szybko łatamy.",
+      "pillars": [
+        {
+          "iconKey": "lock",
+          "title": "Szyfrowanie wszędzie",
+          "description": "TLS 1.2+ w transmisji, AES-256 w spoczynku. Szyfrowane backupy z kluczami zarządzanymi przez KMS, rotowane kwartalnie."
+        },
+        {
+          "iconKey": "key",
+          "title": "Mocny auth, domyślnie",
+          "description": "Bcrypt do hashowania haseł, JWT access + refresh tokens, opcjonalnie OAuth providery, klucze API porównywane constant-time."
+        },
+        {
+          "iconKey": "userCheck",
+          "title": "Least-privilege access",
+          "description": "Role-based access control wewnątrz aplikacji, scoped database roles na produkcji, audit-logged akcje administracyjne."
+        },
+        {
+          "iconKey": "database",
+          "title": "Izolacja tenantów",
+          "description": "Per-organization partycjonowanie danych. Cross-tenant queries pilnowane na warstwie repository — nigdy zaufane na warstwie API."
+        },
+        {
+          "iconKey": "eye",
+          "title": "Nie trenujemy na Twoich danych",
+          "description": "Prompty, dokumenty i rozmowy nigdy nie są używane do trenowania żadnego modelu. Kropka."
+        },
+        {
+          "iconKey": "shield",
+          "title": "Reakcja na podatności",
+          "description": "Patche dla CVE w zależnościach merge'ujemy w 72h. Coordinated disclosure dla zgłoszeń od researcherów."
+        }
+      ],
+      "checklistTitle": "Co robimy, krótko",
+      "checklist": [
+        "TLS 1.2+ na całym ruchu; HSTS preload",
+        "AES-256 in-rest dla bazy i object storage",
+        "JWT short-lived access tokens (15 min) + httpOnly refresh tokens",
+        "Klucze API hashowane w bazie; nigdy nie logowane ani echo'owane",
+        "Per-org row-level scoping na warstwie repository",
+        "Stripe trzyma wszystkie dane karty — my nigdy nie widzimy PAN/CVV",
+        "Codzienne automatyczne backupy, retencja 30 dni",
+        "Postmortemy publikowane dla każdego user-facing incydentu"
+      ],
+      "vulnTitle": "Zgłaszanie podatności",
+      "vulnBody": "Coś znalazłeś? Chcemy wiedzieć. Napisz na {email} z krokami reprodukcji. Potwierdzimy w ciągu 48 godzin i wyróżnimy badaczy, którzy stosują coordinated disclosure.",
+      "vulnContactCta": "Skontaktuj się"
+    },
+    "blog": {
+      "eyebrow": "Blog",
+      "title": "Notatki z warsztatu.",
+      "description": "Inżynieryjne deep-dive'y, decyzje produktowe i czasem wolny strumień myśli. Wpis raz na dwa tygodnie, bez marketingowej waty.",
+      "featured": "Polecane",
+      "noPostsTitle": "Brak wpisów",
+      "noPostsDesc": "Wrzuć pierwszy MDX do content/blog i przebuduj — index zrenderuje się automatycznie.",
+      "endOfPost": "koniec wpisu"
+    },
+    "landing": {
+      "metaDescription": "Asystent AI, który zna pracę Twojego zespołu. Podłącz dokumenty, narzędzia i dane — odpowiedzi opierają się na wszystkim co kiedykolwiek zashipowaliście.",
+      "hero": {
+        "eyebrow": "Współpracownik AI Twojego zespołu",
+        "titlePre": "AI, który",
+        "titleHighlight": "zna",
+        "titleEm": "Twoją pracę.",
+        "description": "Podłącz dokumenty, narzędzia i dane. Zapytaj o cokolwiek — odpowiedzi opierają się na wszystkim, co kiedykolwiek zashipował Twój zespół.",
+        "ctaPrimary": "Zacznij za darmo",
+        "ctaSecondary": "Umów demo",
+        "stat_teams": "Zespołów używa",
+        "stat_speed": "Szybsze odpowiedzi",
+        "stat_uptime": "Zawsze online"
+      },
+      "social": {
+        "title": "Zaufały nam zespoły z różnych branż"
+      },
+      "how": {
+        "eyebrow": "Jak to działa",
+        "title": "Trzy kroki do mądrzejszego zespołu"
+      },
+      "features": {
+        "eyebrow": "Funkcje",
+        "title": "Wbudowane funkcje, które shipują dziś",
+        "subtitle": "Te nudne kawałki infrastruktury, na które inaczej zszedłby Ci kwartał."
+      },
+      "data": {
+        "eyebrow": "Jak działa retrieval",
+        "title": "Twoje źródła, rankowane + cytowane"
+      },
+      "testimonials": {
+        "eyebrow": "Pokochane przez zespoły",
+        "titlePre": "Zespoły, które dowożą szybciej",
+        "titleEm": "z nami."
+      },
+      "pricing": {
+        "eyebrow": "Cennik",
+        "titlePre": "Płać tylko za to,",
+        "titleEm": "czego potrzebujesz.",
+        "subtitle": "Przesuń suwak — Twój plan i cena, na żywo.",
+        "teaser": {
+          "seats": "Wielkość zespołu",
+          "seatsUnit": "użytkowników",
+          "perMonth": "/mc",
+          "seeFull": "Pełne porównanie →",
+          "custom": "Porozmawiajmy",
+          "billedMonthly": "rozliczenie miesięczne · anuluj kiedy chcesz"
+        }
+      },
+      "faq": {
+        "eyebrow": "FAQ",
+        "title": "Częste pytania.",
+        "items": [
+          {
+            "q": "Co właściwie robi {appName}?",
+            "a": "To asystent AI, który żyje na warstwie Twoich dokumentów, rozmów i narzędzi. Zadajesz pytania w naturalnym języku; dostajesz odpowiedzi oparte na Twoich własnych danych, z cytowaniem źródeł."
+          },
+          {
+            "q": "Gdzie są moje dane?",
+            "a": "Twoje dane zostają w Twoim workspace. Nigdy nie trenujemy na Twojej zawartości i szyfrujemy wszystko in-rest i in-transit. Bring your own keys jeśli potrzebujesz dodatkowej kontroli."
+          },
+          {
+            "q": "Jakie narzędzia mogę podłączyć?",
+            "a": "Z pudełka: Google Drive, Notion, Slack, GitHub, Confluence i każdy bucket S3-compatible. Co miesiąc shipujemy nowe integracje — zawsze możesz też wpiąć dane przez publiczne API."
+          },
+          {
+            "q": "Czy mogę anulować w każdej chwili?",
+            "a": "Tak — każdy płatny plan jest miesiąc-do-miesiąca i możesz anulować z dashboardu billingu. Twoje konto pozostaje aktywne do końca opłaconego okresu."
+          },
+          {
+            "q": "Czy oferujecie SSO i audit logs?",
+            "a": "SSO (Google, Okta, Microsoft Entra) i audit logs przychodzą z planem Business. SCIM provisioning i kontrole DLP są dostępne na Enterprise — odezwij się."
+          },
+          {
+            "q": "Czy jest API?",
+            "a": "Tak. Każda funkcja z dashboardu jest też dostępna przez JSON API. Streamuj odpowiedzi, ingestuj dokumenty, zarządzaj użytkownikami, subskrybuj eventy — zobacz developer docs."
+          }
+        ]
+      },
+      "finalCta": {
+        "statValue": "12 840",
+        "statLabel": "Pytań odpowiedzianych w tym tygodniu",
+        "titlePre": "Kolejna odpowiedź dla Twojego zespołu —",
+        "titleEm": "jedno pytanie stąd.",
+        "description": "Darmowy 14-dniowy trial. Bez karty. Anuluj kiedy chcesz.",
+        "primary": "Zacznij za darmo",
+        "secondary": "Zobacz cennik"
+      }
+    },
+    "pricing": {
+      "eyebrow": "Cennik",
+      "title": "Proste, przejrzyste ceny",
+      "description": "Zacznij za darmo. Upgraduj kiedy będziesz gotów — każdy plan ma 14-dniowy trial.",
+      "monthly": "Miesięcznie",
+      "annual": "Rocznie",
+      "savePill": "−20%",
+      "startTrial": "Zacznij darmowy trial",
+      "mostPopular": "Najpopularniejsze",
+      "demoBanner": "Pokazujemy plany przykładowe — podłącz Stripe, żeby zobaczyć swój katalog.",
+      "loved": "Pokochali to buildersy",
+      "lovedTitle": "Zespoły shipujące z nami",
+      "faqTitle": "Pytania o ceny, odpowiedzi",
+      "perMonth": "/ miesiąc",
+      "perYear": "/ rok",
+      "trialBadge": "{days}-dniowy darmowy trial",
+      "faqs": [
+        {
+          "q": "Czy mogę zmienić plan później?",
+          "a": "Tak — upgrade, downgrade lub anuluj w każdej chwili z portalu Stripe. Zmiany rozliczają się pro-rata automatycznie."
+        },
+        {
+          "q": "Czy niewykorzystane kredyty się przenoszą?",
+          "a": "Niewykorzystane kredyty miesięczne wygasają na końcu cyklu. Top-up packi kupowane osobno nigdy nie wygasają."
+        },
+        {
+          "q": "Jakie metody płatności akceptujecie?",
+          "a": "Wszystkie główne karty kredytowe i debetowe przez Stripe, plus ACH i SEPA na planach rocznych. Enterprise może płacić na fakturę."
+        },
+        {
+          "q": "Czy jest darmowy trial?",
+          "a": "Tak. Każdy płatny plan ma 14-dniowy darmowy trial — bez karty na start."
+        },
+        {
+          "q": "Czy mogę self-hostować?",
+          "a": "Tak. Template jest open-source. Self-host na swojej infrze albo zapłać nam i my prowadzimy."
+        },
+        {
+          "q": "Czy są zniżki za płatność roczną?",
+          "a": "Plany roczne dostają 2 miesiące za darmo (~17% oszczędności). Przełącz toggle wyżej żeby zobaczyć ceny roczne."
+        }
+      ]
+    }
+  }
+}

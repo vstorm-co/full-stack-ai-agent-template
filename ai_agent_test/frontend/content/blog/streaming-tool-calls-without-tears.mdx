@@ -1,0 +1,83 @@
+---
+title: "Streaming tool calls without tears"
+excerpt: "WebSockets are easy. Resilient WebSockets that survive Wi-Fi flips, page reloads, and a half-streamed tool approval are not. Here's how we keep our chat UI honest."
+date: "2026-04-05"
+author: "Kacper Włodarczyk"
+authorRole: "Maintainer"
+tags: ["frontend", "ai"]
+---
+
+Streaming AI responses look magical in a demo. Then the user opens the app on their phone in a
+tunnel, switches networks twice, and Pull-To-Refreshes mid-stream. That's where most chat UIs fall
+apart. Here's the architecture we landed on after the third complete rewrite.
+
+## The shape of a robust chat stream
+
+Three layers. Don't merge them.
+
+1. **Transport** — WebSocket connection, reconnect logic, queueing.
+2. **Protocol** — typed events that survive disconnects: `message_start`, `token`, `tool_call`,
+   `tool_result`, `pending_approval`, `message_end`.
+3. **Reducer** — pure state machine that applies events to the UI store.
+
+The trick is: each layer can be replaced without rewriting the others.
+
+<Callout variant="warn">
+  Resist the urge to mix transport with state. If your `useWebSocket` hook is also setting React
+  state, you've coupled retry logic to render logic. That's how stuck spinners are born.
+</Callout>
+
+## Reconnect with idempotent resume
+
+When the socket drops mid-message, the server needs to know what the client already saw. We send
+a `last_event_id` on reconnect; the server replays from there. The client reducer is idempotent
+on duplicate events — applying the same `token` event twice is a no-op.
+
+```ts
+// Reducer is the source of truth. Transport just drops events into it.
+function reduce(state: ChatState, event: ChatEvent): ChatState {
+  if (event.id <= state.lastAppliedEventId) return state; // idempotent
+  switch (event.type) {
+    case "token":
+      return { ...state, draftMessage: state.draftMessage + event.text };
+    case "tool_call":
+      return { ...state, toolCalls: [...state.toolCalls, event.call] };
+    // ...
+  }
+}
+```
+
+## Tool calls are first-class UI
+
+Don't hide tool calls behind "thinking…". Show what the agent did, with status: `pending`,
+`running`, `success`, `error`. Collapsed by default for `success`, expanded for the others.
+
+This serves two purposes:
+
+- **Trust.** Users see the agent's work. Citations and tool transparency are the difference
+  between magic and a black box.
+- **Debugging.** When something goes wrong, the tool log is the first place to look.
+
+## Human-in-the-loop without UX whiplash
+
+Some tools should wait for approval (writing files, sending messages, charging cards). The
+pattern: server sends `pending_approval`, the client renders an inline confirmation card, the
+user approves or rejects, the agent resumes via a `resume_decisions` event.
+
+The key UX move: **don't modal-dialog this**. The conversation is the workflow. Approval should
+feel like a paragraph break, not a popup interrupting flow.
+
+## What we removed
+
+- **Auto-scroll on every token.** Brutal on long messages — users can't read what's
+  scrolling away. Only scroll if they were already near the bottom.
+- **Optimistic message UI for the assistant.** The user's message is optimistic; the assistant's
+  isn't. Wait for `message_start`.
+- **Streaming markdown rendering on every token.** Re-rendering markdown 60 times a second is
+  expensive. Render plain text while streaming, swap to MD on `message_end`.
+
+## What's left
+
+Mobile sidebar drawer state machine, accessibility for the streaming cursor, and a way to
+"continue" a truncated response. We'll keep iterating — but the core, where user input enters
+and structured events come back, is finally stable.

@@ -1,0 +1,81 @@
+---
+title: "RAG defaults that age well"
+excerpt: "Every RAG stack looks great in week one. Most look like a regret by week six. Here's what we kept and what we threw out across a dozen production deployments."
+date: "2026-04-22"
+author: "Kacper Włodarczyk"
+authorRole: "Maintainer"
+tags: ["rag", "engineering"]
+---
+
+I've shipped RAG into production twelve times. About ten of those involved silently removing some
+clever idea from week one that turned out to be a maintenance nightmare in month three. Here's
+what survived.
+
+## Pick a vector store you'll actually run
+
+The right choice is the one your team can operate on a Tuesday afternoon when something breaks.
+For most teams, that's not the most fashionable database.
+
+| Store        | When it's the right choice                               |
+| ------------ | -------------------------------------------------------- |
+| **pgvector** | You already run Postgres. Stay there.                    |
+| **Qdrant**   | You want filters, payloads, and a clean Python client.   |
+| **Milvus**   | You're indexing > 10M vectors and need horizontal scale. |
+| **Chroma**   | Local dev or a side project. Don't deploy this to prod.  |
+
+<Callout variant="tip">
+  Default to pgvector. Switch only when you have a measurable reason — usually scale, usually filter
+  complexity. "Newer DB feels faster on my MacBook" is not a reason.
+</Callout>
+
+## Chunk by structure, not by character count
+
+Naive 512-character chunks shred meaning. The right primitive is usually a section of the
+document — a heading, a slide, a paragraph group — and only fall back to character splitting
+when no structure is available.
+
+For PDFs we use:
+
+1. Try parsing structure (PyMuPDF gives you blocks per page).
+2. Group blocks until you hit ~1000 tokens or a heading.
+3. Overlap by ~10% so cross-chunk references don't disappear.
+
+## Embeddings: don't optimize prematurely
+
+Pick whatever the latest stable embedding model is from your vendor. Re-index when there's a
+clear win. Spending a sprint hand-tuning embedding parameters before you have customers is a
+classic time-trap.
+
+## Citations are non-negotiable
+
+If your assistant can't say _where_ the answer came from, you're shipping confident hallucinations.
+Wire citations from day one — even an underlined source link beats nothing.
+
+```ts
+// Every RAG response should include enough context to verify the claim.
+type RAGResponse = {
+  answer: string;
+  citations: Array<{
+    document_id: string;
+    page: number;
+    excerpt: string;
+    score: number;
+  }>;
+};
+```
+
+## Cache aggressively, evict obviously
+
+Most production RAG queries are repeats. Cache the _embedding_ of the query, the _retrieved chunks_,
+and ideally the LLM response. Evict on document changes. The cheapest infrastructure win in the
+stack.
+
+## What we threw out
+
+- **Query rewriting with another LLM call.** Adds latency, marginal recall gain, more failure modes.
+- **Hybrid sparse + dense retrieval everywhere.** Useful in narrow domains, expensive bookkeeping
+  in others.
+- **"Smart" reranking layers.** Costs more than they save until you're at meaningful scale.
+
+If you're starting out: pgvector, structured chunks, default embeddings, citations everywhere.
+You can outgrow these later — but probably not this year.

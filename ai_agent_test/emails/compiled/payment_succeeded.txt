@@ -1,0 +1,12 @@
+Subject: Payment confirmed — [[plan_name]] on [[app_name]]
+
+Hi [[name]],
+
+Your payment of [[amount]] for [[plan_name]] has been processed successfully.
+
+View your invoice:
+[[invoice_url]]
+
+Thank you for your continued support!
+
+— The [[app_name]] Team

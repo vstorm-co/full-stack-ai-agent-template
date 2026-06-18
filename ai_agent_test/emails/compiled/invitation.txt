@@ -1,0 +1,12 @@
+Subject: [[inviter_name]] invited you to [[org_name]] on [[app_name]]
+
+Hi there,
+
+[[inviter_name]] has invited you to join [[org_name]] on [[app_name]].
+
+Accept your invitation:
+[[accept_url]]
+
+This invitation was sent by [[inviter_name]]. If you don't know who this is, you can ignore this email.
+
+— The [[app_name]] Team

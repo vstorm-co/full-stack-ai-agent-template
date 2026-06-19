@@ -339,6 +339,62 @@
       "customers": "Klienci",
       "resources": "Materiały"
     },
+    "menu": {
+      "product": "Produkt",
+      "solutions": "Rozwiązania",
+      "resources": "Zasoby",
+      "seePricing": "Zobacz cennik",
+      "talkToSales": "Porozmawiaj z nami",
+      "items": {
+        "overview": {
+          "label": "Przegląd",
+          "desc": "Cała platforma w jednym miejscu"
+        },
+        "howItWorks": {
+          "label": "Jak to działa",
+          "desc": "Od rejestracji do pierwszej odpowiedzi w kilka minut"
+        },
+        "insights": {
+          "label": "Analityka",
+          "desc": "Śledź użycie, jakość odpowiedzi i ROI"
+        },
+        "changelog": {
+          "label": "Changelog",
+          "desc": "Nowe funkcje co tydzień"
+        },
+        "support": {
+          "label": "Obsługa klienta",
+          "desc": "Szybciej rozwiązuj zgłoszenia dzięki trafnym odpowiedziom"
+        },
+        "sales": {
+          "label": "Zespoły sprzedaży",
+          "desc": "Natychmiast znajdź właściwą prezentację, dokument i liczbę"
+        },
+        "knowledge": {
+          "label": "Wiedza wewnętrzna",
+          "desc": "Jedno miejsce do pytań o wszystkie narzędzia"
+        },
+        "research": {
+          "label": "Badania i analiza",
+          "desc": "Podsumowuj, porównuj i decyduj z cytowaniami"
+        },
+        "help": {
+          "desc": "Poradniki, tutoriale i odpowiedzi"
+        },
+        "api": {
+          "desc": "Buduj na naszym API REST"
+        },
+        "security": {
+          "desc": "Jak chronimy Twoje dane"
+        },
+        "community": {
+          "desc": "Dołącz do rozmowy"
+        },
+        "blog": {
+          "desc": "Nowości produktowe i poradniki"
+        }
+      }
+    },
     "footer": {
       "tagline": "Asystent AI, który zna Twoją pracę.",
       "product": "Produkt",
@@ -782,7 +838,9 @@
         "ctaSecondary": "Umów demo",
         "stat_teams": "Zespołów używa",
         "stat_speed": "Szybsze odpowiedzi",
-        "stat_uptime": "Zawsze online"
+        "stat_uptime": "Zawsze online",
+        "ratingLabel": "ocena 4,9/5 od ponad 1200 zespołów",
+        "trustNote": "Bez karty kredytowej · Anuluj w każdej chwili"
       },
       "social": {
         "title": "Zaufały nam zespoły z różnych branż"
@@ -816,7 +874,8 @@
           "perMonth": "/mc",
           "seeFull": "Pełne porównanie →",
           "custom": "Porozmawiajmy",
-          "billedMonthly": "rozliczenie miesięczne · anuluj kiedy chcesz"
+          "billedMonthly": "rozliczenie miesięczne · anuluj kiedy chcesz",
+          "perSeatUnit": "/ użytkownik / mies."
         }
       },
       "faq": {

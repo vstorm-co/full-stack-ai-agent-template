@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { Github, Linkedin, Twitter, type LucideIcon } from "lucide-react";
+
+import { SOCIAL_LINKS, type SocialIcon } from "./footer-config";
 
 interface FooterColumn {
   title: string;
@@ -14,6 +17,12 @@ interface MarketingFooterProps {
   legal?: { label: string; href: string }[];
 }
 
+const SOCIAL_ICONS: Record<SocialIcon, LucideIcon> = {
+  x: Twitter,
+  github: Github,
+  linkedin: Linkedin,
+};
+
 export function MarketingFooter({
   brand,
   tagline,
@@ -23,101 +32,116 @@ export function MarketingFooter({
 }: MarketingFooterProps) {
   return (
     <footer className="theme-dark bg-background text-foreground grain relative overflow-hidden">
-      {/* Glowing brand-color sphere — the visual anchor */}
+      {/* Brand-color glow rising from the bottom edge — the visual anchor */}
       <div
         aria-hidden
-        className="pointer-events-none absolute top-1/2 left-1/2 -z-10 h-[760px] w-[760px] -translate-x-1/2 -translate-y-1/2 rounded-full blur-3xl"
+        className="pointer-events-none absolute -bottom-64 left-1/2 -z-10 h-[560px] w-[860px] -translate-x-1/2 rounded-full blur-3xl"
         style={{
           background:
-            "radial-gradient(circle, oklch(from var(--color-brand) l c h / 0.4), oklch(from var(--color-brand) l c h / 0.08) 50%, transparent 70%)",
+            "radial-gradient(circle, oklch(from var(--color-brand) l c h / 0.22), transparent 65%)",
+        }}
+      />
+      {/* Dot grid — masked at edges by the .bg-dots utility */}
+      <div aria-hidden className="bg-dots pointer-events-none absolute inset-0 -z-10 opacity-70" />
+      {/* Top hairline */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-px"
+        style={{
+          background:
+            "linear-gradient(to right, transparent, oklch(from var(--color-foreground) l c h / 0.18), transparent)",
         }}
       />
 
-      {/* Concentric rings — depth */}
-      <div
-        aria-hidden
-        className="border-foreground/10 pointer-events-none absolute top-1/2 left-1/2 -z-10 h-[440px] w-[440px] -translate-x-1/2 -translate-y-1/2 rounded-full border"
-      />
-      <div
-        aria-hidden
-        className="border-foreground/5 pointer-events-none absolute top-1/2 left-1/2 -z-10 h-[640px] w-[640px] -translate-x-1/2 -translate-y-1/2 rounded-full border"
-      />
-      <div
-        aria-hidden
-        className="border-foreground/[0.03] pointer-events-none absolute top-1/2 left-1/2 -z-10 h-[880px] w-[880px] -translate-x-1/2 -translate-y-1/2 rounded-full border"
-      />
+      <div className="relative mx-auto w-full max-w-7xl px-6 py-20 md:px-10 md:py-24">
+        <div className="grid gap-12 md:grid-cols-2 lg:grid-cols-[1.6fr_1fr_1fr_1fr]">
+          {/* Brand block */}
+          <div className="max-w-sm">
+            <Link
+              href="/"
+              className="font-display text-foreground inline-flex items-center gap-2.5 text-2xl font-bold tracking-tight"
+            >
+              <span
+                aria-hidden
+                className="bg-brand inline-block h-3 w-3 animate-pulse rounded-full"
+                style={{ boxShadow: "0 0 20px var(--color-brand), 0 0 6px var(--color-brand)" }}
+              />
+              {brand}
+            </Link>
 
-      {/* Dot grid — masked at edges by the .bg-dots utility */}
-      <div aria-hidden className="bg-dots pointer-events-none absolute inset-0 -z-10" />
+            {tagline && (
+              <p className="text-foreground/60 mt-5 text-base leading-relaxed">{tagline}</p>
+            )}
 
-      <div className="relative mx-auto w-full max-w-5xl px-6 py-28 md:px-10 md:py-36">
-        {/* Glass card with the brand + columns */}
-        <div className="border-foreground/12 bg-card/40 mx-auto max-w-3xl rounded-3xl border p-10 shadow-2xl backdrop-blur-xl md:p-14">
-          <Link
-            href="/"
-            className="font-display text-foreground flex items-center justify-center gap-3 text-3xl font-bold tracking-tight md:text-4xl"
-          >
-            <span
-              aria-hidden
-              className="bg-brand inline-block h-3.5 w-3.5 animate-pulse rounded-full"
-              style={{ boxShadow: "0 0 24px var(--color-brand), 0 0 8px var(--color-brand)" }}
-            />
-            {brand}
-          </Link>
-
-          {tagline && (
-            <p className="text-foreground/70 mx-auto mt-5 max-w-md text-center text-base leading-relaxed">
-              {tagline}
-            </p>
-          )}
-
-          <div className="border-foreground/10 mt-10 grid grid-cols-2 gap-x-6 gap-y-10 border-t pt-10 md:grid-cols-3">
-            {columns.map((col) => (
-              <div key={col.title} className="text-center md:text-left">
-                <h3 className="eyebrow text-foreground/55 mb-4">{col.title}</h3>
-                <ul className="space-y-2.5">
-                  {col.links.map((l) => (
-                    <li key={l.href}>
-                      <Link
-                        href={l.href}
-                        className="text-foreground/80 hover:text-foreground text-sm font-medium transition-colors"
-                      >
-                        {l.label}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
+            <div className="mt-7 flex items-center gap-2.5">
+              {SOCIAL_LINKS.map((s) => {
+                const Icon = SOCIAL_ICONS[s.icon];
+                return (
+                  <a
+                    key={s.label}
+                    href={s.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={s.label}
+                    className="border-foreground/12 text-foreground/60 hover:border-foreground/30 hover:text-foreground hover:bg-foreground/5 inline-flex h-9 w-9 items-center justify-center rounded-full border transition-colors"
+                  >
+                    <Icon className="h-4 w-4" />
+                  </a>
+                );
+              })}
+            </div>
           </div>
+
+          {/* Link columns */}
+          {columns.map((col) => (
+            <div key={col.title}>
+              <h3 className="eyebrow text-foreground/45 mb-4">{col.title}</h3>
+              <ul className="space-y-3">
+                {col.links.map((l) => (
+                  <li key={l.href}>
+                    <Link
+                      href={l.href}
+                      className="text-foreground/70 hover:text-foreground text-sm font-medium transition-colors"
+                    >
+                      {l.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </div>
 
-        {/* Bottom row — sits outside the card */}
-        <div className="text-foreground/55 mt-12 flex flex-col items-center justify-between gap-5 font-mono text-xs md:flex-row">
-          <p className="inline-flex items-center gap-2">
-            <span
-              className="bg-brand h-1.5 w-1.5 animate-pulse rounded-full"
-              style={{ boxShadow: "0 0 10px var(--color-brand)" }}
-            />
-            {operationalLabel}
-          </p>
-          <p>
-            © {new Date().getFullYear()} {brand}
-          </p>
-          {legal.length > 0 && (
-            <ul className="flex flex-wrap items-center justify-center gap-5">
-              {legal.map((l) => (
-                <li key={l.href}>
-                  <Link
-                    href={l.href}
-                    className="text-foreground/55 hover:text-foreground/90 transition-colors"
-                  >
-                    {l.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
+        {/* Bottom bar */}
+        <div className="border-foreground/10 mt-16 border-t pt-8">
+          <div className="text-foreground/50 flex flex-col gap-5 font-mono text-xs md:flex-row md:items-center md:justify-between">
+            <p className="inline-flex items-center gap-2">
+              <span
+                className="bg-brand h-1.5 w-1.5 animate-pulse rounded-full"
+                style={{ boxShadow: "0 0 10px var(--color-brand)" }}
+              />
+              {operationalLabel}
+            </p>
+
+            {legal.length > 0 && (
+              <ul className="flex flex-wrap items-center gap-x-6 gap-y-2">
+                {legal.map((l) => (
+                  <li key={l.href}>
+                    <Link
+                      href={l.href}
+                      className="hover:text-foreground/90 transition-colors"
+                    >
+                      {l.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <p>
+              © {new Date().getFullYear()} {brand}
+            </p>
+          </div>
         </div>
       </div>
     </footer>

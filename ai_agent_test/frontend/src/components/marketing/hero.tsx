@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowUpRight, Database, MessageSquare, Sparkles, Wrench } from "lucide-react";
+import { ArrowUpRight, Database, MessageSquare, Sparkles, Star, Wrench } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
@@ -25,9 +25,16 @@ interface HeroProps {
   description: string;
   primaryCta: HeroCta;
   secondaryCta?: HeroCta;
+  /** Social-proof line shown next to the avatar stack + stars. */
+  ratingLabel?: string;
+  /** Reassurance microcopy under the CTAs (e.g. "No credit card required"). */
+  trustNote?: string;
   stats?: HeroStats[];
   theme?: "light" | "dark";
 }
+
+/** Decorative avatar stack — initials only, no images needed. */
+const AVATARS = ["AK", "MR", "JP", "SL", "DN"];
 
 const FLOAT_PILLS = [
   {
@@ -58,6 +65,8 @@ export function Hero({
   description,
   primaryCta,
   secondaryCta,
+  ratingLabel,
+  trustNote,
   stats,
   theme = "dark",
 }: HeroProps) {
@@ -106,6 +115,37 @@ export function Hero({
             </Link>
           )}
         </div>
+
+        {trustNote && (
+          <p className="text-foreground/55 mt-5 font-mono text-xs tracking-wide">{trustNote}</p>
+        )}
+
+        {ratingLabel && (
+          <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:gap-4">
+            <div className="flex -space-x-2.5">
+              {AVATARS.map((initials, i) => (
+                <span
+                  key={initials}
+                  aria-hidden
+                  className="border-background text-brand-foreground flex h-9 w-9 items-center justify-center rounded-full border-2 font-mono text-[0.6rem] font-semibold"
+                  style={{
+                    background: `linear-gradient(135deg, oklch(from var(--color-brand) l c calc(h + ${i * 28})), oklch(from var(--color-brand) calc(l - 0.12) c calc(h + ${i * 28})))`,
+                  }}
+                >
+                  {initials}
+                </span>
+              ))}
+            </div>
+            <div className="flex flex-col items-center sm:items-start">
+              <div className="flex items-center gap-0.5">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Star key={i} className="fill-brand text-brand h-4 w-4" />
+                ))}
+              </div>
+              <p className="text-foreground/60 mt-1 text-xs">{ratingLabel}</p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Demo block with floating accent pills */}

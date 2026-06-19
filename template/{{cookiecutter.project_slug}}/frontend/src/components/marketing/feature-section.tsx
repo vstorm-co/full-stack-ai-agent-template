@@ -1,3 +1,4 @@
+import { Check } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
@@ -33,24 +34,25 @@ export function FeatureSection({
         <div className="mb-6">
           <span className="eyebrow-badge">{eyebrow}</span>
         </div>
-        <h2 className="text-display-lg text-foreground mb-7 [&_em]:font-accent [&_em]:font-normal [&_em]:italic [&_em]:text-foreground/85">
+        <h2 className="text-display-lg text-foreground [&_em]:font-accent [&_em]:text-foreground/85 mb-7 [&_em]:font-normal [&_em]:italic">
           {title}
         </h2>
         <p className="text-foreground/75 mb-10 max-w-xl text-xl leading-relaxed">{description}</p>
 
         {bullets && bullets.length > 0 && (
-          <ul className="space-y-6">
+          <ul className="space-y-5">
             {bullets.map((b) => (
-              <li
-                key={b.title}
-                className="border-foreground/15 relative border-l-2 pl-6"
-              >
+              <li key={b.title} className="flex gap-4">
                 <span
                   aria-hidden
-                  className="bg-brand border-background absolute -left-[7px] top-2 h-3 w-3 rounded-full border-2"
-                />
-                <p className="text-foreground font-display text-lg font-semibold">{b.title}</p>
-                <p className="text-foreground/70 mt-1.5 text-base leading-relaxed">{b.body}</p>
+                  className="bg-brand/12 text-brand ring-brand/20 mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ring-1"
+                >
+                  <Check className="h-4 w-4" strokeWidth={2.5} />
+                </span>
+                <div>
+                  <p className="text-foreground font-display text-lg font-semibold">{b.title}</p>
+                  <p className="text-foreground/70 mt-1 text-base leading-relaxed">{b.body}</p>
+                </div>
               </li>
             ))}
           </ul>

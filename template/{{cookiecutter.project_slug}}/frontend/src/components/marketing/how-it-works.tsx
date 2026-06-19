@@ -1,4 +1,4 @@
-import { MessageSquare, UploadCloud, UserPlus } from "lucide-react";
+{% raw %}import { ChevronRight, MessageSquare, UploadCloud, UserPlus } from "lucide-react";
 
 const STEPS = [
   {
@@ -24,24 +24,38 @@ export function HowItWorks() {
       {STEPS.map((step, i) => (
         <div
           key={step.title}
-          className="border-foreground/15 bg-card relative overflow-hidden rounded-2xl border p-8 lift"
+          className="group border-foreground/15 bg-card lift hover:border-brand/40 relative overflow-hidden rounded-2xl border p-8 transition-colors"
         >
-          <div className="font-mono text-foreground/30 absolute right-6 top-6 text-sm tabular-nums">
-            0{i + 1}
+          {/* Large ghost step number */}
+          <div className="text-foreground/[0.07] font-display pointer-events-none absolute -top-2 right-3 text-7xl font-extrabold tabular-nums select-none">
+            {i + 1}
           </div>
-          <div className="bg-brand text-brand-foreground inline-flex h-11 w-11 items-center justify-center rounded-xl">
+
+          <div
+            className="text-brand-foreground inline-flex h-12 w-12 items-center justify-center rounded-xl"
+            style={{
+              background:
+                "linear-gradient(135deg, var(--color-brand), oklch(from var(--color-brand) calc(l - 0.14) c h))",
+              boxShadow: "0 8px 20px -10px oklch(from var(--color-brand) l c h / 0.9)",
+            }}
+          >
             <step.icon className="h-5 w-5" />
           </div>
+
           <h3 className="text-foreground font-display mt-6 text-xl font-bold">{step.title}</h3>
           <p className="text-foreground/65 mt-3 text-sm leading-relaxed">{step.body}</p>
+
           {i < STEPS.length - 1 && (
             <div
               aria-hidden
-              className="border-foreground/15 absolute right-[-12px] top-1/2 hidden h-px w-6 border-t md:block"
-            />
+              className="border-border bg-card text-foreground/40 absolute top-1/2 right-[-15px] z-10 hidden h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full border md:flex"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </div>
           )}
         </div>
       ))}
     </div>
   );
 }
+{% endraw %}

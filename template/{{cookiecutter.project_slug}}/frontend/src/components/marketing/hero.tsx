@@ -1,5 +1,5 @@
 {% raw %}import Link from "next/link";
-import { ArrowUpRight, Database, MessageSquare, Sparkles, Wrench } from "lucide-react";
+import { ArrowUpRight, Database, MessageSquare, Sparkles, Star, Wrench } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
@@ -25,15 +25,38 @@ interface HeroProps {
   description: string;
   primaryCta: HeroCta;
   secondaryCta?: HeroCta;
+  /** Social-proof line shown next to the avatar stack + stars. */
+  ratingLabel?: string;
+  /** Reassurance microcopy under the CTAs (e.g. "No credit card required"). */
+  trustNote?: string;
   stats?: HeroStats[];
   theme?: "light" | "dark";
 }
 
+/** Decorative avatar stack — initials only, no images needed. */
+const AVATARS = ["AK", "MR", "JP", "SL", "DN"];
+
 const FLOAT_PILLS = [
-  { icon: MessageSquare, label: "Real-time chat", className: "left-[-12px] top-12 md:left-[-32px] md:top-16 float-y" },
-  { icon: Database, label: "Connected to your data", className: "right-[-8px] top-24 md:right-[-40px] md:top-28 float-y-delayed" },
-  { icon: Wrench, label: "Acts on your behalf", className: "left-[8%] bottom-[-18px] md:left-[12%] md:bottom-[-24px] float-y-delayed" },
-  { icon: Sparkles, label: "Always on", className: "right-[10%] bottom-[-12px] md:right-[12%] md:bottom-[-20px] float-y" },
+  {
+    icon: MessageSquare,
+    label: "Real-time chat",
+    className: "left-[-12px] top-12 md:left-[-32px] md:top-16 float-y",
+  },
+  {
+    icon: Database,
+    label: "Connected to your data",
+    className: "right-[-8px] top-24 md:right-[-40px] md:top-28 float-y-delayed",
+  },
+  {
+    icon: Wrench,
+    label: "Acts on your behalf",
+    className: "left-[8%] bottom-[-18px] md:left-[12%] md:bottom-[-24px] float-y-delayed",
+  },
+  {
+    icon: Sparkles,
+    label: "Always on",
+    className: "right-[10%] bottom-[-12px] md:right-[12%] md:bottom-[-20px] float-y",
+  },
 ];
 
 export function Hero({
@@ -42,6 +65,8 @@ export function Hero({
   description,
   primaryCta,
   secondaryCta,
+  ratingLabel,
+  trustNote,
   stats,
   theme = "dark",
 }: HeroProps) {
@@ -57,12 +82,15 @@ export function Hero({
       <div className="flex flex-col items-center text-center">
         {eyebrow && (
           <div className="eyebrow text-foreground/65 mb-8">
-            <span aria-hidden className="bg-brand mr-2 inline-block h-1.5 w-1.5 rounded-full align-middle" />
+            <span
+              aria-hidden
+              className="bg-brand mr-2 inline-block h-1.5 w-1.5 rounded-full align-middle"
+            />
             {eyebrow}
           </div>
         )}
 
-        <h1 className="text-display-2xl text-foreground max-w-4xl [&_em]:font-accent [&_em]:font-normal [&_em]:italic [&_em]:text-foreground/85">
+        <h1 className="text-display-2xl text-foreground [&_em]:font-accent [&_em]:text-foreground/85 max-w-4xl [&_em]:font-normal [&_em]:italic">
           {title}
         </h1>
 
@@ -71,7 +99,7 @@ export function Hero({
         <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
           <Link
             href={primaryCta.href}
-            className="bg-foreground text-background hover:bg-foreground/90 group inline-flex items-center gap-3 rounded-full pl-7 pr-2 py-2.5 text-base font-medium transition-colors"
+            className="bg-foreground text-background hover:bg-foreground/90 group inline-flex items-center gap-3 rounded-full py-2.5 pr-2 pl-7 text-base font-medium transition-colors"
           >
             <span>{primaryCta.label}</span>
             <span className="bg-brand text-brand-foreground flex h-9 w-9 items-center justify-center rounded-full transition-transform group-hover:rotate-45">
@@ -87,6 +115,37 @@ export function Hero({
             </Link>
           )}
         </div>
+
+        {trustNote && (
+          <p className="text-foreground/55 mt-5 font-mono text-xs tracking-wide">{trustNote}</p>
+        )}
+
+        {ratingLabel && (
+          <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:gap-4">
+            <div className="flex -space-x-2.5">
+              {AVATARS.map((initials, i) => (
+                <span
+                  key={initials}
+                  aria-hidden
+                  className="border-background text-brand-foreground flex h-9 w-9 items-center justify-center rounded-full border-2 font-mono text-[0.6rem] font-semibold"
+                  style={{
+                    background: `linear-gradient(135deg, oklch(from var(--color-brand) l c calc(h + ${i * 28})), oklch(from var(--color-brand) calc(l - 0.12) c calc(h + ${i * 28})))`,
+                  }}
+                >
+                  {initials}
+                </span>
+              ))}
+            </div>
+            <div className="flex flex-col items-center sm:items-start">
+              <div className="flex items-center gap-0.5">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Star key={i} className="fill-brand text-brand h-4 w-4" />
+                ))}
+              </div>
+              <p className="text-foreground/60 mt-1 text-xs">{ratingLabel}</p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Demo block with floating accent pills */}
@@ -123,7 +182,7 @@ export function Hero({
         <dl className="border-foreground/10 mx-auto mt-20 grid max-w-4xl grid-cols-3 divide-x divide-[color-mix(in_oklab,var(--color-foreground)_12%,transparent)] border-t border-b py-8 md:mt-24">
           {stats.map((stat) => (
             <div key={stat.label} className="px-4 text-center md:px-8">
-              <dt className="font-mono text-foreground text-3xl font-medium tracking-tight md:text-4xl">
+              <dt className="text-foreground font-mono text-3xl font-medium tracking-tight md:text-4xl">
                 <AnimatedNumber value={stat.value} />
               </dt>
               <dd className="eyebrow text-foreground/55 mt-2">{stat.label}</dd>

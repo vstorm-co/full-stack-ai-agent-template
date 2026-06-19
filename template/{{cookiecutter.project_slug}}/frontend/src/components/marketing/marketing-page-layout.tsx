@@ -1,14 +1,11 @@
 {% raw %}import type { ReactNode } from "react";
 import { getTranslations } from "next-intl/server";
 
-import {
-  buildFooterColumns,
-  buildFooterLegal,
-  buildMarketingNavLinks,
-} from "./footer-config";
+import { buildFooterColumns, buildFooterLegal, buildMarketingNav } from "./footer-config";
 import { MarketingFooter } from "./marketing-footer";
 import { PillNav } from "./pill-nav";
 import { Section } from "./section";
+import { SmoothScroll } from "./smooth-scroll";
 import { APP_NAME, ROUTES } from "@/lib/constants";
 
 type Width = "narrow" | "wide" | "full";
@@ -39,7 +36,7 @@ export async function MarketingPageLayout({
   width = "wide",
 }: MarketingPageLayoutProps) {
   const t = await getTranslations("marketing");
-  const navLinks = buildMarketingNavLinks((k) => t(k));
+  const navLinks = buildMarketingNav((k) => t(k));
   const footerColumns = buildFooterColumns((k) => t(k));
   const footerLegal = buildFooterLegal((k) => t(k));
 
@@ -47,6 +44,7 @@ export async function MarketingPageLayout({
 
   return (
     <>
+      <SmoothScroll />
       <PillNav
         brand={APP_NAME}
         links={navLinks}
@@ -56,7 +54,7 @@ export async function MarketingPageLayout({
       />
 
       <main id="main">
-        <Section theme="light" padding="pt-40 pb-12 md:pt-48 md:pb-16">
+        <Section theme="light" padding="pt-28 pb-12 md:pt-32 md:pb-16">
           <div className="mx-auto max-w-3xl">
             {eyebrow && <span className="eyebrow-badge mb-6">{eyebrow}</span>}
             <h1 className="text-display-xl mb-5">{title}</h1>
@@ -64,7 +62,7 @@ export async function MarketingPageLayout({
               <p className="text-foreground/70 max-w-2xl text-lg leading-relaxed">{description}</p>
             )}
             {meta && (
-              <div className="text-foreground/50 mt-6 font-mono text-xs uppercase tracking-wider">
+              <div className="text-foreground/50 mt-6 font-mono text-xs tracking-wider uppercase">
                 {meta}
               </div>
             )}

@@ -27,6 +27,152 @@ export function buildMarketingNavLinks(t: T) {
   ];
 }
 
+/* -------------------------------------------------------------------------
+   Rich navigation with mega-menu dropdowns.
+   Icon keys map to lucide-react glyphs in `pill-nav.tsx`.
+   ------------------------------------------------------------------------- */
+
+export type NavIcon =
+  | "sparkles"
+  | "workflow"
+  | "insights"
+  | "changelog"
+  | "support"
+  | "sales"
+  | "knowledge"
+  | "research"
+  | "help"
+  | "api"
+  | "security"
+  | "community"
+  | "blog";
+
+export interface NavMenuItem {
+  label: string;
+  href: string;
+  description?: string;
+  icon?: NavIcon;
+}
+
+export interface NavItem {
+  label: string;
+  /** Set for a plain link. Mutually exclusive with `items`. */
+  href?: string;
+  /** Set for a dropdown trigger. */
+  items?: NavMenuItem[];
+  /** Optional CTA shown at the bottom of the dropdown panel. */
+  featured?: { label: string; href: string };
+}
+
+export function buildMarketingNav(t: T): NavItem[] {
+  return [
+    {
+      label: t("menu.product"),
+      items: [
+        {
+          label: t("menu.items.overview.label"),
+          description: t("menu.items.overview.desc"),
+          href: `${ROUTES.HOME}#features`,
+          icon: "sparkles",
+        },
+        {
+          label: t("menu.items.howItWorks.label"),
+          description: t("menu.items.howItWorks.desc"),
+          href: `${ROUTES.HOME}#how`,
+          icon: "workflow",
+        },
+        {
+          label: t("menu.items.insights.label"),
+          description: t("menu.items.insights.desc"),
+          href: `${ROUTES.HOME}#features`,
+          icon: "insights",
+        },
+        {
+          label: t("menu.items.changelog.label"),
+          description: t("menu.items.changelog.desc"),
+          href: "/changelog",
+          icon: "changelog",
+        },
+      ],
+      featured: { label: t("menu.seePricing"), href: ROUTES.PRICING },
+    },
+    {
+      label: t("menu.solutions"),
+      items: [
+        {
+          label: t("menu.items.support.label"),
+          description: t("menu.items.support.desc"),
+          href: `${ROUTES.HOME}#how`,
+          icon: "support",
+        },
+        {
+          label: t("menu.items.sales.label"),
+          description: t("menu.items.sales.desc"),
+          href: `${ROUTES.HOME}#features`,
+          icon: "sales",
+        },
+        {
+          label: t("menu.items.knowledge.label"),
+          description: t("menu.items.knowledge.desc"),
+          href: `${ROUTES.HOME}#features`,
+          icon: "knowledge",
+        },
+{%- if cookiecutter.enable_marketing_site %}
+        {
+          label: t("menu.items.research.label"),
+          description: t("menu.items.research.desc"),
+          href: "/contact",
+          icon: "research",
+        },
+{%- endif %}
+      ],
+{%- if cookiecutter.enable_marketing_site %}
+      featured: { label: t("menu.talkToSales"), href: "/contact" },
+{%- endif %}
+    },
+    { label: t("nav.pricing"), href: ROUTES.PRICING },
+    {
+      label: t("menu.resources"),
+      items: [
+{%- if cookiecutter.enable_marketing_site %}
+        {
+          label: t("footer.helpCenter"),
+          description: t("menu.items.help.desc"),
+          href: "/help",
+          icon: "help",
+        },
+{%- endif %}
+        {
+          label: t("footer.apiDocs"),
+          description: t("menu.items.api.desc"),
+          href: `${BACKEND_URL}/docs`,
+          icon: "api",
+        },
+{%- if cookiecutter.enable_marketing_site %}
+        {
+          label: t("nav.security"),
+          description: t("menu.items.security.desc"),
+          href: "/security",
+          icon: "security",
+        },
+        {
+          label: t("nav.community"),
+          description: t("menu.items.community.desc"),
+          href: "/community",
+          icon: "community",
+        },
+        {
+          label: t("nav.blog"),
+          description: t("menu.items.blog.desc"),
+          href: "/blog",
+          icon: "blog",
+        },
+{%- endif %}
+      ],
+    },
+  ];
+}
+
 export function buildFooterColumns(t: T): FooterColumn[] {
   return [
     {
@@ -75,6 +221,25 @@ export function buildFooterLegal(t: T) {
 {%- endif %}
   ];
 }
+
+/**
+ * Social links rendered in the footer. Hrefs are placeholders — replace with
+ * your real profiles (or remove entries you don't use). `icon` maps to a
+ * lucide-react glyph in `marketing-footer.tsx`.
+ */
+export type SocialIcon = "x" | "github" | "linkedin";
+
+export interface SocialLink {
+  label: string;
+  href: string;
+  icon: SocialIcon;
+}
+
+export const SOCIAL_LINKS: SocialLink[] = [
+  { label: "X (Twitter)", href: "https://x.com", icon: "x" },
+  { label: "GitHub", href: "https://github.com", icon: "github" },
+  { label: "LinkedIn", href: "https://linkedin.com", icon: "linkedin" },
+];
 
 /**
  * Compatibility exports — used by code paths that don't yet have access to a

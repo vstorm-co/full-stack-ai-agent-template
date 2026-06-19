@@ -117,7 +117,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[{% if cookiecutter.enable_red
 {%- endif %}
 
 {%- if cookiecutter.enable_rag %}
-    from app.core.config import settings
     try:
         embedder = EmbeddingService(settings=settings.rag)
         embedder.warmup()

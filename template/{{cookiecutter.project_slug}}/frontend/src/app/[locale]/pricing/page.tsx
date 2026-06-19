@@ -9,11 +9,12 @@ import { FaqAccordion } from "@/components/marketing/faq-accordion";
 import {
   buildFooterColumns,
   buildFooterLegal,
-  buildMarketingNavLinks,
+  buildMarketingNav,
 } from "@/components/marketing/footer-config";
 import { MarketingFooter } from "@/components/marketing/marketing-footer";
 import { PillNav } from "@/components/marketing/pill-nav";
 import { Section } from "@/components/marketing/section";
+import { SmoothScroll } from "@/components/marketing/smooth-scroll";
 import { TestimonialGrid } from "@/components/marketing/testimonial-grid";
 import { apiClient } from "@/lib/api-client";
 import { APP_NAME, ROUTES } from "@/lib/constants";
@@ -124,7 +125,7 @@ export default function PricingPage() {
   const tPricing = useTranslations("marketing.pricing");
   const locale = useLocale();
 
-  const navLinks = useMemo(() => buildMarketingNavLinks((k) => tNav(k)), [tNav]);
+  const navLinks = useMemo(() => buildMarketingNav((k) => tNav(k)), [tNav]);
   const footerColumns = useMemo(() => buildFooterColumns((k) => tNav(k)), [tNav]);
   const footerLegal = useMemo(() => buildFooterLegal((k) => tNav(k)), [tNav]);
 
@@ -160,6 +161,7 @@ export default function PricingPage() {
 
   return (
     <>
+      <SmoothScroll />
       <PillNav
         brand={APP_NAME}
         links={navLinks}
@@ -169,7 +171,7 @@ export default function PricingPage() {
       />
 
       <main id="main">
-        <Section theme="light" padding="pt-40 pb-20 md:pt-48">
+        <Section theme="light" padding="pt-28 pb-20 md:pt-32">
           <div className="mx-auto max-w-3xl text-center">
             <span className="eyebrow-badge mb-6">{tPricing("eyebrow")}</span>
             <h1 className="text-display-xl mb-6">{tPricing("title")}</h1>
@@ -332,5 +334,4 @@ export default function PricingPage() {
     </>
   );
 }
-
 {% endraw %}

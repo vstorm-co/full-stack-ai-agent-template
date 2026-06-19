@@ -1,4 +1,4 @@
-import { Quote } from "lucide-react";
+{% raw %}import { Star } from "lucide-react";
 
 interface Testimonial {
   quote: string;
@@ -26,14 +26,24 @@ export function TestimonialGrid({ items }: TestimonialGridProps) {
       {items.map((t, i) => (
         <figure
           key={`${t.name}-${i}`}
-          className="border-foreground/15 bg-card flex flex-col gap-6 rounded-2xl border p-7"
+          className="border-foreground/15 bg-card lift hover:border-foreground/25 flex flex-col gap-5 rounded-2xl border p-7 transition-colors"
         >
-          <Quote className="text-brand h-6 w-6" />
-          <blockquote className="text-foreground flex-1 text-base leading-relaxed">
+          <div className="flex items-center gap-0.5" aria-label="Rated 5 out of 5">
+            {Array.from({ length: 5 }).map((_, s) => (
+              <Star key={s} className="fill-brand text-brand h-4 w-4" />
+            ))}
+          </div>
+          <blockquote className="text-foreground/90 flex-1 text-base leading-relaxed">
             &ldquo;{t.quote}&rdquo;
           </blockquote>
           <figcaption className="border-foreground/10 flex items-center gap-3 border-t pt-5">
-            <span className="bg-foreground text-background flex h-9 w-9 items-center justify-center rounded-full font-mono text-xs font-semibold">
+            <span
+              aria-hidden
+              className="text-brand-foreground flex h-10 w-10 items-center justify-center rounded-full font-mono text-xs font-semibold"
+              style={{
+                background: `linear-gradient(135deg, oklch(from var(--color-brand) l c calc(h + ${i * 40})), oklch(from var(--color-brand) calc(l - 0.12) c calc(h + ${i * 40})))`,
+              }}
+            >
               {INITIALS(t.name)}
             </span>
             <div>
@@ -48,3 +58,4 @@ export function TestimonialGrid({ items }: TestimonialGridProps) {
     </div>
   );
 }
+{% endraw %}

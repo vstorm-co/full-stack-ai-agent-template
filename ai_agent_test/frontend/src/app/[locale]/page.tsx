@@ -1,18 +1,34 @@
 import type { Metadata } from "next";
+import {
+  Download,
+  Lock,
+  Quote,
+  RefreshCw,
+  Search,
+  Smartphone,
+  ThumbsUp,
+  Users,
+  Workflow,
+} from "lucide-react";
 import { getTranslations } from "next-intl/server";
 
 import type { Locale } from "@/i18n";
 import { pageMetadata } from "@/lib/seo";
 
+import { CaseStudy } from "@/components/marketing/case-study";
+import { ComparisonTable } from "@/components/marketing/comparison-table";
 import { DataFlowDiagram } from "@/components/marketing/data-flow-diagram";
+import { EnterpriseSecurity } from "@/components/marketing/enterprise-security";
 import { FaqAccordion } from "@/components/marketing/faq-accordion";
+import { FeatureBento } from "@/components/marketing/feature-bento";
 import { FeatureMockup } from "@/components/marketing/feature-mockup";
-import { FeatureSection } from "@/components/marketing/feature-section";
 import { FinalCta } from "@/components/marketing/final-cta";
+import { IntegrationsGrid } from "@/components/marketing/integrations-grid";
+import { OutcomesBand } from "@/components/marketing/outcomes-band";
 import {
   buildFooterColumns,
   buildFooterLegal,
-  buildMarketingNavLinks,
+  buildMarketingNav,
 } from "@/components/marketing/footer-config";
 import { Hero } from "@/components/marketing/hero";
 import { HowItWorks } from "@/components/marketing/how-it-works";
@@ -23,6 +39,7 @@ import { PillNav } from "@/components/marketing/pill-nav";
 import { PricingTeaser } from "@/components/marketing/pricing-teaser";
 import { Reveal } from "@/components/marketing/reveal";
 import { Section } from "@/components/marketing/section";
+import { SmoothScroll } from "@/components/marketing/smooth-scroll";
 import { TestimonialGrid } from "@/components/marketing/testimonial-grid";
 import { JsonLd } from "@/components/seo/json-ld";
 import { APP_NAME, ROUTES } from "@/lib/constants";
@@ -140,7 +157,7 @@ export default async function HomePage() {
   const t = await getTranslations("marketing.landing");
   const tNav = await getTranslations("marketing");
 
-  const navLinks = buildMarketingNavLinks((k) => tNav(k));
+  const navLinks = buildMarketingNav((k) => tNav(k));
   const footerColumns = buildFooterColumns((k) => tNav(k));
   const footerLegal = buildFooterLegal((k) => tNav(k));
 
@@ -153,6 +170,7 @@ export default async function HomePage() {
 
   return (
     <>
+      <SmoothScroll />
       <JsonLd data={[organizationSchema(), websiteSchema(), faqSchema(faqItems)]} />
 
       <PillNav
@@ -174,6 +192,9 @@ export default async function HomePage() {
           }
           description={t("hero.description")}
           primaryCta={{ label: t("hero.ctaPrimary"), href: ROUTES.REGISTER }}
+          secondaryCta={{ label: t("hero.ctaSecondary"), href: "/contact" }}
+          ratingLabel={t("hero.ratingLabel")}
+          trustNote={t("hero.trustNote")}
           stats={heroStats}
           theme="dark"
         />
@@ -203,96 +224,115 @@ export default async function HomePage() {
           </Reveal>
         </Section>
 
-        {/* Features — alternating */}
+        {/* Outcomes / ROI (light) */}
+        <Section theme="light">
+          <Reveal>
+            <OutcomesBand />
+          </Reveal>
+        </Section>
+
+        {/* Features — bento grids, alternating mockup side */}
         <Section theme="dark" id="features">
           <Reveal>
-            <FeatureSection
+            <FeatureBento
               eyebrow="Connected knowledge"
               title={
                 <>
                   All your data, <em>one assistant.</em>
                 </>
               }
-              description="Sync from Google Drive, Notion, Slack, S3 and more. Files stay where they are — we keep them indexed and ready to answer questions in real time."
+              description="Sync from Google Drive, Notion, Slack, S3 and more. Files stay where they are — we keep them indexed and ready to answer."
+              cta={{ label: "See connected sources", href: ROUTES.RAG }}
+              mockup={<FeatureMockup kind="rag" className="max-w-none" />}
+              mockupSide="left"
+              stat={{ value: "20+", label: "connected data sources" }}
               bullets={[
                 {
+                  icon: RefreshCw,
                   title: "Always up to date",
                   body: "Documents re-index automatically when they change at the source.",
                 },
                 {
+                  icon: Lock,
                   title: "Granular permissions",
                   body: "Each user only sees what they're allowed to see. Nothing leaks.",
                 },
                 {
+                  icon: Search,
                   title: "Built-in search",
-                  body: "Find anything across every connected source from a single search box.",
+                  body: "Find anything across every connected source from one box.",
                 },
               ]}
-              visual={<FeatureMockup kind="rag" />}
-              cta={{ label: "See connected sources", href: ROUTES.RAG }}
-              visualSide="left"
             />
           </Reveal>
         </Section>
 
         <Section theme="light">
           <Reveal>
-            <FeatureSection
+            <FeatureBento
               eyebrow="AI Chat"
               title={
                 <>
                   Answers grounded in <em>your own work.</em>
                 </>
               }
-              description="Ask questions in plain English and get answers with citations. Your assistant remembers context across conversations and adapts as your work evolves."
+              description="Ask questions in plain English and get answers with citations. Your assistant remembers context and adapts as your work evolves."
+              cta={{ label: "Try the chat", href: ROUTES.CHAT }}
+              mockup={<FeatureMockup kind="agents" className="max-w-none" />}
+              mockupSide="right"
+              stat={{ value: "100%", label: "answers cite their sources" }}
               bullets={[
                 {
+                  icon: Quote,
                   title: "Cites sources, every time",
-                  body: "Every answer links back to the document, message, or ticket it came from.",
+                  body: "Every answer links back to the document or ticket it came from.",
                 },
                 {
+                  icon: Workflow,
                   title: "Multi-step reasoning",
-                  body: "Handles complex requests by breaking them into steps and acting on each.",
+                  body: "Breaks complex requests into steps and acts on each.",
                 },
                 {
+                  icon: Smartphone,
                   title: "Works on web and mobile",
-                  body: "Identical experience across devices, plus integrations with Slack and Teams.",
+                  body: "Identical across devices, plus Slack and Teams integrations.",
                 },
               ]}
-              visual={<FeatureMockup kind="agents" />}
-              cta={{ label: "Try the chat", href: ROUTES.CHAT }}
-              visualSide="right"
             />
           </Reveal>
         </Section>
 
         <Section theme="dark">
           <Reveal>
-            <FeatureSection
+            <FeatureBento
               eyebrow="Insights"
               title={
                 <>
                   Know what your team <em>is asking.</em>
                 </>
               }
-              description="A live dashboard of every question asked, answer rated, and workflow run. Spot gaps in your knowledge base, identify your power users, and prove the ROI."
+              description="A live dashboard of every question asked, answer rated, and workflow run. Spot gaps, find power users, and prove the ROI."
+              cta={{ label: "Explore the dashboard", href: ROUTES.DASHBOARD }}
+              mockup={<FeatureMockup kind="billing" className="max-w-none" />}
+              mockupSide="left"
+              stat={{ value: "+18%", label: "avg. monthly engagement" }}
               bullets={[
                 {
+                  icon: Users,
                   title: "Usage by team or person",
-                  body: "Drill down to see who's getting value and where the questions concentrate.",
+                  body: "Drill down to see who's getting value and where questions concentrate.",
                 },
                 {
+                  icon: ThumbsUp,
                   title: "Quality feedback loop",
                   body: "Users rate answers; you see what's working and what to improve.",
                 },
                 {
+                  icon: Download,
                   title: "Export to your warehouse",
-                  body: "Stream events to BigQuery, Snowflake or your own tools via the API.",
+                  body: "Stream events to BigQuery, Snowflake or your tools via the API.",
                 },
               ]}
-              visual={<FeatureMockup kind="billing" />}
-              cta={{ label: "Explore the dashboard", href: ROUTES.DASHBOARD }}
-              visualSide="left"
             />
           </Reveal>
         </Section>
@@ -317,6 +357,37 @@ export default async function HomePage() {
           </Reveal>
         </Section>
 
+        {/* Enterprise security (dark) — bento */}
+        <Section theme="dark" id="security">
+          <Reveal>
+            <EnterpriseSecurity cta={{ label: "Read our security overview", href: "/security" }} />
+          </Reveal>
+        </Section>
+
+        {/* Integrations (light) */}
+        <Section theme="light">
+          <Reveal>
+            <IntegrationsGrid cta={{ label: "Browse all integrations", href: "/help" }} />
+          </Reveal>
+        </Section>
+
+        {/* Case study (dark) */}
+        <Section theme="dark">
+          <Reveal>
+            <CaseStudy
+              quote="We replaced three internal tools and cut answer time from hours to seconds. Onboarding a new hire used to take a month — now it's a week."
+              name="Marta Kowal"
+              role="COO"
+              company="Northwind Labs"
+              metrics={[
+                { value: "−68%", label: "time to first answer" },
+                { value: "3×", label: "faster onboarding" },
+                { value: "12 hrs", label: "saved per person / week" },
+              ]}
+            />
+          </Reveal>
+        </Section>
+
         {/* Testimonials (light) — grid of 3 */}
         <Section theme="light">
           <div className="mb-14 text-center">
@@ -327,6 +398,25 @@ export default async function HomePage() {
           </div>
           <Reveal>
             <TestimonialGrid items={TESTIMONIALS} />
+          </Reveal>
+        </Section>
+
+        {/* Comparison (light) */}
+        <Section theme="light">
+          <Reveal>
+            <ComparisonTable
+              brand={APP_NAME}
+              alternatives={["Generic AI chat", "DIY / in-house"]}
+              rows={[
+                { feature: "Grounded in your own data", cells: ["yes", "no", "partial"] },
+                { feature: "Citations on every answer", cells: ["yes", "no", "partial"] },
+                { feature: "Connects to your tools", cells: ["yes", "partial", "partial"] },
+                { feature: "Enterprise security (SSO, audit)", cells: ["yes", "partial", "partial"] },
+                { feature: "Usage analytics & ROI", cells: ["yes", "no", "partial"] },
+                { feature: "Live in minutes", cells: ["yes", "yes", "no"] },
+                { feature: "Dedicated support", cells: ["yes", "no", "partial"] },
+              ]}
+            />
           </Reveal>
         </Section>
 

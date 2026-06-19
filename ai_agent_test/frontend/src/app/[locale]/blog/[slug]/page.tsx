@@ -9,11 +9,12 @@ import { blogMdxComponents } from "@/components/blog/mdx-components";
 import {
   buildFooterColumns,
   buildFooterLegal,
-  buildMarketingNavLinks,
+  buildMarketingNav,
 } from "@/components/marketing/footer-config";
 import { MarketingFooter } from "@/components/marketing/marketing-footer";
 import { PillNav } from "@/components/marketing/pill-nav";
 import { Section } from "@/components/marketing/section";
+import { SmoothScroll } from "@/components/marketing/smooth-scroll";
 import type { Locale } from "@/i18n";
 import { getAllBlogPosts, getBlogPost, getRelatedPosts } from "@/lib/blog";
 import { APP_NAME, ROUTES } from "@/lib/constants";
@@ -71,7 +72,7 @@ export default async function BlogPostPage({
   const tNav = await getTranslations("marketing");
   const tCommon = await getTranslations("marketing.common");
 
-  const navLinks = buildMarketingNavLinks((k) => tNav(k));
+  const navLinks = buildMarketingNav((k) => tNav(k));
   const footerColumns = buildFooterColumns((k) => tNav(k));
   const footerLegal = buildFooterLegal((k) => tNav(k));
 
@@ -85,6 +86,7 @@ export default async function BlogPostPage({
 
   return (
     <>
+      <SmoothScroll />
       <PillNav
         brand={APP_NAME}
         links={navLinks}
@@ -95,7 +97,7 @@ export default async function BlogPostPage({
 
       <main id="main">
         {/* Hero — wider container so meta + title don't feel cramped */}
-        <Section theme="light" padding="pt-40 pb-12 md:pt-48 md:pb-16">
+        <Section theme="light" padding="pt-28 pb-12 md:pt-32 md:pb-16">
           <div className="mx-auto max-w-4xl">
             <Link
               href="/blog"

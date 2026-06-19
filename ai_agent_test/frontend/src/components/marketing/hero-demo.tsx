@@ -20,34 +20,20 @@ const SCRIPT = [
   },
 ];
 
+/** Scripted chat demo. All messages are always in the DOM at full length, so
+ *  the card is a fixed height and never resizes — we only fade/slide each
+ *  message in sequentially (opacity + transform don't affect layout), so the
+ *  page never jumps as the loop plays. */
 export function HeroDemo() {
-  const [step, setStep] = useState(0);
-  const [typed, setTyped] = useState("");
+  // SSR + no-JS render everything visible; the loop starts after mount.
+  const [revealed, setRevealed] = useState(SCRIPT.length);
 
   useEffect(() => {
-    const current = SCRIPT[step];
-    if (!current) return;
-
-    if (typed.length < current.text.length) {
-      // Slower for user msg (looks deliberate), faster for tool/agent
-      const charDelay = current.role === "agent" ? 8 : current.role === "tool" ? 6 : 14;
-      const timer = setTimeout(() => setTyped(current.text.slice(0, typed.length + 1)), charDelay);
-      return () => clearTimeout(timer);
-    }
-
-    // Pause depends on role: short after tool, longer after agent (let user read).
-    const pauseMs = current.role === "agent" ? 1800 : current.role === "tool" ? 700 : 1100;
-    const advance = setTimeout(() => {
-      if (step < SCRIPT.length - 1) {
-        setStep((s) => s + 1);
-        setTyped("");
-      } else {
-        setStep(0);
-        setTyped("");
-      }
-    }, pauseMs);
-    return () => clearTimeout(advance);
-  }, [step, typed]);
+    const id = setInterval(() => {
+      setRevealed((r) => (r >= SCRIPT.length ? 1 : r + 1));
+    }, 1600);
+    return () => clearInterval(id);
+  }, []);
 
   return (
     <div className="border-foreground/15 bg-card mx-auto w-full max-w-5xl overflow-hidden rounded-2xl border shadow-2xl">
@@ -61,14 +47,17 @@ export function HeroDemo() {
       </div>
 
       <div className="space-y-4 p-5 md:p-8">
-        {SCRIPT.slice(0, step + 1).map((msg, i) => {
-          const isLast = i === step;
-          const text = isLast ? typed : msg.text;
+        {SCRIPT.map((msg, i) => {
+          const shown = i < revealed;
+          const reveal = cn(
+            "transition-[opacity,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]",
+            shown ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0",
+          );
           if (msg.role === "user") {
             return (
-              <div key={i} className="flex justify-end">
+              <div key={i} className={cn("flex justify-end", reveal)}>
                 <div className="bg-foreground text-background flex max-w-[80%] items-start gap-3 rounded-2xl rounded-tr-sm px-5 py-3.5 text-base">
-                  <span className="leading-relaxed">{text}</span>
+                  <span className="leading-relaxed">{msg.text}</span>
                   <User className="mt-1 h-4 w-4 shrink-0 opacity-60" />
                 </div>
               </div>
@@ -76,25 +65,25 @@ export function HeroDemo() {
           }
           if (msg.role === "tool") {
             return (
-              <div key={i} className="flex">
+              <div key={i} className={cn("flex", reveal)}>
                 <div className="border-brand/40 bg-brand/10 text-foreground/80 flex items-center gap-2 rounded-full border px-3 py-1 font-mono text-xs">
                   <FileText className="h-3 w-3" />
-                  <span>{text}</span>
+                  <span>{msg.text}</span>
                 </div>
               </div>
             );
           }
           return (
-            <div key={i} className="flex">
+            <div key={i} className={cn("flex", reveal)}>
               <div className="bg-card border-foreground/10 max-w-[85%] rounded-2xl rounded-tl-sm border p-5">
                 <div className="text-foreground/55 mb-2.5 flex items-center gap-2 text-xs">
                   <Bot className="h-3.5 w-3.5" />
                   <span className="eyebrow">Assistant</span>
-                  {isLast && (
+                  {shown && i === revealed - 1 && (
                     <span className="bg-brand ml-auto inline-block h-2 w-2 animate-pulse rounded-full" />
                   )}
                 </div>
-                <p className="text-foreground text-base leading-relaxed">{text}</p>
+                <p className="text-foreground text-base leading-relaxed">{msg.text}</p>
               </div>
             </div>
           );
@@ -104,11 +93,7 @@ export function HeroDemo() {
       <div className="border-foreground/10 bg-background flex items-center gap-3 border-t px-5 py-4">
         <Sparkles className="text-foreground/40 h-4 w-4" />
         <span className="text-foreground/40 flex-1 text-sm">Ask anything…</span>
-        <kbd
-          className={cn(
-            "border-foreground/15 text-foreground/50 inline-flex items-center gap-1 rounded border px-2 py-1 font-mono text-xs",
-          )}
-        >
+        <kbd className="border-foreground/15 text-foreground/50 inline-flex items-center gap-1 rounded border px-2 py-1 font-mono text-xs">
           ⌘ ↵
         </kbd>
       </div>

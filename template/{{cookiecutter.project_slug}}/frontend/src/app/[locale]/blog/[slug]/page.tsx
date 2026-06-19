@@ -9,11 +9,12 @@ import { blogMdxComponents } from "@/components/blog/mdx-components";
 import {
   buildFooterColumns,
   buildFooterLegal,
-  buildMarketingNavLinks,
+  buildMarketingNav,
 } from "@/components/marketing/footer-config";
 import { MarketingFooter } from "@/components/marketing/marketing-footer";
 import { PillNav } from "@/components/marketing/pill-nav";
 import { Section } from "@/components/marketing/section";
+import { SmoothScroll } from "@/components/marketing/smooth-scroll";
 import type { Locale } from "@/i18n";
 import { getAllBlogPosts, getBlogPost, getRelatedPosts } from "@/lib/blog";
 import { APP_NAME, ROUTES } from "@/lib/constants";
@@ -71,7 +72,7 @@ export default async function BlogPostPage({
   const tNav = await getTranslations("marketing");
   const tCommon = await getTranslations("marketing.common");
 
-  const navLinks = buildMarketingNavLinks((k) => tNav(k));
+  const navLinks = buildMarketingNav((k) => tNav(k));
   const footerColumns = buildFooterColumns((k) => tNav(k));
   const footerLegal = buildFooterLegal((k) => tNav(k));
 
@@ -85,6 +86,7 @@ export default async function BlogPostPage({
 
   return (
     <>
+      <SmoothScroll />
       <PillNav
         brand={APP_NAME}
         links={navLinks}
@@ -95,17 +97,17 @@ export default async function BlogPostPage({
 
       <main id="main">
         {/* Hero — wider container so meta + title don't feel cramped */}
-        <Section theme="light" padding="pt-40 pb-12 md:pt-48 md:pb-16">
+        <Section theme="light" padding="pt-28 pb-12 md:pt-32 md:pb-16">
           <div className="mx-auto max-w-4xl">
             <Link
               href="/blog"
-              className="text-foreground/55 hover:text-foreground inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-wider"
+              className="text-foreground/55 hover:text-foreground inline-flex items-center gap-1.5 font-mono text-[11px] tracking-wider uppercase"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
               {tCommon("backToBlog")}
             </Link>
 
-            <div className="text-foreground/55 mt-8 flex flex-wrap items-center gap-3 font-mono text-[11px] uppercase tracking-wider">
+            <div className="text-foreground/55 mt-8 flex flex-wrap items-center gap-3 font-mono text-[11px] tracking-wider uppercase">
               {post.tags?.map((tag) => (
                 <span
                   key={tag}
@@ -123,7 +125,7 @@ export default async function BlogPostPage({
               )}
             </div>
 
-            <h1 className="font-display mt-5 text-display-xl tracking-tight">{post.title}</h1>
+            <h1 className="font-display text-display-xl mt-5 tracking-tight">{post.title}</h1>
             <p className="text-foreground/70 mt-5 max-w-3xl text-lg leading-relaxed">
               {post.excerpt}
             </p>
@@ -135,7 +137,7 @@ export default async function BlogPostPage({
               <div>
                 <p className="text-foreground text-sm font-semibold">{post.author}</p>
                 {post.authorRole && (
-                  <p className="text-foreground/55 font-mono text-[10px] uppercase tracking-wider">
+                  <p className="text-foreground/55 font-mono text-[10px] tracking-wider uppercase">
                     {post.authorRole}
                   </p>
                 )}
@@ -154,13 +156,13 @@ export default async function BlogPostPage({
             {/* End of post separator */}
             <div className="border-foreground/10 mt-16 flex items-center gap-4 border-t pt-8">
               <span aria-hidden className="bg-brand h-1 w-1 rounded-full" />
-              <span className="font-mono text-foreground/45 text-[11px] uppercase tracking-wider">
+              <span className="text-foreground/45 font-mono text-[11px] tracking-wider uppercase">
                 {locale === "pl" ? "koniec wpisu" : "end of post"}
               </span>
               <span aria-hidden className="bg-foreground/10 h-px flex-1" />
               <Link
                 href="/blog"
-                className="text-foreground/55 hover:text-foreground inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-wider"
+                className="text-foreground/55 hover:text-foreground inline-flex items-center gap-1.5 font-mono text-[11px] tracking-wider uppercase"
               >
                 {tCommon("backToBlog")} →
               </Link>
@@ -168,7 +170,7 @@ export default async function BlogPostPage({
 
             {related.length > 0 && (
               <aside className="mt-16">
-                <p className="font-mono text-foreground/55 mb-5 text-[11px] uppercase tracking-wider">
+                <p className="text-foreground/55 mb-5 font-mono text-[11px] tracking-wider uppercase">
                   {tCommon("keepReading")}
                 </p>
                 <ul className="grid gap-4 md:grid-cols-2">
@@ -178,11 +180,11 @@ export default async function BlogPostPage({
                         href={`/blog/${r.slug}`}
                         className="lift border-foreground/10 hover:border-foreground/30 bg-card group flex h-full flex-col gap-3 rounded-2xl border p-6 transition-colors"
                       >
-                        <span className="font-mono text-foreground/55 text-[10px] uppercase tracking-wider">
+                        <span className="text-foreground/55 font-mono text-[10px] tracking-wider uppercase">
                           {formatDate(r.date, locale)}
                           {r.readingTime && ` · ${r.readingTime}`}
                         </span>
-                        <h3 className="text-foreground font-display text-base font-semibold leading-snug">
+                        <h3 className="text-foreground font-display text-base leading-snug font-semibold">
                           {r.title}
                         </h3>
                         <p className="text-foreground/65 line-clamp-2 text-sm leading-relaxed">

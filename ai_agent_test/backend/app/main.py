@@ -62,7 +62,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[LifespanState, None]:
     from app.core.cache import setup_cache
 
     setup_cache(redis_client)
-    from app.core.config import settings
 
     try:
         embedder = EmbeddingService(settings=settings.rag)

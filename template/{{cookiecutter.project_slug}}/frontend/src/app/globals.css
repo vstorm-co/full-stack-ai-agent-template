@@ -183,6 +183,22 @@
       scroll-behavior: auto;
     }
   }
+  /* Lenis smooth-scroll (marketing pages). When Lenis is active it manages
+     scrolling itself, so disable the native CSS smooth-scroll to avoid a
+     double-eased feel. Classes are toggled on <html> by Lenis. */
+  html.lenis,
+  html.lenis body {
+    height: auto;
+  }
+  .lenis.lenis-smooth {
+    scroll-behavior: auto !important;
+  }
+  .lenis.lenis-smooth [data-lenis-prevent] {
+    overscroll-behavior: contain;
+  }
+  .lenis.lenis-stopped {
+    overflow: hidden;
+  }
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-body);

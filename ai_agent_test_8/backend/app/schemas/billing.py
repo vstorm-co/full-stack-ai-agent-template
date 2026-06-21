@@ -146,3 +146,22 @@ class UsageDailyBucket(BaseSchema):
 class UsageTimelineRead(BaseSchema):
     buckets: list[UsageDailyBucket]
     days: int
+
+
+class InvoiceRead(BaseSchema):
+    id: str
+    number: str
+    status: str
+    amount_due: int
+    amount_paid: int
+    currency: str
+    period_start: datetime
+    period_end: datetime
+    invoice_pdf: str | None = None
+    hosted_invoice_url: str | None = None
+    created_at: datetime
+
+
+class InvoiceList(BaseSchema):
+    items: list[InvoiceRead]
+    total: int

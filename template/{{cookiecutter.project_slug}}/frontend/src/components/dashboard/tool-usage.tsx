@@ -94,7 +94,7 @@ export function ToolUsage() {
                 >
                   <div
                     aria-hidden
-                    className="bg-chart/15 pointer-events-none absolute inset-y-0 left-0"
+                    className="bg-foreground/6 pointer-events-none absolute inset-y-0 left-0"
                     style={{ width: `${Math.max(widthPct, 2)}%` }}
                   />
                   <div className="relative flex items-center gap-3">

@@ -24,7 +24,7 @@ export default function SettingsLayout({ children }: { children: ReactNode }) {
         description="Manage your account, appearance, notifications, and slash commands."
       />
       <PageTabs tabs={SETTINGS_TABS} />
-      <div className="w-full max-w-5xl">{children}</div>
+      <div className="min-w-0">{children}</div>
     </div>
   );
 }

@@ -14,6 +14,8 @@ from app.core.config import settings
 from app.schemas.billing import (
     CheckoutSessionCreate,
     CheckoutSessionRead,
+    InvoiceList,
+    InvoiceRead,
     PlanList,
     PlanRead,
     PortalSessionRead,
@@ -127,6 +129,17 @@ async def get_storage_usage(
     """Sum bytes used by chat-attached files (per-user) and RAG docs (per-org)."""
     return await billing_service.get_storage_usage(current_user.id, active_org.id)
 {%- endif %}
+
+@router.get("/me/invoices", response_model=InvoiceList)
+async def list_invoices(
+    current_user: CurrentUser,
+    active_org: ActiveOrg,
+    billing_service: BillingSvc,
+) -> Any:
+    """Return invoices for the active organization (built from subscription/topup transactions)."""
+    items = await billing_service.get_invoices(active_org.id)
+    return InvoiceList(items=[InvoiceRead(**i) for i in items], total=len(items))
+
 
 {%- if cookiecutter.enable_credits_system %}
 

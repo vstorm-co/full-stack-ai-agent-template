@@ -141,6 +141,49 @@ class BillingService:
     async def get_usage_timeline(self, org_id: uuid.UUID, *, days: int) -> Any:
         return await usage_event_repo.daily_timeline(self.db, org_id, days=days)
 
+    async def get_invoices(self, org_id: uuid.UUID) -> list[dict[str, Any]]:
+        """Return mock invoices built from subscription-grant and top-up credit transactions."""
+        from sqlalchemy import select
+
+        from app.db.models.credit_transaction import CreditTransaction
+
+        result = await self.db.execute(
+            select(CreditTransaction)
+            .where(
+                CreditTransaction.organization_id == org_id,
+                CreditTransaction.type.in_(["grant_subscription", "purchase_topup"]),
+            )
+            .order_by(CreditTransaction.created_at.desc())
+            .limit(24)
+        )
+        txs = result.scalars().all()
+
+        invoices: list[dict[str, Any]] = []
+        for i, tx in enumerate(txs, start=1):
+            amount_cents = max(990, tx.delta * 10)
+            period_start = tx.created_at.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            if period_start.month == 12:
+                period_end = period_start.replace(year=period_start.year + 1, month=1)
+            else:
+                period_end = period_start.replace(month=period_start.month + 1)
+
+            invoices.append(
+                {
+                    "id": str(tx.id),
+                    "number": f"INV-{tx.created_at.strftime('%Y%m')}-{i:03d}",
+                    "status": "paid",
+                    "amount_due": amount_cents,
+                    "amount_paid": amount_cents,
+                    "currency": "usd",
+                    "period_start": period_start,
+                    "period_end": period_end,
+                    "invoice_pdf": None,
+                    "hosted_invoice_url": None,
+                    "created_at": tx.created_at,
+                }
+            )
+        return invoices
+
     async def send_trial_ending_reminders(self, *, within_days: int = 3) -> int:
         """Send a reminder email to every org whose Stripe trial ends within ``within_days``.
 

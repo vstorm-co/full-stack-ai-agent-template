@@ -12,3 +12,4 @@ export { useInvitations } from "./use-invitations";
 export { useKnowledgeBases, useKBDetail } from "./use-knowledge-bases";
 export { useBilling, useSubscription, useCredits, usePlans, useInvoices } from "./use-billing";
 export { useSlashCommands, isBuiltinEnabled, BUILTIN_COMMAND_LIST } from "./use-slash-commands";
+export { useOrgIntegrations } from "./use-org-integrations";

@@ -394,7 +394,8 @@ async def _run_source_sync(source_id: str, sync_log_id: str | None = None) -> di
             )
             return {"status": "error", "message": f"Unknown connector: {source.connector_type}"}
 
-        config = source.config if isinstance(source.config, dict) else json.loads(source.config)
+        raw_config = source.config if isinstance(source.config, dict) else json.loads(source.config)
+        config = SyncSourceService.decrypt_config_dict(raw_config)
         collection_name = source.collection_name
         sync_mode = source.sync_mode
 
@@ -417,7 +418,7 @@ async def _run_source_sync(source_id: str, sync_log_id: str | None = None) -> di
         with tempfile.TemporaryDirectory() as tmp_dir:
             for remote_file in files:
                 try:
-                    local_path = await connector.download_file(remote_file, Path(tmp_dir))
+                    local_path = await connector.download_file(remote_file, Path(tmp_dir), config=config)
                     await ingestion_svc.ingest_file(
                         filepath=local_path,
                         collection_name=collection_name,

@@ -42,7 +42,9 @@ class BaseSyncConnector(ABC):
         """List files available for sync from this source."""
 
     @abstractmethod
-    async def download_file(self, file: RemoteFile, dest_dir: Path) -> Path:
+    async def download_file(
+        self, file: RemoteFile, dest_dir: Path, config: dict | None = None
+    ) -> Path:
         """Download a single file to local temp directory. Returns local file path."""
 
     async def validate_config(self, config: dict) -> tuple[bool, str | None]:

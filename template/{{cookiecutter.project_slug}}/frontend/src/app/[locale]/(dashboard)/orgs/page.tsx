@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowRightLeft, Building2, Camera, Check, Plus, Settings } from "lucide-react";
+import { ArrowRightLeft, Building2, Camera, Check, Plug, Plus, Settings } from "lucide-react";
 import { toast } from "sonner";
 
 import { CreateOrgDialog } from "@/components/teams";
@@ -151,6 +151,15 @@ export default function OrgsPage() {
                   >
                     <ArrowRightLeft className="h-3.5 w-3.5" />
                     {isActive ? "Current" : "Switch"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => router.push(ROUTES.ORG_INTEGRATIONS(org.id))}
+                  >
+                    <Plug className="h-3.5 w-3.5" />
+                    Integrations
                   </Button>
                   <Button
                     variant="outline"

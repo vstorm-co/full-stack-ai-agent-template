@@ -1,6 +1,6 @@
 import type { SVGProps } from "react";
 import type { IconType } from "react-icons";
-import { FaMicrosoft } from "react-icons/fa6";
+import { FaAws, FaMicrosoft } from "react-icons/fa6";
 import {
   SiDropbox,
   SiFigma,
@@ -36,7 +36,9 @@ type BrandName =
   | "vercel"
   | "figma"
   | "loom"
-  | "intercom";
+  | "intercom"
+  | "s3"
+  | "aws";
 
 const ICONS: Record<BrandName, IconType> = {
   gdrive: SiGoogledrive,
@@ -53,6 +55,8 @@ const ICONS: Record<BrandName, IconType> = {
   figma: SiFigma,
   loom: SiLoom,
   intercom: SiIntercom,
+  s3: FaAws,
+  aws: FaAws,
 };
 
 interface BrandIconProps extends SVGProps<SVGSVGElement> {

@@ -1,6 +1,7 @@
 """Sync source configuration schemas."""
 
 from typing import Any
+from uuid import UUID
 
 from app.schemas.base import BaseSchema
 
@@ -26,11 +27,15 @@ class ConnectorInfo(BaseSchema):
 
 
 class SyncSourceCreate(BaseSchema):
-    """Schema for creating a new sync source."""
+    """Schema for creating a new sync source.
+
+    ``collection_name`` is optional — a source without it is an org-level
+    integration not yet assigned to a knowledge base.
+    """
 
     name: str
     connector_type: str
-    collection_name: str
+    collection_name: str | None = None
     config: dict[str, object]
     sync_mode: str = "new_only"
     schedule_minutes: int | None = None
@@ -47,13 +52,21 @@ class SyncSourceUpdate(BaseSchema):
     collection_name: str | None = None
 
 
+class SyncSourceClone(BaseSchema):
+    """Schema for cloning a sync source into a different knowledge base."""
+
+    collection_name: str
+    name: str | None = None
+
+
 class SyncSourceRead(BaseSchema):
     """Schema for reading a sync source."""
 
     id: str
+    organization_id: str | None
     name: str
     connector_type: str
-    collection_name: str
+    collection_name: str | None
     config: dict[str, object]
     sync_mode: str
     schedule_minutes: int | None

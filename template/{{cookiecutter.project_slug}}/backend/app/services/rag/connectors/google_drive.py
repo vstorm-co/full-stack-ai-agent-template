@@ -1,18 +1,21 @@
 {%- if cookiecutter.enable_rag and cookiecutter.enable_google_drive_ingestion %}
 """Google Drive sync connector for RAG ingestion.
 
-Fetches files from Google Drive using a service account credentials JSON file.
-Supports listing folders (with optional subfolder recursion), downloading files,
-and exporting Google Docs/Sheets/Slides to portable formats.
+Fetches files from Google Drive using a Google service account.
+Credentials are supplied per-source via the ``service_account_json`` config
+field (a copy of the JSON key file contents). A file-path fallback via
+``GOOGLE_DRIVE_CREDENTIALS_FILE`` is kept for backwards compatibility.
 
 Setup:
 1. Create a service account in Google Cloud Console
 2. Download the JSON key file
 3. Share the target Drive folder with the service account email
-4. Set GOOGLE_DRIVE_CREDENTIALS_FILE to the path of the JSON key file
+4. Paste the JSON contents into the "Service Account JSON" field when
+   creating a sync source (or set GOOGLE_DRIVE_CREDENTIALS_FILE as a fallback)
 """
 
 import asyncio
+import json as _json
 import logging
 from datetime import datetime
 from pathlib import Path
@@ -43,15 +46,23 @@ GOOGLE_DOCS_EXPORT: dict[str, tuple[str, str]] = {
 
 
 class GoogleDriveConnector(BaseSyncConnector):
-    """Google Drive connector using service account credentials.
+    """Google Drive connector using a service account.
 
-    Authenticates via a service account JSON key file.
-    The target folder must be shared with the service account email.
+    Credentials are read from ``config["service_account_json"]`` (a JSON string).
+    Falls back to the file at ``settings.GOOGLE_DRIVE_CREDENTIALS_FILE`` when
+    the config field is absent.
     """
 
     CONNECTOR_TYPE: ClassVar[str] = "gdrive"
     DISPLAY_NAME: ClassVar[str] = "Google Drive"
     CONFIG_SCHEMA: ClassVar[dict[str, dict[str, Any]]] = {
+        "service_account_json": {
+            "type": "textarea",
+            "required": True,
+            "label": "Service Account JSON",
+            "help": "Paste the full contents of your Google service account JSON key file.",
+            "secret": True,
+        },
         "folder_id": {
             "type": "string",
             "required": True,
@@ -66,38 +77,25 @@ class GoogleDriveConnector(BaseSyncConnector):
         },
     }
 
-    def _get_drive_service(self):
-        """Get authenticated Google Drive API service."""
-        creds_file = settings.GOOGLE_DRIVE_CREDENTIALS_FILE
-        if not creds_file or not Path(creds_file).exists():
-            raise ValueError(
-                f"Google Drive credentials file not found: {creds_file}. "
-                "Set GOOGLE_DRIVE_CREDENTIALS_FILE to the path of your service account JSON key."
-            )
-        creds = Credentials.from_service_account_file(creds_file, scopes=SCOPES)
+    def _get_drive_service(self, config: dict):
+        """Build an authenticated Google Drive API service from config or file fallback."""
+        sa_json = config.get("service_account_json")
+        if sa_json:
+            info = _json.loads(sa_json) if isinstance(sa_json, str) else sa_json
+            creds = Credentials.from_service_account_info(info, scopes=SCOPES)
+        else:
+            creds_file = settings.GOOGLE_DRIVE_CREDENTIALS_FILE
+            if not creds_file or not Path(creds_file).exists():
+                raise ValueError(
+                    "No service account credentials found. "
+                    "Add your Google service account JSON in the connector configuration."
+                )
+            creds = Credentials.from_service_account_file(creds_file, scopes=SCOPES)
         return build("drive", "v3", credentials=creds)
 
     async def validate_config(self, config: dict) -> tuple[bool, str | None]:
-        """Test Google Drive folder access."""
-        # First run base validation for required fields
-        is_valid, err = await super().validate_config(config)
-        if not is_valid:
-            return is_valid, err
-
-        try:
-
-            def _test():
-                service = self._get_drive_service()
-                service.files().list(
-                    q=f"'{config['folder_id']}' in parents",
-                    pageSize=1,
-                    fields="files(id)",
-                ).execute()
-
-            await asyncio.to_thread(_test)
-            return True, None
-        except Exception as e:
-            return False, f"Cannot access Google Drive folder: {e}"
+        """Validate required fields only — connectivity is checked at sync time."""
+        return await super().validate_config(config)
 
     def _list_folder(self, service, folder_id: str, include_subfolders: bool) -> list[RemoteFile]:
         """Recursively list files in a Google Drive folder (sync, runs in thread)."""
@@ -164,23 +162,25 @@ class GoogleDriveConnector(BaseSyncConnector):
         include_subfolders = config.get("include_subfolders", True)
 
         def _list():
-            service = self._get_drive_service()
+            service = self._get_drive_service(config)
             return self._list_folder(service, folder_id, include_subfolders)
 
         return await asyncio.to_thread(_list)
 
-    async def download_file(self, file: RemoteFile, dest_dir: Path) -> Path:
+    async def download_file(
+        self, file: RemoteFile, dest_dir: Path, config: dict | None = None
+    ) -> Path:
         """Download a file from Google Drive.
 
         For Google Docs formats, exports as PDF/XLSX/PPTX.
         For regular files, downloads directly.
         """
+        cfg = config or {}
 
         def _download():
-            service = self._get_drive_service()
+            service = self._get_drive_service(cfg)
             dest_path = dest_dir / file.name
 
-            # Check original MIME type to decide export vs direct download
             meta = service.files().get(fileId=file.id, fields="mimeType").execute()
             original_mime = meta.get("mimeType", "")
 
@@ -196,7 +196,9 @@ class GoogleDriveConnector(BaseSyncConnector):
                 while not done:
                     _, done = downloader.next_chunk()
 
-            logger.info("Downloaded %s from Google Drive (%d bytes)", file.name, dest_path.stat().st_size)
+            logger.info(
+                "Downloaded %s from Google Drive (%d bytes)", file.name, dest_path.stat().st_size
+            )
             return dest_path
 
         return await asyncio.to_thread(_download)

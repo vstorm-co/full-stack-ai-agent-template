@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ArrowRight, Calendar, Check, Cog, Database, Plug } from "lucide-react";
+import { ArrowLeft, ArrowRight, Calendar, Check, Cog, Copy, Database, Plus, Plug } from "lucide-react";
 
 import {
   Dialog,
@@ -17,25 +17,30 @@ import {
   SelectValue,
   Spinner,
   Switch,
+  Textarea,
 } from "@/components/ui";
 import { BrandIcon } from "@/components/marketing/brand-icon";
-import type { ConnectorInfo, SyncSourceCreate } from "@/lib/rag-api";
+import type { ConnectorInfo, SyncSourceCreate, SyncSourceRead } from "@/lib/rag-api";
 import { cn } from "@/lib/utils";
 
 interface SyncSourceWizardProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   connectors: ConnectorInfo[];
-  collections: { name: string }[];
+  collections: { name: string; label?: string }[];
   defaultCollection?: string;
+  /** Existing org integrations (without this KB's collection_name) for "pick existing" flow. */
+  orgIntegrations?: SyncSourceRead[];
   onSubmit: (data: SyncSourceCreate) => Promise<void> | void;
+  onClone?: (sourceId: string, collectionName: string, name: string) => Promise<void> | void;
   submitting?: boolean;
 }
 
-type Step = "connector" | "configure" | "schedule";
+type Mode = "new" | "clone";
+type Step = "source" | "configure" | "schedule";
 
 const STEPS: { id: Step; label: string; icon: typeof Plug }[] = [
-  { id: "connector", label: "Pick source", icon: Plug },
+  { id: "source", label: "Pick source", icon: Plug },
   { id: "configure", label: "Configure", icon: Cog },
   { id: "schedule", label: "Schedule", icon: Calendar },
 ];
@@ -63,36 +68,39 @@ const CONNECTOR_BRAND: Record<string, "gdrive" | "github" | "notion" | "slack" |
   dropbox: "dropbox",
 };
 
+const EMPTY_FORM: SyncSourceCreate = {
+  name: "",
+  connector_type: "",
+  collection_name: null,
+  config: {},
+  sync_mode: "full",
+  schedule_minutes: null,
+};
+
 export function SyncSourceWizard({
   open,
   onOpenChange,
   connectors,
   collections,
   defaultCollection,
+  orgIntegrations = [],
   onSubmit,
+  onClone,
   submitting,
 }: SyncSourceWizardProps) {
-  const [step, setStep] = useState<Step>("connector");
-  const [form, setForm] = useState<SyncSourceCreate>({
-    name: "",
-    connector_type: "",
-    collection_name: defaultCollection ?? "",
-    config: {},
-    sync_mode: "full",
-    schedule_minutes: null,
-  });
+  const [mode, setMode] = useState<Mode>("new");
+  const [step, setStep] = useState<Step>("source");
+  const [form, setForm] = useState<SyncSourceCreate>({ ...EMPTY_FORM, collection_name: defaultCollection ?? null });
+  const [cloneSourceId, setCloneSourceId] = useState<string>("");
+  const [cloneName, setCloneName] = useState<string>("");
 
   useEffect(() => {
     if (open) {
-      setStep("connector");
-      setForm({
-        name: "",
-        connector_type: "",
-        collection_name: defaultCollection ?? "",
-        config: {},
-        sync_mode: "full",
-        schedule_minutes: null,
-      });
+      setMode("new");
+      setStep("source");
+      setForm({ ...EMPTY_FORM, collection_name: defaultCollection ?? null });
+      setCloneSourceId("");
+      setCloneName("");
     }
   }, [open, defaultCollection]);
 
@@ -103,34 +111,55 @@ export function SyncSourceWizard({
 
   const stepIdx = STEPS.findIndex((s) => s.id === step);
   const enabledConnectors = connectors.filter((c) => c.enabled);
+  const hasOrgIntegrations = orgIntegrations.length > 0;
 
+  // --- clone mode ---
+  const selectedIntegration = orgIntegrations.find((i) => i.id === cloneSourceId);
+
+  const handleCloneSubmit = async () => {
+    if (!cloneSourceId || !defaultCollection) return;
+    await onClone?.(
+      cloneSourceId,
+      defaultCollection,
+      cloneName.trim() || `${selectedIntegration?.name ?? "Integration"} (${defaultCollection})`,
+    );
+  };
+
+  // --- new mode canAdvance ---
   const canAdvance = (() => {
-    if (step === "connector") return Boolean(form.connector_type) && Boolean(form.name.trim());
+    if (mode === "clone") {
+      return Boolean(cloneSourceId) && Boolean(defaultCollection);
+    }
+    if (step === "source") return Boolean(form.connector_type) && Boolean(form.name.trim());
     if (step === "configure") {
       if (!selectedConnector) return false;
-      const required = Object.entries(selectedConnector.config_schema).filter(
-        ([, f]) => f.required,
-      );
+      const required = Object.entries(selectedConnector.config_schema).filter(([, f]) => f.required);
       return required.every(([key]) => {
         const v = form.config[key];
         return v !== undefined && v !== null && v !== "";
       });
     }
-    if (step === "schedule") return Boolean(form.collection_name);
+    if (step === "schedule") return true;
     return false;
   })();
 
   const handleNext = () => {
     if (!canAdvance) return;
-    if (step === "connector") setStep("configure");
+    if (mode === "clone") {
+      handleCloneSubmit();
+      return;
+    }
+    if (step === "source") setStep("configure");
     else if (step === "configure") setStep("schedule");
-    else if (step === "schedule") onSubmit(form);
+    else if (step === "schedule") onSubmit({ ...form, collection_name: form.collection_name ?? defaultCollection ?? null });
   };
 
   const handleBack = () => {
-    if (step === "configure") setStep("connector");
+    if (step === "configure") setStep("source");
     else if (step === "schedule") setStep("configure");
   };
+
+  const isLastStep = mode === "clone" || step === "schedule";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -139,58 +168,106 @@ export function SyncSourceWizard({
           <DialogTitle className="font-display text-base font-semibold">
             Add sync source
           </DialogTitle>
-          <ol className="mt-3 flex items-center gap-2">
-            {STEPS.map((s, i) => {
-              const done = i < stepIdx;
-              const active = s.id === step;
-              return (
-                <li key={s.id} className="flex flex-1 items-center gap-2">
-                  <div
-                    className={cn(
-                      "flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition-colors",
-                      done && "bg-foreground text-background",
-                      active && "bg-brand text-brand-foreground",
-                      !done && !active && "bg-foreground/8 text-foreground/55",
-                    )}
-                  >
-                    {done ? <Check className="h-3 w-3" /> : <s.icon className="h-3 w-3" />}
-                  </div>
-                  <span
-                    className={cn(
-                      "hidden font-mono text-[10px] tracking-wider uppercase sm:inline",
-                      active || done ? "text-foreground" : "text-foreground/45",
-                    )}
-                  >
-                    {s.label}
-                  </span>
-                  {i < STEPS.length - 1 && (
+
+          {/* Mode toggle — visible on the first step so user can switch between new/clone */}
+          {hasOrgIntegrations && step === "source" && (
+            <div className="border-foreground/10 mt-3 flex items-center gap-2 rounded-xl border p-1">
+              <button
+                type="button"
+                onClick={() => setMode("new")}
+                className={cn(
+                  "flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
+                  mode === "new"
+                    ? "bg-foreground text-background"
+                    : "text-foreground/60 hover:text-foreground",
+                )}
+              >
+                <Plus className="h-3 w-3" />
+                Create new
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode("clone")}
+                className={cn(
+                  "flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
+                  mode === "clone"
+                    ? "bg-foreground text-background"
+                    : "text-foreground/60 hover:text-foreground",
+                )}
+              >
+                <Copy className="h-3 w-3" />
+                Use existing
+              </button>
+            </div>
+          )}
+
+          {/* Step indicator — only for new mode */}
+          {mode === "new" && (
+            <ol className="mt-3 flex items-center gap-2">
+              {STEPS.map((s, i) => {
+                const done = i < stepIdx;
+                const active = s.id === step;
+                return (
+                  <li key={s.id} className="flex flex-1 items-center gap-2">
+                    <div
+                      className={cn(
+                        "flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition-colors",
+                        done && "bg-foreground text-background",
+                        active && "bg-brand text-brand-foreground",
+                        !done && !active && "bg-foreground/8 text-foreground/55",
+                      )}
+                    >
+                      {done ? <Check className="h-3 w-3" /> : <s.icon className="h-3 w-3" />}
+                    </div>
                     <span
                       className={cn(
-                        "h-px flex-1",
-                        i < stepIdx ? "bg-foreground" : "bg-foreground/15",
+                        "hidden font-mono text-[10px] tracking-wider uppercase sm:inline",
+                        active || done ? "text-foreground" : "text-foreground/45",
                       )}
-                    />
-                  )}
-                </li>
-              );
-            })}
-          </ol>
+                    >
+                      {s.label}
+                    </span>
+                    {i < STEPS.length - 1 && (
+                      <span
+                        className={cn(
+                          "h-px flex-1",
+                          i < stepIdx ? "bg-foreground" : "bg-foreground/15",
+                        )}
+                      />
+                    )}
+                  </li>
+                );
+              })}
+            </ol>
+          )}
         </DialogHeader>
 
         <div className="max-h-[60vh] scrollbar-thin overflow-y-auto px-6 py-5">
-          {step === "connector" && (
-            <ConnectorStep connectors={enabledConnectors} form={form} setForm={setForm} />
-          )}
-          {step === "configure" && selectedConnector && (
-            <ConfigureStep connector={selectedConnector} form={form} setForm={setForm} />
-          )}
-          {step === "schedule" && (
-            <ScheduleStep collections={collections} form={form} setForm={setForm} />
+          {mode === "clone" ? (
+            <CloneStep
+              integrations={orgIntegrations}
+              cloneSourceId={cloneSourceId}
+              setCloneSourceId={setCloneSourceId}
+              cloneName={cloneName}
+              setCloneName={setCloneName}
+            />
+          ) : (
+            <>
+              {step === "source" && (
+                <ConnectorStep connectors={enabledConnectors} form={form} setForm={setForm} />
+              )}
+              {step === "configure" && selectedConnector && (
+                <ConfigureStep connector={selectedConnector} form={form} setForm={setForm} />
+              )}
+              {step === "schedule" && (
+                <ScheduleStep collections={collections} form={form} setForm={setForm} defaultCollection={defaultCollection} />
+              )}
+            </>
           )}
         </div>
 
         <div className="border-foreground/10 flex items-center justify-between border-t px-6 py-4">
-          {step !== "connector" ? (
+          {mode === "new" && step !== "source" ? (
             <button
               type="button"
               onClick={handleBack}
@@ -216,14 +293,14 @@ export function SyncSourceWizard({
             disabled={!canAdvance || submitting}
             className="bg-foreground text-background hover:bg-foreground/90 disabled:bg-foreground/30 inline-flex items-center gap-1.5 rounded-full px-5 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed"
           >
-            {submitting && step === "schedule" ? (
+            {submitting && isLastStep ? (
               <>
                 <Spinner className="h-3.5 w-3.5" />
-                Creating…
+                {mode === "clone" ? "Cloning…" : "Creating…"}
               </>
-            ) : step === "schedule" ? (
+            ) : isLastStep ? (
               <>
-                Create source
+                {mode === "clone" ? "Use this integration" : "Create source"}
                 <Check className="h-4 w-4" />
               </>
             ) : (
@@ -236,6 +313,92 @@ export function SyncSourceWizard({
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function CloneStep({
+  integrations,
+  cloneSourceId,
+  setCloneSourceId,
+  cloneName,
+  setCloneName,
+}: {
+  integrations: SyncSourceRead[];
+  cloneSourceId: string;
+  setCloneSourceId: (id: string) => void;
+  cloneName: string;
+  setCloneName: (name: string) => void;
+}) {
+  return (
+    <div className="space-y-5">
+      <p className="text-foreground/65 text-sm">
+        Pick an existing org integration to use in this knowledge base. Its credentials are copied
+        independently &mdash; you can adjust the schedule separately.
+      </p>
+      <div className="space-y-2">
+        <Label className="text-foreground/80 text-xs font-medium tracking-wider uppercase">
+          Org integrations
+        </Label>
+        <div className="space-y-2">
+          {integrations.map((src) => {
+            const isSelected = cloneSourceId === src.id;
+            const brand = CONNECTOR_BRAND[src.connector_type];
+            return (
+              <button
+                key={src.id}
+                type="button"
+                onClick={() => setCloneSourceId(src.id)}
+                className={cn(
+                  "flex w-full items-center gap-3 rounded-xl border p-3.5 text-left transition-colors",
+                  isSelected
+                    ? "border-brand bg-brand/[0.06]"
+                    : "border-foreground/10 bg-card hover:border-foreground/30",
+                )}
+              >
+                <span
+                  className={cn(
+                    "flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
+                    isSelected ? "bg-brand text-brand-foreground" : "bg-foreground/8 text-foreground",
+                  )}
+                >
+                  {brand ? (
+                    <BrandIcon name={brand} className="h-4 w-4" aria-hidden />
+                  ) : (
+                    <Database className="h-4 w-4" />
+                  )}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-foreground text-sm font-semibold">{src.name}</p>
+                  <p className="text-foreground/55 font-mono text-[10px] tracking-wider uppercase">
+                    {src.connector_type}
+                    {src.collection_name ? ` · ${src.collection_name}` : " · unassigned"}
+                  </p>
+                </div>
+                {isSelected && <Check className="text-brand h-4 w-4 shrink-0" />}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {cloneSourceId && (
+        <div className="space-y-1.5">
+          <Label
+            htmlFor="clone-name"
+            className="text-foreground/80 text-xs font-medium tracking-wider uppercase"
+          >
+            Name for this KB&apos;s copy
+          </Label>
+          <Input
+            id="clone-name"
+            placeholder="Leave empty to auto-generate"
+            value={cloneName}
+            onChange={(e) => setCloneName(e.target.value)}
+            className="h-10 rounded-xl"
+          />
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -272,7 +435,7 @@ function ConnectorStep({
         </Label>
         {connectors.length === 0 ? (
           <p className="border-foreground/10 bg-foreground/[0.03] text-foreground/65 rounded-xl border px-4 py-3 text-sm">
-            No connectors enabled. Configure a connector in the backend first.
+            No connectors enabled.
           </p>
         ) : (
           <div className="grid gap-2 sm:grid-cols-2">
@@ -294,9 +457,7 @@ function ConnectorStep({
                   <span
                     className={cn(
                       "flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
-                      isSelected
-                        ? "bg-brand text-brand-foreground"
-                        : "bg-foreground/8 text-foreground",
+                      isSelected ? "bg-brand text-brand-foreground" : "bg-foreground/8 text-foreground",
                     )}
                   >
                     {brand ? (
@@ -341,7 +502,6 @@ function ConfigureStep({
           No additional configuration needed for{" "}
           <span className="text-foreground font-medium">{connector.name}</span>.
         </p>
-        <p className="text-foreground/50 mt-1 text-xs">Continue to schedule the source.</p>
       </div>
     );
   }
@@ -361,6 +521,7 @@ function ConfigureStep({
             {field.label}
             {field.required && <span className="text-destructive ml-0.5">*</span>}
           </Label>
+
           {field.type === "boolean" ? (
             <div className="flex items-center gap-3 py-1">
               <Switch
@@ -372,6 +533,24 @@ function ConfigureStep({
               />
               {field.help && <span className="text-foreground/55 text-xs">{field.help}</span>}
             </div>
+          ) : field.type === "textarea" ? (
+            <>
+              <Textarea
+                id={`cfg-${key}`}
+                placeholder={field.default !== undefined ? String(field.default) : ""}
+                value={
+                  form.config[key] !== undefined && form.config[key] !== null
+                    ? String(form.config[key])
+                    : ""
+                }
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, config: { ...f.config, [key]: e.target.value } }))
+                }
+                className="min-h-[160px] rounded-xl font-mono text-xs"
+                spellCheck={false}
+              />
+              {field.help && <p className="text-foreground/55 text-xs">{field.help}</p>}
+            </>
           ) : (
             <>
               <Input
@@ -407,33 +586,46 @@ function ScheduleStep({
   collections,
   form,
   setForm,
+  defaultCollection,
 }: {
-  collections: { name: string }[];
+  collections: { name: string; label?: string }[];
   form: SyncSourceCreate;
   setForm: React.Dispatch<React.SetStateAction<SyncSourceCreate>>;
+  defaultCollection?: string;
 }) {
   return (
     <div className="space-y-5">
-      <div className="space-y-1.5">
-        <Label className="text-foreground/80 text-xs font-medium tracking-wider uppercase">
-          Target collection
-        </Label>
-        <Select
-          value={form.collection_name}
-          onValueChange={(val) => setForm((f) => ({ ...f, collection_name: val }))}
-        >
-          <SelectTrigger className="h-10 rounded-xl">
-            <SelectValue placeholder="Select collection…" />
-          </SelectTrigger>
-          <SelectContent>
-            {collections.map((c) => (
-              <SelectItem key={c.name} value={c.name}>
-                {c.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      {/* Only show collection picker if not pre-set from KB context */}
+      {!defaultCollection && (
+        <div className="space-y-1.5">
+          <Label className="text-foreground/80 text-xs font-medium tracking-wider uppercase">
+            Target collection
+          </Label>
+          <Select
+            value={form.collection_name ?? ""}
+            onValueChange={(val) => setForm((f) => ({ ...f, collection_name: val || null }))}
+          >
+            <SelectTrigger className="h-10 rounded-xl">
+              <SelectValue placeholder="Select collection… (optional)" />
+            </SelectTrigger>
+            <SelectContent>
+              {collections.map((c) => (
+                <SelectItem key={c.name} value={c.name}>
+                  {c.label ? (
+                    <span>
+                      {c.label}
+                      <span className="text-foreground/45 ml-1 font-mono text-[10px]">({c.name})</span>
+                    </span>
+                  ) : (
+                    c.name
+                  )}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-foreground/45 text-xs">Leave empty to save as org-level integration.</p>
+        </div>
+      )}
 
       <div className="space-y-2">
         <Label className="text-foreground/80 text-xs font-medium tracking-wider uppercase">

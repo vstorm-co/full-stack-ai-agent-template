@@ -15,15 +15,27 @@ function languageLabel(className: string | undefined): string | null {
   return match && match[1] ? match[1].toLowerCase() : null;
 }
 
-export function MarkdownContent({ content }: MarkdownContentProps) {
+/**
+ * Pre-process markdown to turn bare citation markers [N] into markdown links
+ * with a special `#cite-N` href. The `a` component override below detects this
+ * and renders an interactive CitationBadge instead of a regular link.
+ *
+ * Only replaces [N] that is NOT followed by `(` (already a link) or `:` (link
+ * reference definition). Code spans/blocks are left as-is because the regex
+ * doesn't enter them — in practice agent responses never cite inside code.
+ */
+function preprocessCitations(content: string): string {
+  return content.replace(/\[(\d{1,3})\](?![\(:])/g, (_, n) => `[[${n}]](#cite-${n})`);
+}
+
+export function MarkdownContent({ content, onCiteClick }: MarkdownContentProps) {
+  const processed = onCiteClick ? preprocessCitations(content) : content;
   return (
     <ReactMarkdown
       remarkPlugins={[remarkGfm]}
       rehypePlugins={[rehypeHighlight]}
       components={{
         pre({ children, ...props }) {
-          // Pull language + raw text out of the inner <code> so we can show a
-          // language pill and keep CopyButton functional.
           const codeElement = children as React.ReactElement<{
             children?: string;
             className?: string;
@@ -67,6 +79,24 @@ export function MarkdownContent({ content }: MarkdownContentProps) {
           );
         },
         a({ href, children, ...props }) {
+          if (href?.startsWith("#cite-") && onCiteClick) {
+            const n = parseInt(href.slice(6), 10);
+            if (!Number.isNaN(n)) {
+              return (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    onCiteClick(n);
+                  }}
+                  className="bg-foreground/10 text-foreground/70 hover:bg-foreground/20 mx-0.5 inline-flex h-[1.1em] cursor-pointer items-center rounded px-1 align-middle font-mono text-[0.72em] font-semibold tabular-nums transition-colors"
+                  title={`Source [${n}]`}
+                >
+                  {n}
+                </button>
+              );
+            }
+          }
           const isExternal = !!href && /^https?:\/\//i.test(href);
           return (
             <a
@@ -192,7 +222,7 @@ export function MarkdownContent({ content }: MarkdownContentProps) {
         },
       }}
     >
-      {content}
+      {processed}
     </ReactMarkdown>
   );
 }

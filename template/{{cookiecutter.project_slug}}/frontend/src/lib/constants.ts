@@ -36,6 +36,7 @@ export const ROUTES = {
   ORGS: "/orgs",
   ORGS_CREATE: "/orgs?create=1",
   ORG_MEMBERS: (id: string) => `/orgs/${id}/members`,
+  ORG_INTEGRATIONS: (id: string) => `/orgs/${id}/integrations`,
   ORG_SETTINGS: (id: string) => `/orgs/${id}/settings`,
   KB: "/kb",
   KB_DETAIL: (id: string) => `/kb/${id}`,

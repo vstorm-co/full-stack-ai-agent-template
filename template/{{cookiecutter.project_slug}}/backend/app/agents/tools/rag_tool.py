@@ -65,7 +65,7 @@ def _format_results(results: list[Any]) -> str:
             f"[{i}] Source: {source}{page_info}{chunk_info}{col_info} (score: {result.score:.3f})\n"
             f"{result.content}"
         )
-    return "Search results (cite sources using [1], [2], etc. in your response):\n\n" + "\n\n".join(formatted)
+    return "Search results (cite inline using [1], [2], etc. — do NOT list sources at the end):\n\n" + "\n\n".join(formatted)
 
 
 {%- if cookiecutter.enable_teams %}

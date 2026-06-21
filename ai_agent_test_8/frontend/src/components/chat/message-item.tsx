@@ -7,12 +7,15 @@ import { MarkdownContent } from "./markdown-content";
 import { CopyButton } from "./copy-button";
 import { RatingButtons } from "./rating-buttons";
 import { useChatStore, useFilePreviewStore } from "@/stores";
-import { Bot, FileText, Paperclip, RefreshCw, User } from "lucide-react";
+import { useSourcesPanelStore } from "@/stores/sources-panel-store";
+import { Bot, FileText, Globe, Paperclip, RefreshCw, User } from "lucide-react";
 import Image from "next/image";
 import { useAuthStore } from "@/stores";
 import { getFileUrl } from "@/lib/file-api";
 import type { MessagePart } from "@/types";
 import { RESEARCH_TOOL_NAMES } from "./research-panel";
+import { extractSources } from "@/lib/chat-sources";
+import type { SourceItem } from "@/lib/chat-sources";
 
 function ThinkingBlock({
   text,
@@ -46,10 +49,12 @@ function TextBubble({
   text,
   showCursor,
   isUser,
+  onCiteClick,
 }: {
   text: string;
   showCursor: boolean;
   isUser: boolean;
+  onCiteClick?: (index: number) => void;
 }) {
   return (
     <div
@@ -62,13 +67,48 @@ function TextBubble({
         <p className="text-sm break-words whitespace-pre-wrap">{text}</p>
       ) : (
         <div className="prose-sm max-w-none text-sm">
-          <MarkdownContent content={text} />
+          <MarkdownContent content={text} onCiteClick={onCiteClick} />
           {showCursor && (
             <span className="ml-1 inline-block h-4 w-1.5 animate-pulse rounded-full bg-current" />
           )}
         </div>
       )}
     </div>
+  );
+}
+
+function SourcesButton({
+  sources,
+  onClick,
+}: {
+  sources: SourceItem[];
+  onClick: () => void;
+}) {
+  const ragCount = sources.filter((s) => s.type === "rag").length;
+  const webCount = sources.filter((s) => s.type === "web").length;
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="border-foreground/15 bg-background hover:border-foreground/30 hover:bg-foreground/5 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 transition-colors"
+    >
+      <span className="flex -space-x-1">
+        {ragCount > 0 && (
+          <span className="bg-muted border-background inline-flex h-4 w-4 items-center justify-center rounded-full border">
+            <FileText className="text-foreground/60 h-2.5 w-2.5" />
+          </span>
+        )}
+        {webCount > 0 && (
+          <span className="bg-muted border-background inline-flex h-4 w-4 items-center justify-center rounded-full border">
+            <Globe className="text-foreground/60 h-2.5 w-2.5" />
+          </span>
+        )}
+      </span>
+      <span className="text-foreground/60 text-[11px] font-medium">
+        {sources.length} source{sources.length !== 1 ? "s" : ""}
+      </span>
+    </button>
   );
 }
 
@@ -82,8 +122,15 @@ export function MessageItem({ message, groupPosition, onRegenerate }: MessageIte
   const isUser = message.role === "user";
   const updateMessage = useChatStore((state) => state.updateMessage);
   const openPreview = useFilePreviewStore((s) => s.open);
+  const openSources = useSourcesPanelStore((s) => s.open);
   const { user: authUser } = useAuthStore();
   const isGrouped = groupPosition && groupPosition !== "single";
+
+  const sources = !isUser ? extractSources(message) : [];
+  const hasSources = sources.length > 0 && !message.isStreaming;
+  const onCiteClick = hasSources
+    ? (index: number) => openSources(sources, index)
+    : undefined;
 
   if (!isUser) {
     const stepParts = message.parts ?? [];
@@ -255,6 +302,7 @@ export function MessageItem({ message, groupPosition, onRegenerate }: MessageIte
                         text={part.content}
                         showCursor={Boolean(message.isStreaming) && i === parts.length - 1}
                         isUser={isUser}
+                        onCiteClick={onCiteClick}
                       />
                     );
                   }
@@ -275,6 +323,7 @@ export function MessageItem({ message, groupPosition, onRegenerate }: MessageIte
                       text={message.content}
                       showCursor={!isUser && Boolean(message.isStreaming)}
                       isUser={isUser}
+                      onCiteClick={onCiteClick}
                     />
                   )}
                   {message.toolCalls && message.toolCalls.length > 0 && (
@@ -291,6 +340,12 @@ export function MessageItem({ message, groupPosition, onRegenerate }: MessageIte
             </>
           );
         })()}
+
+        {hasSources && !isUser && (
+          <div className="mt-1">
+            <SourcesButton sources={sources} onClick={() => openSources(sources, null)} />
+          </div>
+        )}
 
         {!message.isStreaming && message.content && (
           <div className={cn("flex items-center gap-2", isUser && "flex-row-reverse")}>

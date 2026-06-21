@@ -110,6 +110,7 @@ export function useKBDetail(id: string | null) {
   const [documents, setDocuments] = useState<KBDocument[]>([]);
   const [documentsTotal, setDocumentsTotal] = useState(0);
   const [syncSources, setSyncSources] = useState<SyncSourceRead[]>([]);
+  const [orgIntegrations, setOrgIntegrations] = useState<SyncSourceRead[]>([]);
   const [connectors, setConnectors] = useState<ConnectorInfo[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingMoreDocs, setIsLoadingMoreDocs] = useState(false);
@@ -147,10 +148,14 @@ export function useKBDetail(id: string | null) {
       // Keep at least the first page; re-fetch however many are already shown
       // (capped at the backend's max limit of 100).
       const limit = Math.min(Math.max(loadedDocCountRef.current, DOCS_PAGE_SIZE), 100);
-      const [kbData, docList, sourceList, connectorList] = await Promise.all([
+      const [kbData, docList, sourceList, orgIntList, connectorList] = await Promise.all([
         apiClient.get<KnowledgeBase>(`/kb/${id}`),
         apiClient.get<KBDocumentList>(`/kb/${id}/documents?skip=0&limit=${limit}`),
         apiClient.get<SyncSourceList>(`/kb/${id}/sync-sources`).catch(() => ({
+          items: [] as SyncSourceRead[],
+          total: 0,
+        })),
+        apiClient.get<SyncSourceList>(`/kb/${id}/sync-sources/org-integrations`).catch(() => ({
           items: [] as SyncSourceRead[],
           total: 0,
         })),
@@ -162,6 +167,7 @@ export function useKBDetail(id: string | null) {
       setDocuments(docList.items);
       setDocumentsTotal(docList.total);
       setSyncSources(sourceList.items);
+      setOrgIntegrations(orgIntList.items);
       setConnectors(connectorList.items);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load knowledge base");
@@ -283,6 +289,26 @@ export function useKBDetail(id: string | null) {
     [id],
   );
 
+  const cloneSyncSource = useCallback(
+    async (sourceId: string, collectionName: string, name: string) => {
+      if (!id) return;
+      try {
+        const created = await apiClient.post<SyncSourceRead>(
+          `/kb/${id}/sync-sources/${sourceId}/clone`,
+          { collection_name: collectionName, name },
+        );
+        setSyncSources((prev) => [created, ...prev]);
+        setOrgIntegrations((prev) => prev.filter((s) => s.id !== sourceId));
+        toast.success("Integration cloned to this knowledge base");
+        return created;
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Failed to clone integration");
+        throw e;
+      }
+    },
+    [id],
+  );
+
   const triggerSyncSource = useCallback(
     async (sourceId: string) => {
       if (!id) return;
@@ -318,6 +344,7 @@ export function useKBDetail(id: string | null) {
     documentsTotal,
     hasMoreDocuments: documents.length < documentsTotal,
     syncSources,
+    orgIntegrations,
     connectors,
     isLoading,
     isLoadingMoreDocs,
@@ -329,6 +356,7 @@ export function useKBDetail(id: string | null) {
     uploadDocument,
     deleteDocument,
     createSyncSource,
+    cloneSyncSource,
     triggerSyncSource,
     deleteSyncSource,
   };

@@ -73,6 +73,9 @@ from app.api.routes.v1 import items
 {%- if cookiecutter.use_jwt %}
 from app.api.routes.v1 import admin_stats
 {%- endif %}
+{%- if cookiecutter.enable_rag and cookiecutter.enable_teams and cookiecutter.use_jwt %}
+from app.api.routes.v1 import org_integrations
+{%- endif %}
 
 v1_router = APIRouter()
 
@@ -180,6 +183,9 @@ v1_router.include_router(
 {%- endif %}
 {%- if cookiecutter.use_jwt %}
 v1_router.include_router(admin_stats.router, prefix="/admin", tags=["admin:stats"])
+{%- endif %}
+{%- if cookiecutter.enable_rag and cookiecutter.enable_teams and cookiecutter.use_jwt %}
+v1_router.include_router(org_integrations.router, prefix="/org/integrations", tags=["org:integrations"])
 {%- endif %}
 
 {%- if cookiecutter.include_example_crud %}

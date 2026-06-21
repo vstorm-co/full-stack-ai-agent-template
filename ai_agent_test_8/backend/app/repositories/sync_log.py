@@ -20,12 +20,15 @@ async def get_by_id(db: AsyncSession, sync_id: UUID) -> SyncLog | None:
 async def get_all(
     db: AsyncSession,
     collection_name: str | None = None,
+    sync_source_id: UUID | None = None,
     limit: int = 20,
 ) -> list[SyncLog]:
-    """Get sync logs, optionally filtered by collection."""
+    """Get sync logs, optionally filtered by collection or sync source."""
     query = select(SyncLog)
     if collection_name:
         query = query.where(SyncLog.collection_name == collection_name)
+    if sync_source_id:
+        query = query.where(SyncLog.sync_source_id == sync_source_id)
     query = query.order_by(SyncLog.started_at.desc()).limit(limit)
     result = await db.execute(query)
     return list(result.scalars().all())

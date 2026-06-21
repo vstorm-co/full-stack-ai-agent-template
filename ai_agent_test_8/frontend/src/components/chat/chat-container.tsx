@@ -7,6 +7,7 @@ import { ChatControls } from "./chat-controls";
 import { ChatEmptyState } from "./chat-empty-state";
 import { ChatInput } from "./chat-input";
 import { FilePreviewPanel } from "./file-preview-panel";
+import { SourcesPanel } from "./sources-panel";
 import { MessageList } from "./message-list";
 import { PendingMessages } from "./pending-messages";
 import { ToolApprovalDialog } from "./tool-approval-dialog";
@@ -353,6 +354,7 @@ function ChatUI({
         </div>
       </div>
       <FilePreviewPanel />
+      <SourcesPanel />
     </div>
   );
 }

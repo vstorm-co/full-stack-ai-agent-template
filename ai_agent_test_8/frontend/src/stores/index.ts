@@ -9,3 +9,4 @@ export { useOrgStore } from "./org-store";
 export { useKBSelectionStore } from "./kb-selection-store";
 export { useResearchStore } from "./research-store";
 export { useChatModeStore } from "./chat-mode-store";
+export { useSourcesPanelStore } from "./sources-panel-store";

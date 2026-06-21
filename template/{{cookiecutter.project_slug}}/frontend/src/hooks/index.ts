@@ -22,3 +22,6 @@ export { useBilling, useSubscription, useCredits, usePlans, useInvoices } from "
 {%- if cookiecutter.use_auth and cookiecutter.use_ai %}
 export { useSlashCommands, isBuiltinEnabled, BUILTIN_COMMAND_LIST } from "./use-slash-commands";
 {%- endif %}
+{%- if cookiecutter.enable_teams and cookiecutter.enable_rag %}
+export { useOrgIntegrations } from "./use-org-integrations";
+{%- endif %}

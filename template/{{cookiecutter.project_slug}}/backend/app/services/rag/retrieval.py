@@ -157,7 +157,7 @@ class RetrievalService(BaseRetrievalService):
         pipeline_results = await self.store.search(
             collection_name=collection_name,
             query=query,
-            filter=filter,
+            filter_expr=filter,
             limit=limit * fetch_multiplier
         )
 

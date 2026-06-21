@@ -46,6 +46,7 @@ from app.schemas.rag import (
 )
 from app.schemas.sync_source import (
     ConnectorList,
+    SyncSourceClone,
     SyncSourceCreate,
     SyncSourceList,
     SyncSourceRead,
@@ -318,9 +319,18 @@ async def cancel_sync(
 async def list_sync_sources(
     sync_source_svc: SyncSourceSvc,
     _: CurrentAdmin,
+    active_org: ActiveOrg,
+    collection_name: str | None = Query(None, description="Filter by KB collection name"),
 ) -> Any:
-    """List all configured sync sources."""
-    return await sync_source_svc.list_sources()
+    """List sync sources for the active organization.
+
+    Pass ``collection_name`` to see only sources assigned to a specific KB.
+    Omit it to list all org-level integrations (assigned and unassigned).
+    """
+    return await sync_source_svc.list_sources(
+        organization_id=active_org.id,
+        collection_name=collection_name,
+    )
 
 
 @router.post(
@@ -332,9 +342,34 @@ async def create_sync_source(
     data: SyncSourceCreate,
     sync_source_svc: SyncSourceSvc,
     _: CurrentAdmin,
+    active_org: ActiveOrg,
 ) -> Any:
-    """Create a new sync source configuration."""
-    return await sync_source_svc.create_source(data)
+    """Create a new sync source for the active organization.
+
+    Omit ``collection_name`` to create an org-level integration template
+    that can later be cloned into one or more knowledge bases.
+    """
+    return await sync_source_svc.create_source(data, organization_id=active_org.id)
+
+
+@router.post(
+    "/sync/sources/{source_id}/clone",
+    response_model=SyncSourceRead,
+    status_code=status.HTTP_201_CREATED,
+)
+async def clone_sync_source(
+    source_id: str,
+    data: SyncSourceClone,
+    sync_source_svc: SyncSourceSvc,
+    _: CurrentAdmin,
+    active_org: ActiveOrg,
+) -> Any:
+    """Clone an existing integration into a different knowledge base.
+
+    Credentials are decrypted from the source and re-encrypted for the clone.
+    The clone is independent — its own schedule and sync history.
+    """
+    return await sync_source_svc.clone_source(source_id, data, organization_id=active_org.id)
 
 
 @router.patch("/sync/sources/{source_id}", response_model=SyncSourceRead)

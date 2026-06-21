@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 
 export interface MarkdownContentProps {
   content: string;
+  onCiteClick?: (index: number) => void;
 }
 
 /**
@@ -28,7 +29,7 @@ const MarkdownContentImpl = dynamic(
   },
 );
 
-export function MarkdownContent({ content }: MarkdownContentProps) {
-  return <MarkdownContentImpl content={content} />;
+export function MarkdownContent({ content, onCiteClick }: MarkdownContentProps) {
+  return <MarkdownContentImpl content={content} onCiteClick={onCiteClick} />;
 }
 {% endraw %}

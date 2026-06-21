@@ -26,6 +26,8 @@ import { PageHeader } from "@/components/dashboard/page-header";
 import { Badge, Button, DataTable, Progress, Skeleton, type Column } from "@/components/ui";
 import { EmptyState } from "@/components/states";
 import { SyncSourceWizard } from "@/components/rag/sync-source-wizard";
+import { SyncSourceLogs } from "@/components/rag/sync-source-logs";
+import { BrandIcon } from "@/components/marketing/brand-icon";
 import { FileViewer } from "@/components/kb/file-viewer";
 import { useKBDetail } from "@/hooks";
 import { cn, formatBytes, formatDateTime } from "@/lib/utils";
@@ -37,6 +39,18 @@ const SCOPE_META: Record<KBScope, { label: string; icon: LucideIcon }> = {
   personal: { label: "Personal", icon: Lock },
   org: { label: "Organization", icon: Users },
   app: { label: "App-wide", icon: Sparkles },
+};
+
+const CONNECTOR_BRAND: Record<string, "gdrive" | "github" | "notion" | "slack" | "dropbox" | "s3"> = {
+  google_drive: "gdrive",
+  gdrive: "gdrive",
+  drive: "gdrive",
+  github: "github",
+  notion: "notion",
+  slack: "slack",
+  dropbox: "dropbox",
+  s3: "s3",
+  aws: "s3",
 };
 
 // Sync sources have no server-side pagination (the backend returns every source
@@ -62,6 +76,7 @@ export default function KBDetailPage({ params }: KBDetailPageProps) {
     documentsTotal,
     hasMoreDocuments,
     syncSources,
+    orgIntegrations,
     connectors,
     isLoading,
     isLoadingMoreDocs,
@@ -73,6 +88,7 @@ export default function KBDetailPage({ params }: KBDetailPageProps) {
     uploadDocument,
     deleteDocument,
     createSyncSource,
+    cloneSyncSource,
     triggerSyncSource,
     deleteSyncSource,
   } = useKBDetail(id);
@@ -430,17 +446,17 @@ export default function KBDetailPage({ params }: KBDetailPageProps) {
         ) : (
           <>
             <ul className="border-border bg-card divide-border divide-y overflow-hidden rounded-xl border">
-              {(syncSourcesExpanded
-                ? syncSources
-                : syncSources.slice(0, SYNC_SOURCES_VISIBLE)
-              ).map((source) => (
-                <SyncSourceRow
-                  key={source.id}
-                  source={source}
-                  onTrigger={() => triggerSyncSource(source.id)}
-                  onDelete={() => deleteSyncSource(source.id)}
-                />
-              ))}
+              {(syncSourcesExpanded ? syncSources : syncSources.slice(0, SYNC_SOURCES_VISIBLE)).map(
+                (source) => (
+                  <SyncSourceRow
+                    key={source.id}
+                    source={source}
+                    kbId={id}
+                    onTrigger={() => triggerSyncSource(source.id)}
+                    onDelete={() => deleteSyncSource(source.id)}
+                  />
+                ),
+              )}
             </ul>
             {syncSources.length > SYNC_SOURCES_VISIBLE && (
               <div className="mt-3 flex justify-center">
@@ -449,9 +465,7 @@ export default function KBDetailPage({ params }: KBDetailPageProps) {
                   size="sm"
                   onClick={() => setSyncSourcesExpanded((v) => !v)}
                 >
-                  {syncSourcesExpanded
-                    ? "Show less"
-                    : `Show all ${syncSources.length} sources`}
+                  {syncSourcesExpanded ? "Show less" : `Show all ${syncSources.length} sources`}
                 </Button>
               </div>
             )}
@@ -472,11 +486,23 @@ export default function KBDetailPage({ params }: KBDetailPageProps) {
         connectors={connectors}
         collections={[{ name: kb.collection_name }]}
         defaultCollection={kb.collection_name}
+        orgIntegrations={orgIntegrations}
         submitting={creatingSource}
         onSubmit={async (data) => {
           setCreatingSource(true);
           try {
             await createSyncSource(data);
+            setWizardOpen(false);
+          } catch {
+            /* toast handled in hook */
+          } finally {
+            setCreatingSource(false);
+          }
+        }}
+        onClone={async (sourceId, collectionName, name) => {
+          setCreatingSource(true);
+          try {
+            await cloneSyncSource(sourceId, collectionName, name);
             setWizardOpen(false);
           } catch {
             /* toast handled in hook */
@@ -523,61 +549,68 @@ function KBDetailSkeleton() {
 
 function SyncSourceRow({
   source,
+  kbId,
   onTrigger,
   onDelete,
 }: {
   source: SyncSourceRead;
+  kbId: string;
   onTrigger: () => void;
   onDelete: () => void;
 }) {
   const lastSync = source.last_sync_at ? formatDateTime(source.last_sync_at) : "Never";
+  const brand = CONNECTOR_BRAND[source.connector_type];
   return (
-    <li className="hover:bg-accent flex items-center gap-3 px-4 py-3 transition-colors">
-      <span className="bg-muted text-muted-foreground inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg">
-        <Plug className="h-3.5 w-3.5" />
-      </span>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <p className="text-foreground truncate text-sm font-medium">{source.name}</p>
-          <Badge variant="outline" className="border-border text-muted-foreground font-normal">
-            {source.connector_type}
-          </Badge>
-        </div>
-        <div className="text-muted-foreground mt-0.5 flex flex-wrap items-center gap-x-2 text-xs">
-          <span>Last sync · {lastSync}</span>
-          {source.schedule_minutes && source.schedule_minutes > 0 && (
-            <>
-              <span>·</span>
-              <span>every {source.schedule_minutes}m</span>
-            </>
+    <li className="overflow-hidden">
+      <div className="hover:bg-accent flex items-center gap-3 px-4 py-3 transition-colors">
+        <span className="bg-muted text-muted-foreground inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg">
+          {brand ? (
+            <BrandIcon name={brand} className="h-4 w-4" />
+          ) : (
+            <Plug className="h-3.5 w-3.5" />
           )}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <p className="text-foreground truncate text-sm font-medium">{source.name}</p>
+          </div>
+          <div className="text-muted-foreground mt-0.5 flex flex-wrap items-center gap-x-2 text-xs">
+            <span>Last sync · {lastSync}</span>
+            {source.schedule_minutes && source.schedule_minutes > 0 && (
+              <>
+                <span>·</span>
+                <span>every {source.schedule_minutes}m</span>
+              </>
+            )}
+          </div>
         </div>
+        {source.last_sync_status && (
+          <SyncStatusBadge status={source.last_sync_status} message={source.last_error} />
+        )}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-muted-foreground hover:text-foreground h-8 w-8 p-0"
+          onClick={onTrigger}
+          title="Trigger sync now"
+          aria-label="Trigger sync now"
+        >
+          <RotateCw className="h-3.5 w-3.5" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-muted-foreground hover:text-destructive h-8 w-8 p-0"
+          onClick={() => {
+            if (confirm(`Disconnect "${source.name}"?`)) onDelete();
+          }}
+          title="Remove source"
+          aria-label="Remove source"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </Button>
       </div>
-      {source.last_sync_status && (
-        <SyncStatusBadge status={source.last_sync_status} message={source.last_error} />
-      )}
-      <Button
-        variant="ghost"
-        size="sm"
-        className="text-muted-foreground hover:text-foreground h-8 w-8 p-0"
-        onClick={onTrigger}
-        title="Trigger sync now"
-        aria-label="Trigger sync now"
-      >
-        <RotateCw className="h-3.5 w-3.5" />
-      </Button>
-      <Button
-        variant="ghost"
-        size="sm"
-        className="text-muted-foreground hover:text-destructive h-8 w-8 p-0"
-        onClick={() => {
-          if (confirm(`Disconnect "${source.name}"?`)) onDelete();
-        }}
-        title="Remove source"
-        aria-label="Remove source"
-      >
-        <Trash2 className="h-3.5 w-3.5" />
-      </Button>
+      <SyncSourceLogs logsPath={`/kb/${kbId}/sync-sources/${source.id}/logs`} />
     </li>
   );
 }

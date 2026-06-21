@@ -15,3 +15,4 @@ export { useKBSelectionStore } from "./kb-selection-store";
 export { useResearchStore } from "./research-store";
 export { useChatModeStore } from "./chat-mode-store";
 {%- endif %}
+export { useSourcesPanelStore } from "./sources-panel-store";

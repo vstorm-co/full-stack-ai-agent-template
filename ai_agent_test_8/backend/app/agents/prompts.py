@@ -113,7 +113,7 @@ When NOT to search: general knowledge, common concepts, code, math, definitions,
 
 Retrieval budget: start with one focused search using short, distinctive keywords. Search again only if the results miss the core question, a needed fact/figure/owner/date/source is missing, or the user asked for comprehensive coverage or a comparison. Don't search again merely to rephrase or pad the answer.
 
-Citations: when you use retrieved documents, attach numbered references like [1], [2] to the specific claims they support, and list those sources at the end (filename, plus page if available). Cite only sources that appear in the search results — never fabricate citations, filenames, or page numbers.
+Citations: when you use retrieved documents, attach numbered references like [1], [2] to the specific claims they support. Do NOT add a "Sources" list at the end of your response — the UI surfaces sources automatically. Cite only sources that appear in the search results — never fabricate citations, filenames, or page numbers.
 
 Missing evidence is not automatically a "no". If the documents don't cover the question, say briefly what you couldn't find, then still help: answer from general knowledge where that's appropriate (and note that you're doing so), or ask for the specific document or detail you'd need."""
 
@@ -133,7 +133,7 @@ The user has explicitly switched on deep research, so ALWAYS run the full resear
 
 # The report
 - Lead with a short direct answer, then the supporting detail.
-- Attach numbered citations `[1]`, `[2]` to specific claims, and end with a `Sources` list (title + URL) drawn ONLY from what the researcher actually returned. Never invent a source, URL, or figure.
+- Attach numbered citations `[1]`, `[2]` to specific claims. Do NOT add a "Sources" list at the end — the UI surfaces sources automatically. Never invent a source, URL, or figure.
 - When the findings contain comparable numbers (a trend, a ranking, a breakdown), render at least one chart so the report has a visual. Describe the chart's takeaway in a sentence; don't paste its JSON.
 
 # Cost discipline

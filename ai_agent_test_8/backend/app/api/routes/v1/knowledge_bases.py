@@ -14,21 +14,24 @@ from fastapi.responses import FileResponse
 from app.api.deps import (
     ActiveOrg,
     CurrentUser,
+    DBSession,
     KnowledgeBaseSvc,
     RAGDocumentSvc,
     SyncSourceSvc,
     VectorStoreSvc,
 )
 from app.core.exceptions import NotFoundError
+from app.repositories import sync_log as sync_log_repo
 from app.schemas.knowledge_base import (
     KnowledgeBaseCreate,
     KnowledgeBaseList,
     KnowledgeBaseRead,
     KnowledgeBaseUpdate,
 )
-from app.schemas.rag import RAGIngestResponse, RAGSyncResponse, RAGTrackedDocumentList
+from app.schemas.rag import RAGIngestResponse, RAGSyncLogItem, RAGSyncLogList, RAGSyncResponse, RAGTrackedDocumentList
 from app.schemas.sync_source import (
     ConnectorList,
+    SyncSourceClone,
     SyncSourceCreate,
     SyncSourceList,
     SyncSourceRead,
@@ -234,11 +237,31 @@ async def list_kb_sync_sources(
     current_user: CurrentUser,
     active_org: ActiveOrg,
 ) -> Any:
-    """List sync sources feeding this KB's collection."""
+    """List sync sources feeding this KB's collection (org-scoped)."""
     kb = await service.get(kb_id, user_id=current_user.id, organization_id=active_org.id)
-    all_sources = await sync_source_svc.list_sources()
-    items = [s for s in all_sources.items if s.collection_name == kb.collection_name]
-    return SyncSourceList(items=items, total=len(items))
+    return await sync_source_svc.list_sources(
+        organization_id=active_org.id,
+        collection_name=kb.collection_name,
+    )
+
+
+@router.get("/{kb_id}/sync-sources/org-integrations", response_model=SyncSourceList)
+async def list_org_integrations_for_kb(
+    kb_id: UUID,
+    service: KnowledgeBaseSvc,
+    sync_source_svc: SyncSourceSvc,
+    current_user: CurrentUser,
+    active_org: ActiveOrg,
+) -> Any:
+    """List org integrations that are NOT yet assigned to this KB.
+
+    Used by the wizard's 'pick existing' step so the user can clone an
+    existing integration's credentials into this knowledge base.
+    """
+    kb = await service.get(kb_id, user_id=current_user.id, organization_id=active_org.id)
+    all_org = await sync_source_svc.list_sources(organization_id=active_org.id)
+    others = [s for s in all_org.items if s.collection_name != kb.collection_name]
+    return SyncSourceList(items=others, total=len(others))
 
 
 @router.get("/{kb_id}/sync-sources/connectors", response_model=ConnectorList)
@@ -274,7 +297,33 @@ async def create_kb_sync_source(
     """
     kb = await service.get(kb_id, user_id=current_user.id, organization_id=active_org.id)
     payload = data.model_copy(update={"collection_name": kb.collection_name})
-    return await sync_source_svc.create_source(payload)
+    return await sync_source_svc.create_source(payload, organization_id=active_org.id)
+
+
+@router.post(
+    "/{kb_id}/sync-sources/{source_id}/clone",
+    response_model=SyncSourceRead,
+    status_code=status.HTTP_201_CREATED,
+)
+async def clone_kb_sync_source(
+    kb_id: UUID,
+    source_id: UUID,
+    data: SyncSourceClone,
+    service: KnowledgeBaseSvc,
+    sync_source_svc: SyncSourceSvc,
+    current_user: CurrentUser,
+    active_org: ActiveOrg,
+) -> Any:
+    """Clone an existing org integration into this KB.
+
+    Decrypts credentials from the source and re-encrypts them for the clone,
+    pinning it to this KB's collection_name. The clone is independent.
+    """
+    kb = await service.get(kb_id, user_id=current_user.id, organization_id=active_org.id)
+    clone_data = data.model_copy(update={"collection_name": kb.collection_name})
+    return await sync_source_svc.clone_source(
+        str(source_id), clone_data, organization_id=active_org.id
+    )
 
 
 @router.post(
@@ -303,6 +352,42 @@ async def trigger_kb_sync_source(
         status="running",
         message=f"Sync triggered for source '{source_id}'",
     )
+
+
+@router.get("/{kb_id}/sync-sources/{source_id}/logs", response_model=RAGSyncLogList)
+async def list_kb_sync_source_logs(
+    kb_id: UUID,
+    source_id: UUID,
+    service: KnowledgeBaseSvc,
+    db: DBSession,
+    current_user: CurrentUser,
+    active_org: ActiveOrg,
+    limit: int = Query(20, ge=1, le=100),
+) -> Any:
+    """List sync run history for a specific KB sync source."""
+    kb = await service.get(kb_id, user_id=current_user.id, organization_id=active_org.id)
+    logs = await sync_log_repo.get_all(db, sync_source_id=source_id, limit=limit)
+    # Verify source belongs to this KB's collection (security: don't leak other KBs' logs).
+    items = [
+        RAGSyncLogItem(
+            id=str(log.id),
+            source=log.source,
+            collection_name=log.collection_name,
+            status=log.status,
+            mode=log.mode,
+            total_files=log.total_files,
+            ingested=log.ingested,
+            updated=log.updated,
+            skipped=log.skipped,
+            failed=log.failed,
+            error_message=log.error_message,
+            started_at=log.started_at,
+            completed_at=log.completed_at,
+        )
+        for log in logs
+        if log.collection_name == kb.collection_name
+    ]
+    return RAGSyncLogList(items=items, total=len(items))
 
 
 @router.delete(

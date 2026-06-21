@@ -1,7 +1,4 @@
-"""Sync source repository (PostgreSQL async).
-
-Contains database operations for SyncSource entities.
-"""
+"""Sync source repository (PostgreSQL async)."""
 
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
@@ -13,16 +10,22 @@ from app.db.models.sync_source import SyncSource
 
 
 async def get_by_id(db: AsyncSession, source_id: UUID) -> SyncSource | None:
-    """Get a sync source by ID."""
     return await db.get(SyncSource, source_id)
 
 
 async def get_all(
     db: AsyncSession,
+    *,
+    organization_id: UUID | None = None,
+    collection_name: str | None = None,
     is_active: bool | None = None,
 ) -> list[SyncSource]:
-    """Get all sync sources, optionally filtered by active status."""
+    """List sync sources with optional org, collection, and active filters."""
     query = select(SyncSource)
+    if organization_id is not None:
+        query = query.where(SyncSource.organization_id == organization_id)
+    if collection_name is not None:
+        query = query.where(SyncSource.collection_name == collection_name)
     if is_active is not None:
         query = query.where(SyncSource.is_active == is_active)
     query = query.order_by(SyncSource.created_at.desc())
@@ -31,16 +34,12 @@ async def get_all(
 
 
 async def get_due_for_sync(db: AsyncSession) -> list[SyncSource]:
-    """Get sources that are due for scheduled sync.
-
-    Returns active sources with a schedule where enough time has elapsed
-    since the last sync (or that have never been synced).
-    """
+    """Active scheduled sources that are due for sync."""
     now = datetime.now(UTC)
-    # Fetch all active scheduled sources, filter in Python (avoids DB-specific interval syntax)
     query = select(SyncSource).where(
         SyncSource.is_active == True,  # noqa: E712
         SyncSource.schedule_minutes.isnot(None),
+        SyncSource.collection_name.isnot(None),
     )
     result = await db.execute(query)
     sources = list(result.scalars().all())
@@ -59,8 +58,9 @@ async def create(
     *,
     name: str,
     connector_type: str,
-    collection_name: str,
     config: dict[str, object],
+    organization_id: UUID | None = None,
+    collection_name: str | None = None,
     sync_mode: str = "new_only",
     schedule_minutes: int | None = None,
 ) -> SyncSource:
@@ -68,6 +68,7 @@ async def create(
     source = SyncSource(
         name=name,
         connector_type=connector_type,
+        organization_id=organization_id,
         collection_name=collection_name,
         config=config,
         sync_mode=sync_mode,
@@ -88,14 +89,13 @@ async def update(
     if not source:
         return None
     for key, value in updates.items():
-        if value is not None and hasattr(source, key):
+        if hasattr(source, key) and value is not None:
             setattr(source, key, value)
     await db.flush()
     return source
 
 
 async def delete(db: AsyncSession, source_id: UUID) -> bool:
-    """Delete a sync source by ID. Returns True if deleted."""
     source = await db.get(SyncSource, source_id)
     if not source:
         return False
@@ -112,7 +112,6 @@ async def update_sync_status(
     last_sync_status: str,
     last_error: str | None = None,
 ) -> SyncSource | None:
-    """Update the sync status fields after a sync operation."""
     source = await db.get(SyncSource, source_id)
     if not source:
         return None

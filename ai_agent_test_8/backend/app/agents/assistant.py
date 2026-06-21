@@ -160,7 +160,7 @@ class AssistantAgent:
             """Search the knowledge base for relevant documents.
 
             Use this tool to find information from uploaded documents before answering user queries.
-            Cite sources by referring to the document filename from the search results.
+            Cite sources inline using [1], [2] markers. Do not list sources at the end of your response.
 
             Args:
                 query: The search query string.

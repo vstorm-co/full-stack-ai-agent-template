@@ -5,16 +5,31 @@
 from app.worker.tasks.anomaly_tasks import detect_usage_spikes_task
 {%- endif %}
 {%- if cookiecutter.enable_credits_system %}
+{%- if cookiecutter.use_prefect %}
+from app.worker.tasks.cleanup_tasks import (
+    cleanup_usage_events_flow,
+    refresh_usage_matview_flow,
+)
+{%- else %}
 from app.worker.tasks.cleanup_tasks import (
     cleanup_usage_events_task,
     refresh_usage_matview_task,
 )
 {%- endif %}
+{%- endif %}
 {%- if cookiecutter.enable_email and cookiecutter.enable_billing %}
+{%- if cookiecutter.use_prefect %}
+from app.worker.tasks.email_tasks import send_trial_reminders_flow
+{%- else %}
 from app.worker.tasks.email_tasks import send_trial_reminders_task
 {%- endif %}
+{%- endif %}
 {%- if cookiecutter.enable_email and cookiecutter.enable_credits_system %}
+{%- if cookiecutter.use_prefect %}
+from app.worker.tasks.email_tasks import send_low_credits_alerts_flow
+{%- else %}
 from app.worker.tasks.email_tasks import send_low_credits_alerts_task
+{%- endif %}
 {%- endif %}
 {%- if cookiecutter.enable_rag %}
 {%- if cookiecutter.use_prefect %}
@@ -53,17 +68,30 @@ __all__ = [
 {%- endif %}
 {%- endif %}
 {%- if cookiecutter.enable_credits_system %}
+{%- if cookiecutter.use_prefect %}
+    "cleanup_usage_events_flow",
+    "refresh_usage_matview_flow",
+{%- else %}
     "cleanup_usage_events_task",
+    "refresh_usage_matview_task",
+{%- endif %}
 {%- if cookiecutter.enable_usage_anomaly_detection %}
     "detect_usage_spikes_task",
 {%- endif %}
-    "refresh_usage_matview_task",
 {%- endif %}
 {%- if cookiecutter.enable_email and cookiecutter.enable_billing %}
+{%- if cookiecutter.use_prefect %}
+    "send_trial_reminders_flow",
+{%- else %}
     "send_trial_reminders_task",
 {%- endif %}
+{%- endif %}
 {%- if cookiecutter.enable_email and cookiecutter.enable_credits_system %}
+{%- if cookiecutter.use_prefect %}
+    "send_low_credits_alerts_flow",
+{%- else %}
     "send_low_credits_alerts_task",
+{%- endif %}
 {%- endif %}
 ]
 {%- endif %}

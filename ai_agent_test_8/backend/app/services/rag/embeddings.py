@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 
 from openai import OpenAI
 
+from app.core.config import settings as app_settings
 from app.services.rag.config import RAGSettings
 from app.services.rag.models import Document
 
@@ -33,14 +34,16 @@ class OpenAIEmbeddingProvider(BaseEmbeddingProvider):
     Uses OpenAI's embedding models to generate text embeddings.
     """
 
-    def __init__(self, model: str) -> None:
+    def __init__(self, model: str, api_key: str = "", base_url: str | None = None) -> None:
         """Initialize the OpenAI embedding provider.
 
         Args:
             model: The OpenAI embedding model name (e.g., 'text-embedding-3-small').
+            api_key: API key; falls back to OPENAI_API_KEY env var when empty.
+            base_url: Override base URL (e.g. OpenRouter-compatible endpoint).
         """
         self.model = model
-        self.client = OpenAI()
+        self.client = OpenAI(api_key=api_key or None, base_url=base_url)
 
     def embed_queries(self, texts: list[str]) -> list[list[float]]:
         response = self.client.embeddings.create(model=self.model, input=texts)
@@ -57,7 +60,11 @@ class EmbeddingService:
     def __init__(self, settings: RAGSettings):
         config = settings.embeddings_config
         self.expected_dim = config.dim
-        self.provider = OpenAIEmbeddingProvider(model=config.model)
+        self.provider = OpenAIEmbeddingProvider(
+            model=config.model,
+            api_key=app_settings.OPENROUTER_API_KEY,
+            base_url="https://openrouter.ai/api/v1",
+        )
 
     def embed_query(self, query: str) -> list[float]:
         result = self.provider.embed_queries([query])[0]

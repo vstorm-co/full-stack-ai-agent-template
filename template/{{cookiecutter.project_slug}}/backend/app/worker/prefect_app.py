@@ -12,7 +12,7 @@ or to your Prefect Cloud workspace URL + PREFECT_API_KEY for Cloud mode.
 import asyncio
 import logging
 
-from prefect import serve
+from prefect import aserve
 from prefect.client.schemas.schedules import CronSchedule, IntervalSchedule
 {%- if cookiecutter.enable_rag %}
 from app.worker.tasks.rag_tasks import (
@@ -42,45 +42,44 @@ logger = logging.getLogger(__name__)
 
 async def main() -> None:
     """Register all deployments and serve them."""
-    deployments = [
+    deployments = []
 {%- if cookiecutter.enable_rag %}
-        # On-demand: triggered from API on file upload
-        ingest_document_flow.to_deployment(name="ingest-document"),
-        sync_single_source_flow.to_deployment(name="sync-single-source"),
+    # On-demand: triggered from API on file upload
+    deployments.append(await ingest_document_flow.ato_deployment(name="ingest-document"))
+    deployments.append(await sync_single_source_flow.ato_deployment(name="sync-single-source"))
 {%- if not cookiecutter.use_celery and not cookiecutter.use_taskiq and not cookiecutter.use_arq %}
-        sync_collection_flow.to_deployment(name="sync-collection"),
+    deployments.append(await sync_collection_flow.ato_deployment(name="sync-collection"))
 {%- endif %}
-        # Scheduled: check connector sources every minute
-        check_scheduled_syncs_flow.to_deployment(
-            name="rag-sync-check",
-            schedules=[IntervalSchedule(interval=60)],
-        ),
+    # Scheduled: check connector sources every minute
+    deployments.append(await check_scheduled_syncs_flow.ato_deployment(
+        name="rag-sync-check",
+        schedules=[IntervalSchedule(interval=60)],
+    ))
 {%- endif %}
 {%- if cookiecutter.enable_email and cookiecutter.enable_billing %}
-        send_trial_reminders_flow.to_deployment(
-            name="trial-reminders",
-            schedules=[CronSchedule(cron="0 9 * * *", timezone="{{ cookiecutter.timezone }}")],
-        ),
+    deployments.append(await send_trial_reminders_flow.ato_deployment(
+        name="trial-reminders",
+        schedules=[CronSchedule(cron="0 9 * * *", timezone="{{ cookiecutter.timezone }}")],
+    ))
 {%- endif %}
 {%- if cookiecutter.enable_email and cookiecutter.enable_credits_system %}
-        send_low_credits_alerts_flow.to_deployment(
-            name="low-credits-alerts",
-            schedules=[CronSchedule(cron="0 */4 * * *", timezone="{{ cookiecutter.timezone }}")],
-        ),
+    deployments.append(await send_low_credits_alerts_flow.ato_deployment(
+        name="low-credits-alerts",
+        schedules=[CronSchedule(cron="0 */4 * * *", timezone="{{ cookiecutter.timezone }}")],
+    ))
 {%- endif %}
 {%- if cookiecutter.enable_billing and cookiecutter.enable_credits_system %}
-        cleanup_usage_events_flow.to_deployment(
-            name="cleanup-usage-events",
-            schedules=[CronSchedule(cron="0 3 * * 0", timezone="{{ cookiecutter.timezone }}")],
-        ),
-        refresh_usage_matview_flow.to_deployment(
-            name="refresh-usage-matview",
-            schedules=[IntervalSchedule(interval=300)],
-        ),
+    deployments.append(await cleanup_usage_events_flow.ato_deployment(
+        name="cleanup-usage-events",
+        schedules=[CronSchedule(cron="0 3 * * 0", timezone="{{ cookiecutter.timezone }}")],
+    ))
+    deployments.append(await refresh_usage_matview_flow.ato_deployment(
+        name="refresh-usage-matview",
+        schedules=[IntervalSchedule(interval=300)],
+    ))
 {%- endif %}
-    ]
     logger.info("Starting Prefect runner with %d deployments", len(deployments))
-    await serve(*deployments)
+    await aserve(*deployments)
 
 
 if __name__ == "__main__":

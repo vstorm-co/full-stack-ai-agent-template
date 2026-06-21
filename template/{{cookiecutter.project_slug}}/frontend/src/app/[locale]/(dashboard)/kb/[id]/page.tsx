@@ -5,6 +5,8 @@ import {
   AlertCircle,
   CheckCircle2,
   Clock,
+  Download,
+  Eye,
   FileText,
   Loader2,
   Lock,
@@ -24,8 +26,10 @@ import { PageHeader } from "@/components/dashboard/page-header";
 import { Badge, Button, DataTable, Progress, Skeleton, type Column } from "@/components/ui";
 import { EmptyState } from "@/components/states";
 import { SyncSourceWizard } from "@/components/rag/sync-source-wizard";
+import { FileViewer } from "@/components/kb/file-viewer";
 import { useKBDetail } from "@/hooks";
 import { cn, formatBytes, formatDateTime } from "@/lib/utils";
+import { downloadKBDocument } from "@/lib/rag-api";
 import type { SyncSourceRead } from "@/lib/rag-api";
 import type { KBDocument, KBScope } from "@/types";
 
@@ -77,6 +81,21 @@ export default function KBDetailPage({ params }: KBDetailPageProps) {
   const [wizardOpen, setWizardOpen] = useState(false);
   const [creatingSource, setCreatingSource] = useState(false);
   const [syncSourcesExpanded, setSyncSourcesExpanded] = useState(false);
+  const [viewerDoc, setViewerDoc] = useState<KBDocument | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+  const handleDownload = async (doc: KBDocument) => {
+    if (downloadingId) return;
+    setDownloadingId(doc.id);
+    try {
+      await downloadKBDocument(id, doc, "download");
+    } catch {
+      /* silently ignore */
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCounterRef = useRef(0);
 
@@ -163,24 +182,58 @@ export default function KBDetailPage({ params }: KBDetailPageProps) {
         header: "",
         align: "right",
         className: "w-0",
-        cell: (doc) => (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-muted-foreground hover:text-destructive h-8 w-8 p-0"
-            onClick={() => {
-              if (confirm(`Remove "${doc.filename}" from this knowledge base?`))
-                deleteDocument(doc.id);
-            }}
-            title="Remove document"
-            aria-label="Remove document"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
-        ),
+        cell: (doc) => {
+          const dlBusy = downloadingId === doc.id;
+          return (
+            <div className="flex items-center gap-0.5">
+              {doc.has_file && (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-muted-foreground hover:text-foreground h-8 w-8 p-0"
+                    onClick={() => setViewerDoc(doc)}
+                    title="Preview file"
+                    aria-label="Preview file"
+                  >
+                    <Eye className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-muted-foreground hover:text-foreground h-8 w-8 p-0"
+                    onClick={() => handleDownload(doc)}
+                    disabled={!!downloadingId}
+                    title="Download file"
+                    aria-label="Download file"
+                  >
+                    {dlBusy ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Download className="h-3.5 w-3.5" />
+                    )}
+                  </Button>
+                </>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground hover:text-destructive h-8 w-8 p-0"
+                onClick={() => {
+                  if (confirm(`Remove "${doc.filename}" from this knowledge base?`))
+                    deleteDocument(doc.id);
+                }}
+                title="Remove document"
+                aria-label="Remove document"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          );
+        },
       },
     ],
-    [deleteDocument],
+    [deleteDocument, downloadingId, handleDownload, setViewerDoc],
   );
 
   if (isLoading && !kb) return <KBDetailSkeleton />;
@@ -405,6 +458,13 @@ export default function KBDetailPage({ params }: KBDetailPageProps) {
           </>
         )}
       </section>
+
+      <FileViewer
+        kbId={id}
+        doc={viewerDoc}
+        open={viewerDoc !== null}
+        onClose={() => setViewerDoc(null)}
+      />
 
       <SyncSourceWizard
         open={wizardOpen}

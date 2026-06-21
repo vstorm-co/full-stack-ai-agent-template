@@ -11,6 +11,7 @@ from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, File, Query, UploadFile, status
+from fastapi.responses import FileResponse
 
 from app.api.deps import ActiveOrg, CurrentUser, KnowledgeBaseSvc
 from app.api.deps import RAGDocumentSvc, SyncSourceSvc, VectorStoreSvc
@@ -165,6 +166,29 @@ async def upload_kb_document(
         organization_id=active_org.id,
         knowledge_base_id=kb.id,
     )
+
+
+@router.get("/{kb_id}/documents/{doc_id}/download")
+async def download_kb_document(
+    kb_id: UUID,
+    doc_id: UUID,
+    service: KnowledgeBaseSvc,
+    rag_doc_svc: RAGDocumentSvc,
+    current_user: CurrentUser,
+    active_org: ActiveOrg,
+) -> FileResponse:
+    """Download (or open inline) the original file for a KB document."""
+    kb = await service.get(
+        kb_id, user_id=current_user.id, organization_id=active_org.id
+    )
+    doc = await rag_doc_svc.get_document(str(doc_id))
+    if doc.collection_name != kb.collection_name:
+        raise NotFoundError(
+            message="Document not found in this knowledge base",
+            details={"kb_id": str(kb_id), "doc_id": str(doc_id)},
+        )
+    file_path, filename, mime_type = await rag_doc_svc.get_download_info(str(doc_id))
+    return FileResponse(path=file_path, filename=filename, media_type=mime_type)
 
 
 @router.delete(

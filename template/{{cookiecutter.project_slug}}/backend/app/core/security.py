@@ -10,7 +10,6 @@ from app.core.config import settings
 
 {%- if cookiecutter.use_delegated_auth %}
 
-# === Delegated-auth verifier ===
 # Validates JWTs minted by an external system. Two modes (chosen at template
 # generation time): JWKS (RS/ES asymmetric, IdP-style) or shared-secret HS256.
 # Both expose the same `verify_idp_token(token)` API so the rest of the app

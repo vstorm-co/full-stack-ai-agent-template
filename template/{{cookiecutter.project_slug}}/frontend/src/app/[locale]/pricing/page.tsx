@@ -19,7 +19,7 @@ import { TestimonialGrid } from "@/components/marketing/testimonial-grid";
 import { apiClient } from "@/lib/api-client";
 import { APP_NAME, ROUTES } from "@/lib/constants";
 import { getTeaserPlans, type TeaserPlan } from "@/lib/teaser-plans";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 
 interface PlanRead {
   id: string;
@@ -95,13 +95,7 @@ function realPlanToCard(plan: PlanRead, billing: "month" | "year"): PricingCard 
   return {
     id: plan.id,
     name: plan.display_name,
-    price: price
-      ? (price.amount_cents / 100).toLocaleString("en-US", {
-          style: "currency",
-          currency: price.currency.toUpperCase(),
-          minimumFractionDigits: 0,
-        })
-      : "—",
+    price: price ? formatCurrency(price.amount_cents, price.currency) : "—",
     description: plan.description ?? "",
     featured: false,
     badge: null,

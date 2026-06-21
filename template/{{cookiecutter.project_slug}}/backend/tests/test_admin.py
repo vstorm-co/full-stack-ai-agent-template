@@ -1,4 +1,4 @@
-{%- if cookiecutter.enable_admin_panel and cookiecutter.use_postgresql %}
+{%- if cookiecutter.enable_admin_panel %}
 """Tests for admin panel with automatic model discovery."""
 
 from typing import ClassVar
@@ -7,6 +7,10 @@ from unittest.mock import MagicMock, patch, AsyncMock
 import pytest
 from sqlalchemy import Boolean, Integer, String, DateTime, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+import app.admin as admin_module
+
+from sqladmin import ModelView
 
 from app.admin import (
     SENSITIVE_COLUMN_PATTERNS,
@@ -278,8 +282,6 @@ class TestCreateModelAdmin:
 
     def test_creates_model_view_class(self):
         """Test that a ModelView subclass is created."""
-        from sqladmin import ModelView
-
         admin_class = create_model_admin(MockItem)
 
         assert admin_class is not None
@@ -441,8 +443,6 @@ class TestRegisterModelsAuto:
 
     def test_returns_list_of_model_views(self):
         """Test that a list of ModelView classes is returned."""
-        from sqladmin import ModelView
-
         mock_admin = MagicMock()
 
         registered = register_models_auto(mock_admin, MockBase)
@@ -462,8 +462,6 @@ class TestGetSyncEngine:
     @patch("app.admin.settings")
     def test_creates_engine_with_settings(self, mock_settings, mock_create_engine):
         """Test that engine is created with correct settings."""
-        import app.admin as admin_module
-
         # Reset the cached engine
         admin_module._sync_engine = None
 
@@ -486,8 +484,6 @@ class TestGetSyncEngine:
     @patch("app.admin.settings")
     def test_returns_cached_engine(self, mock_settings, mock_create_engine):
         """Test that engine is cached and reused."""
-        import app.admin as admin_module
-
         # Reset the cached engine
         admin_module._sync_engine = None
 

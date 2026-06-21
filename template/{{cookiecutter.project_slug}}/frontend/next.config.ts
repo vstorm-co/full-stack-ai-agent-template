@@ -1,3 +1,4 @@
+import withBundleAnalyzer from "@next/bundle-analyzer";
 {%- if cookiecutter.enable_marketing_site %}
 import createMDX from "@next/mdx";
 {%- endif %}
@@ -11,6 +12,11 @@ const withMDX = createMDX({
   // next-mdx-remote/rsc handles the actual blog post compilation.
 });
 {%- endif %}
+
+// Bundle analyzer — only active when ANALYZE=true (e.g. `bun run analyze`).
+const withAnalyzer = withBundleAnalyzer({
+  enabled: process.env.ANALYZE === "true",
+});
 
 // Content Security Policy directives
 {%- if cookiecutter.enable_embed_mode %}
@@ -110,7 +116,7 @@ const nextConfig: NextConfig = {
 };
 
 {%- if cookiecutter.enable_marketing_site %}
-export default withNextIntl(withMDX(nextConfig));
+export default withAnalyzer(withNextIntl(withMDX(nextConfig)));
 {%- else %}
-export default withNextIntl(nextConfig);
+export default withAnalyzer(withNextIntl(nextConfig));
 {%- endif %}

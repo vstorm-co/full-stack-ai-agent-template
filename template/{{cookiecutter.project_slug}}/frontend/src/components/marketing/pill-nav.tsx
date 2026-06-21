@@ -27,6 +27,7 @@ import {
 import { LanguageSwitcherCompact } from "@/components/language-switcher";
 {% endif -%}
 import type { NavIcon, NavItem } from "@/components/marketing/footer-config";
+import { ROUTES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 interface PillNavProps {
@@ -71,7 +72,6 @@ export function PillNav({ brand, links, ctaLabel, ctaHref, secondaryCta }: PillN
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // Reset menus on navigation.
   useEffect(() => {
     setOpen(false);
     setOpenMenu(null);
@@ -125,9 +125,8 @@ export function PillNav({ brand, links, ctaLabel, ctaHref, secondaryCta }: PillN
       )}
     >
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-6 md:px-10">
-        {/* Brand */}
         <Link
-          href="/"
+          href={ROUTES.HOME}
           className="font-display text-foreground flex shrink-0 items-center gap-2.5 text-base font-bold tracking-tight"
         >
           <span
@@ -147,7 +146,6 @@ export function PillNav({ brand, links, ctaLabel, ctaHref, secondaryCta }: PillN
           {brand}
         </Link>
 
-        {/* Desktop nav */}
         <nav className="hidden items-center gap-1 md:flex">
           {links.map((item, i) =>
             item.items ? (
@@ -193,7 +191,6 @@ export function PillNav({ brand, links, ctaLabel, ctaHref, secondaryCta }: PillN
           )}
         </nav>
 
-        {/* Actions */}
         <div className="flex items-center gap-1.5">
 {%- if cookiecutter.enable_i18n %}
           <div className="hidden md:block">
@@ -228,9 +225,8 @@ export function PillNav({ brand, links, ctaLabel, ctaHref, secondaryCta }: PillN
         </div>
       </div>
 
-      {/* Mobile full-screen overlay */}
       {open && (
-        <div className="theme-dark bg-background animate-[lsFadeIn_180ms_var(--ease-out)] fixed inset-0 top-16 z-40 overflow-y-auto md:hidden">
+        <div className="theme-dark bg-background fixed inset-0 top-16 z-40 animate-[lsFadeIn_180ms_var(--ease-out)] overflow-y-auto md:hidden">
           <div className="flex min-h-full flex-col px-6 py-6">
             <nav className="flex flex-col gap-1">
               {links.map((item, i) =>
@@ -330,7 +326,7 @@ function MegaPanel({ item, align }: { item: NavItem; align: "left" | "right" }) 
   return (
     <div
       className={cn(
-        "animate-[lsFadeIn_160ms_var(--ease-out)] absolute top-full pt-3",
+        "absolute top-full animate-[lsFadeIn_160ms_var(--ease-out)] pt-3",
         align === "right" ? "right-0" : "left-0",
       )}
     >

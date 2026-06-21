@@ -10,10 +10,9 @@ export async function GET(request: NextRequest) {
     }
 
     const qs = new URL(request.url).searchParams.toString();
-    const data = await backendFetch(
-      `/api/v1/conversations/tool-stats${qs ? `?${qs}` : ""}`,
-      { headers: { Authorization: `Bearer ${accessToken}` } },
-    );
+    const data = await backendFetch(`/api/v1/conversations/tool-stats${qs ? `?${qs}` : ""}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
 
     return NextResponse.json(data);
   } catch (error) {

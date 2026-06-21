@@ -91,15 +91,15 @@ export function ChatControls({
 {%- endif %}
 
 {%- if cookiecutter.enable_teams and cookiecutter.enable_rag %}
-  // ── KB state ────────────────────────────────────────────────────────────
   const { kbs, isLoading: kbsLoading, fetchKBs } = useKnowledgeBases();
   // Selector-narrowed subscriptions: re-render only when these specific fields
   // change. The whole-store form re-rendered ChatControls on every conv-store
   // mutation (incl. ones unrelated to KB), which combined with the inline
   // `setModel` ref from use-chat caused an effect-driven loop during streaming.
   const currentConversationId = useConversationStore((s) => s.currentConversationId);
-  const conversations = useConversationStore((s) => s.conversations);
-  const { updateActiveKBs } = useConversations();
+  // The conversations list now lives in React Query (via useConversations);
+  // currentConversationId remains UI state in the store.
+  const { conversations, updateActiveKBs } = useConversations();
   const activeKBIds = useKBSelectionStore((s) => s.activeKBIds);
   const toggleKB = useKBSelectionStore((s) => s.toggle);
   const hydrate = useKBSelectionStore((s) => s.hydrateFromConversation);
@@ -154,7 +154,6 @@ export function ChatControls({
   const { currentConversationId } = useConversationStore();
 {%- endif %}
 
-  // ── Model state ─────────────────────────────────────────────────────────
   const [availableModels, setAvailableModels] = useState<{ value: string; label: string }[]>([
     { value: "", label: "Default" },
   ]);
@@ -182,7 +181,6 @@ export function ChatControls({
       .catch(() => {});
   }, []);
 
-  // ── Settings state ──────────────────────────────────────────────────────
   const [temperature, setTemperature] = useState<number | null>(null);
   const [effort, setEffort] = useState<ThinkingEffort>("off");
   const settingsOverridden = temperature !== null || effort !== "off";
@@ -190,7 +188,6 @@ export function ChatControls({
   const deepResearch = useChatModeStore((s) => s.deepResearch);
 {%- endif %}
 
-  // ── Trigger summary ─────────────────────────────────────────────────────
   const triggerSummary = useMemo(() => {
     const parts: string[] = [];
 {%- if cookiecutter.enable_deep_research %}
@@ -221,11 +218,7 @@ export function ChatControls({
           <Sliders className="h-3 w-3" />
           <span className="max-w-[200px] truncate">{triggerSummary}</span>
           {hasOverrides && (
-            <span
-              aria-hidden
-              className="bg-brand inline-block h-1 w-1 rounded-full"
-              {% raw %}style={{ boxShadow: "0 0 6px var(--color-brand)" }}{% endraw %}
-            />
+            <span aria-hidden className="bg-foreground inline-block h-1 w-1 rounded-full" />
           )}
           <ChevronDown className="text-foreground/45 h-3 w-3" />
         </button>
@@ -234,19 +227,8 @@ export function ChatControls({
       <PopoverContent
         align="end"
         sideOffset={8}
-        className="border-foreground/10 bg-card/95 relative isolate w-[380px] overflow-hidden rounded-2xl border p-0 shadow-2xl backdrop-blur-xl"
+        className="border-border bg-popover relative w-[380px] overflow-hidden rounded-2xl border p-0 shadow-md"
       >
-        {/* Brand glow corner */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -top-16 -right-12 -z-10 h-40 w-40 rounded-full blur-3xl"
-          {% raw %}style={{
-            background:
-              "radial-gradient(circle, oklch(from var(--color-brand) l c h / 0.25), transparent 65%)",
-          }}{% endraw %}
-        />
-
-        {/* Tabs */}
         <div className="border-foreground/10 flex items-center gap-1 border-b p-2">
 {%- if cookiecutter.enable_teams and cookiecutter.enable_rag %}
           <TabButton icon={Database} label="KB" active={tab === "kb"} onClick={() => setTab("kb")} />
@@ -269,7 +251,6 @@ export function ChatControls({
           )}
         </div>
 
-        {/* Body */}
         <div className="max-h-[420px] scrollbar-thin overflow-y-auto p-4">
 {%- if cookiecutter.enable_teams and cookiecutter.enable_rag %}
           {tab === "kb" && (
@@ -310,13 +291,11 @@ export function ChatControls({
           )}
         </div>
 
-        {/* Footer */}
         <div className="border-foreground/10 text-foreground/45 flex items-center justify-between border-t px-4 py-2 font-mono text-[10px] tracking-wider uppercase">
           <span className="inline-flex items-center gap-1.5">
             <span
               aria-hidden
-              className="bg-brand inline-block h-1 w-1 animate-pulse rounded-full"
-              {% raw %}style={{ boxShadow: "0 0 6px var(--color-brand)" }}{% endraw %}
+              className="bg-foreground inline-block h-1 w-1 animate-pulse rounded-full"
             />
             {currentConversationId ? "Saved for this chat" : "Saves on send"}
           </span>
@@ -417,8 +396,8 @@ function KBPanel({
                           className={cn(
                             "flex cursor-pointer items-start gap-2.5 rounded-xl border p-2.5 transition-all",
                             isActive
-                              ? "border-brand/40 bg-brand/[0.06]"
-                              : "border-foreground/10 hover:border-foreground/25 hover:bg-foreground/[0.02]",
+                              ? "border-foreground/30 bg-accent"
+                              : "border-border hover:border-foreground/25 hover:bg-accent/60",
                           )}
                         >
                           <Checkbox
@@ -484,12 +463,12 @@ function ModelPanel({
                 className={cn(
                   "flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-left text-xs transition-all",
                   isActive
-                    ? "border-brand/40 bg-brand/[0.06] text-foreground"
-                    : "border-foreground/10 text-foreground/75 hover:border-foreground/25 hover:bg-foreground/[0.02] hover:text-foreground",
+                    ? "border-foreground/30 bg-accent text-foreground"
+                    : "border-border text-foreground/75 hover:border-foreground/25 hover:bg-accent/60 hover:text-foreground",
                 )}
               >
                 <span className="truncate font-medium">{m.label}</span>
-                {isActive && <Check className="text-brand h-3.5 w-3.5 shrink-0" />}
+                {isActive && <Check className="text-foreground h-3.5 w-3.5 shrink-0" />}
               </button>
             </li>
           );
@@ -549,7 +528,6 @@ function SettingsPanel({
         </p>
       </div>
 {%- endif %}
-      {/* Temperature */}
       <div className="space-y-2.5">
         <div className="flex items-baseline justify-between">
           <label htmlFor="chat-temp" className="text-foreground text-sm font-semibold">
@@ -588,7 +566,6 @@ function SettingsPanel({
         )}
       </div>
 
-      {/* Thinking effort */}
       <div className="space-y-2.5">
         <div className="flex items-baseline justify-between">
           <span className="text-foreground text-sm font-semibold">Thinking effort</span>

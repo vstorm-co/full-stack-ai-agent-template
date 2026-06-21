@@ -1,4 +1,4 @@
-{%- if cookiecutter.enable_teams and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
+{%- if cookiecutter.enable_teams %}
 """create app_admin_audit_logs table
 
 Revision ID: 0004_audit_log
@@ -11,9 +11,7 @@ Used for security auditing and compliance.
 
 import sqlalchemy as sa
 from alembic import op
-{%- if cookiecutter.use_postgresql %}
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
-{%- endif %}
 
 revision = "0004_audit_log"
 down_revision = "0003_is_app_admin"
@@ -24,7 +22,6 @@ depends_on = None
 def upgrade() -> None:
     op.create_table(
         "app_admin_audit_logs",
-{%- if cookiecutter.use_postgresql %}
         sa.Column("id", PG_UUID(as_uuid=True), primary_key=True),
         sa.Column("actor_user_id", PG_UUID(as_uuid=True), nullable=False),
         sa.Column("organization_id", PG_UUID(as_uuid=True), nullable=True),
@@ -35,18 +32,6 @@ def upgrade() -> None:
         sa.Column("ip_address", sa.String(45), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=True),
-{%- else %}
-        sa.Column("id", sa.String(36), primary_key=True),
-        sa.Column("actor_user_id", sa.String(36), nullable=False),
-        sa.Column("organization_id", sa.String(36), nullable=True),
-        sa.Column("action", sa.String(100), nullable=False),
-        sa.Column("target_type", sa.String(100), nullable=True),
-        sa.Column("target_id", sa.String(36), nullable=True),
-        sa.Column("details", sa.Text, nullable=True),
-        sa.Column("ip_address", sa.String(45), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=True),
-{%- endif %}
     )
     op.create_index("ix_audit_actor_user_id", "app_admin_audit_logs", ["actor_user_id"])
     op.create_index("ix_audit_organization_id", "app_admin_audit_logs", ["organization_id"])

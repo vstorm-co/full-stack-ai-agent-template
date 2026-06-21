@@ -7,28 +7,26 @@ export const dynamic = "force-static";
 
 export default function Icon() {
   return new ImageResponse(
-    (
+    <div
+      style={{
+        width: "100%",
+        height: "100%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "#0E0E0C",
+        borderRadius: "6px",
+      }}
+    >
       <div
         style={{
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "#0E0E0C",
-          borderRadius: "6px",
+          width: 14,
+          height: 14,
+          borderRadius: "9999px",
+          background: "#C5F94A",
         }}
-      >
-        <div
-          style={{
-            width: 14,
-            height: 14,
-            borderRadius: "9999px",
-            background: "#C5F94A",
-          }}
-        />
-      </div>
-    ),
+      />
+    </div>,
     { ...size },
   );
 }

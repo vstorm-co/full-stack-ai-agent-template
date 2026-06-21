@@ -1,4 +1,4 @@
-{%- if cookiecutter.enable_teams and cookiecutter.enable_rag and cookiecutter.use_jwt and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
+{%- if cookiecutter.enable_teams and cookiecutter.enable_rag and cookiecutter.use_jwt %}
 """add active_knowledge_base_ids to conversations
 
 Revision ID: 0009_conv_active_kb_ids
@@ -16,9 +16,7 @@ Semantics:
 
 import sqlalchemy as sa
 from alembic import op
-{%- if cookiecutter.use_postgresql %}
 from sqlalchemy.dialects.postgresql import JSONB
-{%- endif %}
 
 revision = "0009_conv_active_kb_ids"
 down_revision = "0008_backfill_default_kbs"
@@ -31,11 +29,7 @@ def upgrade() -> None:
         "conversations",
         sa.Column(
             "active_knowledge_base_ids",
-{%- if cookiecutter.use_postgresql %}
             JSONB(),
-{%- else %}
-            sa.Text(),
-{%- endif %}
             nullable=True,
         ),
     )

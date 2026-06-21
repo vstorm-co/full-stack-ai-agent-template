@@ -34,8 +34,7 @@ export function DragDropOverlay({
   useEffect(() => {
     if (disabled) return;
 
-    const isFileDrag = (e: DragEvent) =>
-      Array.from(e.dataTransfer?.types ?? []).includes("Files");
+    const isFileDrag = (e: DragEvent) => Array.from(e.dataTransfer?.types ?? []).includes("Files");
 
     const handleEnter = (e: DragEvent) => {
       if (!isFileDrag(e)) return;
@@ -95,7 +94,7 @@ export function DragDropOverlay({
             {acceptedFormats.map((fmt) => (
               <span
                 key={fmt}
-                className="border-foreground/15 bg-foreground/[0.03] text-foreground/70 inline-flex items-center rounded-full border px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-wider"
+                className="border-foreground/15 bg-foreground/[0.03] text-foreground/70 inline-flex items-center rounded-full border px-2.5 py-0.5 font-mono text-[10px] tracking-wider uppercase"
               >
                 {fmt.replace(/^\./, "")}
               </span>

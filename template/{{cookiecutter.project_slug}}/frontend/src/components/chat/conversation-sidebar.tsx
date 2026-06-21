@@ -10,14 +10,13 @@ import { useChatSidebarStore } from "@/stores";
 import {
   Archive,
   ArchiveRestore,
-  ArrowUpRight,
   ChevronLeft,
   ChevronRight,
   MessageSquare,
-  MessageSquarePlus,
   MoreVertical,
   Pencil,
   Share2,
+  SquarePen,
   Trash2,
 } from "lucide-react";
 import type { Conversation } from "@/types";
@@ -63,7 +62,7 @@ function ConversationItem({
       className={cn(
         "group relative flex min-h-[44px] cursor-pointer items-center gap-2 rounded-xl px-3 py-3 text-sm transition-all",
         isActive
-          ? "bg-brand/[0.08] text-foreground border-brand/30 border"
+          ? "bg-accent text-foreground border-border border"
           : "text-muted-foreground hover:bg-secondary/50 hover:text-secondary-foreground border border-transparent",
       )}
       onClick={onSelect}
@@ -71,11 +70,10 @@ function ConversationItem({
       {isActive && (
         <span
           aria-hidden
-          className="bg-brand absolute top-1/2 left-0 h-5 w-0.5 -translate-y-1/2 rounded-r-full"
-          style={{ boxShadow: "0 0 8px var(--color-brand)" }}
+          className="bg-foreground absolute top-1/2 left-0 h-5 w-0.5 -translate-y-1/2 rounded-r-full"
         />
       )}
-      <MessageSquare className={cn("h-4 w-4 shrink-0", isActive && "text-brand")} />
+      <MessageSquare className={cn("h-4 w-4 shrink-0", isActive && "text-foreground")} />
       {isEditing ? (
         <input
           type="text"
@@ -240,24 +238,19 @@ function ConversationList({
 
   return (
     <>
-      <div className="p-3">
+      <div className="px-3 pt-3 pb-2">
         <button
           type="button"
           onClick={handleNewChat}
-          className="bg-foreground text-background hover:bg-foreground/90 group flex h-10 w-full items-center justify-between gap-2 rounded-full pr-1.5 pl-4 text-sm font-medium transition-colors"
+          className="text-muted-foreground hover:text-foreground hover:bg-secondary flex h-9 w-full items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors"
         >
-          <span className="inline-flex items-center gap-2">
-            <MessageSquarePlus className="h-4 w-4" />
-            {t("newChat")}
-          </span>
-          <span className="bg-brand text-brand-foreground flex h-7 w-7 items-center justify-center rounded-full transition-transform group-hover:rotate-45">
-            <ArrowUpRight className="h-3.5 w-3.5" />
-          </span>
+          <SquarePen className="h-4 w-4 shrink-0" />
+          {t("newChat")}
         </button>
       </div>
 
       <div className="px-3 pb-2">
-        <div className="border-foreground/10 bg-background flex rounded-full border p-0.5">
+        <div className="bg-secondary/50 flex rounded-lg p-0.5">
           <ViewTab
             label="Active"
             count={activeCount}
@@ -292,8 +285,7 @@ function ConversationList({
           <div className="flex flex-col items-center justify-center py-10 text-center">
             <span
               aria-hidden
-              className="bg-brand/15 text-foreground/70 mb-4 flex h-12 w-12 items-center justify-center rounded-full"
-              style={{ boxShadow: "0 0 24px oklch(from var(--color-brand) l c h / 0.25)" }}
+              className="bg-muted text-muted-foreground mb-4 flex h-12 w-12 items-center justify-center rounded-full"
             >
               {isArchivedView ? (
                 <Archive className="h-5 w-5" />
@@ -403,7 +395,7 @@ export function ConversationSidebar({ className }: ConversationSidebarProps) {
           title="New Chat"
           aria-label="New chat"
         >
-          <MessageSquarePlus className="h-4 w-4" aria-hidden />
+          <SquarePen className="h-4 w-4" aria-hidden />
         </Button>
       </div>
     );
@@ -460,15 +452,17 @@ function ViewTab({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-1.5 font-mono text-[11px] tracking-wider uppercase transition-colors",
-        active ? "bg-foreground text-background" : "text-foreground/55 hover:text-foreground",
+        "flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+        active
+          ? "bg-background text-foreground shadow-sm"
+          : "text-muted-foreground hover:text-foreground",
       )}
     >
       {label}
       <span
         className={cn(
-          "rounded-full px-1.5 py-0.5 text-[10px] tabular-nums",
-          active ? "bg-background/15" : "bg-foreground/10",
+          "tabular-nums text-[10px]",
+          active ? "text-foreground" : "text-muted-foreground/60",
         )}
       >
         {count}

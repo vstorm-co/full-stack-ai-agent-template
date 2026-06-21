@@ -32,7 +32,7 @@ from deepagents import create_deep_agent
 from deepagents.backends import StateBackend
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
-{%- if cookiecutter.enable_rag or cookiecutter.enable_web_search or cookiecutter.web_fetch_tool or cookiecutter.enable_charts or cookiecutter.enable_antv_charts %}
+{%- if cookiecutter.enable_rag or cookiecutter.enable_web_search or cookiecutter.web_fetch_tool or cookiecutter.enable_charts %}
 from langchain_core.tools import tool
 {%- endif %}
 from langgraph.checkpoint.memory import MemorySaver
@@ -52,7 +52,7 @@ from app.agents.prompts import DEFAULT_SYSTEM_PROMPT
 {%- if cookiecutter.enable_rag %}
 from app.agents.prompts import get_system_prompt_with_rag
 {%- endif %}
-from app.agents.tools import get_current_datetime
+from app.agents.utils import get_current_datetime
 {%- if cookiecutter.enable_web_search %}
 from app.agents.tools.web_search import web_search
 {%- endif %}
@@ -67,11 +67,7 @@ from app.agents.tools.rag_tool import search_knowledge_base
 {%- endif %}
 {%- endif %}
 {%- if cookiecutter.enable_charts %}
-from app.agents.tools.chart_tool import create_chart
-{%- endif %}
-{%- if cookiecutter.enable_antv_charts %}
-from app.agents.tools.antv_chart import get_antv_langchain_tools
-from app.agents.tools.map_tool import MapMarker, create_map
+from app.agents.tools.chart_tool import create_chart_tool as _create_chart_tool_fn
 {%- endif %}
 from app.core.config import settings
 
@@ -150,7 +146,6 @@ async def search_documents(query: str, top_k: int = 5) -> str:
 {%- endif %}
 
 
-# List of custom tools for DeepAgents
 DEEPAGENTS_CUSTOM_TOOLS = [search_documents]
 {%- else %}
 DEEPAGENTS_CUSTOM_TOOLS = []
@@ -162,78 +157,8 @@ DEEPAGENTS_CUSTOM_TOOLS.append(web_search_tool)
 DEEPAGENTS_CUSTOM_TOOLS.append(fetch_url_tool)
 {%- endif %}
 {%- if cookiecutter.enable_charts %}
-
-
-@tool
-def create_chart_tool(
-    chart_type: str,
-    title: str,
-    data: list[dict[str, Any]],
-    series: list[dict[str, Any]] | None = None,
-    x_key: str = "x",
-    style: dict[str, Any] | None = None,
-) -> str:
-    """Create a chart (line/bar/pie/area/scatter) to visualize data for the user.
-
-    Use whenever the user asks to plot, chart, graph, or visualize numbers,
-    trends, comparisons, or distributions. Do not repeat the returned JSON
-    back to the user — just briefly describe the chart you created.
-
-    Args:
-        chart_type: One of "line", "bar", "pie", "area", "scatter".
-        title: Short chart title.
-        data: Row dicts, e.g. [{"x": "Jan", "revenue": 120}]. For pie:
-            [{"x": "Chrome", "value": 64}, ...].
-        series: Optional [{"key", "label"?, "color"?}] selecting fields to plot.
-        x_key: Row field for the x-axis / pie label (default "x").
-        style: Optional {"palette", "grid", "legend", "x_label", "y_label", "stacked"}.
-    """
-    return create_chart(
-        chart_type=chart_type,  # type: ignore[arg-type]
-        title=title,
-        data=data,
-        series=series,
-        x_key=x_key,
-        style=style,
-    )
-
-
+create_chart_tool = tool(_create_chart_tool_fn)
 DEEPAGENTS_CUSTOM_TOOLS.append(create_chart_tool)
-{%- endif %}
-{%- if cookiecutter.enable_antv_charts %}
-
-
-@tool
-def create_map_tool(
-    title: str,
-    markers: list[MapMarker],
-    center: list[float] | None = None,
-    zoom: int | None = None,
-) -> str:
-    """Create an interactive map to show places geographically for the user.
-
-    Use whenever the user asks to show, map, or locate places. Provide
-    latitude/longitude for each marker from your own knowledge (e.g. Warsaw ≈
-    52.23, 21.01). Do not repeat the returned JSON — just briefly describe the
-    map you created.
-
-    Args:
-        title: Short map title.
-        markers: One entry per place, each with lat, lng and a short label
-            (plus optional description and color). Must not be empty.
-        center: Optional [lat, lng] center (auto-fit to markers if omitted).
-        zoom: Optional zoom level 1-18 (mainly useful for a single marker).
-    """
-    return create_map(
-        title=title,
-        markers=[m.model_dump() for m in markers],
-        center=center,
-        zoom=zoom,
-    )
-
-
-DEEPAGENTS_CUSTOM_TOOLS.append(create_map_tool)
-DEEPAGENTS_CUSTOM_TOOLS.extend(get_antv_langchain_tools())
 {%- endif %}
 
 
@@ -305,15 +230,12 @@ def _parse_interrupt_config() -> dict[str, bool | dict[str, list[str]]] | None:
     if not tools:
         return None
 
-    # Parse allowed decisions
     allowed = [d.strip() for d in settings.DEEPAGENTS_ALLOWED_DECISIONS.split(",") if d.strip()]
     if not allowed:
         allowed = ["approve", "edit", "reject"]
 
-    # Build interrupt_on config
     interrupt_on: dict[str, bool | dict[str, list[str]]] = {}
 
-    # Built-in DeepAgents tools
     builtin_tools = [
         "ls", "read_file", "write_file", "edit_file", "glob", "grep",
         "execute", "write_todos", "task"
@@ -579,7 +501,7 @@ class DeepAgentsAssistant:
 
         agent_context: AgentContext = context if context is not None else {}
 
-        logger.info(f"Running DeepAgents with user input: {user_input[:100]}...")
+        logger.info("Running DeepAgents with user input: %s...", user_input[:100])
 
         config = {
             "configurable": {
@@ -588,7 +510,6 @@ class DeepAgentsAssistant:
             }
         }
 
-        # Prepare input with optional files for StateBackend
         input_data: dict[str, Any] = {"messages": messages}
         if files:
             input_data["files"] = files
@@ -603,13 +524,11 @@ class DeepAgentsAssistant:
         result = await self.graph.ainvoke(input_data, config=config)
 {%- endif %}
 
-        # Check for interrupt
         interrupt_data = self.extract_interrupt(result)
         if interrupt_data:
-            logger.info(f"Agent interrupted with {len(interrupt_data['action_requests'])} pending approvals")
+            logger.info("Agent interrupted with %d pending approvals", len(interrupt_data['action_requests']))
             return "", [], agent_context, interrupt_data
 
-        # Extract the final response and tool events
         output = ""
         tool_events: list[Any] = []
 
@@ -620,7 +539,7 @@ class DeepAgentsAssistant:
                 if hasattr(message, "tool_calls") and message.tool_calls:
                     tool_events.extend(message.tool_calls)
 
-        logger.info(f"DeepAgents run complete. Output length: {len(output)} chars")
+        logger.info("DeepAgents run complete. Output length: %d chars", len(output))
 
         return output, tool_events, agent_context, None
 
@@ -649,9 +568,8 @@ class DeepAgentsAssistant:
             }
         }
 
-        logger.info(f"Resuming DeepAgents with {len(decisions)} decisions")
+        logger.info("Resuming DeepAgents with %d decisions", len(decisions))
 
-        # Resume with Command
 {%- if cookiecutter.enable_teams and cookiecutter.enable_rag %}
         token = _active_kb_collections.set(agent_context.get("kb_collection_names") or [])
         try:
@@ -668,13 +586,11 @@ class DeepAgentsAssistant:
         )
 {%- endif %}
 
-        # Check for another interrupt
         interrupt_data = self.extract_interrupt(result)
         if interrupt_data:
-            logger.info(f"Agent interrupted again with {len(interrupt_data['action_requests'])} pending approvals")
+            logger.info("Agent interrupted again with %d pending approvals", len(interrupt_data['action_requests']))
             return "", [], agent_context, interrupt_data
 
-        # Extract the final response and tool events
         output = ""
         tool_events: list[Any] = []
 
@@ -685,7 +601,7 @@ class DeepAgentsAssistant:
                 if hasattr(message, "tool_calls") and message.tool_calls:
                     tool_events.extend(message.tool_calls)
 
-        logger.info(f"DeepAgents resume complete. Output length: {len(output)} chars")
+        logger.info("DeepAgents resume complete. Output length: %d chars", len(output))
 
         return output, tool_events, agent_context, None
 
@@ -724,12 +640,11 @@ class DeepAgentsAssistant:
             }
         }
 
-        # Prepare input with optional files for StateBackend
         input_data: dict[str, Any] = {"messages": messages}
         if files:
             input_data["files"] = files
 
-        logger.info(f"Starting DeepAgents stream for user input: {user_input[:100]}...")
+        logger.info("Starting DeepAgents stream for user input: %s...", user_input[:100])
 
         final_state: dict[str, Any] = {}
 
@@ -792,7 +707,7 @@ class DeepAgentsAssistant:
             }
         }
 
-        logger.info(f"Streaming resume with {len(decisions)} decisions")
+        logger.info("Streaming resume with %d decisions", len(decisions))
 
 {%- if cookiecutter.enable_teams and cookiecutter.enable_rag %}
         token = _active_kb_collections.set(agent_context.get("kb_collection_names") or [])

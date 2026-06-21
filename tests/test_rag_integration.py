@@ -168,19 +168,17 @@ class TestRAGWithAIFrameworks:
             AIFrameworkType.PYDANTIC_AI,
             AIFrameworkType.LANGCHAIN,
             AIFrameworkType.LANGGRAPH,
-            # Skip CrewAI - template has pre-existing bug with user_input
             AIFrameworkType.DEEPAGENTS,
             AIFrameworkType.PYDANTIC_DEEP,
         ],
     )
     def test_rag_with_ai_framework(self, tmp_path, framework) -> None:
         """Test that RAG works with all AI frameworks."""
-        # Skip LangChain/LangGraph/CrewAI/DeepAgents with OpenRouter (not supported)
+        # LangChain/LangGraph/DeepAgents don't support OpenRouter
         llm_provider = LLMProviderType.OPENAI
         if framework in (
             AIFrameworkType.LANGCHAIN,
             AIFrameworkType.LANGGRAPH,
-            AIFrameworkType.CREWAI,
             AIFrameworkType.DEEPAGENTS,
         ):
             llm_provider = LLMProviderType.OPENAI
@@ -355,7 +353,7 @@ class TestRAGWithRerankers:
         assert reranker_file.exists(), "reranker.py should exist when reranker is enabled"
         reranker_content = reranker_file.read_text()
         assert "CrossEncoderReranker" in reranker_content
-        assert "cross-encoder/ms-marco-MiniLM-L6-v2" in reranker_content
+        assert "CROSS_ENCODER_MODEL" in reranker_content
 
         # retrieval.py should have reranking logic
         retrieval_file = project / "backend" / "app" / "services" / "rag" / "retrieval.py"

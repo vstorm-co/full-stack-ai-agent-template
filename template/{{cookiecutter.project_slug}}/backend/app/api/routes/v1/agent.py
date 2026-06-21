@@ -1,29 +1,27 @@
-{%- if cookiecutter.use_pydantic_ai or cookiecutter.use_langchain or cookiecutter.use_langgraph or cookiecutter.use_crewai or cookiecutter.use_deepagents or cookiecutter.use_pydantic_deep %}
-"""AI Agent WebSocket route.
-
-The route is just lifecycle plumbing — auth, accept, dispatch loop, disconnect.
-Per-turn orchestration lives in :class:`app.services.agent_session.AgentSession`.
-"""
-
+{%- if cookiecutter.use_pydantic_ai or cookiecutter.use_langchain or cookiecutter.use_langgraph or cookiecutter.use_deepagents or cookiecutter.use_pydantic_deep %}
+# Route is lifecycle plumbing only — auth, accept, dispatch loop, disconnect.
+# Per-turn orchestration lives in app.services.agent_session.AgentSession.
 import logging
-import secrets
 from typing import Any
-{%- if cookiecutter.use_pydantic_deep and cookiecutter.use_jwt and cookiecutter.use_postgresql %}
+{%- if cookiecutter.websocket_auth_api_key %}
+import secrets
+{%- endif %}
+{%- if cookiecutter.use_pydantic_deep and cookiecutter.use_jwt %}
 from uuid import UUID
 {%- endif %}
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect{%- if cookiecutter.websocket_auth_jwt %}, Depends{%- endif %}{%- if cookiecutter.websocket_auth_api_key %}, Query{%- endif %}
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect{%- if cookiecutter.websocket_auth_api_key %}, Query{%- endif %}
 
 from app.core.config import settings
 from app.services.agent import AgentConnectionManager, send_event
 from app.services.agent_session import AgentSession
 {%- if cookiecutter.websocket_auth_jwt %}
-from app.api.deps import get_current_user_ws
-from app.db.models.user import User
+from app.api.deps import CurrentUserWS
 {%- endif %}
-{%- if cookiecutter.use_pydantic_deep and cookiecutter.use_jwt and cookiecutter.use_postgresql %}
+{%- if cookiecutter.use_pydantic_deep and cookiecutter.use_jwt %}
 from app.agents.pydantic_deep_assistant import PydanticDeepContext, get_agent
 from app.api.deps import get_conversation_service, get_project_service
+from app.core.exceptions import AuthorizationError, NotFoundError
 from app.db.session import get_db_context
 from app.schemas.conversation import ConversationCreate, MessageCreate
 from pydantic_ai import (
@@ -68,40 +66,18 @@ async def verify_api_key(api_key: str) -> bool:
 async def agent_websocket(
     websocket: WebSocket,
 {%- if cookiecutter.websocket_auth_jwt %}
-    user: User = Depends(get_current_user_ws),
+    user: CurrentUserWS,
 {%- elif cookiecutter.websocket_auth_api_key %}
     api_key: str = Query(..., alias="api_key"),
 {%- endif %}
 ) -> None:
-    """WebSocket endpoint for the AI agent.
-
-    Streams agent events to the client. Each incoming JSON message is forwarded to
-    :class:`AgentSession.process_message`{% if cookiecutter.use_deepagents %}; ``{"type": "resume"}`` payloads are handled
-    transparently by the session for human-in-the-loop tool approvals{% endif %}.
-
-    Expected input format::
-
-        {
-            "message": "user message here",
-            "file_ids": ["..."]{% if cookiecutter.use_database %},
-            "conversation_id": "optional-uuid"{% endif %},
-            "model": "optional-model-override",
-            "thinking_effort": "optional"
-        }
-{%- if cookiecutter.websocket_auth_jwt %}
-
-    Authentication: handled by ``get_current_user_ws`` (JWT).
-{%- elif cookiecutter.websocket_auth_api_key %}
-
-    Authentication: pass ``api_key`` as a query parameter.
-{%- endif %}
-    """
 {%- if cookiecutter.websocket_auth_api_key %}
     if not await verify_api_key(api_key):
         await websocket.close(code=4001, reason="Invalid API key")
         return
 {%- elif cookiecutter.websocket_auth_jwt %}
     if user is None:
+        await websocket.close(code=4001, reason="Unauthorized")
         return
 {%- endif %}
 
@@ -124,7 +100,7 @@ async def agent_websocket(
         await session.shutdown()
         manager.disconnect(websocket)
 
-{%- if cookiecutter.use_pydantic_deep and cookiecutter.use_jwt and cookiecutter.use_postgresql %}
+{%- if cookiecutter.use_pydantic_deep and cookiecutter.use_jwt %}
 
 
 @router.websocket("/ws/projects/{project_id}/chats/{conversation_id}")
@@ -133,7 +109,7 @@ async def project_chat_websocket(
     conversation_id: UUID,
     websocket: WebSocket,
 {%- if cookiecutter.websocket_auth_jwt %}
-    user: User = Depends(get_current_user_ws),
+    user: CurrentUserWS,
 {%- elif cookiecutter.websocket_auth_api_key %}
     api_key: str = Query(..., alias="api_key"),
 {%- endif %}
@@ -150,16 +126,14 @@ async def project_chat_websocket(
         return
 {%- endif %}
 
-    await manager.connect(websocket)
-
     context: PydanticDeepContext = {}
 {%- if cookiecutter.websocket_auth_jwt %}
     context["user_id"] = str(user.id) if user else None
     context["user_name"] = user.email if user else None
 {%- endif %}
 
+    await manager.connect(websocket)
     try:
-        # Verify project access
         async with get_db_context() as db:
             project_service = get_project_service(db)
             try:
@@ -168,7 +142,10 @@ async def project_chat_websocket(
 {%- else %}
                 await project_service.get(project_id)
 {%- endif %}
-            except Exception as exc:
+            except NotFoundError as exc:
+                await websocket.close(code=4004, reason=str(exc))
+                return
+            except AuthorizationError as exc:
                 await websocket.close(code=4003, reason=str(exc))
                 return
 
@@ -178,16 +155,16 @@ async def project_chat_websocket(
             conversation_id=str(conversation_id),
             backend_override=backend,
             history_messages_path=f".pydantic-deep/sessions/{conversation_id}/messages.json",
+            context=context,
         )
 
-        # Ensure the conversation record exists and is linked to the project
         async with get_db_context() as db:
             conv_service = get_conversation_service(db)
             try:
                 await conv_service.get_conversation(
                     conversation_id{% if cookiecutter.websocket_auth_jwt %}, user_id=user.id{% endif %}
                 )
-            except Exception:
+            except (NotFoundError, Exception):
                 conv = await conv_service.create_conversation(
                     ConversationCreate(
 {%- if cookiecutter.websocket_auth_jwt %}
@@ -238,6 +215,7 @@ async def project_chat_websocket(
                         elif isinstance(event, PartStartEvent) and isinstance(
                             event.part, TextPart
                         ):
+                            # PartStartEvent for TextPart signals the start of a response chunk; no client event needed.
                             pass
                         elif isinstance(event, FunctionToolCallEvent):
                             await send_event(

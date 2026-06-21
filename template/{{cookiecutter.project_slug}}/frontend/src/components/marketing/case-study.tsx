@@ -13,7 +13,6 @@ interface CaseStudyProps {
 export function CaseStudy({ quote, name, role, company, metrics }: CaseStudyProps) {
   return (
     <div className="border-foreground/12 bg-foreground/[0.02] relative isolate overflow-hidden rounded-3xl border p-8 md:p-14">
-      {/* Brand glow */}
       <div
         aria-hidden
         className="pointer-events-none absolute -top-24 -right-20 -z-10 h-[460px] w-[460px] rounded-full blur-3xl"
@@ -25,7 +24,6 @@ export function CaseStudy({ quote, name, role, company, metrics }: CaseStudyProp
       <div aria-hidden className="bg-dots pointer-events-none absolute inset-0 -z-10 opacity-50" />
 
       <div className="grid gap-12 md:grid-cols-[1.5fr_1fr] md:items-center">
-        {/* Quote */}
         <div>
           <span className="eyebrow-badge mb-8">Case study</span>
           <Quote className="text-brand mb-5 h-9 w-9" />
@@ -56,7 +54,6 @@ export function CaseStudy({ quote, name, role, company, metrics }: CaseStudyProp
           </div>
         </div>
 
-        {/* Metrics */}
         <dl className="divide-foreground/10 border-foreground/10 grid divide-y rounded-2xl border">
           {metrics.map((m) => (
             <div key={m.label} className="px-6 py-5">

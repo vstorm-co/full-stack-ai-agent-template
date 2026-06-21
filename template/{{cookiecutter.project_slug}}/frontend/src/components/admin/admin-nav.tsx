@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
+import { ROUTES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 interface NavItem {
@@ -24,14 +25,14 @@ interface NavItem {
 }
 
 const ITEMS: NavItem[] = [
-  { label: "Overview", href: "/admin", icon: LayoutDashboard },
-  { label: "Users", href: "/admin/users", icon: Users },
+  { label: "Overview", href: ROUTES.ADMIN, icon: LayoutDashboard },
+  { label: "Users", href: ROUTES.ADMIN_USERS, icon: Users },
 {%- if cookiecutter.use_ai %}
-  { label: "Conversations", href: "/admin/conversations", icon: MessageSquare },
-  { label: "Ratings", href: "/admin/ratings", icon: Star },
+  { label: "Conversations", href: ROUTES.ADMIN_CONVERSATIONS, icon: MessageSquare },
+  { label: "Ratings", href: ROUTES.ADMIN_RATINGS, icon: Star },
 {%- endif %}
-  { label: "Stripe events", href: "/admin/stripe-events", icon: CreditCard },
-  { label: "System health", href: "/admin/system", icon: Activity },
+  { label: "Stripe events", href: ROUTES.ADMIN_STRIPE_EVENTS, icon: CreditCard },
+  { label: "System health", href: ROUTES.ADMIN_SYSTEM, icon: Activity },
 ];
 
 export function AdminNav() {
@@ -39,10 +40,8 @@ export function AdminNav() {
   const stripped = pathname.replace(/^\/[a-z]{2}/, "");
 
   return (
-    <>
-      {/* Desktop: vertical sidebar */}
-      <nav className="hidden lg:block">
-        <p className="text-foreground/45 mb-3 px-3 font-mono text-[10px] uppercase tracking-wider">
+    <>      <nav className="hidden lg:block">
+        <p className="text-foreground/45 mb-3 px-3 font-mono text-[10px] tracking-wider uppercase">
           Admin
         </p>
         <ul className="space-y-0.5">
@@ -77,10 +76,7 @@ export function AdminNav() {
             );
           })}
         </ul>
-      </nav>
-
-      {/* Mobile: horizontal pill scroll */}
-      <nav className="scrollbar-thin -mx-3 flex gap-1.5 overflow-x-auto px-3 pb-2 lg:hidden">
+      </nav>      <nav className="-mx-3 flex scrollbar-thin gap-1.5 overflow-x-auto px-3 pb-2 lg:hidden">
         {ITEMS.map((item) => {
           const active =
             item.href === "/admin"

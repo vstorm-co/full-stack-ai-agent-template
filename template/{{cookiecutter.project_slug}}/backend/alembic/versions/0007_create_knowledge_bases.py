@@ -1,4 +1,4 @@
-{%- if cookiecutter.enable_teams and cookiecutter.enable_rag and cookiecutter.use_jwt and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
+{%- if cookiecutter.enable_teams and cookiecutter.enable_rag and cookiecutter.use_jwt %}
 """create knowledge_bases table + add knowledge_base_id to rag_documents
 
 Revision ID: 0007_knowledge_bases
@@ -12,9 +12,7 @@ will have knowledge_base_id = NULL until backfill migration 0008 runs.
 
 import sqlalchemy as sa
 from alembic import op
-{%- if cookiecutter.use_postgresql %}
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
-{%- endif %}
 
 revision = "0007_knowledge_bases"
 down_revision = "0006_backfill_conv_org"
@@ -25,23 +23,14 @@ depends_on = None
 def upgrade() -> None:
     op.create_table(
         "knowledge_bases",
-{%- if cookiecutter.use_postgresql %}
         sa.Column("id", PG_UUID(as_uuid=True), primary_key=True),
-{%- else %}
-        sa.Column("id", sa.String(36), primary_key=True),
-{%- endif %}
         sa.Column("name", sa.String(128), nullable=False),
         sa.Column("description", sa.String(500), nullable=True),
         sa.Column("scope", sa.String(16), nullable=False, server_default="personal"),
         sa.Column("collection_name", sa.String(255), nullable=False),
         sa.Column("is_default", sa.Boolean(), nullable=False, server_default="false"),
-{%- if cookiecutter.use_postgresql %}
         sa.Column("owner_user_id", PG_UUID(as_uuid=True), sa.ForeignKey("users.id", ondelete="SET NULL"), nullable=True),
         sa.Column("organization_id", PG_UUID(as_uuid=True), sa.ForeignKey("organizations.id", ondelete="SET NULL"), nullable=True),
-{%- else %}
-        sa.Column("owner_user_id", sa.String(36), sa.ForeignKey("users.id", ondelete="SET NULL"), nullable=True),
-        sa.Column("organization_id", sa.String(36), sa.ForeignKey("organizations.id", ondelete="SET NULL"), nullable=True),
-{%- endif %}
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=True),
     )
@@ -54,13 +43,8 @@ def upgrade() -> None:
         "rag_documents",
         sa.Column(
             "knowledge_base_id",
-{%- if cookiecutter.use_postgresql %}
             PG_UUID(as_uuid=True),
             sa.ForeignKey("knowledge_bases.id", ondelete="SET NULL"),
-{%- else %}
-            sa.String(36),
-            sa.ForeignKey("knowledge_bases.id", ondelete="SET NULL"),
-{%- endif %}
             nullable=True,
         ),
     )

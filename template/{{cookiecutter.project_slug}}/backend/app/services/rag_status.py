@@ -6,28 +6,32 @@ import logging
 from collections.abc import AsyncIterator
 
 import redis.asyncio as aioredis
+import redis.exceptions
 from fastapi.sse import ServerSentEvent
-
-from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
 
 class RAGStatusService:
-    """Streams RAG ingestion status events from Redis pub/sub."""
+    """Streams RAG ingestion status events from Redis pub/sub.
+
+    A shared ``aioredis.Redis`` client must be injected at construction time
+    (created once during application lifespan and stored in ``app.state``).
+    This avoids opening a new Redis connection for every SSE subscriber.
+    """
 
     CHANNEL = "rag_status"
+
+    def __init__(self, client: aioredis.Redis) -> None:
+        self._client = client
 
     async def stream_events(self) -> AsyncIterator[ServerSentEvent]:
         """Yield ``ServerSentEvent`` items as they arrive on the ``rag_status`` channel.
 
-        The Redis client is created per-stream (one connection per subscriber). Cleanup is
-        guaranteed via ``finally`` even if the consumer disconnects mid-stream.
+        Cleanup is guaranteed via ``finally`` even if the consumer disconnects
+        mid-stream.
         """
-        client = aioredis.from_url(
-            f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}/{settings.REDIS_DB}"
-        )  # type: ignore[no-untyped-call]
-        pubsub = client.pubsub()
+        pubsub = self._client.pubsub()
         await pubsub.subscribe(self.CHANNEL)
         event_id = 0
 
@@ -42,12 +46,16 @@ class RAGStatusService:
         except asyncio.CancelledError:
             # Client disconnected — propagate cancellation cleanly
             raise
-        except Exception as exc:
-            logger.warning("RAG SSE stream error: %s", exc)
+        except (redis.exceptions.ConnectionError, redis.exceptions.TimeoutError) as exc:
+            logger.warning("RAG SSE stream lost Redis connection: %s", exc)
+            yield ServerSentEvent(data="stream_error", event="error", id=str(event_id + 1))
+        except Exception:
+            logger.exception("RAG SSE stream encountered an unexpected error")
+            yield ServerSentEvent(data="stream_error", event="error", id=str(event_id + 1))
+            raise
         finally:
             try:
                 await pubsub.unsubscribe(self.CHANNEL)
-                await client.aclose()
             except Exception as exc:
                 logger.debug("RAG SSE cleanup error: %s", exc)
 {%- else %}

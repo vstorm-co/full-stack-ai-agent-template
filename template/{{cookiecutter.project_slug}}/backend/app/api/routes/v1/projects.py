@@ -2,9 +2,7 @@
 """Project management routes — CRUD and member management for DeepAgents projects."""
 
 from typing import Any
-{%- if cookiecutter.use_postgresql %}
 from uuid import UUID
-{%- endif %}
 
 from fastapi import APIRouter, Query, status
 
@@ -23,9 +21,6 @@ from app.schemas.project import (
 router = APIRouter()
 
 
-# Project CRUD
-
-
 @router.get("", response_model=ProjectList)
 async def list_projects(
     service: ProjectSvc,
@@ -36,11 +31,7 @@ async def list_projects(
 ) -> Any:
     """List all projects accessible to the current user (owned + member)."""
     items, total = await service.list_for_user(
-{%- if cookiecutter.use_postgresql %}
         user.id,
-{%- else %}
-        str(user.id),
-{%- endif %}
         skip=skip,
         limit=limit,
         include_archived=include_archived,
@@ -60,11 +51,7 @@ async def create_project(
 
 @router.get("/{project_id}", response_model=ProjectRead)
 async def get_project(
-{%- if cookiecutter.use_postgresql %}
     project_id: UUID,
-{%- else %}
-    project_id: str,
-{%- endif %}
     service: ProjectSvc,
     user: CurrentUser,
 ) -> Any:
@@ -74,11 +61,7 @@ async def get_project(
 
 @router.patch("/{project_id}", response_model=ProjectRead)
 async def update_project(
-{%- if cookiecutter.use_postgresql %}
     project_id: UUID,
-{%- else %}
-    project_id: str,
-{%- endif %}
     data: ProjectUpdate,
     service: ProjectSvc,
     user: CurrentUser,
@@ -89,11 +72,7 @@ async def update_project(
 
 @router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 async def delete_project(
-{%- if cookiecutter.use_postgresql %}
     project_id: UUID,
-{%- else %}
-    project_id: str,
-{%- endif %}
     service: ProjectSvc,
     user: CurrentUser,
 ) -> None:
@@ -106,11 +85,7 @@ async def delete_project(
 
 @router.post("/{project_id}/archive", response_model=ProjectRead)
 async def archive_project(
-{%- if cookiecutter.use_postgresql %}
     project_id: UUID,
-{%- else %}
-    project_id: str,
-{%- endif %}
     service: ProjectSvc,
     user: CurrentUser,
 ) -> Any:
@@ -118,16 +93,9 @@ async def archive_project(
     return await service.archive(project_id, user_id=user.id)
 
 
-# Member Management
-
-
 @router.get("/{project_id}/members", response_model=ProjectMemberList)
 async def list_members(
-{%- if cookiecutter.use_postgresql %}
     project_id: UUID,
-{%- else %}
-    project_id: str,
-{%- endif %}
     service: ProjectSvc,
     user: CurrentUser,
 ) -> Any:
@@ -142,11 +110,7 @@ async def list_members(
     status_code=status.HTTP_201_CREATED,
 )
 async def add_member(
-{%- if cookiecutter.use_postgresql %}
     project_id: UUID,
-{%- else %}
-    project_id: str,
-{%- endif %}
     data: ProjectMemberCreate,
     service: ProjectSvc,
     user: CurrentUser,
@@ -157,13 +121,8 @@ async def add_member(
 
 @router.patch("/{project_id}/members/{user_id}", response_model=ProjectMemberRead)
 async def update_member(
-{%- if cookiecutter.use_postgresql %}
     project_id: UUID,
     user_id: UUID,
-{%- else %}
-    project_id: str,
-    user_id: str,
-{%- endif %}
     data: ProjectMemberUpdate,
     service: ProjectSvc,
     user: CurrentUser,
@@ -180,13 +139,8 @@ async def update_member(
     response_model=None,
 )
 async def remove_member(
-{%- if cookiecutter.use_postgresql %}
     project_id: UUID,
     user_id: UUID,
-{%- else %}
-    project_id: str,
-    user_id: str,
-{%- endif %}
     service: ProjectSvc,
     user: CurrentUser,
 ) -> None:

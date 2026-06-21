@@ -1,4 +1,3 @@
-{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
 """Alembic migration environment."""
 # ruff: noqa: I001 - Imports structured for Jinja2 template conditionals
 
@@ -57,19 +56,11 @@ target_metadata = Base.metadata
 
 
 # Ensure SQLite data directory exists before connecting
-{%- if cookiecutter.use_sqlite %}
-db_path = Path(settings.SQLITE_PATH)
-db_path.parent.mkdir(parents=True, exist_ok=True)
-{%- endif %}
 
 
 def get_url() -> str:
     """Get database URL from settings."""
-{%- if cookiecutter.use_postgresql %}
     return settings.DATABASE_URL_SYNC
-{%- else %}
-    return settings.DATABASE_URL
-{%- endif %}
 
 
 def run_migrations_offline() -> None:
@@ -101,9 +92,6 @@ def run_migrations_online() -> None:
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
-{%- if cookiecutter.use_sqlite %}
-            render_as_batch=True,
-{%- endif %}
         )
 
         with context.begin_transaction():
@@ -114,6 +102,3 @@ if context.is_offline_mode():
     run_migrations_offline()
 else:
     run_migrations_online()
-{%- else %}
-# Alembic - not configured (no SQL database)
-{%- endif %}

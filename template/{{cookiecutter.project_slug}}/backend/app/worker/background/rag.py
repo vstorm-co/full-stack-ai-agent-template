@@ -1,4 +1,4 @@
-{%- if cookiecutter.enable_rag and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) and not (cookiecutter.use_celery or cookiecutter.use_taskiq or cookiecutter.use_arq) %}
+{%- if cookiecutter.enable_rag and not (cookiecutter.use_celery or cookiecutter.use_taskiq or cookiecutter.use_arq) %}
 """In-process RAG ingestion / sync handlers (FastAPI BackgroundTasks fallback).
 
 Used when no distributed task queue (Celery/Taskiq/ARQ) is configured. Each handler

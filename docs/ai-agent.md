@@ -12,7 +12,6 @@ The template supports 6 AI frameworks for building intelligent agents:
 | **PydanticDeep** | Deep agentic coding assistant with filesystem tools, Docker/Daytona sandbox | Code generation, file manipulation |
 | **LangChain** | Comprehensive AI tooling ecosystem | Complex chains, many integrations |
 | **LangGraph** | Graph-based ReAct agents | Multi-step reasoning, tool loops |
-| **CrewAI** | Multi-agent orchestration | Agent teams, complex workflows |
 | **DeepAgents** | Agentic framework with subagent delegation | Advanced multi-step tasks |
 
 Select your framework during project creation:
@@ -22,7 +21,6 @@ fastapi-fullstack create my_project --ai-framework pydantic_ai   # default
 fastapi-fullstack create my_project --ai-framework pydantic_deep
 fastapi-fullstack create my_project --ai-framework langchain
 fastapi-fullstack create my_project --ai-framework langgraph
-fastapi-fullstack create my_project --ai-framework crewai
 fastapi-fullstack create my_project --ai-framework deepagents
 ```
 
@@ -348,25 +346,6 @@ async def search_knowledge_base(
     Returns:
         Formatted string with search results, including content and scores.
     """
-```
-
-### CrewAI Integration
-
-For CrewAI agents, use the synchronous wrapper:
-
-```python
-# app/agents/crewai_assistant.py
-from app.agents.tools.rag_tool import search_knowledge_base_sync
-
-class MyCrewAgent:
-    def __init__(self):
-        self.tools = [
-            Tool.from_function(
-                func=search_knowledge_base_sync,
-                name="search_knowledge_base",
-                description="Search the knowledge base for relevant documents"
-            )
-        ]
 ```
 
 See also: [RAG Documentation](rag.md) for detailed configuration.
@@ -726,126 +705,6 @@ interface Message {
 
 ---
 
-## CrewAI Multi-Agent Framework
-
-[CrewAI](https://crewai.com) enables multi-agent orchestration where specialized agents collaborate on complex tasks.
-
-### Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      WebSocket Client                        │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    WebSocket Endpoint                        │
-│                  /api/v1/agent/ws                           │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    CrewAIAssistant                           │
-│              Multi-Agent Crew Orchestrator                   │
-│         Agents, Tasks, Process (sequential/hierarchical)    │
-└─────────────────────────────────────────────────────────────┘
-                              │
-              ┌───────────────┼───────────────┐
-              ▼               ▼               ▼
-        ┌─────────┐     ┌─────────┐     ┌─────────┐
-        │ Agent 1 │     │ Agent 2 │     │ Agent N │
-        │Researcher│    │ Writer  │     │   ...   │
-        └─────────┘     └─────────┘     └─────────┘
-```
-
-### Configuration
-
-```python
-# app/agents/crewai_assistant.py
-from pydantic import BaseModel
-
-class AgentConfig(BaseModel):
-    role: str           # Agent's role (e.g., "Research Analyst")
-    goal: str           # What the agent aims to achieve
-    backstory: str      # Agent's background/personality
-    tools: list[str] = []
-    allow_delegation: bool = True
-    verbose: bool = True
-
-class TaskConfig(BaseModel):
-    description: str    # Task description
-    expected_output: str
-    agent_role: str     # Which agent handles this task
-    context_from: list[str] = []  # Dependencies on other tasks
-
-class CrewConfig(BaseModel):
-    name: str = "default_crew"
-    process: str = "sequential"  # or "hierarchical"
-    memory: bool = True
-    max_rpm: int = 10
-    agents: list[AgentConfig] = []
-    tasks: list[TaskConfig] = []
-```
-
-### Event Streaming
-
-CrewAI streams real-time events via WebSocket:
-
-| Event Type | Description |
-|------------|-------------|
-| `crew_started` | Crew execution begins |
-| `crew_complete` | Final result ready |
-| `agent_started` | Agent begins working on task |
-| `agent_completed` | Agent finishes task |
-| `task_started` | Task execution begins |
-| `task_completed` | Task result available |
-| `tool_started` | Tool is being called |
-| `tool_finished` | Tool returns result |
-| `llm_started` | LLM request begins |
-| `llm_completed` | LLM response received |
-| `error` | Error occurred |
-
-### Example Usage
-
-```python
-# Create a research crew
-crew = CrewAIAssistant(config=CrewConfig(
-    name="research_crew",
-    process="sequential",
-    agents=[
-        AgentConfig(
-            role="Research Analyst",
-            goal="Find accurate information",
-            backstory="Expert researcher with attention to detail",
-        ),
-        AgentConfig(
-            role="Content Writer",
-            goal="Create clear, engaging content",
-            backstory="Skilled writer who simplifies complex topics",
-        ),
-    ],
-    tasks=[
-        TaskConfig(
-            description="Research the topic: {user_prompt}",
-            expected_output="Comprehensive research summary",
-            agent_role="Research Analyst",
-        ),
-        TaskConfig(
-            description="Write an article based on the research",
-            expected_output="Well-structured article",
-            agent_role="Content Writer",
-            context_from=["Research Analyst"],
-        ),
-    ],
-))
-
-# Stream events
-async for event in crew.stream("Explain quantum computing"):
-    print(event)
-```
-
----
-
 ## LangGraph ReAct Agent
 
 [LangGraph](https://langchain-ai.github.io/langgraph/) provides graph-based agent orchestration with the ReAct pattern.
@@ -926,19 +785,18 @@ async for event in assistant.stream(prompt, mode="updates"):
 
 ## Framework Comparison
 
-| Feature | PydanticAI | LangChain | LangGraph | CrewAI |
-|---------|------------|-----------|-----------|--------|
-| Type Safety | ✅ Native | ⚠️ Manual | ⚠️ Manual | ⚠️ Manual |
-| Multi-Agent | ❌ | ⚠️ Complex | ⚠️ Complex | ✅ Native |
-| Tool Calling | ✅ | ✅ | ✅ | ✅ |
-| Streaming | ✅ iter() | ✅ astream | ✅ astream | ✅ Events |
-| Memory | ✅ Built-in | ✅ Chains | ✅ Checkpointer | ✅ Built-in |
-| Complexity | Low | Medium | Medium | High |
-| Dependencies | Few | Many | Medium | Many |
+| Feature | PydanticAI | LangChain | LangGraph |
+|---------|------------|-----------|-----------|
+| Type Safety | ✅ Native | ⚠️ Manual | ⚠️ Manual |
+| Multi-Agent | ❌ | ⚠️ Complex | ⚠️ Complex |
+| Tool Calling | ✅ | ✅ | ✅ |
+| Streaming | ✅ iter() | ✅ astream | ✅ astream |
+| Memory | ✅ Built-in | ✅ Chains | ✅ Checkpointer |
+| Complexity | Low | Medium | Medium |
+| Dependencies | Few | Many | Medium |
 
 ### When to Use Each
 
 - **PydanticAI**: Simple assistants, chatbots, type-safe applications
 - **LangChain**: Complex chains, many third-party integrations needed
 - **LangGraph**: Multi-step reasoning, tool loops, state machines
-- **CrewAI**: Agent teams, role-based collaboration, complex workflows

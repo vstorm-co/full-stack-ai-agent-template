@@ -13,19 +13,32 @@ Commands:
     rag-source-remove - Remove a sync source
     rag-source-sync   - Trigger sync for a source (or all)
 """
+
 import asyncio
-import os
+import hashlib
+import json
 from pathlib import Path
 
 import click
 
-from app.commands import command, info, success, error, warning
+from app.commands import command, error, info, success, warning
+from app.db.session import get_db_context
+from app.schemas.sync_source import SyncSourceCreate
 from app.services.rag.config import DocumentExtensions, RAGSettings
 from app.services.rag.documents import DocumentProcessor
 from app.services.rag.embeddings import EmbeddingService
 from app.services.rag.ingestion import IngestionService
 from app.services.rag.retrieval import RetrievalService
 from app.services.rag.vectorstore import BaseVectorStore
+from app.services.rag_document import RAGDocumentService
+from app.services.rag_sync import RAGSyncService
+from app.services.sync_source import SyncSourceService
+{%- if cookiecutter.enable_google_drive_ingestion %}
+from app.services.rag.sources.google_drive import GoogleDriveSource
+{%- endif %}
+{%- if cookiecutter.enable_s3_ingestion %}
+from app.services.rag.sources.s3 import S3Source
+{%- endif %}
 {%- if cookiecutter.use_milvus %}
 from app.services.rag.vectorstore import MilvusVectorStore
 {%- elif cookiecutter.use_qdrant %}
@@ -37,7 +50,9 @@ from app.services.rag.vectorstore import PgVectorStore
 {%- endif %}
 
 
-def get_rag_services() -> tuple[RAGSettings, BaseVectorStore, DocumentProcessor, RetrievalService, IngestionService]:
+def get_rag_services() -> tuple[
+    RAGSettings, BaseVectorStore, DocumentProcessor, RetrievalService, IngestionService
+]:
     """Initialize RAG services for CLI usage.
 
     Creates and returns all necessary RAG service components:
@@ -126,7 +141,6 @@ async def ingest_path_async(
         error(f"Path does not exist: {target_path}")
         return
 
-    # Collect files to process
     if target_path.is_file():
         files = [target_path]
     elif target_path.is_dir():
@@ -144,7 +158,6 @@ async def ingest_path_async(
         warning("No files found to ingest.")
         return
 
-    # Filter by allowed extensions
     allowed_extensions = {ext.value for ext in DocumentExtensions}
     files = [f for f in files if f.suffix.lower() in allowed_extensions]
 
@@ -152,13 +165,8 @@ async def ingest_path_async(
         warning(f"No supported files found. Allowed: {', '.join(allowed_extensions)}")
         return
 
-    import hashlib
-{%- if cookiecutter.use_postgresql %}
-    from app.db.session import get_db_context
-    from app.services.rag_document import RAGDocumentService
-    from app.services.rag_sync import RAGSyncService
-{%- endif %}
     from tqdm import tqdm
+
 
     info(f"Syncing {len(files)} file(s) into '{collection}' (mode={sync_mode})...")
 
@@ -167,14 +175,11 @@ async def ingest_path_async(
     replaced_count = 0
     skipped_count = 0
 
-{%- if cookiecutter.use_postgresql %}
-    # Create SyncLog
     async with get_db_context() as db:
         sync_log = await RAGSyncService(db).create_sync_log(
             source="local", collection_name=collection, mode=sync_mode
         )
         sync_log_id = str(sync_log.id)
-{%- endif %}
 
     with tqdm(files, unit="file", desc="Syncing", ncols=80) as pbar:
         for filepath in pbar:
@@ -189,7 +194,9 @@ async def ingest_path_async(
                     if existing_id:
                         # File exists — check if content changed via hash
                         file_hash: str = hashlib.sha256(filepath.read_bytes()).hexdigest()
-                        existing_hash: str | None = await ingestion.get_existing_hash(collection, source_path)
+                        existing_hash: str | None = await ingestion.get_existing_hash(
+                            collection, source_path
+                        )
                         if existing_hash and file_hash == existing_hash:
                             skipped_count += 1
                             continue
@@ -205,9 +212,7 @@ async def ingest_path_async(
                     if existing_hash and file_hash == existing_hash:
                         skipped_count += 1
                         continue
-{%- if cookiecutter.use_postgresql %}
 
-            # Create RAGDocument record in SQL
             async with get_db_context() as db:
                 rag_doc = await RAGDocumentService(db).create_document(
                     collection_name=collection,
@@ -216,39 +221,32 @@ async def ingest_path_async(
                     filetype=filepath.suffix.lstrip(".").lower(),
                 )
                 doc_id = str(rag_doc.id)
-{%- endif %}
 
             try:
-                result = await ingestion.ingest_file(filepath=filepath, collection_name=collection, replace=replace)
+                result = await ingestion.ingest_file(
+                    filepath=filepath, collection_name=collection, replace=replace
+                )
                 if result.status.value == "done":
                     success_count += 1
                     if result.message and "replaced" in result.message:
                         replaced_count += 1
-{%- if cookiecutter.use_postgresql %}
                     async with get_db_context() as db:
                         await RAGDocumentService(db).complete_ingestion(
                             doc_id, vector_document_id=result.document_id
                         )
-{%- endif %}
                 else:
                     error_count += 1
                     tqdm.write(f"  ✗ {filepath.name}: {result.error_message}")
-{%- if cookiecutter.use_postgresql %}
                     async with get_db_context() as db:
                         await RAGDocumentService(db).fail_ingestion(
                             doc_id, error_message=result.error_message or "Unknown error"
                         )
-{%- endif %}
             except Exception as e:
                 error_count += 1
-                tqdm.write(f"  ✗ {filepath.name}: {str(e)}")
-{%- if cookiecutter.use_postgresql %}
+                tqdm.write(f"  ✗ {filepath.name}: {e!s}")
                 async with get_db_context() as db:
                     await RAGDocumentService(db).fail_ingestion(doc_id, error_message=str(e))
-{%- endif %}
 
-{%- if cookiecutter.use_postgresql %}
-    # Update SyncLog
     async with get_db_context() as db:
         await RAGSyncService(db).complete_sync(
             sync_log_id,
@@ -259,7 +257,6 @@ async def ingest_path_async(
             skipped=skipped_count,
             failed=error_count,
         )
-{%- endif %}
 
     click.echo()
     msg = f"Done: {success_count} ingested"
@@ -310,7 +307,9 @@ def rag_ingest(path: str, collection: str, recursive: bool, replace: bool, sync_
     """
     _, vector_store, processor, _, ingestion = get_rag_services()
     asyncio.run(
-        ingest_path_async(path, collection, recursive, vector_store, processor, ingestion, replace, sync_mode)
+        ingest_path_async(
+            path, collection, recursive, vector_store, processor, ingestion, replace, sync_mode
+        )
     )
 
 
@@ -344,13 +343,11 @@ async def search_async(
     for i, result in enumerate(results, 1):
         click.echo(f"--- Result {i} (score: {result.score:.4f}) ---")
 
-        # Show source info if available
         if result.metadata:
             filename = result.metadata.get("filename", "Unknown")
             page_num = result.metadata.get("page_num", "?")
             click.echo(f"Source: {filename} (page {page_num})")
 
-        # Show content (truncated)
         content = result.content[:500]
         if len(result.content) > 500:
             content += "..."
@@ -387,11 +384,7 @@ def rag_search(query: str, collection: str, top_k: int) -> None:
     asyncio.run(search_async(query, collection, top_k, retrieval))
 
 
-async def drop_collection_async(
-    collection: str,
-    yes: bool,
-    vector_store: BaseVectorStore
-) -> None:
+async def drop_collection_async(collection: str, yes: bool, vector_store: BaseVectorStore) -> None:
     """Drop a collection.
 
     Args:
@@ -442,10 +435,7 @@ def rag_stats() -> None:
     asyncio.run(stats_async(settings, vector_store))
 
 
-async def stats_async(
-    settings: RAGSettings,
-    vector_store: BaseVectorStore
-) -> None:
+async def stats_async(settings: RAGSettings, vector_store: BaseVectorStore) -> None:
     """Show RAG system statistics.
 
     Args:
@@ -455,7 +445,6 @@ async def stats_async(
     click.echo("RAG System Statistics")
     click.echo("=" * 40)
 
-    # Collection info
     try:
         collection_names = await vector_store.list_collections()
         click.echo(f"\nCollections: {len(collection_names)}")
@@ -463,7 +452,6 @@ async def stats_async(
         warning(f"Could not list collections: {e}")
         collection_names = []
 
-    # Configuration
     click.echo("\nConfiguration:")
     click.echo(f"  Embedding model: {settings.embeddings_config.model}")
     click.echo(f"  Embedding dimension: {settings.embeddings_config.dim}")
@@ -471,7 +459,6 @@ async def stats_async(
     click.echo(f"  Chunk overlap: {settings.chunk_overlap}")
     click.echo(f"  Parser method: {settings.pdf_parser.method}")
 
-    # Per-collection stats
     if collection_names:
         click.echo("\nCollection Details:")
         total_vectors = 0
@@ -488,7 +475,6 @@ async def stats_async(
 
     click.echo()
 
-
 {%- if cookiecutter.enable_google_drive_ingestion %}
 
 
@@ -497,7 +483,6 @@ async def stats_async(
 @click.option("--folder-id", "-f", default="", help="Google Drive folder ID (empty = root)")
 def rag_sync_gdrive(collection: str, folder_id: str) -> None:
     """Sync documents from Google Drive into a RAG collection."""
-    from app.services.rag.sources.google_drive import GoogleDriveSource
 
     _, vector_store, processor, _, ingestion = get_rag_services()
     source = GoogleDriveSource()
@@ -525,7 +510,6 @@ def rag_sync_gdrive(collection: str, folder_id: str) -> None:
 @click.option("--bucket", "-b", default="", help="S3 bucket (empty = default from settings)")
 def rag_sync_s3(collection: str, prefix: str, bucket: str) -> None:
     """Sync documents from S3/MinIO into a RAG collection."""
-    from app.services.rag.sources.s3 import S3Source
 
     _, vector_store, processor, _, ingestion = get_rag_services()
     source = S3Source(bucket=bucket)
@@ -544,18 +528,13 @@ def rag_sync_s3(collection: str, prefix: str, bucket: str) -> None:
     asyncio.run(_sync())
 {%- endif %}
 
-{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
-
 
 @command("rag-sources", help="List configured sync sources")
 def rag_sources() -> None:
     """List all configured sync sources with their status."""
-{%- if cookiecutter.use_postgresql %}
-    from app.db.session import get_db_context
 
     async def _list() -> None:
         async with get_db_context() as db:
-            from app.services.sync_source import SyncSourceService
 
             svc = SyncSourceService(db)
             sources = await svc.list_sources()
@@ -575,44 +554,13 @@ def rag_sources() -> None:
                 if s.schedule_minutes:
                     click.echo(f"    Schedule: every {s.schedule_minutes} min")
                 else:
-                    click.echo(f"    Schedule: manual")
+                    click.echo("    Schedule: manual")
                 click.echo(f"    Last sync: {status_str}")
                 if s.last_error:
                     click.echo(f"    Last error: {s.last_error}")
                 click.echo()
 
     asyncio.run(_list())
-{%- else %}
-    from contextlib import contextmanager
-
-    from app.db.session import get_db_session
-    from app.services.sync_source import SyncSourceService
-
-    with contextmanager(get_db_session)() as db:  # type: ignore[no-untyped-call]
-        svc = SyncSourceService(db)
-        sources = svc.list_sources()
-
-        if not sources:
-            info("No sync sources configured.")
-            return
-
-        click.echo(f"\nFound {len(sources)} sync source(s):\n")
-        for s in sources:
-            status_str = s.last_sync_status or "never"
-            active_str = "active" if s.is_active else "inactive"
-            click.echo(f"  [{active_str}] {s.name} (id={s.id})")
-            click.echo(f"    Type: {s.connector_type}")
-            click.echo(f"    Collection: {s.collection_name}")
-            click.echo(f"    Sync mode: {s.sync_mode}")
-            if s.schedule_minutes:
-                click.echo(f"    Schedule: every {s.schedule_minutes} min")
-            else:
-                click.echo(f"    Schedule: manual")
-            click.echo(f"    Last sync: {status_str}")
-            if s.last_error:
-                click.echo(f"    Last error: {s.last_error}")
-            click.echo()
-{%- endif %}
 
 
 @command("rag-source-add", help="Add a new sync source")
@@ -620,9 +568,27 @@ def rag_sources() -> None:
 @click.option("--type", "connector_type", required=True, help="Connector type (e.g. gdrive, s3)")
 @click.option("--collection", required=True, help="Target collection name")
 @click.option("--config", "config_json", required=True, help="Config JSON string")
-@click.option("--sync-mode", default="new_only", type=click.Choice(["full", "new_only", "update_only"]), help="Sync mode")
-@click.option("--schedule", "schedule_minutes", type=int, default=0, help="Schedule interval in minutes (0=manual)")
-def rag_source_add(name: str, connector_type: str, collection: str, config_json: str, sync_mode: str, schedule_minutes: int) -> None:
+@click.option(
+    "--sync-mode",
+    default="new_only",
+    type=click.Choice(["full", "new_only", "update_only"]),
+    help="Sync mode",
+)
+@click.option(
+    "--schedule",
+    "schedule_minutes",
+    type=int,
+    default=0,
+    help="Schedule interval in minutes (0=manual)",
+)
+def rag_source_add(
+    name: str,
+    connector_type: str,
+    collection: str,
+    config_json: str,
+    sync_mode: str,
+    schedule_minutes: int,
+) -> None:
     """
     Add a new sync source configuration.
 
@@ -630,15 +596,12 @@ def rag_source_add(name: str, connector_type: str, collection: str, config_json:
         project cmd rag-source-add --name "My Drive" --type gdrive --collection docs \\
             --config '{"folder_id": "abc123"}' --sync-mode new_only
     """
-    import json as _json
-
     try:
-        config_dict = _json.loads(config_json)
-    except _json.JSONDecodeError as e:
+        config_dict = json.loads(config_json)
+    except json.JSONDecodeError as e:
         error(f"Invalid JSON config: {e}")
         return
 
-    from app.schemas.sync_source import SyncSourceCreate
 
     data = SyncSourceCreate(
         name=name,
@@ -649,12 +612,8 @@ def rag_source_add(name: str, connector_type: str, collection: str, config_json:
         schedule_minutes=schedule_minutes if schedule_minutes > 0 else None,
     )
 
-{%- if cookiecutter.use_postgresql %}
-    from app.db.session import get_db_context
-
     async def _create() -> None:
         async with get_db_context() as db:
-            from app.services.sync_source import SyncSourceService
 
             svc = SyncSourceService(db)
             try:
@@ -664,20 +623,6 @@ def rag_source_add(name: str, connector_type: str, collection: str, config_json:
                 error(f"Failed to create source: {e}")
 
     asyncio.run(_create())
-{%- else %}
-    from contextlib import contextmanager
-
-    from app.db.session import get_db_session
-    from app.services.sync_source import SyncSourceService
-
-    with contextmanager(get_db_session)() as db:  # type: ignore[no-untyped-call]
-        svc = SyncSourceService(db)
-        try:
-            source = svc.create_source(data)
-            success(f"Sync source created: {source.name} (id={source.id})")
-        except ValueError as e:
-            error(f"Failed to create source: {e}")
-{%- endif %}
 
 
 @command("rag-source-remove", help="Remove a sync source")
@@ -695,12 +640,8 @@ def rag_source_remove(source_id: str, yes: bool) -> None:
     if not yes:
         click.confirm(f"Are you sure you want to remove sync source '{source_id}'?", abort=True)
 
-{%- if cookiecutter.use_postgresql %}
-    from app.db.session import get_db_context
-
     async def _remove() -> None:
         async with get_db_context() as db:
-            from app.services.sync_source import SyncSourceService
 
             svc = SyncSourceService(db)
             try:
@@ -710,20 +651,6 @@ def rag_source_remove(source_id: str, yes: bool) -> None:
                 error(f"Failed to remove source: {e}")
 
     asyncio.run(_remove())
-{%- else %}
-    from contextlib import contextmanager
-
-    from app.db.session import get_db_session
-    from app.services.sync_source import SyncSourceService
-
-    with contextmanager(get_db_session)() as db:  # type: ignore[no-untyped-call]
-        svc = SyncSourceService(db)
-        try:
-            svc.delete_source(source_id)
-            success(f"Sync source '{source_id}' removed.")
-        except Exception as e:
-            error(f"Failed to remove source: {e}")
-{%- endif %}
 
 
 @command("rag-source-sync", help="Trigger sync for a source")
@@ -743,12 +670,8 @@ def rag_source_sync(source_id: str | None, sync_all: bool) -> None:
         error("Provide a SOURCE_ID or use --all to sync all active sources.")
         return
 
-{%- if cookiecutter.use_postgresql %}
-    from app.db.session import get_db_context
-
     async def _sync() -> None:
         async with get_db_context() as db:
-            from app.services.sync_source import SyncSourceService
 
             svc = SyncSourceService(db)
 
@@ -773,36 +696,6 @@ def rag_source_sync(source_id: str | None, sync_all: bool) -> None:
                     error(f"Failed to trigger sync: {e}")
 
     asyncio.run(_sync())
-{%- else %}
-    from contextlib import contextmanager
-
-    from app.db.session import get_db_session
-    from app.services.sync_source import SyncSourceService
-
-    with contextmanager(get_db_session)() as db:  # type: ignore[no-untyped-call]
-        svc = SyncSourceService(db)
-
-        if sync_all:
-            sources = svc.list_sources(is_active=True)
-            if not sources:
-                warning("No active sync sources found.")
-                return
-            info(f"Triggering sync for {len(sources)} active source(s)...")
-            for s in sources:
-                try:
-                    log = svc.trigger_sync(str(s.id))
-                    success(f"  {s.name}: sync started (log_id={log.id})")
-                except Exception as e:
-                    error(f"  {s.name}: failed - {e}")
-        else:
-            try:
-                assert source_id is not None
-                log = svc.trigger_sync(source_id)
-                success(f"Sync triggered (log_id={log.id})")
-            except Exception as e:
-                error(f"Failed to trigger sync: {e}")
-{%- endif %}
-{%- endif %}
 
 
 {%- endif %}

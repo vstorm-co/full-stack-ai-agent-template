@@ -1,36 +1,53 @@
 "use client";
 
-import { use, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
-import { ArrowLeft, Camera, Loader2, MailPlus, UserPlus, Users } from "lucide-react";
+import { use, useEffect, useMemo, useRef, useState } from "react";
+import { Camera, Loader2, MailPlus, Trash2, UserPlus, Users } from "lucide-react";
 import { toast } from "sonner";
 
-import { InviteMemberDialog, MembersTable } from "@/components/teams";
+import { InviteMemberDialog } from "@/components/teams";
+import { PageHeader } from "@/components/dashboard/page-header";
 import { EmptyState, LoadingState } from "@/components/states";
+import {
+  Avatar,
+  AvatarFallback,
+  Badge,
+  Button,
+  DataTable,
+  Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  type Column,
+} from "@/components/ui";
 import { useAuth, useInvitations, useMembers, useOrganizations } from "@/hooks";
-import { cn } from "@/lib/utils";
-import type { OrgRole } from "@/types";
+import type { OrganizationMember, OrgRole } from "@/types";
+import { formatDate, getErrorMessage, MAX_AVATAR_SIZE_BYTES } from "@/lib/utils";
+import { ROUTES } from "@/lib/constants";
 
 interface PageProps {
   params: Promise<{ id: string }>;
 }
 
-const ROLE_TONE: Record<string, string> = {
-  owner: "bg-brand/15 text-foreground",
-  admin: "border-foreground/15 text-foreground/70 border",
-  member: "border-foreground/10 text-foreground/55 border",
-  viewer: "border-foreground/10 text-foreground/55 border",
+const ROLE_VARIANT: Record<OrgRole, "default" | "secondary" | "outline"> = {
+  owner: "default",
+  admin: "secondary",
+  member: "outline",
 };
 
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+function getInitials(nameOrEmail: string): string {
+  return nameOrEmail
+    .split(/[\s@]/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((s) => s[0]?.toUpperCase() ?? "")
+    .join("");
 }
+
 
 export default function OrgMembersPage({ params }: PageProps) {
   const { id } = use(params);
-  const router = useRouter();
   const { user } = useAuth();
   const { members, total, isLoading, fetchMembers, changeRole, removeMember } = useMembers(id);
   const { invitations, fetchInvitations, revokeInvitation } = useInvitations(id);
@@ -75,7 +92,7 @@ export default function OrgMembersPage({ params }: PageProps) {
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = "";
-    if (file.size > 2 * 1024 * 1024) {
+    if (file.size > MAX_AVATAR_SIZE_BYTES) {
       toast.error("Avatar too large. Maximum 2MB.");
       return;
     }
@@ -89,35 +106,126 @@ export default function OrgMembersPage({ params }: PageProps) {
         throw new Error(err.detail || "Upload failed");
       }
       toast.success("Workspace avatar updated");
-      await fetchOrgs();
+      await fetchOrgs(true);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to upload avatar");
+      toast.error(getErrorMessage(err, "Failed to upload avatar"));
     } finally {
       setAvatarUploading(false);
     }
   };
 
-  return (
-    <div className="mx-auto w-full max-w-5xl space-y-8">
-      <div className="space-y-1">
-        <button
-          type="button"
-          onClick={() => router.push("/orgs")}
-          className="text-foreground/55 hover:text-foreground inline-flex items-center gap-1.5 text-xs font-medium transition-colors"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          Back to organizations
-        </button>
-      </div>
+  const columns = useMemo<Column<OrganizationMember>[]>(() => {
+    const cols: Column<OrganizationMember>[] = [
+      {
+        key: "member",
+        header: "Member",
+        cell: (m) => {
+          const isSelf = m.user_id === user?.id;
+          return (
+            <div className="flex min-w-0 items-center gap-3">
+              <Avatar className="h-8 w-8 shrink-0">
+                <AvatarFallback className="text-[10px]">
+                  {getInitials(m.full_name || m.email)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="min-w-0">
+                <p className="text-foreground truncate text-sm font-medium">
+                  {m.full_name || m.email.split("@")[0]}
+                  {isSelf && <span className="text-muted-foreground font-normal"> (you)</span>}
+                </p>
+                <p className="text-muted-foreground truncate text-xs">{m.email}</p>
+              </div>
+            </div>
+          );
+        },
+      },
+      {
+        key: "role",
+        header: "Role",
+        cell: (m) => {
+          const isSelf = m.user_id === user?.id;
+          const isOwner = m.role === "owner";
+          if (canManage && !isOwner && !isSelf) {
+            return (
+              <Select value={m.role} onValueChange={(v) => changeRole(m.user_id, v as OrgRole)}>
+                <SelectTrigger className="h-8 w-28">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="member">Member</SelectItem>
+                </SelectContent>
+              </Select>
+            );
+          }
+          return (
+            <Badge variant={ROLE_VARIANT[m.role]} className="capitalize">
+              {m.role}
+            </Badge>
+          );
+        },
+      },
+      {
+        key: "joined",
+        header: "Joined",
+        cell: (m) => <span className="text-muted-foreground text-sm">{formatDate(m.joined_at)}</span>,
+      },
+    ];
 
-      {/* Workspace profile — avatar + name editing for admins/owners */}
+    if (canManage) {
+      cols.push({
+        key: "actions",
+        header: "",
+        align: "right",
+        className: "w-0",
+        cell: (m) => {
+          const isSelf = m.user_id === user?.id;
+          const isOwner = m.role === "owner";
+          if (isOwner || isSelf) return null;
+          return (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground hover:text-destructive"
+              onClick={() => removeMember(m.user_id)}
+              aria-label={`Remove ${m.full_name || m.email}`}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          );
+        },
+      });
+    }
+
+    return cols;
+  }, [canManage, user?.id, changeRole, removeMember]);
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title={org?.name ?? "Members"}
+        description={`${total} ${total === 1 ? "person has" : "people have"} access to this workspace. Owners and admins can invite teammates and adjust roles.`}
+        breadcrumbs={[
+          { label: "Organizations", href: ROUTES.ORGS },
+          { label: org?.name ?? "Members" },
+        ]}
+        actions={
+          canManage ? (
+            <Button onClick={() => setInviteOpen(true)}>
+              <UserPlus className="h-4 w-4" />
+              Invite teammate
+            </Button>
+          ) : undefined
+        }
+      />
+
       {org && (
-        <section className="border-foreground/10 bg-card flex flex-wrap items-start gap-5 rounded-2xl border p-5 sm:p-6">
+        <section className="border-border bg-card flex flex-wrap items-start gap-5 rounded-xl border p-5 sm:p-6">
           <button
             type="button"
             onClick={() => avatarInputRef.current?.click()}
             disabled={!canManage || avatarUploading}
-            className="bg-foreground/8 group relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full disabled:cursor-default"
+            className="bg-muted text-foreground group relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl disabled:cursor-default"
             title={canManage ? "Change workspace avatar" : "Only owners and admins can edit"}
           >
             {org.avatar_url ? (
@@ -128,7 +236,7 @@ export default function OrgMembersPage({ params }: PageProps) {
                 className="h-full w-full object-cover"
               />
             ) : (
-              <span className="text-foreground font-mono text-lg font-semibold">
+              <span className="text-foreground font-mono text-base font-semibold">
                 {org.name.slice(0, 2).toUpperCase()}
               </span>
             )}
@@ -152,72 +260,38 @@ export default function OrgMembersPage({ params }: PageProps) {
 
           <div className="min-w-0 flex-1 space-y-3">
             <div>
-              <p className="text-foreground/55 font-mono text-[11px] tracking-wider uppercase">
+              <p className="text-muted-foreground font-mono text-[11px] tracking-wider uppercase">
                 Workspace profile
               </p>
-              <p className="text-foreground/55 mt-0.5 text-xs">
+              <p className="text-muted-foreground mt-0.5 text-xs">
                 Name and avatar shown across the app to everyone in this workspace.
               </p>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <input
+              <Input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 disabled={!canManage || savingName}
-                className="border-foreground/15 focus:border-foreground/40 bg-background text-foreground min-w-0 flex-1 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors outline-none disabled:opacity-60"
+                className="min-w-0 flex-1"
                 placeholder="Workspace name"
                 maxLength={255}
               />
               {canManage && name.trim() !== org.name && name.trim() !== "" && (
-                <button
-                  type="button"
-                  onClick={handleSaveName}
-                  disabled={savingName}
-                  className="bg-foreground text-background hover:bg-foreground/90 inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors disabled:opacity-60"
-                >
-                  {savingName ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    "Save"
-                  )}
-                </button>
+                <Button onClick={handleSaveName} disabled={savingName}>
+                  {savingName ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
+                </Button>
               )}
             </div>
             {!canManage && (
-              <p className="text-foreground/45 text-[11px]">
+              <p className="text-muted-foreground text-[11px]">
                 Only owners and admins can edit workspace profile.
               </p>
             )}
           </div>
         </section>
       )}
-
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div className="space-y-1">
-          <p className="text-foreground/55 font-mono text-[11px] tracking-wider uppercase">
-            Members
-          </p>
-          <h1 className="font-display text-foreground text-2xl font-bold tracking-tight sm:text-3xl">
-            People in this workspace
-          </h1>
-          <p className="text-foreground/65 max-w-xl text-sm">
-            {total} {total === 1 ? "person has" : "people have"} access. Owners and admins can
-            invite teammates and adjust roles.
-          </p>
-        </div>
-        {canManage && (
-          <button
-            type="button"
-            onClick={() => setInviteOpen(true)}
-            className="bg-foreground text-background hover:bg-foreground/90 inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors"
-          >
-            <UserPlus className="h-4 w-4" />
-            Invite teammate
-          </button>
-        )}
-      </header>
 
       {isLoading ? (
         <LoadingState variant="skeleton-list" rows={3} />
@@ -231,61 +305,49 @@ export default function OrgMembersPage({ params }: PageProps) {
           }
         />
       ) : (
-        <div className="border-border bg-card overflow-hidden rounded-2xl border">
-          <MembersTable
-            members={members}
-            currentUserId={user?.id ?? ""}
-            canManage={canManage}
-            onRoleChange={(userId, role: OrgRole) => changeRole(userId, role)}
-            onRemove={removeMember}
-          />
-        </div>
+        <DataTable<OrganizationMember>
+          columns={columns}
+          rows={members}
+          getRowKey={(m) => m.id}
+          empty="No members yet."
+        />
       )}
 
       {pendingInvitations.length > 0 && (
         <section className="space-y-3">
-          <div className="flex items-end justify-between gap-2">
-            <div>
-              <p className="text-foreground/55 font-mono text-[11px] tracking-wider uppercase">
-                Pending invitations
-              </p>
-              <h2 className="font-display text-foreground text-xl font-semibold tracking-tight">
-                {pendingInvitations.length} waiting on a response
-              </h2>
-            </div>
+          <div>
+            <p className="text-muted-foreground font-mono text-[11px] tracking-wider uppercase">
+              Pending invitations
+            </p>
+            <h2 className="text-foreground text-sm font-semibold">
+              {pendingInvitations.length} waiting on a response
+            </h2>
           </div>
-          <ul className="space-y-2">
+          <ul className="border-border bg-card divide-border divide-y overflow-hidden rounded-xl border">
             {pendingInvitations.map((inv) => (
-              <li
-                key={inv.id}
-                className="border-border bg-card flex flex-wrap items-center gap-3 rounded-2xl border p-4 sm:p-5"
-              >
-                <div className="bg-brand/15 text-foreground flex h-10 w-10 shrink-0 items-center justify-center rounded-full">
+              <li key={inv.id} className="flex flex-wrap items-center gap-3 px-4 py-3.5">
+                <span className="bg-muted text-muted-foreground inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg">
                   <MailPlus className="h-4 w-4" />
-                </div>
+                </span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-foreground truncate text-sm font-semibold">{inv.email}</p>
-                  <p className="text-foreground/55 mt-0.5 text-xs">
+                  <p className="text-foreground truncate text-sm font-medium">{inv.email}</p>
+                  <p className="text-muted-foreground mt-0.5 truncate text-xs">
                     Invited {formatDate(inv.created_at)}
                     {inv.expires_at && <> · expires {formatDate(inv.expires_at)}</>}
                   </p>
                 </div>
-                <span
-                  className={cn(
-                    "rounded-full px-2 py-0.5 text-[10px] font-medium tracking-wide uppercase",
-                    ROLE_TONE[inv.role] ?? ROLE_TONE.member,
-                  )}
-                >
+                <Badge variant={ROLE_VARIANT[inv.role]} className="capitalize">
                   {inv.role}
-                </span>
+                </Badge>
                 {canManage && (
-                  <button
-                    type="button"
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-muted-foreground hover:text-destructive"
                     onClick={() => revokeInvitation(inv.token)}
-                    className="text-foreground/55 hover:text-destructive text-xs font-medium transition-colors"
                   >
                     Revoke
-                  </button>
+                  </Button>
                 )}
               </li>
             ))}

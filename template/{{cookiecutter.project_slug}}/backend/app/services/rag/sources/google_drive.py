@@ -25,7 +25,6 @@ logger = logging.getLogger(__name__)
 
 SCOPES = ["https://www.googleapis.com/auth/drive.readonly"]
 
-# Google Drive MIME types for exportable Google Docs formats
 GOOGLE_DOCS_EXPORT = {
     "application/vnd.google-apps.document": ("application/pdf", ".pdf"),
     "application/vnd.google-apps.spreadsheet": (
@@ -143,6 +142,6 @@ class GoogleDriveSource(BaseDocumentSource):
             while not done:
                 _, done = downloader.next_chunk()
 
-        logger.info(f"Downloaded {name} from Google Drive ({dest_path.stat().st_size} bytes)")
+        logger.info("Downloaded %s from Google Drive (%d bytes)", name, dest_path.stat().st_size)
         return dest_path
 {%- endif %}

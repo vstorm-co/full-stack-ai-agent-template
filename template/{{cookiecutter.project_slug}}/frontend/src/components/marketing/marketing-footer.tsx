@@ -1,6 +1,7 @@
 {% raw %}import Link from "next/link";
 import { Github, Linkedin, Twitter, type LucideIcon } from "lucide-react";
 
+import { ROUTES } from "@/lib/constants";
 import { SOCIAL_LINKS, type SocialIcon } from "./footer-config";
 
 interface FooterColumn {
@@ -32,7 +33,6 @@ export function MarketingFooter({
 }: MarketingFooterProps) {
   return (
     <footer className="theme-dark bg-background text-foreground grain relative overflow-hidden">
-      {/* Brand-color glow rising from the bottom edge — the visual anchor */}
       <div
         aria-hidden
         className="pointer-events-none absolute -bottom-64 left-1/2 -z-10 h-[560px] w-[860px] -translate-x-1/2 rounded-full blur-3xl"
@@ -41,9 +41,7 @@ export function MarketingFooter({
             "radial-gradient(circle, oklch(from var(--color-brand) l c h / 0.22), transparent 65%)",
         }}
       />
-      {/* Dot grid — masked at edges by the .bg-dots utility */}
       <div aria-hidden className="bg-dots pointer-events-none absolute inset-0 -z-10 opacity-70" />
-      {/* Top hairline */}
       <div
         aria-hidden
         className="pointer-events-none absolute inset-x-0 top-0 h-px"
@@ -55,10 +53,9 @@ export function MarketingFooter({
 
       <div className="relative mx-auto w-full max-w-7xl px-6 py-20 md:px-10 md:py-24">
         <div className="grid gap-12 md:grid-cols-2 lg:grid-cols-[1.6fr_1fr_1fr_1fr]">
-          {/* Brand block */}
           <div className="max-w-sm">
             <Link
-              href="/"
+              href={ROUTES.HOME}
               className="font-display text-foreground inline-flex items-center gap-2.5 text-2xl font-bold tracking-tight"
             >
               <span
@@ -92,7 +89,6 @@ export function MarketingFooter({
             </div>
           </div>
 
-          {/* Link columns */}
           {columns.map((col) => (
             <div key={col.title}>
               <h3 className="eyebrow text-foreground/45 mb-4">{col.title}</h3>
@@ -112,7 +108,6 @@ export function MarketingFooter({
           ))}
         </div>
 
-        {/* Bottom bar */}
         <div className="border-foreground/10 mt-16 border-t pt-8">
           <div className="text-foreground/50 flex flex-col gap-5 font-mono text-xs md:flex-row md:items-center md:justify-between">
             <p className="inline-flex items-center gap-2">
@@ -127,10 +122,7 @@ export function MarketingFooter({
               <ul className="flex flex-wrap items-center gap-x-6 gap-y-2">
                 {legal.map((l) => (
                   <li key={l.href}>
-                    <Link
-                      href={l.href}
-                      className="hover:text-foreground/90 transition-colors"
-                    >
+                    <Link href={l.href} className="hover:text-foreground/90 transition-colors">
                       {l.label}
                     </Link>
                   </li>

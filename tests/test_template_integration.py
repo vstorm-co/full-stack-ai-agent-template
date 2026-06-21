@@ -31,7 +31,7 @@ def generated_project_minimal(tmp_path: Path) -> Path:
     """Generate a minimal project for testing."""
     config = ProjectConfig(
         project_name="test_minimal",
-        database=DatabaseType.SQLITE,
+        database=DatabaseType.POSTGRESQL,
         enable_logfire=False,
         enable_docker=False,
         ci_type=CIType.NONE,
@@ -214,28 +214,14 @@ MATRIX_CONFIGS: dict[str, dict] = {
         enable_redis=True,
         background_tasks=BackgroundTaskType.NONE,
     ),
-    # CrewAI 1.13.x pins pydantic<2.12 + opentelemetry<1.35 which conflicts with
-    # both pydantic 2.12+ and logfire 4.30+. Until CrewAI catches up, the matrix
-    # test runs the framework in isolation (no logfire, pinned older pydantic).
-    # See ProjectConfig validator that blocks crewai+logfire.
-    # NOTE: we only run ruff/syntax checks on this config — full ty + pip resolve
-    # against Python 3.14 fails because pydantic<2.12 needs older pyo3 (no 3.14
-    # support yet). Track upstream: crewai/crewai#3xxx
-    "crewai_pg": dict(
-        database=DatabaseType.POSTGRESQL,
-        ai_framework=AIFrameworkType.CREWAI,
-        enable_redis=True,
-        background_tasks=BackgroundTaskType.NONE,
-        enable_logfire=False,
-    ),
     "deepagents_pg": dict(
         database=DatabaseType.POSTGRESQL,
         ai_framework=AIFrameworkType.DEEPAGENTS,
         enable_redis=True,
         background_tasks=BackgroundTaskType.NONE,
     ),
-    "deepagents_sqlite": dict(
-        database=DatabaseType.SQLITE,
+    "deepagents_pg_minimal": dict(
+        database=DatabaseType.POSTGRESQL,
         ai_framework=AIFrameworkType.DEEPAGENTS,
         background_tasks=BackgroundTaskType.NONE,
     ),
@@ -259,10 +245,6 @@ MATRIX_CONFIGS: dict[str, dict] = {
         background_tasks=BackgroundTaskType.NONE,
     ),
     # --- Databases / ORM --------------------------------------------------
-    "mongo": dict(
-        database=DatabaseType.MONGODB,
-        background_tasks=BackgroundTaskType.NONE,
-    ),
     "sqlmodel_pg": dict(
         database=DatabaseType.POSTGRESQL,
         orm_type=OrmType.SQLMODEL,
@@ -275,50 +257,27 @@ MATRIX_CONFIGS: dict[str, dict] = {
         use_telegram=True,
         use_slack=True,
     ),
-    # --- Charts / AntV maps -----------------------------------------------
-    # Three separate entries because each AI framework generates a different
-    "pydantic_ai_antv_charts": dict(
-        database=DatabaseType.SQLITE,
-        ai_framework=AIFrameworkType.PYDANTIC_AI,
-        enable_logfire=False,
-        enable_antv_charts=True,
-        background_tasks=BackgroundTaskType.NONE,
-    ),
-    "langchain_antv_charts": dict(
-        database=DatabaseType.SQLITE,
-        ai_framework=AIFrameworkType.LANGCHAIN,
-        enable_logfire=False,
-        enable_antv_charts=True,
-        background_tasks=BackgroundTaskType.NONE,
-    ),
-    "crewai_antv_charts": dict(
-        database=DatabaseType.SQLITE,
-        ai_framework=AIFrameworkType.CREWAI,
-        enable_logfire=False,
-        enable_antv_charts=True,
-        background_tasks=BackgroundTaskType.NONE,
-    ),
+    # --- Charts -----------------------------------------------------------
     "pydantic_ai_charts": dict(
-        database=DatabaseType.SQLITE,
+        database=DatabaseType.POSTGRESQL,
         ai_framework=AIFrameworkType.PYDANTIC_AI,
         enable_logfire=False,
         enable_charts=True,
         background_tasks=BackgroundTaskType.NONE,
     ),
     "pydantic_ai_code_execution": dict(
-        database=DatabaseType.SQLITE,
+        database=DatabaseType.POSTGRESQL,
         ai_framework=AIFrameworkType.PYDANTIC_AI,
         enable_logfire=False,
         enable_code_execution=True,
         enable_charts=True,
-        enable_antv_charts=True,
         background_tasks=BackgroundTaskType.NONE,
     ),
     # SkillsToolset wiring: enable_skills attaches the toolset (no bundled
     # skills here, so it no-ops at runtime) — generated together with code
     # execution to confirm the two coexist and lint/type-check cleanly.
     "pydantic_ai_skills": dict(
-        database=DatabaseType.SQLITE,
+        database=DatabaseType.POSTGRESQL,
         ai_framework=AIFrameworkType.PYDANTIC_AI,
         enable_logfire=False,
         enable_skills=True,
@@ -326,8 +285,7 @@ MATRIX_CONFIGS: dict[str, dict] = {
         enable_charts=True,
         background_tasks=BackgroundTaskType.NONE,
     ),
-    # Deep research: PG path (asyncpg TODO pool + persistence) with the frontend
-    # panel, plus a sqlite path that exercises the in-memory TODO fallback.
+    # Deep research: PG path (asyncpg pool + persistence) with the frontend panel.
     "pydantic_ai_deep_research_pg": dict(
         database=DatabaseType.POSTGRESQL,
         ai_framework=AIFrameworkType.PYDANTIC_AI,
@@ -335,13 +293,6 @@ MATRIX_CONFIGS: dict[str, dict] = {
         enable_deep_research=True,
         enable_charts=True,
         frontend=FrontendType.NEXTJS,
-        background_tasks=BackgroundTaskType.NONE,
-    ),
-    "pydantic_ai_deep_research_sqlite": dict(
-        database=DatabaseType.SQLITE,
-        ai_framework=AIFrameworkType.PYDANTIC_AI,
-        enable_logfire=False,
-        enable_deep_research=True,
         background_tasks=BackgroundTaskType.NONE,
     ),
     "rag_pgvector": dict(
@@ -352,8 +303,8 @@ MATRIX_CONFIGS: dict[str, dict] = {
             vector_store=VectorStoreType.PGVECTOR,
         ),
     ),
-    "rag_qdrant_mongo": dict(
-        database=DatabaseType.MONGODB,
+    "rag_qdrant_pg": dict(
+        database=DatabaseType.POSTGRESQL,
         background_tasks=BackgroundTaskType.NONE,
         rag_features=RAGFeatures(
             enable_rag=True,
@@ -400,12 +351,6 @@ class TestGeneratedTemplateMatrix:
 
     @pytest.mark.slow
     def test_passes_ty(self, matrix_project: Path, request: pytest.FixtureRequest) -> None:
-        # CrewAI's pinned pydantic<2.12 forces a build of pydantic-core from source
-        # which needs an older PyO3 that doesn't support Python 3.14 yet. Skip ty
-        # (which depends on `uv sync`) — ruff still runs.
-        if "crewai" in request.node.callspec.id:
-            pytest.skip("CrewAI dependency tree broken on Python 3.14 (pydantic-core/pyo3)")
-
         backend_path = matrix_project / "backend"
         result = subprocess.run(
             ["uv", "run", "ty", "check"],
@@ -419,93 +364,6 @@ class TestGeneratedTemplateMatrix:
 # ---------------------------------------------------------------------------
 # AntV charts / Leaflet maps — generated-content checks
 # ---------------------------------------------------------------------------
-
-
-@pytest.fixture(scope="module")
-def generated_project_antv(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    """Generate a pydantic_ai + sqlite + antv_charts project for content checks."""
-    config = ProjectConfig(
-        project_name="test_antv",
-        database=DatabaseType.SQLITE,
-        ai_framework=AIFrameworkType.PYDANTIC_AI,
-        enable_logfire=False,
-        enable_antv_charts=True,
-        background_tasks=BackgroundTaskType.NONE,
-    )
-    return generate_project(config, tmp_path_factory.mktemp("antv"))
-
-
-@pytest.fixture(scope="module")
-def generated_project_antv_langchain(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    """Generate a langchain + sqlite + antv_charts project for cache-code checks."""
-    config = ProjectConfig(
-        project_name="test_antv_lc",
-        database=DatabaseType.SQLITE,
-        ai_framework=AIFrameworkType.LANGCHAIN,
-        enable_logfire=False,
-        enable_antv_charts=True,
-        background_tasks=BackgroundTaskType.NONE,
-    )
-    return generate_project(config, tmp_path_factory.mktemp("antv_lc"))
-
-
-class TestGeneratedTemplateAntvCharts:
-    """Verify that the AntV-charts / Leaflet-map feature renders correctly.
-
-    These tests check specific implementation details that are easy to break
-    via a bad Jinja merge: the MCP cache variables, the typed-marker signature,
-    coordinate bounds validation, and the absence of removed dead code.
-    """
-
-    @pytest.mark.slow
-    def test_map_tool_has_typed_marker_import(self, generated_project_antv: Path) -> None:
-        """MapMarker must be defined in map_tool.py (typed schema for schema fidelity)."""
-        map_tool = generated_project_antv / "backend" / "app" / "agents" / "tools" / "map_tool.py"
-        assert map_tool.exists()
-        content = map_tool.read_text()
-        assert "class MapMarker" in content
-
-    @pytest.mark.slow
-    def test_map_tool_has_center_bounds_check(self, generated_project_antv: Path) -> None:
-        """_validate_center must range-check coordinates, not just length."""
-        content = (
-            generated_project_antv / "backend" / "app" / "agents" / "tools" / "map_tool.py"
-        ).read_text()
-        assert "-90 <= lat <= 90" in content
-        assert "-180 <= lng <= 180" in content
-
-    @pytest.mark.slow
-    def test_map_tool_no_parse_map_spec(self, generated_project_antv: Path) -> None:
-        """parse_map_spec was removed (dead export); must not appear in generated code."""
-        tools_dir = generated_project_antv / "backend" / "app" / "agents" / "tools"
-        for f in tools_dir.rglob("*.py"):
-            assert "parse_map_spec" not in f.read_text(), (
-                f"{f.name} still references parse_map_spec"
-            )
-
-    @pytest.mark.slow
-    def test_assistant_uses_typed_markers(self, generated_project_antv: Path) -> None:
-        """The pydantic_ai assistant must use list[MapMarker] in its create_map wrapper."""
-        assistant = generated_project_antv / "backend" / "app" / "agents" / "assistant.py"
-        content = assistant.read_text()
-        assert "list[MapMarker]" in content
-
-    @pytest.mark.slow
-    def test_antv_chart_langchain_has_module_cache(
-        self, generated_project_antv_langchain: Path
-    ) -> None:
-        """get_antv_langchain_tools must use a module-level cache to avoid per-request MCP work."""
-        antv = (
-            generated_project_antv_langchain
-            / "backend"
-            / "app"
-            / "agents"
-            / "tools"
-            / "antv_chart.py"
-        )
-        content = antv.read_text()
-        assert "_antv_langchain_tools" in content
-        assert "if _antv_langchain_tools is not None" in content
 
 
 # ---------------------------------------------------------------------------

@@ -1,5 +1,5 @@
 {%- if cookiecutter.enable_teams and cookiecutter.enable_rag and cookiecutter.use_jwt %}
-{%- if cookiecutter.use_postgresql and cookiecutter.use_sqlmodel %}
+{%- if cookiecutter.use_sqlmodel %}
 """KnowledgeBase model — scoped RAG collections (personal / org / app)."""
 
 import enum
@@ -60,7 +60,7 @@ class KnowledgeBase(TimestampMixin, SQLModel, table=True):
     def __repr__(self) -> str:
         return f"<KnowledgeBase(id={self.id}, name={self.name!r}, scope={self.scope})>"
 
-{%- elif cookiecutter.use_postgresql and cookiecutter.use_sqlalchemy %}
+{%- elif cookiecutter.use_sqlalchemy %}
 """KnowledgeBase model — scoped RAG collections (personal / org / app)."""
 
 import enum
@@ -102,144 +102,6 @@ class KnowledgeBase(TimestampMixin, Base):
         nullable=True,
         index=True,
     )
-
-    def __repr__(self) -> str:
-        return f"<KnowledgeBase(id={self.id}, name={self.name!r}, scope={self.scope})>"
-
-{%- elif cookiecutter.use_sqlite and cookiecutter.use_sqlmodel %}
-"""KnowledgeBase model — scoped RAG collections (personal / org / app)."""
-
-import enum
-import uuid
-
-from sqlalchemy import Boolean, Column, ForeignKey, String
-from sqlmodel import Field, SQLModel
-
-from app.db.base import TimestampMixin
-
-
-class KBScope(enum.StrEnum):
-    PERSONAL = "personal"
-    ORG = "org"
-    APP = "app"
-
-
-class KnowledgeBase(TimestampMixin, SQLModel, table=True):
-    """Named, scoped wrapper around a vector-store collection."""
-
-    __tablename__ = "knowledge_bases"
-
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
-    name: str = Field(sa_column=Column(String(128), nullable=False))
-    description: str | None = Field(default=None, sa_column=Column(String(500), nullable=True))
-    scope: str = Field(
-        default=KBScope.PERSONAL.value,
-        sa_column=Column(String(16), nullable=False, default=KBScope.PERSONAL.value, index=True),
-    )
-    collection_name: str = Field(sa_column=Column(String(255), nullable=False, index=True))
-    is_default: bool = Field(
-        default=False,
-        sa_column=Column(Boolean, nullable=False, default=False),
-    )
-    owner_user_id: str | None = Field(
-        default=None,
-        sa_column=Column(
-            String(36),
-            ForeignKey("users.id", ondelete="SET NULL"),
-            nullable=True,
-            index=True,
-        ),
-    )
-    organization_id: str | None = Field(
-        default=None,
-        sa_column=Column(
-            String(36),
-            ForeignKey("organizations.id", ondelete="SET NULL"),
-            nullable=True,
-            index=True,
-        ),
-    )
-
-    def __repr__(self) -> str:
-        return f"<KnowledgeBase(id={self.id}, name={self.name!r}, scope={self.scope})>"
-
-{%- elif cookiecutter.use_sqlite and cookiecutter.use_sqlalchemy %}
-"""KnowledgeBase model — scoped RAG collections (personal / org / app)."""
-
-import enum
-import uuid
-
-from sqlalchemy import Boolean, ForeignKey, String
-from sqlalchemy.orm import Mapped, mapped_column
-
-from app.db.base import Base, TimestampMixin
-
-
-class KBScope(enum.StrEnum):
-    PERSONAL = "personal"
-    ORG = "org"
-    APP = "app"
-
-
-class KnowledgeBase(TimestampMixin, Base):
-    """Named, scoped wrapper around a vector-store collection."""
-
-    __tablename__ = "knowledge_bases"
-
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    name: Mapped[str] = mapped_column(String(128), nullable=False)
-    description: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    scope: Mapped[str] = mapped_column(String(16), nullable=False, default=KBScope.PERSONAL.value, index=True)
-    collection_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
-    is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    owner_user_id: Mapped[str | None] = mapped_column(
-        String(36),
-        ForeignKey("users.id", ondelete="SET NULL"),
-        nullable=True,
-        index=True,
-    )
-    organization_id: Mapped[str | None] = mapped_column(
-        String(36),
-        ForeignKey("organizations.id", ondelete="SET NULL"),
-        nullable=True,
-        index=True,
-    )
-
-    def __repr__(self) -> str:
-        return f"<KnowledgeBase(id={self.id}, name={self.name!r}, scope={self.scope})>"
-
-{%- elif cookiecutter.use_mongodb %}
-"""KnowledgeBase model — scoped RAG collections (personal / org / app)."""
-
-import enum
-from typing import Optional
-
-from beanie import Document
-from pydantic import Field
-
-from app.db.base import TimestampMixin
-
-
-class KBScope(enum.StrEnum):
-    PERSONAL = "personal"
-    ORG = "org"
-    APP = "app"
-
-
-class KnowledgeBase(TimestampMixin, Document):
-    """Named, scoped wrapper around a vector-store collection."""
-
-    name: str = Field(..., max_length=128)
-    description: Optional[str] = Field(default=None, max_length=500)
-    scope: str = Field(default=KBScope.PERSONAL.value)
-    collection_name: str = Field(...)
-    is_default: bool = Field(default=False)
-    owner_user_id: Optional[str] = None
-    organization_id: Optional[str] = None
-
-    class Settings:
-        name = "knowledge_bases"
-        indexes = ["scope", "owner_user_id", "organization_id", "collection_name"]
 
     def __repr__(self) -> str:
         return f"<KnowledgeBase(id={self.id}, name={self.name!r}, scope={self.scope})>"

@@ -11,7 +11,6 @@ from app.agents.tools.web_search import (
     WebSearchResults,
     parse_web_search,
     web_search,
-    web_search_sync,
 )
 
 _FAKE_RESPONSE = {
@@ -72,11 +71,6 @@ class TestWebSearch:
             result = await web_search("q")
         assert "Web search failed" in result
         assert parse_web_search(result) is None
-
-    def test_web_search_sync_wraps_async(self):
-        with patch.dict(sys.modules, {"tavily": _patched_tavily(_FAKE_RESPONSE)}):
-            result = web_search_sync("q")
-        assert json.loads(result)["kind"] == "web_search"
 
 
 class TestParseWebSearch:

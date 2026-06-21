@@ -1,10 +1,16 @@
 "use client";
 
-import { Globe } from "lucide-react";
+import { Check, Globe } from "lucide-react";
 import { useLocale } from "next-intl";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { locales, defaultLocale, type Locale, getLocaleLabel, getLocaleFlag } from "@/i18n";
 import { cn } from "@/lib/utils";
 
@@ -14,7 +20,6 @@ import { cn } from "@/lib/utils";
  */
 function buildLocalizedPath(pathname: string, newLocale: Locale): string {
   const segments = pathname.split("/").filter(Boolean);
-  // Strip existing locale prefix if present
   const first = segments[0];
   if (first && (locales as readonly string[]).includes(first)) {
     segments.shift();
@@ -73,7 +78,6 @@ export function LanguageSwitcherCompact() {
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  // Close on click outside or Escape
   useEffect(() => {
     if (!open) return;
     const onClick = (e: MouseEvent) => {
@@ -124,7 +128,7 @@ export function LanguageSwitcherCompact() {
           )}
           style={ {
             animation: "lsFadeIn 140ms cubic-bezier(0.22, 1, 0.36, 1)",
-          } }
+          }}
         >
           {locales.map((loc) => {
             const active = loc === locale;
@@ -161,5 +165,65 @@ export function LanguageSwitcherCompact() {
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Icon-button language switcher — globe icon trigger + Radix dropdown.
+ * Designed for the app toolbar (header), where it sits alongside other
+ * icon-only controls. Matches the flat toolbar aesthetic (h-9 w-9, rounded-lg,
+ * hover:bg-accent) and reuses the shared DropdownMenu so its menu styling is
+ * consistent with the org/user menus.
+ */
+export function LanguageSwitcherIcon() {
+  const locale = useLocale() as Locale;
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const handleChange = (newLocale: Locale) => {
+    router.push(buildLocalizedPath(pathname, newLocale));
+  };
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          aria-label="Language"
+          className={cn(
+            "text-muted-foreground hover:text-foreground hover:bg-accent",
+            "focus-visible:ring-ring inline-flex h-9 w-9 items-center justify-center rounded-lg",
+            "transition-colors outline-none focus-visible:ring-1",
+          )}
+        >
+          <Globe className="h-[1.1rem] w-[1.1rem]" aria-hidden />
+          <span className="sr-only">{getLocaleLabel(locale)}</span>
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-44">
+        {locales.map((loc) => {
+          const active = loc === locale;
+          return (
+            <DropdownMenuItem
+              key={loc}
+              onSelect={() => handleChange(loc)}
+              className="gap-2.5"
+            >
+              <span aria-hidden className="text-base leading-none">
+                {getLocaleFlag(loc)}
+              </span>
+              <span className="flex-1">{getLocaleLabel(loc)}</span>
+              {active ? (
+                <Check className="text-foreground h-4 w-4" />
+              ) : (
+                <span className="text-muted-foreground font-mono text-[10px] tracking-wider uppercase">
+                  {loc}
+                </span>
+              )}
+            </DropdownMenuItem>
+          );
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

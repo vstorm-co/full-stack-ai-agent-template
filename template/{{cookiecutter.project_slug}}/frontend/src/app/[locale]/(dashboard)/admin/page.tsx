@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
 import {
   Activity,
   ArrowUpRight,
@@ -14,11 +14,12 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-import { LoadingState } from "@/components/states";
 import { StatCard } from "@/components/dashboard/stat-card";
+import { LoadingState } from "@/components/states";
 import { Button } from "@/components/ui";
 import { apiClient } from "@/lib/api-client";
-import { cn } from "@/lib/utils";
+import { ROUTES } from "@/lib/constants";
+import { formatCurrency, timeAgo } from "@/lib/utils";
 
 interface AdminStats {
   total_users?: number;
@@ -44,120 +45,73 @@ const EVENT_ICON: Record<RecentEvent["type"], LucideIcon> = {
   rating_low: Star,
 };
 
-function formatRelative(iso: string): string {
-  const t = new Date(iso).getTime();
-  if (Number.isNaN(t)) return "";
-  const diff = Math.round((Date.now() - t) / 1000);
-  if (diff < 60) return "just now";
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  return `${Math.floor(diff / 86400)}d ago`;
-}
 
 export default function AdminOverviewPage() {
-  const [stats, setStats] = useState<AdminStats | null>(null);
-  const [statsLoading, setStatsLoading] = useState(true);
-  const [events, setEvents] = useState<RecentEvent[] | null>(null);
-
-  const loadStats = async () => {
-    setStatsLoading(true);
-    try {
-      // Best-effort: call the backend admin stats endpoint if it exists.
-      // Falls back to per-resource counts otherwise.
+  const statsQuery = useQuery({
+    queryKey: ["admin", "stats"],
+    queryFn: async (): Promise<AdminStats> => {
       const data = await apiClient.get<AdminStats>("/admin/stats").catch(() => null);
-      if (data) {
-        setStats(data);
-      } else {
-        const [usersResp, convsResp] = await Promise.allSettled([
-          apiClient.get<{ total: number }>("/admin/users?limit=1"),
-          apiClient.get<{ total: number }>("/admin/conversations?limit=1"),
-        ]);
-        setStats({
-          total_users: usersResp.status === "fulfilled" ? usersResp.value.total : undefined,
-          total_conversations: convsResp.status === "fulfilled" ? convsResp.value.total : undefined,
-        });
-      }
-    } finally {
-      setStatsLoading(false);
-    }
-  };
+      if (data) return data;
+      const [usersResp, convsResp] = await Promise.allSettled([
+        apiClient.get<{ total: number }>("/admin/users?limit=1"),
+        apiClient.get<{ total: number }>("/admin/conversations?limit=1"),
+      ]);
+      return {
+        total_users: usersResp.status === "fulfilled" ? usersResp.value.total : undefined,
+        total_conversations: convsResp.status === "fulfilled" ? convsResp.value.total : undefined,
+      };
+    },
+  });
 
-  const loadEvents = async () => {
-    setEvents(null);
-    try {
-      // Backend wishlist: /admin/events. Fall back to recent conversations as
-      // a stand-in so the surface isn't empty.
-      const events = await apiClient
-        .get<{ items: RecentEvent[] }>("/admin/events")
-        .catch(() => null);
-      if (events) {
-        setEvents(events.items.slice(0, 8));
-        return;
-      }
+  const eventsQuery = useQuery({
+    queryKey: ["admin", "events"],
+    queryFn: async (): Promise<RecentEvent[]> => {
+      const events = await apiClient.get<{ items: RecentEvent[] }>("/admin/events").catch(() => null);
+      if (events) return events.items.slice(0, 8);
       const convs = await apiClient
         .get<{
           items: Array<{ id: string; user_email?: string; title?: string; created_at: string }>;
         }>("/admin/conversations?limit=8")
         .catch(() => ({ items: [] }));
-      setEvents(
-        convs.items.map((c) => ({
-          id: c.id,
-          type: "conversation_created" as const,
-          title: c.title || "New conversation",
-          description: c.user_email ? `by ${c.user_email}` : "",
-          timestamp: c.created_at,
-        })),
-      );
-    } catch {
-      setEvents([]);
-    }
-  };
+      return convs.items.map((c) => ({
+        id: c.id,
+        type: "conversation_created" as const,
+        title: c.title || "New conversation",
+        description: c.user_email ? `by ${c.user_email}` : "",
+        timestamp: c.created_at,
+      }));
+    },
+  });
 
-  useEffect(() => {
-    loadStats();
-    loadEvents();
-  }, []);
+  const stats = statsQuery.data;
+  const events = eventsQuery.data;
+  const refreshing = statsQuery.isFetching || eventsQuery.isFetching;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-end justify-between gap-3">
-        <div>
-          <p className="text-foreground/55 font-mono text-[11px] tracking-wider uppercase">
-            Overview
-          </p>
-          <h2 className="font-display text-foreground mt-1 text-xl font-semibold tracking-tight {% raw %}[&_em]:font-accent [&_em]:font-normal [&_em]:italic{% endraw %}">
-            The view from <em>above.</em>
-          </h2>
-        </div>
+      <div className="flex justify-end">
         <Button
           size="sm"
           variant="outline"
           onClick={() => {
-            loadStats();
-            loadEvents();
+            statsQuery.refetch();
+            eventsQuery.refetch();
           }}
-          className="rounded-full"
         >
-          <RefreshCw className={cn("mr-2 h-3.5 w-3.5", statsLoading && "animate-spin")} />
+          <RefreshCw className={refreshing ? "h-3.5 w-3.5 animate-spin" : "h-3.5 w-3.5"} />
           Refresh
         </Button>
       </div>
 
-      {/* Stats strip */}
-      {statsLoading ? (
+      {statsQuery.isLoading ? (
         <LoadingState variant="stats" rows={4} />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard
-            label="Total users"
-            value={(stats?.total_users ?? 0).toLocaleString()}
-            icon={Users}
-          />
+          <StatCard label="Total users" value={(stats?.total_users ?? 0).toLocaleString()} icon={Users} />
           <StatCard
             label="Active 24h"
             value={(stats?.active_users_24h ?? 0).toLocaleString()}
             icon={Activity}
-            featured
           />
 {%- if cookiecutter.use_ai %}
           <StatCard
@@ -170,11 +124,7 @@ export default function AdminOverviewPage() {
             label="MRR"
             value={
               typeof stats?.mrr_cents === "number"
-                ? (stats.mrr_cents / 100).toLocaleString("en-US", {
-                    style: "currency",
-                    currency: "USD",
-                    minimumFractionDigits: 0,
-                  })
+                ? formatCurrency(stats.mrr_cents)
                 : "—"
             }
             icon={CreditCard}
@@ -182,80 +132,54 @@ export default function AdminOverviewPage() {
         </div>
       )}
 
-      {/* Quick actions */}
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <QuickLink
-          href="/admin/users"
-          icon={Users}
-          title="Manage users"
-          description="Search, suspend, impersonate"
-        />
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <QuickLink href={ROUTES.ADMIN_USERS} icon={Users} title="Manage users" description="Search, suspend, impersonate" />
 {%- if cookiecutter.use_ai %}
         <QuickLink
-          href="/admin/conversations"
+          href={ROUTES.ADMIN_CONVERSATIONS}
           icon={MessageSquare}
           title="Browse chats"
           description="All conversations across users"
         />
 {%- endif %}
         <QuickLink
-          href="/admin/stripe-events"
+          href={ROUTES.ADMIN_STRIPE_EVENTS}
           icon={CreditCard}
           title="Stripe events"
           description="Replay webhooks, debug billing"
         />
-        <QuickLink
-          href="/admin/system"
-          icon={Activity}
-          title="System health"
-          description="Per-service status & uptime"
-        />
+        <QuickLink href={ROUTES.ADMIN_SYSTEM} icon={Activity} title="System health" description="Per-service status & uptime" />
 {%- if cookiecutter.use_ai %}
-        <QuickLink
-          href="/admin/ratings"
-          icon={Star}
-          title="Response ratings"
-          description="Quality signals from users"
-        />
+        <QuickLink href={ROUTES.ADMIN_RATINGS} icon={Star} title="Response ratings" description="Quality signals from users" />
 {%- endif %}
       </section>
 
-      {/* Recent activity */}
-      <section className="border-foreground/10 bg-card rounded-2xl border">
-        <div className="border-foreground/10 flex items-center justify-between border-b px-6 py-5">
-          <div>
-            <h2 className="font-display text-foreground text-base font-semibold tracking-tight">
-              Recent activity
-            </h2>
-            <p className="text-foreground/55 text-xs">
-              Workspace-wide events. Backend wishlist:{" "}
-              <code className="font-mono">/admin/events</code> for first-class feed.
-            </p>
-          </div>
+      <section className="border-border bg-card rounded-xl border">
+        <div className="border-border border-b px-5 py-4">
+          <h2 className="text-foreground text-sm font-semibold">Recent activity</h2>
+          <p className="text-muted-foreground text-xs">Workspace-wide events across all users.</p>
         </div>
-        {events === null ? (
-          <div className="p-6">
+        {events === undefined ? (
+          <div className="p-5">
             <LoadingState variant="skeleton-list" rows={5} />
           </div>
         ) : events.length === 0 ? (
-          <div className="border-foreground/10 m-6 rounded-xl border-2 border-dashed p-10 text-center">
-            <p className="text-foreground/65 text-sm">No recent events.</p>
-          </div>
+          <div className="text-muted-foreground px-5 py-12 text-center text-sm">No recent events.</div>
         ) : (
-          <ul className="divide-foreground/10 divide-y">
+          <ul className="divide-border divide-y">
             {events.map((e) => {
               const Icon = EVENT_ICON[e.type] ?? MessageSquare;
               return (
-                <li key={e.id} className="flex items-center gap-3 px-6 py-4">
-                  <span className="bg-foreground/8 text-foreground/80 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full">
+                <li key={e.id} className="flex items-center gap-3 px-5 py-3.5">
+                  <span className="bg-muted text-muted-foreground inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg">
                     <Icon className="h-4 w-4" />
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="text-foreground truncate text-sm font-medium">{e.title}</p>
-                    <p className="text-foreground/55 truncate text-xs">
+                    <p className="text-muted-foreground truncate text-xs">
                       {e.description}
                       {e.description && " · "}
-                      {formatRelative(e.timestamp)}
+                      {timeAgo(e.timestamp)}
                     </p>
                   </div>
                 </li>
@@ -268,7 +192,7 @@ export default function AdminOverviewPage() {
   );
 }
 
-{% raw %}function QuickLink({
+function QuickLink({
   href,
   icon: Icon,
   title,
@@ -282,17 +206,16 @@ export default function AdminOverviewPage() {
   return (
     <Link
       href={href}
-      className="lift border-foreground/10 hover:border-brand/40 bg-card group flex items-center gap-3 rounded-2xl border p-4 transition-all"
+      className="border-border hover:border-foreground/30 hover:bg-accent bg-card group flex items-center gap-3 rounded-xl border p-4 transition-colors"
     >
-      <span className="bg-brand/15 text-foreground group-hover:bg-brand group-hover:text-brand-foreground inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors">
+      <span className="bg-muted text-foreground inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg">
         <Icon className="h-4 w-4" />
       </span>
       <div className="min-w-0 flex-1">
         <p className="text-foreground text-sm font-semibold">{title}</p>
-        <p className="text-foreground/55 truncate text-xs">{description}</p>
+        <p className="text-muted-foreground truncate text-xs">{description}</p>
       </div>
-      <ArrowUpRight className="text-foreground/30 group-hover:text-foreground h-4 w-4 transition-all group-hover:rotate-45" />
+      <ArrowUpRight className="text-muted-foreground h-4 w-4" />
     </Link>
   );
 }
-{% endraw %}

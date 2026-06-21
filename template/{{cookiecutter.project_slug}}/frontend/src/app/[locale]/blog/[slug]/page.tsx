@@ -96,11 +96,10 @@ export default async function BlogPostPage({
       />
 
       <main id="main">
-        {/* Hero — wider container so meta + title don't feel cramped */}
         <Section theme="light" padding="pt-28 pb-12 md:pt-32 md:pb-16">
           <div className="mx-auto max-w-4xl">
             <Link
-              href="/blog"
+              href={ROUTES.BLOG}
               className="text-foreground/55 hover:text-foreground inline-flex items-center gap-1.5 font-mono text-[11px] tracking-wider uppercase"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
@@ -146,14 +145,12 @@ export default async function BlogPostPage({
           </div>
         </Section>
 
-        {/* Body — narrower for prose readability */}
         <Section theme="light" padding="pb-24 md:pb-32">
           <div className="mx-auto max-w-3xl">
             <article className="prose-marketing">
               <MDXRemote source={post.content} components={blogMdxComponents} />
             </article>
 
-            {/* End of post separator */}
             <div className="border-foreground/10 mt-16 flex items-center gap-4 border-t pt-8">
               <span aria-hidden className="bg-brand h-1 w-1 rounded-full" />
               <span className="text-foreground/45 font-mono text-[11px] tracking-wider uppercase">
@@ -161,7 +158,7 @@ export default async function BlogPostPage({
               </span>
               <span aria-hidden className="bg-foreground/10 h-px flex-1" />
               <Link
-                href="/blog"
+                href={ROUTES.BLOG}
                 className="text-foreground/55 hover:text-foreground inline-flex items-center gap-1.5 font-mono text-[11px] tracking-wider uppercase"
               >
                 {tCommon("backToBlog")} →
@@ -177,7 +174,7 @@ export default async function BlogPostPage({
                   {related.map((r) => (
                     <li key={r.slug}>
                       <Link
-                        href={`/blog/${r.slug}`}
+                        href={ROUTES.BLOG_POST(r.slug)}
                         className="lift border-foreground/10 hover:border-foreground/30 bg-card group flex h-full flex-col gap-3 rounded-2xl border p-6 transition-colors"
                       >
                         <span className="text-foreground/55 font-mono text-[10px] tracking-wider uppercase">

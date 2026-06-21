@@ -44,7 +44,7 @@ class S3Connector(BaseSyncConnector):
         },
     }
 
-    def _get_s3_client(self, bucket: str = ""):
+    def _get_s3_client(self):
         """Get configured boto3 S3 client."""
         client_kwargs: dict[str, Any] = {
             "aws_access_key_id": settings.S3_RAG_ACCESS_KEY,
@@ -57,7 +57,6 @@ class S3Connector(BaseSyncConnector):
 
     async def validate_config(self, config: dict) -> tuple[bool, str | None]:
         """Test S3 bucket access."""
-        # First run base validation for required fields
         is_valid, err = await super().validate_config(config)
         if not is_valid:
             return is_valid, err
@@ -116,7 +115,6 @@ class S3Connector(BaseSyncConnector):
 
     async def download_file(self, file: RemoteFile, dest_dir: Path) -> Path:
         """Download a file from S3."""
-        # Extract bucket from source_path: "s3://bucket/key"
         parts = file.source_path.replace("s3://", "").split("/", 1)
         bucket = parts[0]
 
@@ -124,7 +122,7 @@ class S3Connector(BaseSyncConnector):
             client = self._get_s3_client()
             dest_path = dest_dir / file.name
             client.download_file(bucket, file.id, str(dest_path))
-            logger.info(f"Downloaded s3://{bucket}/{file.id} ({dest_path.stat().st_size} bytes)")
+            logger.info("Downloaded s3://%s/%s (%d bytes)", bucket, file.id, dest_path.stat().st_size)
             return dest_path
 
         return await asyncio.to_thread(_download)

@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { cn } from "@/lib/utils";
+import { useTranslations } from "next-intl";
+import { cn, isAppAdmin } from "@/lib/utils";
 import { APP_NAME, ROUTES } from "@/lib/constants";
 import {
   LayoutDashboard,
@@ -23,23 +24,24 @@ import { useSidebarStore, useAuthStore } from "@/stores";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetClose } from "@/components/ui";
 
 const navigation = [
-  { name: "Dashboard", href: ROUTES.DASHBOARD, icon: LayoutDashboard },
-  { name: "Chat", href: ROUTES.CHAT, icon: MessageSquare },
+  { nameKey: "dashboard", href: ROUTES.DASHBOARD, icon: LayoutDashboard },
+  { nameKey: "chat", href: ROUTES.CHAT, icon: MessageSquare },
 {%- if cookiecutter.enable_teams and cookiecutter.enable_rag %}
-  { name: "RAG", href: ROUTES.KB, icon: Database },
+  { nameKey: "rag", href: ROUTES.KB, icon: Database },
 {%- endif %}
 {%- if cookiecutter.enable_teams %}
-  { name: "Organizations", href: ROUTES.ORGS, icon: Building2 },
+  { nameKey: "organizations", href: ROUTES.ORGS, icon: Building2 },
 {%- endif %}
 {%- if cookiecutter.enable_billing %}
-  { name: "Billing", href: ROUTES.BILLING, icon: CreditCard },
+  { nameKey: "billing", href: ROUTES.BILLING, icon: CreditCard },
 {%- endif %}
-  { name: "Profile", href: ROUTES.PROFILE, icon: UserCircle },
+  { nameKey: "profile", href: ROUTES.PROFILE, icon: UserCircle },
 ];
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const { user } = useAuthStore();
+  const t = useTranslations("nav");
 
   return (
     <nav className="flex-1 space-y-1 p-4">
@@ -47,7 +49,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
         const isActive = pathname === item.href;
         return (
           <Link
-            key={item.name}
+            key={item.nameKey}
             href={item.href}
             onClick={onNavigate}
             className={cn(
@@ -59,11 +61,11 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
             )}
           >
             <item.icon className="h-5 w-5" />
-            {item.name}
+            {t(item.nameKey)}
           </Link>
         );
       })}
-      {user?.role === "admin" && (
+      {isAppAdmin(user) && (
         <Link
           href={ROUTES.ADMIN}
           onClick={onNavigate}

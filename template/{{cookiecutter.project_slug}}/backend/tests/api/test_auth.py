@@ -8,12 +8,19 @@ ServiceMock = AsyncMock
 from uuid import uuid4
 
 import pytest
-from httpx import AsyncClient
+from httpx import ASGITransport, AsyncClient
 
-from app.api.deps import get_user_service
+from app.api.deps import get_current_user, get_user_service
 from app.core.config import settings
+from app.core.exceptions import AlreadyExistsError, AuthenticationError
 from app.core.security import create_access_token, create_refresh_token
 from app.main import app
+{%- if cookiecutter.enable_redis %}
+from app.api.deps import get_redis
+{%- endif %}
+{%- if cookiecutter.use_database %}
+from app.api.deps import get_db_session
+{%- endif %}
 
 
 class MockUser:
@@ -69,14 +76,6 @@ async def client_with_mock_service(
 {%- endif %}
 ) -> AsyncClient:
     """Client with mocked user service."""
-{%- if cookiecutter.enable_redis %}
-    from app.api.deps import get_redis
-{%- endif %}
-{%- if cookiecutter.use_database %}
-    from app.api.deps import get_db_session
-{%- endif %}
-    from httpx import ASGITransport
-
     app.dependency_overrides[get_user_service] = lambda: mock_user_service
 {%- if cookiecutter.enable_redis %}
     app.dependency_overrides[get_redis] = lambda: mock_redis
@@ -114,8 +113,6 @@ async def test_login_invalid_credentials(
     mock_user_service: MagicMock,
 ):
     """Test login with invalid credentials."""
-    from app.core.exceptions import AuthenticationError
-
     mock_user_service.authenticate = ServiceMock(
         side_effect=AuthenticationError(message="Invalid credentials")
     )
@@ -149,8 +146,6 @@ async def test_register_duplicate_email(
     mock_user_service: MagicMock,
 ):
     """Test registration with duplicate email."""
-    from app.core.exceptions import AlreadyExistsError
-
     mock_user_service.register = ServiceMock(
         side_effect=AlreadyExistsError(message="Email already registered")
     )
@@ -241,8 +236,6 @@ async def test_get_current_user(
     mock_user_service: MagicMock,
 ):
     """Test getting current user info."""
-    from app.api.deps import get_current_user
-
     # Override get_current_user to return mock user
     app.dependency_overrides[get_current_user] = lambda: mock_user
 

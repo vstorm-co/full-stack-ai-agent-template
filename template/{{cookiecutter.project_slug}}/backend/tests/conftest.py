@@ -11,10 +11,8 @@ See: https://anyio.readthedocs.io/en/stable/testing.html
 from collections.abc import AsyncGenerator
 {%- if cookiecutter.enable_redis %}
 from unittest.mock import AsyncMock, MagicMock
-{%- elif cookiecutter.use_postgresql or cookiecutter.use_mongodb %}
+{%- else %}
 from unittest.mock import AsyncMock
-{%- elif cookiecutter.use_sqlite %}
-from unittest.mock import MagicMock
 {%- endif %}
 
 import pytest
@@ -60,7 +58,6 @@ def mock_redis() -> MagicMock:
 {%- endif %}
 
 
-{%- if cookiecutter.use_postgresql %}
 
 
 @pytest.fixture
@@ -72,37 +69,10 @@ async def mock_db_session() -> AsyncGenerator[AsyncMock, None]:
     mock.rollback = AsyncMock()
     mock.close = AsyncMock()
     yield mock
-{%- endif %}
 
 
-{%- if cookiecutter.use_sqlite %}
 
 
-@pytest.fixture
-def mock_db_session() -> MagicMock:
-    """Create a mock database session for testing."""
-    mock = MagicMock()
-    mock_result = MagicMock()
-    mock_result.scalar_one_or_none.return_value = None
-    mock_result.scalars.return_value.all.return_value = []
-    mock.execute.return_value = mock_result
-    mock.commit = MagicMock()
-    mock.rollback = MagicMock()
-    mock.close = MagicMock()
-    return mock
-{%- endif %}
-
-
-{%- if cookiecutter.use_mongodb %}
-
-
-@pytest.fixture
-async def mock_db_session() -> AsyncMock:
-    """Create a mock MongoDB session for testing."""
-    mock = AsyncMock()
-    mock.command = AsyncMock(return_value={"ok": 1})
-    return mock
-{%- endif %}
 
 
 @pytest.fixture

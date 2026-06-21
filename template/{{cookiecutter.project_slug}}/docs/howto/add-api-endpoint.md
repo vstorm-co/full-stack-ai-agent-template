@@ -85,7 +85,6 @@ Don't forget to import it in `app/db/models/__init__.py`.
 # app/repositories/notification.py
 from uuid import UUID
 
-{%- if cookiecutter.use_postgresql %}
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -111,33 +110,6 @@ class NotificationRepository:
             .limit(limit)
         )
         return list(result.scalars().all())
-{%- elif cookiecutter.use_sqlite %}
-from sqlalchemy import select
-from sqlalchemy.orm import Session
-
-from app.db.models.notification import Notification
-
-
-class NotificationRepository:
-    def create(self, db: Session, **kwargs) -> Notification:
-        notification = Notification(**kwargs)
-        db.add(notification)
-        db.flush()
-        db.refresh(notification)
-        return notification
-
-    def get_by_id(self, db: Session, notification_id: UUID) -> Notification | None:
-        return db.get(Notification, notification_id)
-
-    def list_unread(self, db: Session, limit: int = 50) -> list[Notification]:
-        result = db.execute(
-            select(Notification)
-            .where(Notification.is_read.is_(False))
-            .order_by(Notification.created_at.desc())
-            .limit(limit)
-        )
-        return list(result.scalars().all())
-{%- endif %}
 ```
 
 ### 4. Create the service (`app/services/`)
@@ -146,11 +118,7 @@ class NotificationRepository:
 # app/services/notification.py
 from uuid import UUID
 
-{%- if cookiecutter.use_postgresql %}
 from sqlalchemy.ext.asyncio import AsyncSession
-{%- elif cookiecutter.use_sqlite %}
-from sqlalchemy.orm import Session
-{%- endif %}
 
 from app.core.exceptions import NotFoundError
 from app.repositories.notification import NotificationRepository
@@ -158,7 +126,6 @@ from app.schemas.notification import NotificationCreate
 
 
 class NotificationService:
-{%- if cookiecutter.use_postgresql %}
     def __init__(self, db: AsyncSession):
         self.db = db
         self.repo = NotificationRepository()
@@ -177,26 +144,6 @@ class NotificationService:
 
     async def list_unread(self) -> list["Notification"]:
         return await self.repo.list_unread(self.db)
-{%- elif cookiecutter.use_sqlite %}
-    def __init__(self, db: Session):
-        self.db = db
-        self.repo = NotificationRepository()
-
-    def create(self, data: NotificationCreate) -> "Notification":
-        return self.repo.create(self.db, **data.model_dump())
-
-    def get_or_raise(self, notification_id: UUID) -> "Notification":
-        notification = self.repo.get_by_id(self.db, notification_id)
-        if not notification:
-            raise NotFoundError(
-                message="Notification not found",
-                details={"id": str(notification_id)},
-            )
-        return notification
-
-    def list_unread(self) -> list["Notification"]:
-        return self.repo.list_unread(self.db)
-{%- endif %}
 ```
 {%- endif %}
 

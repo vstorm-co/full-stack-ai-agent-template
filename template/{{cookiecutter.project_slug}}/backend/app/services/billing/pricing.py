@@ -17,7 +17,6 @@ class ModelCost:
 
 
 MODEL_COSTS: dict[str, ModelCost] = {
-    # OpenAI
     "gpt-4o": ModelCost(2.50, 10.00, 1.25),
     "gpt-4o-mini": ModelCost(0.15, 0.60, 0.075),
     "o1": ModelCost(15.00, 60.00),
@@ -38,7 +37,6 @@ MODEL_COSTS: dict[str, ModelCost] = {
     # Legacy aliases (kept so historical usage rows still price correctly)
     "claude-3-5-sonnet-20241022": ModelCost(3.00, 15.00, 0.30),
     "claude-3-5-haiku-20241022": ModelCost(0.80, 4.00, 0.08),
-    # Google
     "gemini-1.5-pro": ModelCost(1.25, 5.00),
     "gemini-1.5-flash": ModelCost(0.075, 0.30),
     "gemini-2.0-flash": ModelCost(0.10, 0.40),

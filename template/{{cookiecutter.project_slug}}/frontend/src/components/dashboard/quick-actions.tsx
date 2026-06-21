@@ -39,7 +39,7 @@ const ACTIONS: Action[] = [
 
 export function QuickActions() {
   return (
-    <div className="border-border bg-card rounded-2xl border p-4 sm:p-5">
+    <div className="border-border bg-card rounded-xl border p-4 sm:p-5">
       <h2 className="text-foreground/55 mb-2.5 font-mono text-[11px] tracking-wider uppercase">
         Quick actions
       </h2>

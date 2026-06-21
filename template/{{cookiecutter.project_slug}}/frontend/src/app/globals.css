@@ -17,7 +17,7 @@
 {%- if cookiecutter.brand_color == "blue" %}
   /* Preset: BLUE (Stripe / Vercel — classic SaaS) */
   --brand-h: 250;
-  --brand-c: 0.20;
+  --brand-c: 0.2;
   --brand-l: 65%;
   --color-brand-foreground: oklch(98% 0 0);
 {%- elif cookiecutter.brand_color == "green" %}
@@ -204,8 +204,14 @@
     font-family: var(--font-body);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    font-optical-sizing: auto;
+    text-rendering: optimizeLegibility;
     /* Disable iOS tap highlight — focus rings + active states do the job. */
     -webkit-tap-highlight-color: transparent;
+  }
+  /* Crafted default: tabular figures so numeric data/labels align cleanly. */
+  .font-mono {
+    font-variant-numeric: tabular-nums;
   }
   ::selection {
     background: var(--color-brand);
@@ -223,6 +229,23 @@
   /* Remove the default inner button focus ring on Firefox. */
   ::-moz-focus-inner {
     border: 0;
+  }
+
+  /* Route transition — subtle fade + slide-up on each page change.
+     Keyed on pathname in components/layout/page-transition.tsx so it replays
+     on navigation. Neutralized under prefers-reduced-motion below. */
+  .page-enter {
+    animation: page-enter var(--duration-base) var(--ease-out);
+  }
+  @keyframes page-enter {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   /* Skip link — hidden until focused. Used in [locale]/layout.tsx. */
@@ -309,6 +332,25 @@
     font-size: clamp(1.75rem, 2.5vw + 0.5rem, 2.75rem);
     line-height: 1.12;
     letter-spacing: -0.01em;
+  }
+
+  /* Body text scale — pairs with the display scale above so components stop
+     hardcoding text-sm/xs. Use for prose/labels/help text. */
+  .text-body-lg {
+    font-size: 1.0625rem;
+    line-height: 1.6;
+  }
+  .text-body-md {
+    font-size: 0.9375rem;
+    line-height: 1.55;
+  }
+  .text-body-sm {
+    font-size: 0.8125rem;
+    line-height: 1.5;
+  }
+  .text-body-xs {
+    font-size: 0.6875rem;
+    line-height: 1.45;
   }
 
   .eyebrow {
@@ -669,6 +711,12 @@
     animation: none !important;
   }
   .reveal {
+    opacity: 1 !important;
+    transform: none !important;
+    animation: none !important;
+  }
+  /* Route transitions add no information — disable so navigation is instant. */
+  .page-enter {
     opacity: 1 !important;
     transform: none !important;
     animation: none !important;

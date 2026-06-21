@@ -1,15 +1,13 @@
 {%- if cookiecutter.enable_email %}
-"""EmailService — top-level facade for sending transactional emails."""
-
 from __future__ import annotations
 
 import enum
 import logging
-from typing import Any
-{%- if cookiecutter.use_postgresql %}
 import uuid
-{%- endif %}
+from typing import Any
 
+from app.core.config import settings
+from app.services.email import get_email_provider
 from app.services.email.exceptions import EmailSuppressedError, EmailUnsubscribedError
 from app.services.email.providers.base import EmailMessage, EmailProvider, SendResult
 from app.services.email.templates import render_email
@@ -65,8 +63,6 @@ _CATEGORIES: dict[EmailKey, EmailCategory] = {
 
 
 class EmailService:
-    """Send emails through the configured provider with suppression and template rendering."""
-
     def __init__(self, provider: EmailProvider) -> None:
         self.provider = provider
 
@@ -78,16 +74,7 @@ class EmailService:
         context: dict[str, Any],
         force: bool = False,
     ) -> SendResult:
-        """Render template, apply opt-out rules, and dispatch via provider.
-
-        Args:
-            key: Template key identifying which email to send.
-            to: Recipient email address.
-            context: Template variable substitutions.
-            force: Skip category opt-out checks (use for critical notifications).
-        """
-        from app.core.config import settings
-
+        """`force=True` skips category opt-out checks — use for critical notifications."""
         subject, html, text = render_email(key.value, context)
 
         message = EmailMessage(
@@ -108,10 +95,6 @@ class EmailService:
                 extra={"key": key.value, "to": to, "error": result.error},
             )
         return result
-
-    # ------------------------------------------------------------------
-    # Convenience wrappers
-    # ------------------------------------------------------------------
 
     async def send_welcome(self, *, to: str, name: str, login_url: str) -> SendResult:
         return await self.send(
@@ -196,7 +179,6 @@ class EmailService:
 
 
 def get_email_service() -> EmailService:
-    from app.services.email import get_email_provider
     return EmailService(provider=get_email_provider())
 
 {%- else %}

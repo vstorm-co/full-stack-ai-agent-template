@@ -21,19 +21,7 @@ def _get_database_setup_commands(database: DatabaseType) -> list[tuple[str, str]
     Returns:
         List of (command, description) tuples to display
     """
-    if database == DatabaseType.SQLITE:
-        return [
-            ("# SQLite database will be created automatically", ""),
-            ("make db-migrate", "Create initial migration"),
-            ("make db-upgrade", "Apply migrations"),
-        ]
-    elif database == DatabaseType.MONGODB:
-        return [
-            ("make docker-mongo", "Start MongoDB container"),
-            ("# Or configure MongoDB Atlas connection in .env", ""),
-        ]
-    else:  # PostgreSQL
-        return [
+    return [
             ("make docker-db", "Start PostgreSQL container"),
             ("make db-migrate", "Create initial migration"),
             ("make db-upgrade", "Apply migrations"),
@@ -159,12 +147,11 @@ def post_generation_tasks(project_path: Path, config: ProjectConfig) -> None:
                     console.print(f"  {cmd:22}# {desc}")
                 else:
                     console.print(f"  {cmd}")
-            if config.database != DatabaseType.MONGODB:
-                console.print()
-                console.print(
-                    "  [dim]⚠️  Run all commands in order:[/] "
-                    "[dim]db-migrate creates the migration, db-upgrade applies it[/]"
-                )
+            console.print()
+            console.print(
+                "  [dim]⚠️  Run all commands in order:[/] "
+                "[dim]db-migrate creates the migration, db-upgrade applies it[/]"
+            )
             step += 1
         console.print()
         console.print(f"[bold]{step}. Run backend:[/]")
@@ -200,12 +187,11 @@ def post_generation_tasks(project_path: Path, config: ProjectConfig) -> None:
                     console.print(f"  {cmd:22}# {desc}")
                 else:
                     console.print(f"  {cmd}")
-            if config.database != DatabaseType.MONGODB:
-                console.print()
-                console.print(
-                    "  [dim]⚠️  Run all commands in order:[/] "
-                    "[dim]db-migrate creates the migration, db-upgrade applies it[/]"
-                )
+            console.print()
+            console.print(
+                "  [dim]⚠️  Run all commands in order:[/] "
+                "[dim]db-migrate creates the migration, db-upgrade applies it[/]"
+            )
             step += 1
         console.print()
         console.print(f"[bold]{step}. Run server:[/]")

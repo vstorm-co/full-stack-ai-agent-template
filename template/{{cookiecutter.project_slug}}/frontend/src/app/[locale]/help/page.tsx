@@ -81,7 +81,7 @@ export default async function HelpPage() {
               </span>
               <p className="text-foreground font-display text-base font-semibold">{topic.title}</p>
               <p className="text-foreground/65 text-sm">{topic.description}</p>
-              <span className="text-foreground/45 group-hover:text-foreground mt-auto inline-flex items-center gap-1 font-mono text-[11px] uppercase tracking-wider transition-colors">
+              <span className="text-foreground/45 group-hover:text-foreground mt-auto inline-flex items-center gap-1 font-mono text-[11px] tracking-wider uppercase transition-colors">
                 {t("browseLabel")}
                 <ArrowRight className="h-3 w-3" />
               </span>
@@ -103,11 +103,7 @@ export default async function HelpPage() {
         ))}
       </div>
 
-      <Section
-        theme="dark"
-        className="-mx-6 mt-24 rounded-3xl md:-mx-10"
-        padding="py-16 md:py-20"
-      >
+      <Section theme="dark" className="-mx-6 mt-24 rounded-3xl md:-mx-10" padding="py-16 md:py-20">
         <div className="mx-auto max-w-2xl px-2 text-center md:px-6">
           <span className="eyebrow-badge mb-6">{t("stillStuckEyebrow")}</span>
           <h2 className="text-display-md mb-4">{t("stillStuckTitle")}</h2>

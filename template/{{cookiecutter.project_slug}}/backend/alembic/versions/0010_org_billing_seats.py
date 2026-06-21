@@ -1,4 +1,4 @@
-{%- if cookiecutter.enable_billing and cookiecutter.enable_teams and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
+{%- if cookiecutter.enable_billing and cookiecutter.enable_teams %}
 """add billing and seats columns to organizations
 
 Revision ID: 0010_org_billing_seats

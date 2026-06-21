@@ -1,11 +1,14 @@
 {%- if cookiecutter.enable_teams %}
 """Tests for MemberService and InvitationService."""
 
+import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-{%- if cookiecutter.use_postgresql %}
+from app.core.exceptions import AlreadyExistsError, AuthorizationError, BadRequestError, NotFoundError
+from app.services.invitation import InvitationService
+from app.services.member import MemberService
 
 
 class TestMemberService:
@@ -24,14 +27,10 @@ class TestMemberService:
 
     @pytest.fixture
     def service(self, mock_db):
-        from app.services.member import MemberService
         return MemberService(mock_db)
 
     @pytest.mark.anyio
     async def test_list_for_org_raises_if_not_member(self, service):
-        import uuid
-        from app.core.exceptions import NotFoundError
-
         with (
             patch("app.services.member.member_repo.get", new=AsyncMock(return_value=None)),
             pytest.raises(NotFoundError),
@@ -40,9 +39,6 @@ class TestMemberService:
 
     @pytest.mark.anyio
     async def test_change_role_raises_if_requester_not_admin_or_owner(self, service):
-        import uuid
-        from app.core.exceptions import AuthorizationError
-
         mock_member = MagicMock()
         mock_member.role = "member"
 
@@ -54,9 +50,6 @@ class TestMemberService:
 
     @pytest.mark.anyio
     async def test_change_role_raises_if_target_is_owner(self, service):
-        import uuid
-        from app.core.exceptions import BadRequestError
-
         mock_requester = MagicMock()
         mock_requester.role = "owner"
         mock_target = MagicMock()
@@ -77,9 +70,6 @@ class TestMemberService:
 
     @pytest.mark.anyio
     async def test_change_role_admin_cannot_assign_admin_role(self, service):
-        import uuid
-        from app.core.exceptions import AuthorizationError
-
         mock_requester = MagicMock()
         mock_requester.role = "admin"
         mock_target = MagicMock()
@@ -100,9 +90,6 @@ class TestMemberService:
 
     @pytest.mark.anyio
     async def test_remove_raises_if_not_authorized(self, service):
-        import uuid
-        from app.core.exceptions import AuthorizationError
-
         mock_member = MagicMock()
         mock_member.role = "viewer"
 
@@ -114,9 +101,6 @@ class TestMemberService:
 
     @pytest.mark.anyio
     async def test_remove_admin_cannot_remove_admin(self, service):
-        import uuid
-        from app.core.exceptions import AuthorizationError
-
         mock_requester = MagicMock()
         mock_requester.role = "admin"
         mock_target = MagicMock()
@@ -137,9 +121,6 @@ class TestMemberService:
 
     @pytest.mark.anyio
     async def test_leave_owner_blocked_if_others_exist(self, service):
-        import uuid
-        from app.core.exceptions import BadRequestError
-
         mock_membership = MagicMock()
         mock_membership.role = "owner"
 
@@ -152,9 +133,6 @@ class TestMemberService:
 
     @pytest.mark.anyio
     async def test_transfer_ownership_only_owner_can_call(self, service):
-        import uuid
-        from app.core.exceptions import AuthorizationError
-
         mock_requester = MagicMock()
         mock_requester.role = "admin"
 
@@ -166,9 +144,6 @@ class TestMemberService:
 
     @pytest.mark.anyio
     async def test_transfer_ownership_to_self_raises(self, service):
-        import uuid
-        from app.core.exceptions import BadRequestError
-
         uid = uuid.uuid4()
         mock_requester = MagicMock()
         mock_requester.role = "owner"
@@ -194,14 +169,10 @@ class TestInvitationService:
 
     @pytest.fixture
     def service(self, mock_db):
-        from app.services.invitation import InvitationService
         return InvitationService(mock_db)
 
     @pytest.mark.anyio
     async def test_invite_raises_if_not_admin_or_owner(self, service):
-        import uuid
-        from app.core.exceptions import AuthorizationError
-
         mock_member = MagicMock()
         mock_member.role = "member"
 
@@ -213,9 +184,6 @@ class TestInvitationService:
 
     @pytest.mark.anyio
     async def test_invite_admin_cannot_invite_as_admin(self, service):
-        import uuid
-        from app.core.exceptions import AuthorizationError
-
         mock_requester = MagicMock()
         mock_requester.role = "admin"
 
@@ -227,9 +195,6 @@ class TestInvitationService:
 
     @pytest.mark.anyio
     async def test_invite_raises_on_duplicate_pending(self, service):
-        import uuid
-        from app.core.exceptions import AlreadyExistsError
-
         mock_requester = MagicMock()
         mock_requester.role = "owner"
         mock_pending = MagicMock()
@@ -244,9 +209,6 @@ class TestInvitationService:
 
     @pytest.mark.anyio
     async def test_accept_raises_on_missing_token(self, service):
-        import uuid
-        from app.core.exceptions import NotFoundError
-
         with (
             patch("app.services.invitation.invitation_repo.get_by_token", new=AsyncMock(return_value=None)),
             pytest.raises(NotFoundError),
@@ -255,9 +217,6 @@ class TestInvitationService:
 
     @pytest.mark.anyio
     async def test_accept_raises_on_non_pending_invite(self, service):
-        import uuid
-        from app.core.exceptions import BadRequestError
-
         mock_invite = MagicMock()
         mock_invite.status = "accepted"
 
@@ -269,9 +228,6 @@ class TestInvitationService:
 
     @pytest.mark.anyio
     async def test_revoke_raises_if_not_pending(self, service):
-        import uuid
-        from app.core.exceptions import BadRequestError
-
         mock_invite = MagicMock()
         mock_invite.status = "expired"
 
@@ -282,105 +238,6 @@ class TestInvitationService:
             await service.revoke("some-token", requester_id=uuid.uuid4())
 
 
-{%- elif cookiecutter.use_sqlite %}
-
-
-class TestMemberService:
-    """Tests for MemberService (SQLite sync)."""
-
-    @pytest.fixture
-    def mock_db(self):
-        return MagicMock()
-
-    @pytest.fixture
-    def service(self, mock_db):
-        from app.services.member import MemberService
-        return MemberService(mock_db)
-
-    def test_list_for_org_raises_if_not_member(self, service):
-        from app.core.exceptions import NotFoundError
-
-        with (
-            patch("app.services.member.member_repo.get", return_value=None),
-            pytest.raises(NotFoundError),
-        ):
-            service.list_for_org("org-1", "user-1")
-
-    def test_change_role_raises_if_requester_not_admin(self, service):
-        from app.core.exceptions import AuthorizationError
-
-        mock_member = MagicMock()
-        mock_member.role = "member"
-
-        with (
-            patch("app.services.member.member_repo.get", return_value=mock_member),
-            pytest.raises(AuthorizationError),
-        ):
-            service.change_role("org-1", "user-2", "viewer", requester_id="user-1")
-
-    def test_leave_owner_blocked_if_others_exist(self, service):
-        from app.core.exceptions import BadRequestError
-
-        mock_membership = MagicMock()
-        mock_membership.role = "owner"
-
-        with (
-            patch("app.services.member.member_repo.get", return_value=mock_membership),
-            patch("app.services.member.member_repo.count_for_org", return_value=2),
-            pytest.raises(BadRequestError),
-        ):
-            service.leave("org-1", requester_id="user-1")
-
-    def test_transfer_ownership_only_owner_can_call(self, service):
-        from app.core.exceptions import AuthorizationError
-
-        mock_requester = MagicMock()
-        mock_requester.role = "admin"
-
-        with (
-            patch("app.services.member.member_repo.get", return_value=mock_requester),
-            pytest.raises(AuthorizationError),
-        ):
-            service.transfer_ownership("org-1", "user-2", requester_id="user-1")
-
-
-class TestInvitationService:
-    """Tests for InvitationService (SQLite sync)."""
-
-    @pytest.fixture
-    def mock_db(self):
-        return MagicMock()
-
-    @pytest.fixture
-    def service(self, mock_db):
-        from app.services.invitation import InvitationService
-        return InvitationService(mock_db)
-
-    def test_invite_raises_if_not_admin_or_owner(self, service):
-        from app.core.exceptions import AuthorizationError
-
-        mock_member = MagicMock()
-        mock_member.role = "viewer"
-
-        with (
-            patch("app.services.invitation.member_repo.get", return_value=mock_member),
-            pytest.raises(AuthorizationError),
-        ):
-            service.invite("org-1", "user@example.com", "member", requester_id="user-1")
-
-    def test_accept_raises_on_missing_token(self, service):
-        from app.core.exceptions import NotFoundError
-
-        with (
-            patch("app.services.invitation.invitation_repo.get_by_token", return_value=None),
-            pytest.raises(NotFoundError),
-        ):
-            service.accept("bad-token", accepting_user_id="user-1")
-
-
-{%- else %}
-# Service tests not applicable for this DB configuration.
-{%- endif %}
 {%- else %}
 """Member/Invitation service tests — not configured (enable_teams=false)."""
 {%- endif %}

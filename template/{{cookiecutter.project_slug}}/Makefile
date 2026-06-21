@@ -6,7 +6,7 @@
 # `make prod`  — production (docker-compose.prod.yml — needs backend/.env + nginx)
 # Each env has matching -down / -logs / -rebuild siblings.
 
-{%- if cookiecutter.enable_docker and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
+{%- if cookiecutter.enable_docker %}
 
 # Wait for postgres to accept connections. Polls pg_isready instead of a
 # fixed sleep — handles slow startups and cold-start image pulls.
@@ -23,12 +23,6 @@ endef
 {%- endif %}
 
 {%- if cookiecutter.enable_docker %}
-{%- if cookiecutter.enable_antv_charts %}
-
-# Fold the opt-in "antv" profile into `make dev` so the diagram sidecar starts
-# automatically alongside db/app. The agent connects only when ENABLE_ANTV_CHARTS=true.
-COMPOSE_DEV_PROFILES := --profile antv
-{%- endif %}
 
 # === Local dev: build → up → migrate ===
 # Idempotent — re-run anytime. Migrations are no-ops when already at head;
@@ -45,11 +39,9 @@ dev:
 		docker compose -f docker-compose.dev.yml down --remove-orphans; \
 		docker compose -f docker-compose.dev.yml $(COMPOSE_DEV_PROFILES) up -d; \
 	fi
-{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
 	$(call _wait_for_db,docker-compose.dev.yml)
 	@echo "▶ Applying migrations…"
 	docker compose -f docker-compose.dev.yml exec -T app {{ cookiecutter.project_slug }} db upgrade
-{%- endif %}
 	@echo ""
 	@echo "🚀 Dev stack ready:"
 	@echo "   API:      http://localhost:{{ cookiecutter.backend_port }}"
@@ -118,10 +110,8 @@ dev-frontend:
 # === Staging: built images, no bind mounts (production-like, local DB) ===
 stage:
 	docker compose -f docker-compose.yml up -d --build
-{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
 	$(call _wait_for_db,docker-compose.yml)
 	docker compose -f docker-compose.yml exec -T app {{ cookiecutter.project_slug }} db upgrade
-{%- endif %}
 	@echo "✅ Staging stack at http://localhost:{{ cookiecutter.backend_port }}"
 
 stage-down:
@@ -131,11 +121,9 @@ stage-down:
 prod:
 	@test -f backend/.env || (echo "❌ backend/.env missing — run 'cp backend/.env.example backend/.env' and fill in real secrets" && exit 1)
 	docker compose --env-file backend/.env -f docker-compose.prod.yml up -d --build
-{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
 	@echo "▶ Waiting for DB then running migrations…"
 	@sleep 5
 	docker compose --env-file backend/.env -f docker-compose.prod.yml exec -T app {{ cookiecutter.project_slug }} db upgrade
-{%- endif %}
 	@echo "✅ Production stack up. Configure your nginx host with nginx/nginx.conf"
 
 prod-down:
@@ -167,10 +155,8 @@ install:
 	@echo "  • cd backend && cp .env.example .env"
 	@echo "  • Edit backend/.env with your settings"
 {%- endif %}
-{%- if cookiecutter.use_postgresql %}
 	@echo "  • make docker-db        # Start PostgreSQL"
 	@echo "  • make db-upgrade       # Apply migrations"
-{%- endif %}
 	@echo "  • make run              # Start development server"
 {%- if cookiecutter.generate_env %}
 	@echo ""
@@ -194,10 +180,9 @@ test:
 test-cov:
 	uv run --directory backend pytest tests/ -v --cov=app --cov-report=html --cov-report=term-missing
 
-{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
 
 # === Database ===
-{%- if cookiecutter.use_postgresql and cookiecutter.enable_docker %}
+{%- if cookiecutter.enable_docker %}
 db-init: docker-db
 	@echo "Waiting for PostgreSQL to be ready..."
 	@sleep 8
@@ -228,7 +213,6 @@ db-current:
 
 db-history:
 	uv run --directory backend {{ cookiecutter.project_slug }} db history
-{%- endif %}
 
 # === Server ===
 run:
@@ -292,9 +276,7 @@ docker-up:
 {%- if cookiecutter.use_celery %}
 	@echo "   Flower: http://localhost:5555"
 {%- endif %}
-{%- if cookiecutter.use_postgresql %}
 	@echo "   PostgreSQL: localhost:5432"
-{%- endif %}
 {%- if cookiecutter.enable_redis %}
 	@echo "   Redis: localhost:6379"
 {%- endif %}
@@ -360,7 +342,6 @@ docker-prod-logs:
 docker-prod-build:
 	docker compose -f docker-compose.prod.yml build
 
-{%- if cookiecutter.use_postgresql %}
 
 # === Docker: Individual Services ===
 docker-db:
@@ -371,7 +352,6 @@ docker-db:
 
 docker-db-stop:
 	docker compose stop db
-{%- endif %}
 
 {%- if cookiecutter.enable_redis %}
 
@@ -448,7 +428,6 @@ help:
 	@echo "  make lint          Check code quality"
 	@echo "  make format        Auto-format code"
 	@echo ""
-{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
 	@echo "Database:"
 	@echo "  make db-init       Initialize database (start + migrate)"
 	@echo "  make db-migrate    Create new migration"
@@ -456,7 +435,6 @@ help:
 	@echo "  make db-downgrade  Rollback last migration"
 	@echo "  make db-current    Show current migration"
 	@echo ""
-{%- endif %}
 {%- if cookiecutter.use_jwt %}
 	@echo "Users:"
 	@echo "  make create-admin  Create admin user (for SQLAdmin access)"
@@ -497,9 +475,7 @@ help:
 	@echo "  make docker-frontend      Start frontend (separate)"
 	@echo "  make docker-frontend-down Stop frontend"
 {%- endif %}
-{%- if cookiecutter.use_postgresql %}
 	@echo "  make docker-db            Start only PostgreSQL"
-{%- endif %}
 {%- if cookiecutter.enable_redis %}
 	@echo "  make docker-redis         Start only Redis"
 {%- endif %}

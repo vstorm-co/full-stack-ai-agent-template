@@ -5,9 +5,7 @@ import asyncio
 import logging
 from typing import Any
 
-{%- if cookiecutter.use_postgresql %}
 from uuid import UUID
-{%- endif %}
 
 from fastapi import APIRouter, HTTPException, Request, Response
 
@@ -25,11 +23,7 @@ _background_tasks: set[asyncio.Task[None]] = set()
 
 @router.post("/{bot_id}/events", status_code=200)
 async def slack_events(
-{%- if cookiecutter.use_postgresql %}
     bot_id: UUID,
-{%- else %}
-    bot_id: str,
-{%- endif %}
     request: Request,
     bot_service: ChannelBotSvc,
 ) -> Any:
@@ -53,11 +47,7 @@ async def slack_events(
     if payload.get("type") == "url_verification":
         return {"challenge": payload.get("challenge", "")}
 
-{%- if cookiecutter.use_sqlite %}
-    bot = bot_service.find_active(bot_id)
-{%- else %}
     bot = await bot_service.find_active(bot_id)
-{%- endif %}
     if bot is None:
         return Response(status_code=200)
 

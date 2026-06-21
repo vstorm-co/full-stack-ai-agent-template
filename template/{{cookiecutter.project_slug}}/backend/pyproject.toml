@@ -12,18 +12,12 @@ dependencies = [
     # TODO: unpin once FastAPI fixes empty-path routes (regression in 0.137).
     "fastapi>=0.135.3,<0.137",
     "uvicorn[standard]>=0.43.0",
-{%- if cookiecutter.use_crewai %}
-    # crewai 1.13.x pins pydantic<2.12 and pydantic-settings<2.11 transitively
-    "pydantic[email]>=2.11.0,<2.12",
-    "pydantic-settings>=2.10.1,<2.11",
-{%- else %}
     "pydantic[email]>=2.12.0",
     "pydantic-settings>=2.13.0",
-{%- endif %}
     "python-multipart>=0.0.20",
 {%- if cookiecutter.enable_logfire %}
 {%- set logfire_extras = ['fastapi'] %}
-{%- if cookiecutter.use_postgresql and cookiecutter.logfire_database %}
+{%- if cookiecutter.logfire_database %}
 {%- set _ = logfire_extras.append('asyncpg') %}
 {%- endif %}
 {%- if cookiecutter.enable_redis and cookiecutter.logfire_redis %}
@@ -37,7 +31,6 @@ dependencies = [
 {%- endif %}
     "logfire[{{ logfire_extras | join(',') }}]>=4.30.0",
 {%- endif %}
-{%- if cookiecutter.use_postgresql %}
 {%- if cookiecutter.use_sqlmodel %}
     "sqlmodel>=0.0.38",
 {%- else %}
@@ -47,19 +40,6 @@ dependencies = [
     "psycopg2-binary>=2.9.0",
     "alembic>=1.18.0",
     "greenlet>=3.2.0",
-{%- endif %}
-{%- if cookiecutter.use_mongodb %}
-    "motor>=3.7.0",
-    "beanie>=1.29.0",
-{%- endif %}
-{%- if cookiecutter.use_sqlite %}
-{%- if cookiecutter.use_sqlmodel %}
-    "sqlmodel>=0.0.38",
-{%- else %}
-    "sqlalchemy>=2.0.40",
-{%- endif %}
-    "alembic>=1.18.0",
-{%- endif %}
 {%- if cookiecutter.use_jwt %}
 {%- if cookiecutter.use_jwks_idp %}
     # PyJWT[crypto] pulls in `cryptography` for RSA/ECDSA verification — needed
@@ -121,6 +101,9 @@ dependencies = [
 {%- if cookiecutter.use_arq %}
     "arq>=0.26.0",
 {%- endif %}
+{%- if cookiecutter.use_prefect %}
+    "prefect>=3.4.0",
+{%- endif %}
 {%- if cookiecutter.enable_file_storage %}
     "boto3>=1.42.0",
 {%- endif %}
@@ -165,18 +148,6 @@ dependencies = [
 {%- endif %}
     "langgraph>=0.4.0",
     "langgraph-checkpoint>=4.0.0",
-{%- endif %}
-{%- if cookiecutter.use_crewai %}
-    "crewai>=1.13.0",
-{%- if cookiecutter.use_openai %}
-    "langchain-openai>=1.1.0",
-{%- endif %}
-{%- if cookiecutter.use_anthropic %}
-    "langchain-anthropic>=0.4.0",
-{%- endif %}
-{%- if cookiecutter.use_google %}
-    "langchain-google-genai>=2.1.0",
-{%- endif %}
 {%- endif %}
 {%- if cookiecutter.use_deepagents %}
     "deepagents>=0.1.0",
@@ -275,19 +246,6 @@ dependencies = [
 {%- endif %}
 {%- if cookiecutter.charts_channel_png %}
     "matplotlib>=3.9.0",
-{%- endif %}
-{%- if cookiecutter.enable_antv_charts %}
-    # AntV chart MCP server client (advanced diagrams via mcp-server-chart sidecar).
-    # Each framework attaches MCP differently, so the client dep is gated per framework.
-{%- if cookiecutter.use_pydantic_ai or cookiecutter.use_pydantic_deep %}
-    "pydantic-ai-slim[mcp]>=1.80.0",
-{%- endif %}
-{%- if cookiecutter.use_langchain or cookiecutter.use_langgraph or cookiecutter.use_deepagents %}
-    "langchain-mcp-adapters>=0.1.0",
-{%- endif %}
-{%- if cookiecutter.use_crewai %}
-    "crewai-tools[mcp]>=1.0.0",
-{%- endif %}
 {%- endif %}
 {%- if cookiecutter.enable_code_execution %}
     "pydantic-monty>=0.0.18",
@@ -419,7 +377,7 @@ missing-argument = "warn"
 not-iterable = "warn"
 # Return-type widening for langgraph .compile() (StateGraph vs CompiledStateGraph)
 invalid-return-type = "warn"
-# CrewAI/langgraph runtime classes use kwargs that ty stubs don't enumerate
+# LangGraph/DeepAgents runtime classes use kwargs that ty stubs don't enumerate
 invalid-type-form = "warn"
 
 # The framework agent wrappers (langchain/langgraph/deepagents/pydantic-deep)

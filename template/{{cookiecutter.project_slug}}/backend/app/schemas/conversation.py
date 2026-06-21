@@ -6,19 +6,13 @@ This module contains Pydantic schemas for Conversation, Message, and ToolCall en
 from datetime import datetime
 from typing import Any, Literal
 
-{%- if cookiecutter.use_postgresql %}
 from uuid import UUID
-{%- endif %}
 
 from pydantic import Field
-{%- if cookiecutter.use_sqlite %}
-from pydantic import field_validator
-{%- endif %}
 
 from app.schemas.base import BaseSchema, TimestampSchema
 
 
-# Tool Call Schemas
 
 
 class ToolCallBase(BaseSchema):
@@ -28,23 +22,6 @@ class ToolCallBase(BaseSchema):
     tool_name: str = Field(..., max_length=100, description="Name of the tool called")
     args: dict[str, Any] = Field(default_factory=dict, description="Tool arguments")
 
-{%- if cookiecutter.use_sqlite %}
-
-    @field_validator("args", mode="before")
-    @classmethod
-    def deserialize_args(cls, v: object) -> dict[str, Any]:
-        """Deserialize args from JSON string (SQLite stores as TEXT)."""
-        if isinstance(v, str):
-            import json
-            try:
-                result: dict[str, Any] = json.loads(v)
-                return result
-            except (json.JSONDecodeError, TypeError):
-                return {}
-        if isinstance(v, dict):
-            return {str(k): val for k, val in v.items()}
-        return {}
-{%- endif %}
 
 
 class ToolCallCreate(ToolCallBase):
@@ -64,13 +41,8 @@ class ToolCallComplete(BaseSchema):
 class ToolCallRead(ToolCallBase):
     """Schema for reading a tool call (API response)."""
 
-{%- if cookiecutter.use_postgresql %}
     id: UUID
     message_id: UUID
-{%- else %}
-    id: str
-    message_id: str
-{%- endif %}
     result: str | None = None
     status: Literal["pending", "running", "completed", "failed"] = "pending"
     started_at: datetime
@@ -93,7 +65,6 @@ class ToolCallStatList(BaseSchema):
     days: int
 
 
-# Message Schemas
 
 
 class MessageBase(BaseSchema):
@@ -113,11 +84,7 @@ class MessageCreate(MessageBase):
 class MessageFileRead(BaseSchema):
     """Schema for file attached to a message."""
 
-{%- if cookiecutter.use_postgresql %}
     id: UUID
-{%- else %}
-    id: str
-{%- endif %}
     filename: str
     mime_type: str
     file_type: str
@@ -126,13 +93,8 @@ class MessageFileRead(BaseSchema):
 class MessageRead(MessageBase, TimestampSchema):
     """Schema for reading a message (API response)."""
 
-{%- if cookiecutter.use_postgresql %}
     id: UUID
     conversation_id: UUID
-{%- else %}
-    id: str
-    conversation_id: str
-{%- endif %}
     model_name: str | None = None
     tokens_used: int | None = None
     tool_calls: list[ToolCallRead] = Field(default_factory=list)
@@ -152,18 +114,12 @@ class MessageRead(MessageBase, TimestampSchema):
 class MessageReadSimple(MessageBase, TimestampSchema):
     """Simplified message schema without tool calls."""
 
-{%- if cookiecutter.use_postgresql %}
     id: UUID
     conversation_id: UUID
-{%- else %}
-    id: str
-    conversation_id: str
-{%- endif %}
     model_name: str | None = None
     tokens_used: int | None = None
 
 
-# Conversation Schemas
 
 
 class ConversationBase(BaseSchema):
@@ -176,11 +132,7 @@ class ConversationCreate(ConversationBase):
     """Schema for creating a conversation."""
 
 {%- if cookiecutter.use_jwt %}
-{%- if cookiecutter.use_postgresql %}
     user_id: UUID | None = Field(default=None, description="Owner user ID")
-{%- else %}
-    user_id: str | None = Field(default=None, description="Owner user ID")
-{%- endif %}
 {%- endif %}
 {%- if cookiecutter.use_external_user_id_in_conversations %}
     external_user_id: str | None = Field(
@@ -190,18 +142,10 @@ class ConversationCreate(ConversationBase):
     )
 {%- endif %}
 {%- if cookiecutter.use_pydantic_deep and cookiecutter.use_jwt %}
-{%- if cookiecutter.use_postgresql %}
     project_id: UUID | None = Field(default=None, description="Project this conversation belongs to")
-{%- else %}
-    project_id: str | None = Field(default=None, description="Project this conversation belongs to")
-{%- endif %}
 {%- endif %}
 {%- if cookiecutter.enable_teams and cookiecutter.use_jwt %}
-{%- if cookiecutter.use_postgresql %}
     organization_id: UUID | None = Field(default=None, description="Organization this conversation belongs to")
-{%- else %}
-    organization_id: str | None = Field(default=None, description="Organization this conversation belongs to")
-{%- endif %}
 {%- endif %}
 
 
@@ -238,7 +182,6 @@ class ConversationKBSettings(BaseSchema):
 class ConversationRead(ConversationBase, TimestampSchema):
     """Schema for reading a conversation (API response)."""
 
-{%- if cookiecutter.use_postgresql %}
     id: UUID
 {%- if cookiecutter.use_jwt %}
     user_id: UUID | None = None
@@ -249,35 +192,9 @@ class ConversationRead(ConversationBase, TimestampSchema):
 {%- if cookiecutter.enable_teams and cookiecutter.use_jwt %}
     organization_id: UUID | None = None
 {%- endif %}
-{%- else %}
-    id: str
-{%- if cookiecutter.use_jwt %}
-    user_id: str | None = None
-{%- endif %}
-{%- if cookiecutter.use_pydantic_deep and cookiecutter.use_jwt %}
-    project_id: str | None = None
-{%- endif %}
-{%- if cookiecutter.enable_teams and cookiecutter.use_jwt %}
-    organization_id: str | None = None
-{%- endif %}
-{%- endif %}
     is_archived: bool = False
 {%- if cookiecutter.enable_teams and cookiecutter.enable_rag and cookiecutter.use_jwt %}
     active_knowledge_base_ids: list[str] | None = None
-{%- if cookiecutter.use_sqlite %}
-
-    @field_validator("active_knowledge_base_ids", mode="before")
-    @classmethod
-    def deserialize_active_kb_ids(cls, v: object) -> list[str] | None:
-        if isinstance(v, str):
-            import json
-            try:
-                parsed = json.loads(v)
-                return parsed  # type: ignore[return-value]
-            except (json.JSONDecodeError, TypeError):
-                return None
-        return v  # type: ignore[return-value]
-{%- endif %}
 {%- endif %}
 
 
@@ -294,7 +211,6 @@ class ConversationList(BaseSchema):
     total: int
 
 
-# Aggregated Schemas for API Responses
 
 
 class MessageList(BaseSchema):

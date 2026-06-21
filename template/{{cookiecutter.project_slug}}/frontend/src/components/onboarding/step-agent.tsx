@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Check } from "lucide-react";
 
+import { Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
 
 import { OnboardingShell } from "./onboarding-shell";
@@ -36,12 +37,6 @@ const AGENTS: AgentOption[] = [
     tagline: "Long-horizon planning",
     description: "Built for autonomous tasks that span many tool calls.",
   },
-  {
-    id: "crewai",
-    name: "CrewAI",
-    tagline: "Multi-agent collaboration",
-    description: "Coordinated teams of specialized agents.",
-  },
 ];
 
 export function StepAgent() {
@@ -72,33 +67,33 @@ export function StepAgent() {
               type="button"
               onClick={() => setSelected(agent.id)}
               className={cn(
-                "lift relative flex flex-col gap-2 rounded-2xl border p-5 text-left transition-colors",
+                "bg-card relative flex flex-col gap-2 rounded-xl border p-5 text-left transition-colors",
                 isSelected
-                  ? "border-brand bg-brand/[0.06]"
-                  : "border-foreground/10 bg-card hover:border-foreground/30",
+                  ? "border-foreground"
+                  : "border-border hover:border-foreground/30",
               )}
             >
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-foreground font-display text-base font-semibold">
-                    {agent.name}
-                  </p>
-                  <p className="text-foreground/55 text-xs">{agent.tagline}</p>
+                  <p className="text-foreground text-base font-semibold">{agent.name}</p>
+                  <p className="text-muted-foreground text-xs">{agent.tagline}</p>
                 </div>
                 <span
                   className={cn(
                     "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-colors",
                     isSelected
-                      ? "border-brand bg-brand text-brand-foreground"
-                      : "border-foreground/25",
+                      ? "border-foreground bg-foreground text-background"
+                      : "border-border",
                   )}
                 >
                   {isSelected && <Check className="h-3 w-3" />}
                 </span>
               </div>
-              <p className="text-foreground/70 mt-1 text-sm leading-relaxed">{agent.description}</p>
+              <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
+                {agent.description}
+              </p>
               {agent.recommended && (
-                <span className="bg-brand text-brand-foreground absolute -top-2 right-4 rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider">
+                <span className="bg-muted text-foreground border-border absolute -top-2 right-4 rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase">
                   Recommended
                 </span>
               )}
@@ -107,14 +102,10 @@ export function StepAgent() {
         })}
       </div>
 
-      <button
-        type="button"
-        onClick={handleNext}
-        className="bg-foreground text-background hover:bg-foreground/90 mt-8 inline-flex h-12 items-center justify-center gap-2 rounded-full px-6 text-sm font-medium transition-colors"
-      >
+      <Button size="lg" className="mt-8" onClick={handleNext}>
         Continue
         <ArrowRight className="h-4 w-4" />
-      </button>
+      </Button>
     </OnboardingShell>
   );
 }

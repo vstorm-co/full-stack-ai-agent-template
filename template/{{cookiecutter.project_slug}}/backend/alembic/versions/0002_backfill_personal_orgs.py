@@ -1,4 +1,4 @@
-{%- if cookiecutter.enable_teams and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
+{%- if cookiecutter.enable_teams %}
 """backfill personal orgs for existing users
 
 Revision ID: 0002_backfill_orgs
@@ -9,6 +9,7 @@ DATA MIGRATION — creates a Personal Organization for every existing user
 that does not already have one. Safe to run multiple times (idempotent).
 """
 
+import re
 import uuid
 
 import sqlalchemy as sa
@@ -19,17 +20,11 @@ down_revision = "0001_org"
 branch_labels = None
 depends_on = None
 
-{%- if cookiecutter.use_postgresql %}
 _UUID = sa.dialects.postgresql.UUID(as_uuid=True)
 _ID_DEFAULT = lambda: uuid.uuid4()  # noqa: E731
-{%- else %}
-_UUID = sa.String(36)
-_ID_DEFAULT = lambda: str(uuid.uuid4())  # noqa: E731
-{%- endif %}
 
 
 def _slugify(text: str) -> str:
-    import re
     slug = text.lower().strip()
     slug = re.sub(r"[^\w\s-]", "", slug)
     slug = re.sub(r"[\s_]+", "-", slug)
@@ -81,7 +76,6 @@ def upgrade() -> None:
     users = conn.execute(sa.select(users_t.c.id, users_t.c.email)).fetchall()
 
     for user_id, email in users:
-        # Check if personal org already exists for this user
         existing = conn.execute(
             sa.select(sa.func.count())
             .select_from(orgs_t)

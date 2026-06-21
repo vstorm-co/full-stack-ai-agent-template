@@ -1,7 +1,3 @@
-/**
- * Chat and AI Agent types.
- */
-
 export type MessageRole = "user" | "assistant" | "system";
 /** Rating values for message feedback. */
 export enum RatingValue {
@@ -26,7 +22,7 @@ export interface ChatMessage {
   timestamp: Date;
   toolCalls?: ToolCall[];
   isStreaming?: boolean;
-  /** Group ID for related messages (e.g., CrewAI agent chain) */
+  /** Group ID for related messages in a multi-agent chain. */
   groupId?: string;
   /** IDs of attached files — kept for sending. Use ``files`` for rendering. */
   fileIds?: string[];
@@ -100,30 +96,8 @@ export interface ChartSpec {
   style: ChartStyle;
 }
 {%- endif %}
-{%- if cookiecutter.enable_antv_charts %}
 
-/** A single point on a `create_map` map. */
-export interface MapMarker {
-  lat: number;
-  lng: number;
-  label: string;
-  description?: string | null;
-  color?: string | null;
-}
-
-/** Structured map payload produced by the agent's `create_map` tool. */
-export interface MapSpec {
-  kind: "map";
-  title: string;
-  markers: MapMarker[];
-  center?: [number, number] | null;
-  zoom?: number | null;
-}
-{%- endif %}
-
-// WebSocket event types from backend
 export type WSEventType =
-  // PydanticAI / LangChain / LangGraph events
   | "user_prompt"
   | "user_prompt_processed"
   | "model_request_start"
@@ -140,26 +114,14 @@ export type WSEventType =
   | "error"
   | "conversation_created"
   | "message_saved"
-  // DeepAgents Human-in-the-Loop event
   | "tool_approval_required"
   | "ask_user"
 {%- if cookiecutter.enable_deep_research %}
-  // Deep research events
   | "todo_event"
   | "subagent_status"
   | "context_usage"
   | "context_compacted"
 {%- endif %}
-  // CrewAI-specific events
-  | "crew_start"
-  | "crew_started"
-  | "crew_complete"
-  | "agent_started"
-  | "agent_completed"
-  | "task_started"
-  | "task_completed"
-  | "tool_started"
-  | "tool_finished"
   | "llm_started"
   | "llm_completed";
 
@@ -206,7 +168,6 @@ export interface ChatState {
   isProcessing: boolean;
 }
 
-// Human-in-the-Loop (HITL) types for DeepAgents
 export interface ActionRequest {
   id: string;
   tool_name: string;

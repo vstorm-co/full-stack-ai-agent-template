@@ -12,6 +12,7 @@ the same way the chart tool returns a structured spec. Modern LLMs read JSON
 tool results fine and can still cite by title/URL.
 """
 
+import asyncio
 import json
 from typing import Literal
 
@@ -80,21 +81,6 @@ async def web_search(
         for r in response.get("results", [])
     ]
     return WebSearchResults(query=query, results=results).model_dump_json()
-
-
-def web_search_sync(
-    query: str,
-    max_results: int = 5,
-    search_depth: str = "basic",
-) -> str:
-    """Synchronous wrapper for web_search (for CrewAI/LangChain sync tools)."""
-    import asyncio
-
-    loop = asyncio.new_event_loop()
-    try:
-        return loop.run_until_complete(web_search(query, max_results, search_depth))
-    finally:
-        loop.close()
 
 
 def parse_web_search(result: str) -> WebSearchResults | None:

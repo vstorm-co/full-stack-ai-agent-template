@@ -38,7 +38,6 @@ async def google_login(request: Request):
     return await oauth.google.authorize_redirect(request, settings.GOOGLE_REDIRECT_URI)
 
 
-{%- if cookiecutter.use_postgresql %}
 
 
 @router.get("/google/callback")
@@ -81,93 +80,6 @@ async def google_callback(request: Request, user_service: UserSvc):
         return RedirectResponse(url=f"{frontend}/login?{params}")
 
 
-{%- elif cookiecutter.use_mongodb %}
-
-
-@router.get("/google/callback")
-async def google_callback(request: Request, user_service: UserSvc):
-    """Handle Google OAuth2 callback."""
-    frontend = settings.FRONTEND_URL.rstrip("/")
-    try:
-        token = await oauth.google.authorize_access_token(request)
-        user_info = token.get("userinfo")
-
-        if not user_info:
-            params = urlencode({"error": "Failed to get user info from Google"})
-            return RedirectResponse(url=f"{frontend}/login?{params}")
-
-{%- if cookiecutter.enable_email_domain_allowlist %}
-        if not _is_domain_allowed(user_info.get("email", "")):
-            params = urlencode({"error": "Sign-in not allowed for your email domain."})
-            return RedirectResponse(url=f"{frontend}/login?{params}")
-{%- endif %}
-
-        user = await user_service.get_or_create_oauth_user(
-            provider="google",
-            provider_id=user_info.get("sub"),
-            email=user_info.get("email"),
-            full_name=user_info.get("name"),
-        )
-
-        access_token = create_access_token(subject=str(user.id))
-        refresh_token = create_refresh_token(subject=str(user.id))
-
-        params = urlencode({
-            "access_token": access_token,
-            "refresh_token": refresh_token,
-        })
-        return RedirectResponse(url=f"{frontend}/auth/callback?{params}")
-
-    except Exception:
-        logger.exception("google_oauth_callback_failed")
-        params = urlencode({"error": "Sign-in failed. Please try again."})
-        return RedirectResponse(url=f"{frontend}/login?{params}")
-
-
-{%- elif cookiecutter.use_sqlite %}
-
-
-@router.get("/google/callback")
-async def google_callback(request: Request, user_service: UserSvc):
-    """Handle Google OAuth2 callback."""
-    frontend = settings.FRONTEND_URL.rstrip("/")
-    try:
-        token = await oauth.google.authorize_access_token(request)
-        user_info = token.get("userinfo")
-
-        if not user_info:
-            params = urlencode({"error": "Failed to get user info from Google"})
-            return RedirectResponse(url=f"{frontend}/login?{params}")
-
-{%- if cookiecutter.enable_email_domain_allowlist %}
-        if not _is_domain_allowed(user_info.get("email", "")):
-            params = urlencode({"error": "Sign-in not allowed for your email domain."})
-            return RedirectResponse(url=f"{frontend}/login?{params}")
-{%- endif %}
-
-        user = user_service.get_or_create_oauth_user(
-            provider="google",
-            provider_id=user_info.get("sub"),
-            email=user_info.get("email"),
-            full_name=user_info.get("name"),
-        )
-
-        access_token = create_access_token(subject=user.id)
-        refresh_token = create_refresh_token(subject=user.id)
-
-        params = urlencode({
-            "access_token": access_token,
-            "refresh_token": refresh_token,
-        })
-        return RedirectResponse(url=f"{frontend}/auth/callback?{params}")
-
-    except Exception:
-        logger.exception("google_oauth_callback_failed")
-        params = urlencode({"error": "Sign-in failed. Please try again."})
-        return RedirectResponse(url=f"{frontend}/login?{params}")
-
-
-{%- endif %}
 {%- endif %}
 {%- else %}
 """OAuth routes - not configured."""

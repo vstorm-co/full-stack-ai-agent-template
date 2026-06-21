@@ -11,7 +11,6 @@ from .config import (
     AuthMode,
     BackgroundTaskType,
     BillingModelType,
-    BrandColorType,
     CIType,
     DatabaseType,
     EmailProviderType,
@@ -120,7 +119,7 @@ def _preflight_check(  # noqa: C901
         issues.append(
             (
                 "--rag requires a database (RAGDocument table stores per-doc metadata)",
-                "Pick --database postgresql|mongodb|sqlite",
+                "Pick --database postgresql",
             )
         )
     if rag and vector_store == "pgvector" and database != "postgresql":
@@ -255,7 +254,7 @@ def cli(ctx: click.Context) -> None:
     "--minimal",
     is_flag=True,
     default=False,
-    help="Skip wizard — ask only for project name and use minimal defaults (SQLite, no Docker/Redis/CI)",
+    help="Skip wizard — ask only for project name and use minimal defaults (PostgreSQL, no Docker/Redis/CI)",
 )
 def new(output: Path | None, no_input: bool, name: str | None, minimal: bool) -> None:
     """Create a new FastAPI project interactively."""
@@ -279,7 +278,7 @@ def new(output: Path | None, no_input: bool, name: str | None, minimal: bool) ->
             if minimal:
                 config = ProjectConfig(
                     project_name=name,
-                    database=DatabaseType.SQLITE,
+                    database=DatabaseType.POSTGRESQL,
                     enable_logfire=False,
                     enable_redis=False,
                     enable_caching=False,
@@ -292,7 +291,7 @@ def new(output: Path | None, no_input: bool, name: str | None, minimal: bool) ->
                     ci_type=CIType.NONE,
                 )
                 console.print(f"[cyan]Creating minimal project:[/] {name}")
-                console.print("[dim]SQLite · no Docker · no Redis · no CI[/]")
+                console.print("[dim]PostgreSQL · no Docker · no Redis · no CI[/]")
                 console.print()
             else:
                 config = ProjectConfig(project_name=name, background_tasks=BackgroundTaskType.NONE)
@@ -326,7 +325,7 @@ def new(output: Path | None, no_input: bool, name: str | None, minimal: bool) ->
 )
 @click.option(
     "--database",
-    type=click.Choice(["postgresql", "mongodb", "sqlite"]),
+    type=click.Choice(["postgresql"]),
     default="postgresql",
     help="Database type",
 )
@@ -334,7 +333,7 @@ def new(output: Path | None, no_input: bool, name: str | None, minimal: bool) ->
     "--orm",
     type=click.Choice(["sqlalchemy", "sqlmodel"]),
     default="sqlalchemy",
-    help="ORM library (sqlalchemy or sqlmodel). SQLModel only works with PostgreSQL/SQLite",
+    help="ORM library (sqlalchemy or sqlmodel)",
 )
 @click.option("--no-logfire", is_flag=True, help="Disable Logfire integration")
 @click.option("--no-docker", is_flag=True, help="Disable Docker files")
@@ -359,12 +358,6 @@ def new(output: Path | None, no_input: bool, name: str | None, minimal: bool) ->
     help="Frontend server port (default: 3000)",
 )
 @click.option(
-    "--brand-color",
-    type=click.Choice(["blue", "green", "red", "violet", "orange"]),
-    default="blue",
-    help="Brand color theme for frontend (default: blue)",
-)
-@click.option(
     "--timezone",
     type=str,
     default="UTC",
@@ -385,7 +378,7 @@ def new(output: Path | None, no_input: bool, name: str | None, minimal: bool) ->
 @click.option(
     "--ai-framework",
     type=click.Choice(
-        ["none", "pydantic_ai", "langchain", "langgraph", "crewai", "deepagents", "pydantic_deep"]
+        ["none", "pydantic_ai", "langchain", "langgraph", "deepagents", "pydantic_deep"]
     ),
     default="pydantic_ai",
     help="AI framework (default: pydantic_ai). Use 'none' for plain SaaS without AI/chat.",
@@ -470,13 +463,6 @@ def new(output: Path | None, no_input: bool, name: str | None, minimal: bool) ->
     is_flag=True,
     default=False,
     help="Enable the chart-generation tool for AI agents (line/bar/pie/area/scatter)",
-)
-@click.option(
-    "--antv-charts",
-    is_flag=True,
-    default=False,
-    help="Enable AntV advanced-diagram tools (flowchart, mind-map, sankey, ...) via an "
-    "mcp-server-chart sidecar, plus an interactive Leaflet/OpenStreetMap map tool",
 )
 @click.option(
     "--code-execution",
@@ -659,7 +645,7 @@ def new(output: Path | None, no_input: bool, name: str | None, minimal: bool) ->
     help=(
         "Scaffold an example Item CRUD (model + repo + service + routes + "
         "migration) as a reference for adding new domains. "
-        "Requires --database postgresql|sqlite."
+        "Requires --database postgresql."
     ),
 )
 @click.option("--changelog", is_flag=True, default=False, help="Generate changelog page")
@@ -771,7 +757,6 @@ def create(
     web_search: bool,
     web_fetch: bool,
     charts: bool,
-    antv_charts: bool,
     code_execution: bool,
     skills: bool,
     deep_research: bool,
@@ -791,7 +776,6 @@ def create(
     s3_rag: bool,
     reranker: str,
     pdf_parser: str,
-    brand_color: str,
     timezone: str,
     preset: str | None,
     telegram: bool,
@@ -848,7 +832,6 @@ def create(
                 ci_type=CIType.GITHUB,
                 generate_env=not no_env,
                 frontend=FrontendType(frontend),
-                brand_color=BrandColorType(brand_color),
                 backend_port=backend_port,
                 frontend_port=frontend_port,
                 python_version=python_version,
@@ -868,7 +851,6 @@ def create(
                 ci_type=CIType.GITHUB,
                 generate_env=not no_env,
                 frontend=FrontendType(frontend),
-                brand_color=BrandColorType(brand_color),
                 backend_port=backend_port,
                 frontend_port=frontend_port,
                 python_version=python_version,
@@ -904,7 +886,6 @@ def create(
                 ci_type=CIType.GITHUB,
                 generate_env=not no_env,
                 frontend=FrontendType.NEXTJS,
-                brand_color=BrandColorType(brand_color),
                 backend_port=backend_port,
                 frontend_port=frontend_port,
                 python_version=python_version,
@@ -940,7 +921,6 @@ def create(
                 ci_type=CIType.GITHUB,
                 generate_env=not no_env,
                 frontend=FrontendType.NEXTJS,
-                brand_color=BrandColorType(brand_color),
                 backend_port=backend_port,
                 frontend_port=frontend_port,
                 python_version=python_version,
@@ -969,7 +949,6 @@ def create(
                 ci_type=CIType.GITHUB,
                 generate_env=not no_env,
                 frontend=FrontendType.NEXTJS,
-                brand_color=BrandColorType(brand_color),
                 backend_port=backend_port,
                 frontend_port=frontend_port,
                 python_version=python_version,
@@ -1000,7 +979,6 @@ def create(
                 ci_type=CIType.GITHUB,
                 generate_env=not no_env,
                 frontend=FrontendType.NEXTJS,
-                brand_color=BrandColorType(brand_color),
                 backend_port=backend_port,
                 frontend_port=frontend_port,
                 python_version=python_version,
@@ -1030,7 +1008,6 @@ def create(
                 ci_type=CIType.GITHUB,
                 generate_env=not no_env,
                 frontend=FrontendType.NEXTJS,
-                brand_color=BrandColorType(brand_color),
                 backend_port=backend_port,
                 frontend_port=frontend_port,
                 python_version=python_version,
@@ -1064,20 +1041,19 @@ def create(
                 ci_type=CIType.GITHUB,
                 generate_env=not no_env,
                 frontend=FrontendType.NEXTJS,
-                brand_color=BrandColorType(brand_color),
                 backend_port=backend_port,
                 frontend_port=frontend_port,
                 python_version=python_version,
                 timezone=timezone,
             )
         elif preset == "dev-playground":
-            # Local prototyping for AI features: SQLite, no Docker, no CI,
+            # Local prototyping for AI features: PostgreSQL, no Docker, no CI,
             # ChromaDB (file-based vector store, no separate Milvus container).
             # Use this when iterating on agents/prompts/RAG locally without
             # spinning up the full production stack.
             config = ProjectConfig(
                 project_name=name,
-                database=DatabaseType.SQLITE,
+                database=DatabaseType.POSTGRESQL,
                 enable_logfire=False,
                 enable_redis=False,
                 enable_caching=False,
@@ -1096,7 +1072,6 @@ def create(
                 ci_type=CIType.NONE,
                 generate_env=not no_env,
                 frontend=FrontendType(frontend),
-                brand_color=BrandColorType(brand_color),
                 backend_port=backend_port,
                 frontend_port=frontend_port,
                 python_version=python_version,
@@ -1105,7 +1080,7 @@ def create(
         elif minimal:
             config = ProjectConfig(
                 project_name=name,
-                database=DatabaseType.SQLITE,
+                database=DatabaseType.POSTGRESQL,
                 enable_logfire=False,
                 enable_redis=False,
                 enable_caching=False,
@@ -1118,7 +1093,6 @@ def create(
                 ci_type=CIType.NONE,
                 generate_env=not no_env,
                 frontend=FrontendType(frontend),
-                brand_color=BrandColorType(brand_color),
                 backend_port=backend_port,
                 frontend_port=frontend_port,
                 python_version=python_version,
@@ -1176,7 +1150,6 @@ def create(
                 enable_docker=not no_docker,
                 generate_env=not no_env,
                 frontend=FrontendType(frontend),
-                brand_color=BrandColorType(brand_color),
                 backend_port=backend_port,
                 frontend_port=frontend_port,
                 db_pool_size=db_pool_size,
@@ -1203,7 +1176,6 @@ def create(
                 enable_web_search=web_search,
                 enable_web_fetch=web_fetch,
                 enable_charts=charts,
-                enable_antv_charts=antv_charts,
                 enable_code_execution=code_execution,
                 enable_skills=skills,
                 enable_deep_research=deep_research,
@@ -1316,19 +1288,17 @@ def templates() -> None:
     )
     console.print("  --preset consumer-app     B2C app: OAuth + marketing + billing + credits")
     console.print(
-        "  --preset dev-playground   Local AI prototyping: SQLite + no Docker/K8s, fast iteration"
+        "  --preset dev-playground   Local AI prototyping: PostgreSQL + no Docker/K8s, fast iteration"
     )
     console.print(
-        "  --minimal                 Minimal project (SQLite, no Docker/K8s/CI, no Redis)"
+        "  --minimal                 Minimal project (PostgreSQL, no Docker/K8s/CI, no Redis)"
     )
     console.print()
 
-    console.print("[bold]Databases:[/]")
-    console.print("  --database postgresql  PostgreSQL with asyncpg (async)")
-    console.print("  --database mongodb     MongoDB with Motor (async)")
-    console.print("  --database sqlite      SQLite with SQLAlchemy (sync)")
+    console.print("[bold]Database:[/]")
+    console.print("  --database postgresql  PostgreSQL with asyncpg (async, default)")
     console.print("  --orm sqlalchemy       SQLAlchemy (default)")
-    console.print("  --orm sqlmodel         SQLModel (PostgreSQL/SQLite only)")
+    console.print("  --orm sqlmodel         SQLModel")
     console.print()
 
     console.print("[bold]Authentication (always included):[/]")
@@ -1357,7 +1327,6 @@ def templates() -> None:
     console.print("  --ai-framework pydantic_ai      PydanticAI (recommended)")
     console.print("  --ai-framework langchain        LangChain")
     console.print("  --ai-framework langgraph        LangGraph (ReAct agent)")
-    console.print("  --ai-framework crewai           CrewAI (multi-agent crews)")
     console.print("  --ai-framework deepagents       DeepAgents (agentic coding, HITL)")
     console.print(
         "  --ai-framework pydantic_deep    PydanticDeep (deep agentic coding, Docker sandbox)"
@@ -1467,7 +1436,7 @@ def templates() -> None:
     console.print("[bold]Scaffold:[/]")
     console.print("  --example-resource    Generate example Item CRUD scaffold")
     console.print("                        (model → repo → service → route → migration)")
-    console.print("                        Requires --database postgresql|sqlite")
+    console.print("                        Requires --database postgresql")
     console.print()
 
     console.print("[bold]Other:[/]")

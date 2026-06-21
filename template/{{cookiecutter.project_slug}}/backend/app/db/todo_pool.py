@@ -1,4 +1,3 @@
-{%- if cookiecutter.use_postgresql %}
 """Shared asyncpg pool for the deep-research TODO planner.
 
 The ``pydantic-ai-todo`` async storage backend speaks raw asyncpg (DSN or pool),
@@ -51,28 +50,3 @@ async def close_todo_pool() -> None:
 def get_todo_pool() -> asyncpg.Pool | None:
     """Return the shared asyncpg pool, or ``None`` when it could not be created."""
     return _todo_pool
-{%- else %}
-"""Deep-research TODO pool — no-op without PostgreSQL.
-
-The ``pydantic-ai-todo`` async Postgres backend speaks asyncpg, so without a
-PostgreSQL database the deep-research planner falls back to in-memory storage and
-these helpers are no-ops.
-"""
-
-from typing import Any
-
-
-async def init_todo_pool() -> Any | None:
-    """Return ``None`` — the TODO pool is Postgres-only."""
-    return None
-
-
-async def close_todo_pool() -> None:
-    """No-op without a Postgres pool."""
-    return None
-
-
-def get_todo_pool() -> Any | None:
-    """Return ``None`` — callers fall back to in-memory."""
-    return None
-{%- endif %}

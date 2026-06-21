@@ -101,7 +101,6 @@ These are defined in `app/api/deps.py` and used throughout the route layer:
 | `/rag/collections/{name}/documents` | GET | Y | -- | List documents in collection (admin only) |
 | `/rag/collections/{name}/documents/{id}` | DELETE | Y | -- | Delete document (admin only) |
 | `/rag/collections/{name}/ingest` | POST | Y | -- | Upload and ingest file (admin only) |
-{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
 | `/rag/documents` | GET | Y | -- | List tracked RAG documents (admin only) |
 | `/rag/documents/{id}/download` | GET | Y | -- | Download original file (admin only) |
 | `/rag/documents/{id}` | DELETE | Y | -- | Delete tracked document (admin only) |
@@ -115,7 +114,6 @@ These are defined in `app/api/deps.py` and used throughout the route layer:
 | `/rag/sync/sources/{id}` | DELETE | Y | -- | Delete sync source (admin only) |
 | `/rag/sync/sources/{id}/trigger` | POST | Y | -- | Trigger manual sync (admin only) |
 | `/rag/sync/connectors` | GET | Y | -- | List available connector types (admin only) |
-{%- endif %}
 {%- endif %}
 
 {%- if cookiecutter.enable_webhooks and cookiecutter.use_database %}

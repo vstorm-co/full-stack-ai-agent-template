@@ -30,11 +30,7 @@ interface ChatState {
   /** Add a tool call as an ordered part (and to the flat ``toolCalls``). */
   addToolCallPart: (messageId: string, toolCall: ToolCall) => void;
   /** Update a tool call inside its part and the flat ``toolCalls``. */
-  updateToolCallPart: (
-    messageId: string,
-    toolCallId: string,
-    update: Partial<ToolCall>,
-  ) => void;
+  updateToolCallPart: (messageId: string, toolCallId: string, update: Partial<ToolCall>) => void;
   setStreaming: (streaming: boolean) => void;
   clearMessages: () => void;
 }
@@ -115,10 +111,7 @@ export const useChatStore = create<ChatState>((set) => ({
         msg.id === messageId
           ? {
               ...msg,
-              parts: [
-                ...(msg.parts ?? []),
-                { id: newPartId(), type: "tool", toolCall },
-              ],
+              parts: [...(msg.parts ?? []), { id: newPartId(), type: "tool", toolCall }],
               toolCalls: [...(msg.toolCalls || []), toolCall],
             }
           : msg,

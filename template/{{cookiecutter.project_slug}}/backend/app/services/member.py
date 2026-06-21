@@ -1,13 +1,8 @@
 {%- if cookiecutter.enable_teams %}
-{%- if cookiecutter.use_postgresql %}
-"""Member service (PostgreSQL async).
-
-Business logic for managing org members: list, change role, remove, transfer ownership.
-"""
-
 import logging
 from uuid import UUID
 
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import AuthorizationError, BadRequestError, NotFoundError
@@ -22,8 +17,6 @@ _ADMIN_ASSIGNABLE_ROLES = {OrgRole.MEMBER.value, OrgRole.VIEWER.value}
 
 
 class MemberService:
-    """Service for organization member management."""
-
     def __init__(self, db: AsyncSession):
         self.db = db
 
@@ -162,229 +155,15 @@ class MemberService:
         )
 
     async def _count_owners(self, organization_id: UUID) -> int:
-        from sqlalchemy import func, select
-        from app.db.models.organization import OrganizationMember as OM
-
         result = await self.db.execute(
-            select(func.count(OM.id)).where(
-                OM.organization_id == organization_id,
-                OM.role == OrgRole.OWNER.value,
+            select(func.count(OrganizationMember.id)).where(
+                OrganizationMember.organization_id == organization_id,
+                OrganizationMember.role == OrgRole.OWNER.value,
             )
         )
         return result.scalar() or 0
 
 
-{%- elif cookiecutter.use_sqlite %}
-"""Member service (SQLite sync)."""
-
-import logging
-from sqlalchemy.orm import Session
-
-from app.core.exceptions import AuthorizationError, BadRequestError, NotFoundError
-from app.db.models.organization import OrgRole, OrganizationMember
-from app.repositories import member_repo, user_repo
-
-logger = logging.getLogger(__name__)
-
-_ADMIN_ASSIGNABLE_ROLES = {OrgRole.MEMBER.value, OrgRole.VIEWER.value}
-
-
-class MemberService:
-    """Service for organization member management."""
-
-    def __init__(self, db: Session):
-        self.db = db
-
-    def list_for_org(
-        self, organization_id: str, requester_id: str, *, skip: int = 0, limit: int = 100
-    ) -> tuple[list[tuple[OrganizationMember, str, str | None, str | None]], int]:
-        if not member_repo.get(self.db, organization_id=organization_id, user_id=requester_id):
-            raise NotFoundError(message="Organization not found", details={"org_id": organization_id})
-        rows = member_repo.list_for_org(self.db, organization_id, skip=skip, limit=limit)
-        total = member_repo.count_for_org(self.db, organization_id)
-        return rows, total
-
-    def change_role(
-        self, organization_id: str, target_user_id: str, new_role: str, requester_id: str
-    ) -> tuple[OrganizationMember, str, str | None, str | None]:
-        requester = member_repo.get(self.db, organization_id=organization_id, user_id=requester_id)
-        if not requester or requester.role not in (OrgRole.OWNER.value, OrgRole.ADMIN.value):
-            raise AuthorizationError(message="Only Owner or Admin can change member roles")
-
-        target = member_repo.get(self.db, organization_id=organization_id, user_id=target_user_id)
-        if not target:
-            raise NotFoundError(message="Member not found", details={"user_id": target_user_id})
-
-        if target.role == OrgRole.OWNER.value:
-            raise BadRequestError(message="Use transfer-ownership to change the Owner role")
-
-        if requester.role == OrgRole.ADMIN.value and new_role not in _ADMIN_ASSIGNABLE_ROLES:
-            raise AuthorizationError(message="Admin can only assign Member or Viewer roles")
-
-        updated = member_repo.update_role(self.db, target, role=new_role)
-        user = user_repo.get_by_id(self.db, updated.user_id)
-        email = user.email if user else ""
-        full_name = user.full_name if user else None
-        avatar_url = user.avatar_url if user else None
-        return updated, email, full_name, avatar_url
-
-    def remove(self, organization_id: str, target_user_id: str, requester_id: str) -> None:
-        requester = member_repo.get(self.db, organization_id=organization_id, user_id=requester_id)
-        if not requester or requester.role not in (OrgRole.OWNER.value, OrgRole.ADMIN.value):
-            raise AuthorizationError(message="Only Owner or Admin can remove members")
-
-        target = member_repo.get(self.db, organization_id=organization_id, user_id=target_user_id)
-        if not target:
-            raise NotFoundError(message="Member not found", details={"user_id": target_user_id})
-
-        if target.role == OrgRole.OWNER.value:
-            if member_repo.count_for_org(self.db, organization_id) <= 1:
-                raise BadRequestError(message="Cannot remove the last Owner. Transfer ownership first.")
-            if requester.role != OrgRole.OWNER.value:
-                raise AuthorizationError(message="Only an Owner can remove another Owner")
-
-        if requester.role == OrgRole.ADMIN.value and target.role == OrgRole.ADMIN.value:
-            raise AuthorizationError(message="Admin cannot remove another Admin")
-
-        member_repo.delete(self.db, target)
-
-    def leave(self, organization_id: str, requester_id: str) -> None:
-        membership = member_repo.get(self.db, organization_id=organization_id, user_id=requester_id)
-        if not membership:
-            raise NotFoundError(message="Organization not found", details={"org_id": organization_id})
-
-        if membership.role == OrgRole.OWNER.value and member_repo.count_for_org(self.db, organization_id) > 1:
-            raise BadRequestError(message="Transfer ownership before leaving the organization")
-
-        member_repo.delete(self.db, membership)
-
-    def transfer_ownership(
-        self, organization_id: str, new_owner_user_id: str, requester_id: str
-    ) -> None:
-        requester = member_repo.get(self.db, organization_id=organization_id, user_id=requester_id)
-        if not requester or requester.role != OrgRole.OWNER.value:
-            raise AuthorizationError(message="Only the Owner can transfer ownership")
-
-        if new_owner_user_id == requester_id:
-            raise BadRequestError(message="Cannot transfer ownership to yourself")
-
-        new_owner = member_repo.get(self.db, organization_id=organization_id, user_id=new_owner_user_id)
-        if not new_owner:
-            raise NotFoundError(
-                message="Target user is not a member of this organization",
-                details={"user_id": new_owner_user_id},
-            )
-
-        member_repo.update_role(self.db, requester, role=OrgRole.ADMIN.value)
-        member_repo.update_role(self.db, new_owner, role=OrgRole.OWNER.value)
-
-
-{%- elif cookiecutter.use_mongodb %}
-"""Member service (MongoDB)."""
-
-import logging
-from typing import Optional
-
-from app.core.exceptions import AuthorizationError, BadRequestError, NotFoundError
-from app.db.models.organization import OrgRole, OrganizationMember
-from app.repositories import member_repo, user_repo
-
-logger = logging.getLogger(__name__)
-
-_ADMIN_ASSIGNABLE_ROLES = {OrgRole.MEMBER.value, OrgRole.VIEWER.value}
-
-
-class MemberService:
-    """Service for organization member management."""
-
-    async def list_for_org(
-        self, organization_id: str, requester_id: str, *, skip: int = 0, limit: int = 100
-    ) -> tuple[list[tuple[OrganizationMember, str, str | None, str | None]], int]:
-        if not await member_repo.get(organization_id=organization_id, user_id=requester_id):
-            raise NotFoundError(message="Organization not found", details={"org_id": organization_id})
-        rows = await member_repo.list_for_org(organization_id, skip=skip, limit=limit)
-        total = await member_repo.count_for_org(organization_id)
-        return rows, total
-
-    async def change_role(
-        self, organization_id: str, target_user_id: str, new_role: str, requester_id: str
-    ) -> tuple[OrganizationMember, str, str | None, str | None]:
-        requester = await member_repo.get(organization_id=organization_id, user_id=requester_id)
-        if not requester or requester.role not in (OrgRole.OWNER.value, OrgRole.ADMIN.value):
-            raise AuthorizationError(message="Only Owner or Admin can change member roles")
-
-        target = await member_repo.get(organization_id=organization_id, user_id=target_user_id)
-        if not target:
-            raise NotFoundError(message="Member not found", details={"user_id": target_user_id})
-
-        if target.role == OrgRole.OWNER.value:
-            raise BadRequestError(message="Use transfer-ownership to change the Owner role")
-
-        if requester.role == OrgRole.ADMIN.value and new_role not in _ADMIN_ASSIGNABLE_ROLES:
-            raise AuthorizationError(message="Admin can only assign Member or Viewer roles")
-
-        updated = await member_repo.update_role(target, role=new_role)
-        user = await user_repo.get_by_id(updated.user_id)
-        email = user.email if user else ""
-        full_name = user.full_name if user else None
-        avatar_url = user.avatar_url if user else None
-        return updated, email, full_name, avatar_url
-
-    async def remove(self, organization_id: str, target_user_id: str, requester_id: str) -> None:
-        requester = await member_repo.get(organization_id=organization_id, user_id=requester_id)
-        if not requester or requester.role not in (OrgRole.OWNER.value, OrgRole.ADMIN.value):
-            raise AuthorizationError(message="Only Owner or Admin can remove members")
-
-        target = await member_repo.get(organization_id=organization_id, user_id=target_user_id)
-        if not target:
-            raise NotFoundError(message="Member not found", details={"user_id": target_user_id})
-
-        if target.role == OrgRole.OWNER.value:
-            total = await member_repo.count_for_org(organization_id)
-            if total <= 1:
-                raise BadRequestError(message="Cannot remove the last Owner. Transfer ownership first.")
-            if requester.role != OrgRole.OWNER.value:
-                raise AuthorizationError(message="Only an Owner can remove another Owner")
-
-        if requester.role == OrgRole.ADMIN.value and target.role == OrgRole.ADMIN.value:
-            raise AuthorizationError(message="Admin cannot remove another Admin")
-
-        await member_repo.delete(target)
-
-    async def leave(self, organization_id: str, requester_id: str) -> None:
-        membership = await member_repo.get(organization_id=organization_id, user_id=requester_id)
-        if not membership:
-            raise NotFoundError(message="Organization not found", details={"org_id": organization_id})
-
-        if membership.role == OrgRole.OWNER.value and await member_repo.count_for_org(organization_id) > 1:
-            raise BadRequestError(message="Transfer ownership before leaving the organization")
-
-        await member_repo.delete(membership)
-
-    async def transfer_ownership(
-        self, organization_id: str, new_owner_user_id: str, requester_id: str
-    ) -> None:
-        requester = await member_repo.get(organization_id=organization_id, user_id=requester_id)
-        if not requester or requester.role != OrgRole.OWNER.value:
-            raise AuthorizationError(message="Only the Owner can transfer ownership")
-
-        if new_owner_user_id == requester_id:
-            raise BadRequestError(message="Cannot transfer ownership to yourself")
-
-        new_owner = await member_repo.get(organization_id=organization_id, user_id=new_owner_user_id)
-        if not new_owner:
-            raise NotFoundError(
-                message="Target user is not a member of this organization",
-                details={"user_id": new_owner_user_id},
-            )
-
-        await member_repo.update_role(requester, role=OrgRole.ADMIN.value)
-        await member_repo.update_role(new_owner, role=OrgRole.OWNER.value)
-
-
-{%- else %}
-"""Member service — not configured."""
-{%- endif %}
 {%- else %}
 """Member service — not configured (enable_teams=false)."""
 {%- endif %}

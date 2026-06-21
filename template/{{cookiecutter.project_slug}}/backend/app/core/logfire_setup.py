@@ -27,30 +27,12 @@ def instrument_app(app: Any) -> None:
 {%- endif %}
 
 
-{%- if cookiecutter.use_postgresql and cookiecutter.logfire_database %}
+{%- if cookiecutter.logfire_database %}
 
 
 def instrument_asyncpg() -> None:
     """Instrument asyncpg for PostgreSQL."""
     logfire.instrument_asyncpg()
-{%- endif %}
-
-
-{%- if cookiecutter.use_mongodb and cookiecutter.logfire_database %}
-
-
-def instrument_pymongo() -> None:
-    """Instrument PyMongo/Motor for MongoDB."""
-    logfire.instrument_pymongo(capture_statement=settings.DEBUG)
-{%- endif %}
-
-
-{%- if cookiecutter.use_sqlite and cookiecutter.logfire_database %}
-
-
-def instrument_sqlalchemy(engine: Any) -> None:
-    """Instrument SQLAlchemy for SQLite."""
-    logfire.instrument_sqlalchemy(engine=engine)
 {%- endif %}
 
 

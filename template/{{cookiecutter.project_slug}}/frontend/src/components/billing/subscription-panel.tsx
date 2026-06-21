@@ -26,6 +26,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useSubscription, useBilling } from "@/hooks";
+import { formatCurrency } from "@/lib/utils";
 import { SeatSelectorDialog } from "./seat-selector-dialog";
 import type { SubscriptionRead } from "@/types";
 
@@ -136,10 +137,7 @@ export function SubscriptionPanel() {
               <div>
                 <p className="text-muted-foreground">Price</p>
                 <p className="font-medium">
-                  {(subscription.price.amount_cents / 100).toLocaleString("en-US", {
-                    style: "currency",
-                    currency: subscription.price.currency.toUpperCase(),
-                  })}{" "}
+                  {formatCurrency(subscription.price.amount_cents, subscription.price.currency)}{" "}
                   / {subscription.price.interval}
                 </p>
               </div>

@@ -90,6 +90,6 @@ class S3Source(BaseDocumentSource):
         name = Path(file_id).name
         dest_path = dest_dir / name
         self.client.download_file(self.bucket, file_id, str(dest_path))
-        logger.info(f"Downloaded s3://{self.bucket}/{file_id} ({dest_path.stat().st_size} bytes)")
+        logger.info("Downloaded s3://%s/%s (%d bytes)", self.bucket, file_id, dest_path.stat().st_size)
         return dest_path
 {%- endif %}

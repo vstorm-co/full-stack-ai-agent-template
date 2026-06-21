@@ -4,18 +4,14 @@
 import json
 from datetime import datetime
 from typing import Any, Literal
-{%- if cookiecutter.use_postgresql %}
 from uuid import UUID
-{%- endif %}
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import Field, field_validator
 
 from app.schemas.base import BaseSchema
 
 
-# Access policy
-
-class AccessPolicy(BaseModel):
+class AccessPolicy(BaseSchema):
     """Bot access control policy."""
 
     mode: Literal["open", "whitelist", "jwt_linked", "group_only"] = "open"
@@ -25,8 +21,6 @@ class AccessPolicy(BaseModel):
     rate_limit_rpm: int = 10
     denied_message: str = "You are not authorised to use this bot."
 
-
-# ChannelBot schemas
 
 class ChannelBotCreate(BaseSchema):
     """Schema for creating a channel bot."""
@@ -40,11 +34,7 @@ class ChannelBotCreate(BaseSchema):
     ai_model_override: str | None = None
     system_prompt_override: str | None = None
 {%- if cookiecutter.use_pydantic_deep and cookiecutter.use_jwt %}
-{%- if cookiecutter.use_postgresql %}
     project_id: UUID | None = None
-{%- else %}
-    project_id: str | None = None
-{%- endif %}
 {%- endif %}
 
 
@@ -60,22 +50,14 @@ class ChannelBotUpdate(BaseSchema):
     system_prompt_override: str | None = None
     is_active: bool | None = None
 {%- if cookiecutter.use_pydantic_deep and cookiecutter.use_jwt %}
-{%- if cookiecutter.use_postgresql %}
     project_id: UUID | None = None
-{%- else %}
-    project_id: str | None = None
-{%- endif %}
 {%- endif %}
 
 
 class ChannelBotRead(BaseSchema):
     """Schema for reading a channel bot (token_encrypted is never returned)."""
 
-{%- if cookiecutter.use_postgresql %}
     id: UUID
-{%- else %}
-    id: str
-{%- endif %}
     platform: str
     name: str
     is_active: bool
@@ -85,24 +67,10 @@ class ChannelBotRead(BaseSchema):
     ai_model_override: str | None
     system_prompt_override: str | None
 {%- if cookiecutter.use_pydantic_deep and cookiecutter.use_jwt %}
-{%- if cookiecutter.use_postgresql %}
     project_id: UUID | None = None
-{%- else %}
-    project_id: str | None = None
-{%- endif %}
 {%- endif %}
     created_at: datetime
     updated_at: datetime | None = None
-
-{%- if cookiecutter.use_sqlite %}
-    @field_validator("access_policy", mode="before")
-    @classmethod
-    def parse_access_policy(cls, v: Any) -> Any:
-        """Deserialize JSON string to dict for SQLite storage."""
-        if isinstance(v, str):
-            return json.loads(v)
-        return v
-{%- endif %}
 
 
 class ChannelBotList(BaseSchema):
@@ -112,18 +80,11 @@ class ChannelBotList(BaseSchema):
     total: int
 
 
-# ChannelIdentity schemas
-
 class ChannelIdentityRead(BaseSchema):
     """Schema for reading a channel identity."""
 
-{%- if cookiecutter.use_postgresql %}
     id: UUID
     user_id: UUID | None = None
-{%- else %}
-    id: str
-    user_id: str | None = None
-{%- endif %}
     platform: str
     platform_user_id: str
     platform_username: str | None = None
@@ -132,22 +93,13 @@ class ChannelIdentityRead(BaseSchema):
     created_at: datetime
 
 
-# ChannelSession schemas
-
 class ChannelSessionRead(BaseSchema):
     """Schema for reading a channel session."""
 
-{%- if cookiecutter.use_postgresql %}
     id: UUID
     bot_id: UUID
     identity_id: UUID
     conversation_id: UUID | None = None
-{%- else %}
-    id: str
-    bot_id: str
-    identity_id: str
-    conversation_id: str | None = None
-{%- endif %}
     platform_chat_id: str
     chat_type: str
     is_active: bool

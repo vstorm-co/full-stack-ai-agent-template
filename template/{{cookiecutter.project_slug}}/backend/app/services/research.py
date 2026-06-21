@@ -27,9 +27,7 @@ from pydantic_ai.usage import UsageLimits
 from pydantic_ai_summarization import ContextManagerCapability
 from pydantic_ai_todo import (
     AsyncMemoryStorage,
-{%- if cookiecutter.use_postgresql %}
     AsyncPostgresStorage,
-{%- endif %}
     TodoCapability,
     TodoEvent,
     TodoEventEmitter,
@@ -38,9 +36,7 @@ from subagents_pydantic_ai import SubAgentCapability, SubAgentConfig
 
 from app.agents.assistant import _build_model
 from app.core.config import settings
-{%- if cookiecutter.use_postgresql %}
 from app.db.todo_pool import get_todo_pool
-{%- endif %}
 
 logger = logging.getLogger(__name__)
 
@@ -258,8 +254,6 @@ class ResearchToolkit:
             emitter.on_deleted,
         ):
             subscribe(_on_event)
-
-{%- if cookiecutter.use_postgresql %}
         pool = get_todo_pool()
         try:
             if pool is not None:
@@ -272,9 +266,6 @@ class ResearchToolkit:
         except Exception as e:
             logger.warning("TODO storage init failed, falling back to memory: %s", e)
             storage = AsyncMemoryStorage(event_emitter=emitter)
-{%- else %}
-        storage = AsyncMemoryStorage(event_emitter=emitter)
-{%- endif %}
 
         self._storage = storage
         return TodoCapability(

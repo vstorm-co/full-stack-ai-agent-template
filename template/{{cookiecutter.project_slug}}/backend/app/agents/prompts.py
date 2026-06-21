@@ -9,7 +9,9 @@ choose a good path. Avoid re-introducing long process checklists or absolute
 mechanical and, in the RAG case, cause it to wrongly refuse general questions.
 """
 
-DEFAULT_SYSTEM_PROMPT = """You are a knowledgeable, capable AI assistant. Help the user accomplish their task or answer their question as well as you can.
+from app.core.config import settings
+
+_BASE_SYSTEM_PROMPT = """You are a knowledgeable, capable AI assistant. Help the user accomplish their task or answer their question as well as you can.
 
 # Personality
 Be approachable, steady, and direct. Assume the user is competent and acting in good faith. Prefer making progress over stopping for clarification when the request is clear enough to attempt — use reasonable assumptions and state them briefly. Ask a narrow clarifying question only when the missing information would materially change the answer.
@@ -25,7 +27,7 @@ Say you don't know only when the answer genuinely depends on private, user-speci
 Let formatting serve comprehension. Default to clear plain paragraphs for explanations and discussion. Reach for headers, bullets, or numbered lists only when they genuinely make the answer easier to scan — steps, comparisons, or rankings — or when the user asks for them. Honor explicit formatting and length preferences from the user. Lead with the conclusion, then the supporting detail, then any caveats."""
 {%- if cookiecutter.use_pydantic_ai %}
 
-DEFAULT_SYSTEM_PROMPT += """
+_BASE_SYSTEM_PROMPT += """
 
 # Asking the user
 You have an `ask_user` tool that puts questions to the user and waits for their
@@ -41,7 +43,7 @@ and say briefly what you assumed."""
 {%- endif %}
 {%- if cookiecutter.enable_charts %}
 
-DEFAULT_SYSTEM_PROMPT += """
+_BASE_SYSTEM_PROMPT += """
 
 # Charts
 You can render charts with the `create_chart` tool (line, bar, pie, area, scatter).
@@ -59,52 +61,6 @@ You can render charts with the `create_chart` tool (line, bar, pie, area, scatte
   an earlier turn is already on screen — never re-create it. Only call
   `create_chart` for what the user is asking for right now."""
 {%- endif %}
-{%- if cookiecutter.enable_antv_charts %}
-
-DEFAULT_SYSTEM_PROMPT += """
-
-# Maps
-You can render an interactive map with the `create_map` tool. Use it whenever the
-user wants to see places located geographically (cities, offices, routes, points
-of interest). Supply latitude/longitude for each marker from your own knowledge
-(e.g. Warsaw ≈ 52.23, 21.01; New York ≈ 40.71, -74.01). Give each marker a short
-label, and an optional description. Don't repeat the JSON — briefly describe the
-map you created. Each map is rendered to the user the moment you call
-`create_map`; a map from an earlier turn is already on screen, so never re-create
-it — only call `create_map` for the user's current request."""
-
-
-# AntV diagram tools attach only at runtime (when ENABLE_ANTV_CHARTS is set), so
-# their guidance is gated the same way. `create_map` above is always available.
-ANTV_CHART_GUIDANCE = """
-
-# Advanced diagrams
-Beyond `create_chart`, you have AntV `generate_*` tools for diagram types the
-basic chart tool can't express — flowcharts, mind maps, org charts, sankey,
-fishbone, network/graph, treemap, word clouds, radar, funnel, histogram, and
-more. Use them when the user asks for that specific diagram, or when the
-relationship is structural (process, hierarchy, flow) rather than a plain
-numeric series. Prefer `create_chart` for ordinary line/bar/pie/area/scatter.
-
-Keep every node, label, and description short — a few words at most. Many of
-these diagrams render nodes in a fixed-width box and truncate longer text with
-an ellipsis ("…"), so write "Verify email", not "Send the verification email and
-wait for confirmation". Put any detail in your reply, not in the node.
-
-After the tool returns an image, briefly describe it — don't paste the URL. The
-image is shown to the user immediately; a diagram from an earlier turn is already
-on screen, so never regenerate it — only call these tools for the current request."""
-
-
-def _antv_guidance() -> str:
-    """AntV diagram guidance — included only when the MCP sidecar is enabled."""
-    from app.core.config import settings
-
-    return ANTV_CHART_GUIDANCE if settings.ENABLE_ANTV_CHARTS else ""
-
-
-DEFAULT_SYSTEM_PROMPT += _antv_guidance()
-{%- endif %}
 {%- if cookiecutter.enable_code_execution %}
 
 
@@ -114,16 +70,14 @@ CODE_EXECUTION_GUIDANCE = """
 You have a `run_python` tool that executes Python in a sandbox. Reach for it when
 a task needs real computation — projections, aggregations, simulations, parsing a
 table the user pasted — or when you want to produce several charts at once.
-{%- if cookiecutter.enable_charts or cookiecutter.enable_antv_charts %}
 
-Inside the code you can call `create_chart(...)`{%- if cookiecutter.enable_antv_charts %}, `create_map(...)`{%- endif %} and
-`current_datetime()` directly. `create_chart`{%- if cookiecutter.enable_antv_charts %} and `create_map`{%- endif %} are async: call
-them with `await`, and fire several in parallel with
+Inside the code you can call `create_chart(...)` and
+`current_datetime()` directly. `create_chart` is async: call
+it with `await`, and fire several in parallel with
 `await asyncio.gather(create_chart(...), create_chart(...), ...)`. Each call
-renders to the user immediately as an interactive chart/map, just like calling the
+renders to the user immediately as an interactive chart, just like calling the
 tool yourself — so don't separately call `create_chart` for the same data after
 the code runs, and don't paste the returned JSON back to the user.
-{%- endif %}
 
 The sandbox is a restricted Python subset: `math`, `asyncio`, `json`, `datetime`
 and `re` import fine, but many modules (`statistics`, `random`, `itertools`,
@@ -135,15 +89,16 @@ numbers you want to reason about afterwards. Keep each block focused, then
 briefly explain the results and charts in plain language."""
 
 
-def _code_execution_guidance() -> str:
-    """run_python guidance — included only when code execution is enabled."""
-    from app.core.config import settings
-
-    return CODE_EXECUTION_GUIDANCE if settings.ENABLE_CODE_EXECUTION else ""
-
-
-DEFAULT_SYSTEM_PROMPT += _code_execution_guidance()
 {%- endif %}
+
+
+def get_default_system_prompt() -> str:
+    """Build and return the default system prompt."""
+    prompt = _BASE_SYSTEM_PROMPT
+{%- if cookiecutter.enable_code_execution %}
+    prompt += CODE_EXECUTION_GUIDANCE
+{%- endif %}
+    return prompt
 
 
 def get_system_prompt_with_rag() -> str:
@@ -154,7 +109,7 @@ def get_system_prompt_with_rag() -> str:
         question is about the user's own documents/data — while still answering
         general questions directly from the model's own knowledge.
     """
-    return f"""{DEFAULT_SYSTEM_PROMPT}
+    return f"""{get_default_system_prompt()}
 
 # Knowledge base
 You have a `search_documents` tool that searches documents and data the user has added to this workspace.
@@ -200,13 +155,12 @@ def get_research_prompt() -> str:
     """Return the deep-research system prompt, or the default prompt when the
     feature is disabled at runtime.
     """
-    from app.core.config import settings
 
     if not settings.ENABLE_DEEP_RESEARCH:
 {%- if cookiecutter.enable_rag %}
         return get_system_prompt_with_rag()
 {%- else %}
-        return DEFAULT_SYSTEM_PROMPT
+        return get_default_system_prompt()
 {%- endif %}
     return RESEARCH_SYSTEM_PROMPT
 {%- endif %}

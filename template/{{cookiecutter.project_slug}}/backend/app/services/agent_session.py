@@ -1,22 +1,10 @@
 {%- if cookiecutter.use_pydantic_ai %}
-"""Per-connection AI agent session (PydanticAI).
-
-Encapsulates the orchestration that used to live in the WebSocket route:
-  - holds per-connection state (history, deps, current conversation id)
-  - persists user/assistant turns via shared service helpers
-  - streams PydanticAI agent events back to the client over the WebSocket
-
-The route is left as a thin lifecycle wrapper that just feeds incoming messages to
-``AgentSession.process_message``.
-"""
-
+# Thin session wrapper — the route is lifecycle plumbing only; orchestration lives here.
 import asyncio
 import contextlib
 import logging
 from typing import Any
-{%- if cookiecutter.enable_code_execution %}
-from uuid import uuid4
-{%- endif %}
+from uuid import UUID
 
 from fastapi import WebSocket, WebSocketDisconnect
 from pydantic_ai import (
@@ -54,13 +42,10 @@ from app.services.agent import (
 {%- if cookiecutter.websocket_auth_jwt %}
 from app.db.models.user import User
 {%- endif %}
-{%- if (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
 from app.api.deps import get_conversation_service
-from app.db.session import get_db_context{% if cookiecutter.use_sqlite %}, get_db_session
-from contextlib import contextmanager{% endif %}
+from app.db.session import get_db_context
 from app.services.file_storage import get_file_storage
-{%- endif %}
-{%- if cookiecutter.enable_billing and cookiecutter.enable_teams and cookiecutter.enable_credits_system and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
+{%- if cookiecutter.enable_billing and cookiecutter.enable_teams and cookiecutter.enable_credits_system %}
 from app.services.usage import UsageService
 {%- endif %}
 {%- if cookiecutter.enable_deep_research %}
@@ -86,13 +71,8 @@ class AgentSession:
         self.user = user
 {%- endif %}
         self.conversation_history: list[dict[str, str]] = []
-        self.deps = Deps()
+        self.deps = Deps(kb_collection_names=[])
         self.deps.ask_user = self._ask_user
-{%- if cookiecutter.enable_code_execution %}
-        self.deps.emit_tool_event = self._emit_tool_event
-        self._current_tool_calls: list[dict[str, Any]] | None = None
-        self._emit_lock = asyncio.Lock()
-{%- endif %}
 {%- if cookiecutter.use_database %}
         self.current_conversation_id: str | None = None
 {%- endif %}
@@ -224,11 +204,7 @@ class AgentSession:
 {%- endif %}
             )
             model_history = build_message_history(self.conversation_history)
-{%- if (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
             user_input = await self._build_multimodal_input(user_message, file_ids)
-{%- else %}
-            user_input = user_message
-{%- endif %}
 {%- if cookiecutter.enable_teams and cookiecutter.enable_rag %}
             self.deps.kb_collection_names = await resolve_kb_collections(
 {%- if cookiecutter.use_database %}
@@ -237,11 +213,7 @@ class AgentSession:
                 None,
 {%- endif %}
 {%- if cookiecutter.websocket_auth_jwt %}
-{%- if cookiecutter.use_postgresql %}
                 self.user.id,
-{%- else %}
-                str(self.user.id),
-{%- endif %}
 {%- endif %}
                 override_kb_ids=(
                     [str(i) for i in (data.get("active_knowledge_base_ids") or [])]
@@ -255,9 +227,6 @@ class AgentSession:
 {%- endif %}
 
             collected_tool_calls: list[dict[str, Any]] = []
-{%- if cookiecutter.enable_code_execution %}
-            self._current_tool_calls = collected_tool_calls
-{%- endif %}
 {%- if cookiecutter.enable_deep_research %}
             poller = (
                 asyncio.create_task(self._poll_subagent_status())
@@ -265,24 +234,19 @@ class AgentSession:
                 else None
             )
 {%- endif %}
-{%- if cookiecutter.enable_code_execution or cookiecutter.enable_deep_research %}
+{%- if cookiecutter.enable_deep_research %}
             try:
                 async with assistant.agent.iter(
                     user_input, deps=self.deps, message_history=model_history
                 ) as agent_run:
                     await self._stream_agent_run(agent_run, user_message, collected_tool_calls)
             finally:
-{%- if cookiecutter.enable_code_execution %}
-                self._current_tool_calls = None
-{%- endif %}
-{%- if cookiecutter.enable_deep_research %}
                 if poller is not None:
                     poller.cancel()
                     with contextlib.suppress(asyncio.CancelledError):
                         await poller
                 if self._research is not None:
                     await self._research.flush()
-{%- endif %}
 {%- else %}
             async with assistant.agent.iter(
                 user_input, deps=self.deps, message_history=model_history
@@ -307,7 +271,7 @@ class AgentSession:
                     collected_tool_calls,
                 )
 
-{%- if cookiecutter.enable_billing and cookiecutter.enable_teams and cookiecutter.enable_credits_system and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
+{%- if cookiecutter.enable_billing and cookiecutter.enable_teams and cookiecutter.enable_credits_system %}
             # Record usage + debit credits (best-effort).
             if agent_run.result is not None and organization_id:
                 await self._record_usage(
@@ -338,7 +302,7 @@ class AgentSession:
         except WebSocketDisconnect:
             raise
         except Exception as e:
-            logger.exception(f"Error processing agent request: {e}")
+            logger.exception("Error processing agent request")
             await send_event(self.websocket, "error", {"message": str(e)})
 
     async def _ask_user(self, questions: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -413,42 +377,7 @@ class AgentSession:
             raise
 {%- endif %}
 
-{%- if cookiecutter.enable_code_execution %}
-
-    async def _emit_tool_event(
-        self, tool_name: str, args: dict[str, Any], result: str
-    ) -> None:
-        """Surface a tool call made from *inside* the run_python sandbox.
-
-        Emits the same ``tool_call`` + ``tool_result`` event pair the streaming
-        loop sends for normal tool calls, so an in-code ``create_chart`` renders
-        as an interactive card, and records it in the in-flight turn's tool-call
-        list so it is persisted with the message.
-        """
-        tool_call_id = f"code-{uuid4().hex}"
-        async with self._emit_lock:
-            if self._current_tool_calls is not None:
-                self._current_tool_calls.append(
-                    {
-                        "tool_call_id": tool_call_id,
-                        "tool_name": tool_name,
-                        "args": args,
-                        "result": result,
-                    }
-                )
-            await send_event(
-                self.websocket,
-                "tool_call",
-                {"tool_call_id": tool_call_id, "tool_name": tool_name, "args": args},
-            )
-            await send_event(
-                self.websocket,
-                "tool_result",
-                {"tool_call_id": tool_call_id, "content": result},
-            )
-{%- endif %}
-
-{%- if cookiecutter.enable_billing and cookiecutter.enable_teams and cookiecutter.enable_credits_system and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
+{%- if cookiecutter.enable_billing and cookiecutter.enable_teams and cookiecutter.enable_credits_system %}
     async def _record_usage(
         self,
         *,
@@ -463,13 +392,12 @@ class AgentSession:
             logger.exception("usage_extract_failed")
             return
 
+
         input_tokens = int(getattr(usage, "input_tokens", 0) or 0)
         output_tokens = int(getattr(usage, "output_tokens", 0) or 0)
         cached_tokens = int(getattr(usage, "cache_read_tokens", 0) or 0)
         if input_tokens == 0 and output_tokens == 0:
             return
-
-        from uuid import UUID
 
         try:
             org_uuid = (
@@ -506,7 +434,6 @@ class AgentSession:
             logger.exception("usage_record_failed", extra={"org_id": str(org_uuid)})
 {%- endif %}
 
-{%- if (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
 
     async def _build_multimodal_input(
         self, user_message: str, file_ids: list[Any]
@@ -518,8 +445,6 @@ class AgentSession:
         storage = get_file_storage()
         image_parts: list[BinaryContent] = []
         file_context_parts: list[str] = []
-
-{%- if cookiecutter.use_postgresql %}
         async with get_db_context() as file_db:
             attached_files = await get_conversation_service(file_db).list_attached_files(file_ids)
             for chat_file in attached_files:
@@ -533,31 +458,13 @@ class AgentSession:
                         file_context_parts.append(
                             f"\n---\nAttached file: {chat_file.filename}\n```\n{chat_file.parsed_content}\n```"
                         )
-                except Exception as e:
-                    logger.warning(f"Failed to load file {chat_file.id}: {e}")
-{%- else %}
-        with contextmanager(get_db_session)() as file_db:
-            attached_files = get_conversation_service(file_db).list_attached_files(file_ids)
-            for chat_file in attached_files:
-                try:
-                    if chat_file.file_type == "image":
-                        file_data = await storage.load(chat_file.storage_path)
-                        image_parts.append(
-                            BinaryContent(data=file_data, media_type=chat_file.mime_type)
-                        )
-                    elif chat_file.parsed_content:
-                        file_context_parts.append(
-                            f"\n---\nAttached file: {chat_file.filename}\n```\n{chat_file.parsed_content}\n```"
-                        )
-                except Exception as e:
-                    logger.warning(f"Failed to load file {chat_file.id}: {e}")
-{%- endif %}
+                except Exception:
+                    logger.warning("Failed to load file %s", chat_file.id, exc_info=True)
 
         full_text = user_message + "".join(file_context_parts)
         if image_parts:
             return [full_text, *image_parts]
         return full_text
-{%- endif %}
 
     async def _stream_agent_run(
         self,
@@ -743,10 +650,10 @@ from app.services.agent import (
 {%- if cookiecutter.websocket_auth_jwt %}
 from app.db.models.user import User
 {%- endif %}
-{%- if cookiecutter.enable_billing and cookiecutter.enable_teams and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
+{%- if cookiecutter.enable_billing and cookiecutter.enable_teams %}
 from app.db.session import get_db_context
 {%- endif %}
-{%- if cookiecutter.enable_billing and cookiecutter.enable_teams and cookiecutter.enable_credits_system and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
+{%- if cookiecutter.enable_billing and cookiecutter.enable_teams and cookiecutter.enable_credits_system %}
 from app.services.usage import UsageService
 {%- endif %}
 
@@ -776,6 +683,8 @@ class AgentSession:
 {%- if cookiecutter.use_database %}
         self.current_conversation_id: str | None = None
 {%- endif %}
+        self._last_usage_metadata: Any = None
+        self._thinking_streamed: bool = False
         self._turn_task: asyncio.Task[None] | None = None
 
     async def handle_frame(self, data: dict[str, Any]) -> None:
@@ -883,11 +792,7 @@ class AgentSession:
                 None,
 {%- endif %}
 {%- if cookiecutter.websocket_auth_jwt %}
-{%- if cookiecutter.use_postgresql %}
                 self.user.id,
-{%- else %}
-                str(self.user.id),
-{%- endif %}
 {%- endif %}
                 override_kb_ids=(
                     [str(i) for i in (data.get("active_knowledge_base_ids") or [])]
@@ -930,9 +835,9 @@ class AgentSession:
                     collected_tool_calls,
                 )
 
-{%- if cookiecutter.enable_billing and cookiecutter.enable_teams and cookiecutter.enable_credits_system and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
+{%- if cookiecutter.enable_billing and cookiecutter.enable_teams and cookiecutter.enable_credits_system %}
             # Record usage + debit credits (best-effort).
-            if final_output and organization_id and getattr(self, "_last_usage_metadata", None):
+            if final_output and organization_id and self._last_usage_metadata:
                 await self._record_usage(
                     assistant=assistant,
                     organization_id=organization_id,
@@ -961,10 +866,10 @@ class AgentSession:
         except WebSocketDisconnect:
             raise
         except Exception as e:
-            logger.exception(f"Error processing agent request: {e}")
+            logger.exception("Error processing agent request")
             await send_event(self.websocket, "error", {"message": str(e)})
 
-{%- if cookiecutter.enable_billing and cookiecutter.enable_teams and cookiecutter.enable_credits_system and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
+{%- if cookiecutter.enable_billing and cookiecutter.enable_teams and cookiecutter.enable_credits_system %}
     async def _record_usage(
         self,
         *,
@@ -973,6 +878,7 @@ class AgentSession:
         usage_metadata: Any,
     ) -> None:
         """Persist a UsageEvent + debit credits using LangChain UsageMetadata."""
+
         if not usage_metadata:
             return
         input_tokens = int(usage_metadata.get("input_tokens") or 0)
@@ -982,8 +888,6 @@ class AgentSession:
         )
         if input_tokens == 0 and output_tokens == 0:
             return
-
-        from uuid import UUID
 
         try:
             org_uuid = (
@@ -1206,10 +1110,10 @@ from app.services.agent import (
 {%- if cookiecutter.websocket_auth_jwt %}
 from app.db.models.user import User
 {%- endif %}
-{%- if cookiecutter.enable_billing and cookiecutter.enable_teams and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
+{%- if cookiecutter.enable_billing and cookiecutter.enable_teams %}
 from app.db.session import get_db_context
 {%- endif %}
-{%- if cookiecutter.enable_billing and cookiecutter.enable_teams and cookiecutter.enable_credits_system and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
+{%- if cookiecutter.enable_billing and cookiecutter.enable_teams and cookiecutter.enable_credits_system %}
 from app.services.usage import UsageService
 {%- endif %}
 
@@ -1239,6 +1143,8 @@ class AgentSession:
 {%- if cookiecutter.use_database %}
         self.current_conversation_id: str | None = None
 {%- endif %}
+        self._last_usage_metadata: Any = None
+        self._thinking_streamed: bool = False
         self._turn_task: asyncio.Task[None] | None = None
 
     async def handle_frame(self, data: dict[str, Any]) -> None:
@@ -1344,11 +1250,7 @@ class AgentSession:
                 None,
 {%- endif %}
 {%- if cookiecutter.websocket_auth_jwt %}
-{%- if cookiecutter.use_postgresql %}
                 self.user.id,
-{%- else %}
-                str(self.user.id),
-{%- endif %}
 {%- endif %}
                 override_kb_ids=(
                     [str(i) for i in (data.get("active_knowledge_base_ids") or [])]
@@ -1390,9 +1292,9 @@ class AgentSession:
                     collected_tool_calls,
                 )
 
-{%- if cookiecutter.enable_billing and cookiecutter.enable_teams and cookiecutter.enable_credits_system and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
+{%- if cookiecutter.enable_billing and cookiecutter.enable_teams and cookiecutter.enable_credits_system %}
             # Record usage + debit credits (best-effort).
-            if final_output and organization_id and getattr(self, "_last_usage_metadata", None):
+            if final_output and organization_id and self._last_usage_metadata:
                 await self._record_usage(
                     assistant=assistant,
                     organization_id=organization_id,
@@ -1421,10 +1323,10 @@ class AgentSession:
         except WebSocketDisconnect:
             raise
         except Exception as e:
-            logger.exception(f"Error processing agent request: {e}")
+            logger.exception("Error processing agent request")
             await send_event(self.websocket, "error", {"message": str(e)})
 
-{%- if cookiecutter.enable_billing and cookiecutter.enable_teams and cookiecutter.enable_credits_system and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
+{%- if cookiecutter.enable_billing and cookiecutter.enable_teams and cookiecutter.enable_credits_system %}
     async def _record_usage(
         self,
         *,
@@ -1433,6 +1335,7 @@ class AgentSession:
         usage_metadata: Any,
     ) -> None:
         """Persist a UsageEvent + debit credits using LangChain UsageMetadata."""
+
         if not usage_metadata:
             return
         input_tokens = int(usage_metadata.get("input_tokens") or 0)
@@ -1442,8 +1345,6 @@ class AgentSession:
         )
         if input_tokens == 0 and output_tokens == 0:
             return
-
-        from uuid import UUID
 
         try:
             org_uuid = (
@@ -1638,394 +1539,6 @@ class AgentSession:
                         if tc_id not in seen_tool_call_ids:
                             seen_tool_call_ids.add(tc_id)
                             await send_event(self.websocket, "tool_call", tc)
-{%- elif cookiecutter.use_crewai %}
-"""Per-connection AI agent session (CrewAI Multi-Agent)."""
-
-import asyncio
-import contextlib
-import logging
-from typing import Any
-
-from fastapi import WebSocket, WebSocketDisconnect
-
-from app.agents.crewai_assistant import CrewContext, get_crew
-from app.services.agent import (
-{%- if cookiecutter.use_database %}
-    persist_assistant_turn,
-    persist_user_turn,
-{%- endif %}
-{%- if cookiecutter.enable_teams and cookiecutter.enable_rag %}
-    resolve_kb_collections,
-{%- endif %}
-    send_event,
-)
-{%- if cookiecutter.websocket_auth_jwt %}
-from app.db.models.user import User
-{%- endif %}
-{%- if cookiecutter.enable_billing and cookiecutter.enable_teams and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
-from app.db.session import get_db_context
-{%- endif %}
-{%- if cookiecutter.enable_billing and cookiecutter.enable_teams and cookiecutter.enable_credits_system and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
-from app.services.usage import UsageService
-{%- endif %}
-
-logger = logging.getLogger(__name__)
-
-
-class AgentSession:
-    """One WebSocket session with a CrewAI crew."""
-
-    def __init__(
-        self,
-        websocket: WebSocket,
-{%- if cookiecutter.websocket_auth_jwt %}
-        user: User,
-{%- endif %}
-    ) -> None:
-        self.websocket = websocket
-{%- if cookiecutter.websocket_auth_jwt %}
-        self.user = user
-{%- endif %}
-        self.conversation_history: list[dict[str, str]] = []
-        self.context: CrewContext = {}
-{%- if cookiecutter.websocket_auth_jwt %}
-        self.context["user_id"] = str(user.id) if user else None
-        self.context["user_name"] = user.email if user else None
-{%- endif %}
-{%- if cookiecutter.use_database %}
-        self.current_conversation_id: str | None = None
-{%- endif %}
-        self._turn_task: asyncio.Task[None] | None = None
-
-    async def handle_frame(self, data: dict[str, Any]) -> None:
-        """Dispatch one incoming WebSocket frame.
-
-        A ``stop`` cancels the running turn; any other frame starts a new turn as
-        a cancellable background task. Clients serialize turns, so a frame that
-        arrives while a turn is running is ignored.
-        """
-        if data.get("type") == "stop":
-            await self._cancel_turn()
-            return
-
-        if self._turn_task is not None and not self._turn_task.done():
-            logger.warning("Ignoring message received while a turn is already in progress")
-            return
-        task = asyncio.create_task(self._run_turn(data))
-        self._turn_task = task
-        task.add_done_callback(self._on_turn_done)
-
-    def _on_turn_done(self, task: asyncio.Task[None]) -> None:
-        """Clear the turn slot and surface unexpected crashes."""
-        if self._turn_task is task:
-            self._turn_task = None
-        if not task.cancelled():
-            exc = task.exception()
-            if isinstance(exc, WebSocketDisconnect):
-                logger.info("Client disconnected during agent turn")
-            elif exc is not None:
-                logger.error("Agent turn task crashed", exc_info=exc)
-
-    async def _run_turn(self, data: dict[str, Any]) -> None:
-        """Run one turn, emitting a terminal ``complete`` even when stopped."""
-        try:
-            await self.process_message(data)
-        except asyncio.CancelledError:
-            await send_event(
-                self.websocket,
-                "complete",
-                {
-{%- if cookiecutter.use_database %}
-                    "conversation_id": self.current_conversation_id,
-{%- endif %}
-                    "stopped": True,
-                },
-            )
-            raise
-
-    async def _cancel_turn(self) -> None:
-        """Cancel the in-flight turn task and wait for it to unwind."""
-        task = self._turn_task
-        if task is None or task.done():
-            return
-        task.cancel()
-        with contextlib.suppress(asyncio.CancelledError):
-            await task
-
-    async def shutdown(self) -> None:
-        """Cancel any in-flight turn."""
-        await self._cancel_turn()
-
-    async def process_message(self, data: dict[str, Any]) -> None:
-        """Process one user turn: persist input, run the crew, stream events."""
-        user_message = data.get("message", "")
-        file_ids = data.get("file_ids", [])
-
-        if not user_message and not file_ids:
-            await send_event(self.websocket, "error", {"message": "Empty message"})
-            return
-
-        # Reset usage tracking for the new turn.
-        self._last_usage = None
-
-{%- if cookiecutter.use_database %}
-        self.current_conversation_id, newly_created, organization_id = await persist_user_turn(
-{%- if cookiecutter.websocket_auth_jwt %}
-            self.user,
-{%- endif %}
-            user_message,
-            file_ids,
-            requested_conversation_id=data.get("conversation_id"),
-            current_conversation_id=self.current_conversation_id,
-        )
-        if newly_created and self.current_conversation_id:
-            await send_event(
-                self.websocket,
-                "conversation_created",
-                {"conversation_id": self.current_conversation_id},
-            )
-{%- endif %}
-
-        await send_event(self.websocket, "user_prompt", {"content": user_message})
-
-        try:
-            crew_assistant = get_crew()
-
-{%- if cookiecutter.enable_teams and cookiecutter.enable_rag %}
-            from app.agents.tools.rag_tool import _active_kb_collections
-            kb_names = await resolve_kb_collections(
-{%- if cookiecutter.use_database %}
-                self.current_conversation_id,
-{%- else %}
-                None,
-{%- endif %}
-{%- if cookiecutter.websocket_auth_jwt %}
-{%- if cookiecutter.use_postgresql %}
-                self.user.id,
-{%- else %}
-                str(self.user.id),
-{%- endif %}
-{%- endif %}
-                override_kb_ids=(
-                    [str(i) for i in (data.get("active_knowledge_base_ids") or [])]
-                    if "active_knowledge_base_ids" in data and isinstance(data.get("active_knowledge_base_ids"), list)
-                    else None
-                ),
-{%- if cookiecutter.enable_teams and cookiecutter.use_database %}
-                organization_id=str(organization_id) if organization_id else None,
-{%- endif %}
-            )
-            kb_token = _active_kb_collections.set(kb_names)
-            try:
-                final_output = await self._stream_crew_response(crew_assistant, user_message)
-            finally:
-                _active_kb_collections.reset(kb_token)
-{%- else %}
-            final_output = await self._stream_crew_response(crew_assistant, user_message)
-{%- endif %}
-
-            if final_output:
-                self.conversation_history.append({"role": "user", "content": user_message})
-                self.conversation_history.append(
-                    {"role": "assistant", "content": final_output}
-                )
-
-{%- if cookiecutter.enable_billing and cookiecutter.enable_teams and cookiecutter.enable_credits_system and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
-            # Record usage + debit credits (best-effort).
-            if final_output and organization_id:
-                await self._record_usage(
-                    crew_assistant=crew_assistant,
-                    organization_id=organization_id,
-                )
-{%- endif %}
-
-            await send_event(
-                self.websocket,
-                "complete",
-                {
-{%- if cookiecutter.use_database %}
-                    "conversation_id": self.current_conversation_id,
-{%- endif %}
-                },
-            )
-        except WebSocketDisconnect:
-            raise
-        except Exception as e:
-            logger.exception(f"Error processing agent request: {e}")
-            await send_event(self.websocket, "error", {"message": str(e)})
-
-    async def _stream_crew_response(self, crew_assistant: Any, user_message: str) -> str:
-        """Run the CrewAI crew stream and forward all events; persist per-agent messages."""
-        final_output = ""
-
-        await send_event(
-            self.websocket,
-            "crew_start",
-            {
-                "crew_name": crew_assistant.config.name,
-                "process": crew_assistant.config.process,
-            },
-        )
-
-        async for event in crew_assistant.stream(
-            user_message, history=self.conversation_history, context=self.context
-        ):
-            event_type = event.get("type", "unknown")
-
-            if event_type == "crew_started":
-                await send_event(
-                    self.websocket,
-                    "crew_started",
-                    {
-                        "crew_name": event.get("crew_name", ""),
-                        "crew_id": event.get("crew_id", ""),
-                    },
-                )
-            elif event_type == "agent_started":
-                await send_event(
-                    self.websocket,
-                    "agent_started",
-                    {"agent": event.get("agent", ""), "task": event.get("task", "")},
-                )
-            elif event_type == "agent_completed":
-                agent_name = event.get("agent", "")
-                agent_output = event.get("output", "")
-                await send_event(
-                    self.websocket,
-                    "agent_completed",
-                    {"agent": agent_name, "output": agent_output},
-                )
-{%- if cookiecutter.use_database %}
-                if self.current_conversation_id and agent_output:
-                    await persist_assistant_turn(
-                        self.current_conversation_id,
-                        f"✅ **{agent_name}**\n\n{agent_output}",
-                        None,
-                        [],
-                    )
-{%- endif %}
-            elif event_type == "task_started":
-                await send_event(
-                    self.websocket,
-                    "task_started",
-                    {
-                        "task_id": event.get("task_id", ""),
-                        "description": event.get("description", ""),
-                        "agent": event.get("agent", ""),
-                    },
-                )
-            elif event_type == "task_completed":
-                await send_event(
-                    self.websocket,
-                    "task_completed",
-                    {
-                        "task_id": event.get("task_id", ""),
-                        "output": event.get("output", ""),
-                        "agent": event.get("agent", ""),
-                    },
-                )
-            elif event_type == "tool_started":
-                await send_event(
-                    self.websocket,
-                    "tool_started",
-                    {
-                        "tool_name": event.get("tool_name", ""),
-                        "tool_args": event.get("tool_args", ""),
-                        "agent": event.get("agent", ""),
-                    },
-                )
-            elif event_type == "tool_finished":
-                await send_event(
-                    self.websocket,
-                    "tool_finished",
-                    {
-                        "tool_name": event.get("tool_name", ""),
-                        "tool_result": event.get("tool_result", ""),
-                        "agent": event.get("agent", ""),
-                    },
-                )
-            elif event_type == "llm_started":
-                await send_event(
-                    self.websocket, "llm_started", {"agent": event.get("agent", "")}
-                )
-            elif event_type == "llm_completed":
-                await send_event(
-                    self.websocket,
-                    "llm_completed",
-                    {
-                        "agent": event.get("agent", ""),
-                        "response": event.get("response", ""),
-                    },
-                )
-            elif event_type == "crew_complete":
-                final_output = event.get("result", "")
-                self._last_usage = event.get("usage")
-                await send_event(
-                    self.websocket, "final_result", {"output": final_output}
-                )
-            elif event_type == "error":
-                await send_event(
-                    self.websocket,
-                    "error",
-                    {"message": event.get("error", "Unknown error")},
-                )
-
-        return final_output
-
-{%- if cookiecutter.enable_billing and cookiecutter.enable_teams and cookiecutter.enable_credits_system and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
-    async def _record_usage(
-        self,
-        *,
-        crew_assistant: Any,
-        organization_id: Any,
-    ) -> None:
-        """Persist a UsageEvent + debit credits using CrewAI usage_metrics."""
-        usage = getattr(self, "_last_usage", None)
-        if not usage:
-            return
-        input_tokens = int(usage.get("prompt_tokens") or 0)
-        output_tokens = int(usage.get("completion_tokens") or 0)
-        cached_tokens = int(usage.get("cached_prompt_tokens") or 0)
-        if input_tokens == 0 and output_tokens == 0:
-            return
-
-        from uuid import UUID
-
-        try:
-            org_uuid = (
-                organization_id
-                if isinstance(organization_id, UUID)
-                else UUID(str(organization_id))
-            )
-        except Exception:
-            return
-
-        conv_uuid: UUID | None = None
-        if self.current_conversation_id:
-            try:
-                conv_uuid = UUID(self.current_conversation_id)
-            except Exception:
-                conv_uuid = None
-
-        # CrewAI doesn't expose a single model name (multi-agent), so use config.name as a tag.
-        model = getattr(getattr(crew_assistant, "config", None), "name", "") or ""
-
-        try:
-            async with get_db_context() as db:
-                await UsageService(db).record(
-                    organization_id=org_uuid,
-                    actor_user_id=self.user.id,
-                    conversation_id=conv_uuid,
-                    model=model,
-                    provider="{{ cookiecutter.llm_provider }}",
-                    input_tokens=input_tokens,
-                    output_tokens=output_tokens,
-                    cached_tokens=cached_tokens,
-                    ai_framework="crewai",
-                )
-        except Exception:
-            logger.exception("usage_record_failed")
-{%- endif %}
 {%- elif cookiecutter.use_deepagents %}
 """Per-connection AI agent session (DeepAgents) with human-in-the-loop support."""
 
@@ -2058,12 +1571,9 @@ from app.services.agent import (
 {%- if cookiecutter.websocket_auth_jwt %}
 from app.db.models.user import User
 {%- endif %}
-{%- if (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
 from app.api.deps import get_conversation_service
-from app.db.session import get_db_context{% if cookiecutter.use_sqlite %}, get_db_session
-from contextlib import contextmanager{% endif %}
-{%- endif %}
-{%- if cookiecutter.enable_billing and cookiecutter.enable_teams and cookiecutter.enable_credits_system and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
+from app.db.session import get_db_context
+{%- if cookiecutter.enable_billing and cookiecutter.enable_teams and cookiecutter.enable_credits_system %}
 from app.services.usage import UsageService
 {%- endif %}
 
@@ -2102,6 +1612,8 @@ class AgentSession:
         # setting takes effect (HITL state is per-graph and changing it would
         # invalidate any pending interrupt anyway).
         self._current_thinking_effort: str | None = None
+        self._last_usage_metadata: Any = None
+        self._thinking_streamed: bool = False
 {%- if cookiecutter.use_database %}
         self.current_conversation_id: str | None = None
 {%- endif %}
@@ -2228,7 +1740,7 @@ class AgentSession:
             )
             await send_event(self.websocket, "complete", {})
         except Exception as e:
-            logger.exception(f"Error resuming agent: {e}")
+            logger.exception("Error processing agent request")
             await send_event(self.websocket, "error", {"message": str(e)})
 
     async def _handle_message(self, data: dict[str, Any]) -> None:
@@ -2236,7 +1748,6 @@ class AgentSession:
         user_message = data.get("message", "")
         file_ids = data.get("file_ids", [])
 
-        # Optionally accept history from client (or use server-side tracking)
         if "history" in data:
             self.conversation_history[:] = data["history"]
 
@@ -2278,11 +1789,7 @@ class AgentSession:
         await send_event(self.websocket, "user_prompt", {"content": user_message})
 
         try:
-{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
             agent_input = await self._build_agent_input(user_message, file_ids)
-{%- else %}
-            agent_input = user_message
-{%- endif %}
 
 {%- if cookiecutter.enable_teams and cookiecutter.enable_rag %}
             from app.agents.tools.rag_tool import _active_kb_collections
@@ -2293,11 +1800,7 @@ class AgentSession:
                 None,
 {%- endif %}
 {%- if cookiecutter.websocket_auth_jwt %}
-{%- if cookiecutter.use_postgresql %}
                 self.user.id,
-{%- else %}
-                str(self.user.id),
-{%- endif %}
 {%- endif %}
                 override_kb_ids=(
                     [str(i) for i in (data.get("active_knowledge_base_ids") or [])]
@@ -2359,9 +1862,9 @@ class AgentSession:
                     collected_tool_calls,
                 )
 
-{%- if cookiecutter.enable_billing and cookiecutter.enable_teams and cookiecutter.enable_credits_system and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
+{%- if cookiecutter.enable_billing and cookiecutter.enable_teams and cookiecutter.enable_credits_system %}
             # Record usage + debit credits (best-effort).
-            if final_output and organization_id and getattr(self, "_last_usage_metadata", None):
+            if final_output and organization_id and self._last_usage_metadata:
                 await self._record_usage(
                     organization_id=organization_id,
                     usage_metadata=self._last_usage_metadata,
@@ -2389,10 +1892,10 @@ class AgentSession:
         except WebSocketDisconnect:
             raise
         except Exception as e:
-            logger.exception(f"Error processing agent request: {e}")
+            logger.exception("Error processing agent request")
             await send_event(self.websocket, "error", {"message": str(e)})
 
-{%- if cookiecutter.enable_billing and cookiecutter.enable_teams and cookiecutter.enable_credits_system and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
+{%- if cookiecutter.enable_billing and cookiecutter.enable_teams and cookiecutter.enable_credits_system %}
     async def _record_usage(
         self,
         *,
@@ -2400,6 +1903,7 @@ class AgentSession:
         usage_metadata: Any,
     ) -> None:
         """Persist a UsageEvent + debit credits using LangChain UsageMetadata."""
+
         if not usage_metadata:
             return
         input_tokens = int(usage_metadata.get("input_tokens") or 0)
@@ -2409,8 +1913,6 @@ class AgentSession:
         )
         if input_tokens == 0 and output_tokens == 0:
             return
-
-        from uuid import UUID
 
         try:
             org_uuid = (
@@ -2460,8 +1962,6 @@ class AgentSession:
         # the usage dicts (via add_usage), never whole chunks: merging full
         # AIMessageChunks via `+` crashes on scalar additional_kwargs like the
         # OpenAI Responses API's float ``created_at``.
-        if not hasattr(self, "_last_usage_metadata"):
-            self._last_usage_metadata = None
 
         async for stream_mode, stream_data in stream_iter:
             if stream_mode == "interrupt":
@@ -2615,7 +2115,6 @@ class AgentSession:
                             seen_tool_call_ids.add(tc_id)
                             await send_event(self.websocket, "tool_call", tc)
 
-{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
 
     async def _build_agent_input(self, user_message: str, file_ids: list[Any]) -> str:
         """Fold attached file content into the user message as a plain-text suffix."""
@@ -2623,7 +2122,6 @@ class AgentSession:
             return user_message
 
         file_refs: list[str] = []
-{%- if cookiecutter.use_postgresql %}
         async with get_db_context() as file_db:
             attached_files = await get_conversation_service(file_db).list_attached_files(file_ids)
             for chat_file in attached_files:
@@ -2635,24 +2133,10 @@ class AgentSession:
                     file_refs.append(f"- {chat_file.filename} (image file)")
                 else:
                     file_refs.append(f"- {chat_file.filename} (binary file)")
-{%- else %}
-        with contextmanager(get_db_session)() as file_db:
-            attached_files = get_conversation_service(file_db).list_attached_files(file_ids)
-            for chat_file in attached_files:
-                if chat_file.parsed_content:
-                    file_refs.append(
-                        f"- {chat_file.filename}:\n```\n{chat_file.parsed_content}\n```"
-                    )
-                elif chat_file.file_type == "image":
-                    file_refs.append(f"- {chat_file.filename} (image file)")
-                else:
-                    file_refs.append(f"- {chat_file.filename} (binary file)")
-{%- endif %}
 
         if file_refs:
             return user_message + "\n\nAttached files:\n" + "\n".join(file_refs)
         return user_message
-{%- endif %}
 {%- elif cookiecutter.use_pydantic_deep %}
 """Per-connection AI agent session (PydanticDeep).
 
@@ -2692,12 +2176,9 @@ from app.services.agent import (
 {%- if cookiecutter.websocket_auth_jwt %}
 from app.db.models.user import User
 {%- endif %}
-{%- if (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
 from app.api.deps import get_conversation_service
-from app.db.session import get_db_context{% if cookiecutter.use_sqlite %}, get_db_session
-from contextlib import contextmanager{% endif %}
+from app.db.session import get_db_context
 from app.services.file_storage import get_file_storage
-{%- endif %}
 
 logger = logging.getLogger(__name__)
 
@@ -2829,11 +2310,7 @@ class AgentSession:
 {%- endif %}
             )
 
-{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
             user_input = await self._build_agent_input(user_message, file_ids, assistant)
-{%- else %}
-            user_input = user_message
-{%- endif %}
 
 {%- if cookiecutter.enable_teams and cookiecutter.enable_rag %}
             from app.agents.tools.rag_tool import _active_kb_collections
@@ -2844,11 +2321,7 @@ class AgentSession:
                 None,
 {%- endif %}
 {%- if cookiecutter.websocket_auth_jwt %}
-{%- if cookiecutter.use_postgresql %}
                 self.user.id,
-{%- else %}
-                str(self.user.id),
-{%- endif %}
 {%- endif %}
                 override_kb_ids=(
                     [str(i) for i in (data.get("active_knowledge_base_ids") or [])]
@@ -2896,10 +2369,9 @@ class AgentSession:
         except WebSocketDisconnect:
             raise
         except Exception as e:
-            logger.exception(f"Error processing agent request: {e}")
+            logger.exception("Error processing agent request")
             await send_event(self.websocket, "error", {"message": str(e)})
 
-{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
 
     async def _build_agent_input(
         self, user_message: str, file_ids: list[Any], assistant: Any
@@ -2962,18 +2434,12 @@ class AgentSession:
                             file_refs.append(
                                 f"- {chat_file.filename} (binary, not readable as text)"
                             )
-                except Exception as e:
-                    logger.warning(f"Failed to load file {chat_file.id}: {e}")
+                except Exception:
+                    logger.warning("Failed to load file %s", chat_file.id, exc_info=True)
 
-{%- if cookiecutter.use_postgresql %}
         async with get_db_context() as file_db:
             attached_files = await get_conversation_service(file_db).list_attached_files(file_ids)
             await _process_files(attached_files)
-{%- else %}
-        with contextmanager(get_db_session)() as file_db:
-            attached_files = get_conversation_service(file_db).list_attached_files(file_ids)
-            await _process_files(attached_files)
-{%- endif %}
 
         if not file_refs:
             return user_message
@@ -2985,7 +2451,6 @@ class AgentSession:
         )
         augmented = user_message + header + "\n".join(file_refs)
         return [augmented, *image_parts] if image_parts else augmented
-{%- endif %}
 
     async def _stream_agent_run(
         self,

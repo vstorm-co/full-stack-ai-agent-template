@@ -23,7 +23,12 @@ interface Endpoints {
   size: { w: number; h: number };
 }
 
-const EMPTY: Endpoints = { srcToKb: [], kbToAssistant: null, assistantToQuestion: null, size: { w: 0, h: 0 } };
+const EMPTY: Endpoints = {
+  srcToKb: [],
+  kbToAssistant: null,
+  assistantToQuestion: null,
+  size: { w: 0, h: 0 },
+};
 
 export function DataFlowDiagram() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -41,7 +46,10 @@ export function DataFlowDiagram() {
       const q = questionRef.current?.getBoundingClientRect();
       if (!c || !kb || !ai || !q) return;
 
-      const rel = (rect: DOMRect, side: "left" | "right" | "top" | "bottom" | "centerX" | "centerY") => {
+      const rel = (
+        rect: DOMRect,
+        side: "left" | "right" | "top" | "bottom" | "centerX" | "centerY",
+      ) => {
         const x =
           side === "left" ? rect.left : side === "right" ? rect.right : rect.left + rect.width / 2;
         const y =
@@ -98,14 +106,12 @@ export function DataFlowDiagram() {
       ref={containerRef}
       className="border-foreground/15 bg-card/60 relative overflow-hidden rounded-3xl border p-8 backdrop-blur-sm md:p-14"
     >
-      {/* Ambient lime glow behind the diagram */}
       <div
         aria-hidden
-        className="absolute left-1/2 top-1/2 -z-10 h-72 w-72 -translate-x-1/2 -translate-y-1/2 rounded-full blur-3xl glow-breathe"
+        className="glow-breathe absolute top-1/2 left-1/2 -z-10 h-72 w-72 -translate-x-1/2 -translate-y-1/2 rounded-full blur-3xl"
         style={{ background: "oklch(from var(--color-brand) l c h / 0.18)" }}
       />
 
-      {/* Connectors layer — sits absolutely above content but pointer-events-none */}
       <svg
         className="pointer-events-none absolute inset-0 h-full w-full"
         width={paths.size.w || undefined}
@@ -113,25 +119,26 @@ export function DataFlowDiagram() {
         aria-hidden
       >
         <defs>
-          <linearGradient id="line-gradient" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="100%" y2="0">
+          <linearGradient
+            id="line-gradient"
+            gradientUnits="userSpaceOnUse"
+            x1="0"
+            y1="0"
+            x2="100%"
+            y2="0"
+          >
             <stop offset="0%" stopColor="oklch(from var(--color-foreground) l c h / 0.10)" />
             <stop offset="50%" stopColor="oklch(from var(--color-foreground) l c h / 0.30)" />
             <stop offset="100%" stopColor="oklch(from var(--color-foreground) l c h / 0.10)" />
           </linearGradient>
         </defs>
 
-        {/* Source → KB connectors */}
         {paths.srcToKb.map((d, i) => (
           <g key={`src-${i}`}>
             <path d={d} stroke="url(#line-gradient)" strokeWidth="1.5" fill="none" />
             {/* 2 comets per path, staggered, for a continuous river feel */}
             {[0, 1].map((cometIdx) => (
-              <circle
-                key={cometIdx}
-                r="3.5"
-                fill="var(--color-brand)"
-                className="comet"
-              >
+              <circle key={cometIdx} r="3.5" fill="var(--color-brand)" className="comet">
                 <animateMotion
                   dur={`${2.6 + i * 0.2}s`}
                   repeatCount="indefinite"
@@ -143,10 +150,8 @@ export function DataFlowDiagram() {
           </g>
         ))}
 
-        {/* KB → Assistant connector (thicker, more comets) */}
         {paths.kbToAssistant !== null && <KbToAssistant d={paths.kbToAssistant} />}
 
-        {/* Assistant → Question (the "answer surfaces" return path) */}
         {paths.assistantToQuestion && (
           <g>
             <path
@@ -162,7 +167,6 @@ export function DataFlowDiagram() {
       </svg>
 
       <div className="relative grid grid-cols-3 items-center gap-6 md:gap-12">
-        {/* Sources column */}
         <div className="space-y-2.5">
           <p className="eyebrow text-foreground/55 mb-4">Sources</p>
           {SOURCES.map((source, i) => (
@@ -181,39 +185,33 @@ export function DataFlowDiagram() {
           ))}
         </div>
 
-        {/* Knowledge base node */}
         <div className="flex justify-center">
           <div
             ref={kbRef}
             className="bg-card relative flex h-44 w-44 items-center justify-center rounded-full md:h-56 md:w-56"
           >
-            {/* Outer rotating dashed ring */}
             <div
               aria-hidden
               className="ring-rotate border-brand/55 absolute inset-0 rounded-full border-2 border-dashed"
             />
-            {/* Inner reverse-rotating ring (subtler) */}
             <div
               aria-hidden
               className="ring-rotate-rev border-brand/30 absolute inset-3 rounded-full border border-dashed"
             />
-            {/* Solid inner disk */}
             <div className="bg-card border-foreground/10 absolute inset-6 rounded-full border shadow-inner" />
 
-            {/* Center label */}
             <div className="relative z-10 text-center">
               <p className="eyebrow text-foreground/55 mb-1.5">Knowledge base</p>
               <AnimatedCount target={1240000} suffix="" />
-              <p className="text-foreground/55 mt-0.5 text-[10px] font-mono uppercase tracking-wider">
+              <p className="text-foreground/55 mt-0.5 font-mono text-[10px] tracking-wider uppercase">
                 vectors indexed
               </p>
               <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-[color-mix(in_oklab,var(--color-brand)_18%,transparent)] px-2 py-0.5">
                 <span className="bg-brand h-1.5 w-1.5 animate-pulse rounded-full" />
-                <span className="font-mono text-[10px] font-medium text-foreground">syncing</span>
+                <span className="text-foreground font-mono text-[10px] font-medium">syncing</span>
               </div>
             </div>
 
-            {/* Floating dots representing data being indexed */}
             {[
               { x: "8%", y: "18%", delay: "0s" },
               { x: "85%", y: "22%", delay: "-0.6s" },
@@ -224,16 +222,14 @@ export function DataFlowDiagram() {
             ].map((d, i) => (
               <span
                 key={i}
-                className="bg-brand absolute h-1.5 w-1.5 rounded-full pulse-dot"
+                className="bg-brand pulse-dot absolute h-1.5 w-1.5 rounded-full"
                 style={{ left: d.x, top: d.y, animationDelay: d.delay }}
               />
             ))}
           </div>
         </div>
 
-        {/* Assistant column */}
         <div className="space-y-4">
-          {/* User question bubble */}
           <div
             ref={questionRef}
             className="border-foreground/15 bg-background ml-auto max-w-[90%] rounded-2xl rounded-tr-sm border px-4 py-3 shadow-sm"
@@ -245,12 +241,10 @@ export function DataFlowDiagram() {
 
           <p className="eyebrow text-foreground/55">Assistant</p>
 
-          {/* Assistant answer card */}
           <div
             ref={assistantRef}
             className="border-foreground/15 bg-background relative overflow-hidden rounded-xl border p-4 shadow-md"
           >
-            {/* Subtle gradient accent on bottom */}
             <div
               aria-hidden
               className="pointer-events-none absolute inset-x-0 bottom-0 h-12"
@@ -262,7 +256,7 @@ export function DataFlowDiagram() {
             <div className="relative">
               <div className="text-foreground/55 mb-2 flex items-center gap-1.5">
                 <Sparkles className="text-brand h-3.5 w-3.5" />
-                <span className="font-mono text-[10px] uppercase tracking-wider">Answer</span>
+                <span className="font-mono text-[10px] tracking-wider uppercase">Answer</span>
               </div>
               <p className="text-foreground text-sm leading-relaxed">
                 Three major features: real-time sync, audit logs, SSO. Cited from 4 sources.
@@ -346,7 +340,7 @@ function AnimatedCount({ target, suffix }: { target: number; suffix?: string }) 
         : value.toString();
 
   return (
-    <p ref={ref} className="font-mono text-foreground text-2xl font-bold tabular-nums md:text-3xl">
+    <p ref={ref} className="text-foreground font-mono text-2xl font-bold tabular-nums md:text-3xl">
       {formatted}
       {suffix}
     </p>

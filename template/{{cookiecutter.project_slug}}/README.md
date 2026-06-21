@@ -11,13 +11,7 @@
 | Component | Technology |
 |-----------|-----------|
 | **Backend** | FastAPI + Pydantic v2 |
-{%- if cookiecutter.use_postgresql %}
 | **Database** | PostgreSQL (async via asyncpg) |
-{%- elif cookiecutter.use_mongodb %}
-| **Database** | MongoDB (async via Motor) |
-{%- elif cookiecutter.use_sqlite %}
-| **Database** | SQLite |
-{%- endif %}
 | **Auth** | JWT + refresh tokens{% if cookiecutter.use_api_key %} + API keys{% endif %}{% if cookiecutter.enable_oauth %} + OAuth{% endif %} |
 {%- if cookiecutter.enable_redis %}
 | **Cache** | Redis |
@@ -73,10 +67,8 @@ make dev
 
 1. Build the backend Docker image (cached after first run)
 2. Start services via `docker-compose.dev.yml` (with hot-reload bind mounts)
-{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
 3. Poll Postgres until it accepts connections (`pg_isready` — no fixed sleeps)
 4. Apply pending Alembic migrations (no-op if already at head)
-{%- endif %}
 
 It does **not** re-seed the admin user — that lives in `make seed` and is run once. This way `make dev` stays cheap to re-run after every code/config change.
 
@@ -208,13 +200,11 @@ Run `make help` for a categorized list, or `{{ cookiecutter.project_slug }} --he
 All backend config lives in `backend/.env` (committed for dev defaults). Key variables:
 
 ```bash
-{%- if cookiecutter.use_postgresql %}
 POSTGRES_HOST=localhost
 POSTGRES_PORT=5432
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=postgres
 POSTGRES_DB={{ cookiecutter.project_slug }}
-{%- endif %}
 {%- if cookiecutter.use_openai %}
 
 # OpenAI — required for chat + embeddings
@@ -262,12 +252,10 @@ For production, **never** commit secrets — `backend/.env` is gitignored. Fill 
 | `make test` | Run pytest |
 | `make lint` | Run ruff check + format check + ty |
 | `make format` | Auto-format with ruff |
-{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
 | `make db-migrate` | Generate a new migration from model changes (interactive) |
 | `make db-upgrade` | Apply pending migrations |
 | `make db-downgrade` | Roll back one migration |
 | `make db-current` | Show current head |
-{%- endif %}
 {%- if cookiecutter.use_jwt %}
 | `make create-admin` | Interactive admin creation |
 | `make user-list` | List all users |

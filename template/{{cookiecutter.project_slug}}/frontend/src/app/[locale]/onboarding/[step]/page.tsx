@@ -7,10 +7,7 @@ import { StepData } from "@/components/onboarding/step-data";
 import { StepDone } from "@/components/onboarding/step-done";
 import { StepTeam } from "@/components/onboarding/step-team";
 import { StepWelcome } from "@/components/onboarding/step-welcome";
-import {
-  ONBOARDING_STEPS,
-  type OnboardingStep,
-} from "@/components/onboarding/onboarding-state";
+import { ONBOARDING_STEPS, type OnboardingStep } from "@/components/onboarding/onboarding-state";
 import type { Locale } from "@/i18n";
 import { pageMetadata } from "@/lib/seo";
 

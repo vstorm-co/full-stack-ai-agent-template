@@ -26,7 +26,6 @@ export function HowItWorks() {
           key={step.title}
           className="group border-foreground/15 bg-card lift hover:border-brand/40 relative overflow-hidden rounded-2xl border p-8 transition-colors"
         >
-          {/* Large ghost step number */}
           <div className="text-foreground/[0.07] font-display pointer-events-none absolute -top-2 right-3 text-7xl font-extrabold tabular-nums select-none">
             {i + 1}
           </div>

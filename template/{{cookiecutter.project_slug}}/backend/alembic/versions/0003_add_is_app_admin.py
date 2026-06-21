@@ -1,4 +1,4 @@
-{%- if cookiecutter.enable_teams and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
+{%- if cookiecutter.enable_teams %}
 """add is_app_admin to users
 
 Revision ID: 0003_is_app_admin

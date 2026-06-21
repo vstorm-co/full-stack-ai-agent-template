@@ -134,7 +134,7 @@ const PLANS = [
       "Role-based access control",
       "Dedicated success manager",
     ],
-    cta: { label: "Talk to sales", href: "/contact" },
+    cta: { label: "Talk to sales", href: ROUTES.CONTACT },
   },
 ];
 
@@ -182,7 +182,6 @@ export default async function HomePage() {
       />
 
       <main id="main">
-        {/* Hero (dark) */}
         <Hero
           eyebrow={t("hero.eyebrow")}
           title={
@@ -192,24 +191,21 @@ export default async function HomePage() {
           }
           description={t("hero.description")}
           primaryCta={{ label: t("hero.ctaPrimary"), href: ROUTES.REGISTER }}
-          secondaryCta={{ label: t("hero.ctaSecondary"), href: "/contact" }}
+          secondaryCta={{ label: t("hero.ctaSecondary"), href: ROUTES.CONTACT }}
           ratingLabel={t("hero.ratingLabel")}
           trustNote={t("hero.trustNote")}
           stats={heroStats}
           theme="dark"
         />
 
-        {/* Marquee */}
         <Marquee items={MARQUEE_ITEMS} />
 
-        {/* Social proof (light) */}
         <Section theme="light" padding="py-16 md:py-20">
           <Reveal>
             <LogosStrip label="Trusted by teams across industries" logos={LOGOS} />
           </Reveal>
         </Section>
 
-        {/* How it works (dark) */}
         <Section theme="dark" id="how">
           <div className="mb-14 max-w-2xl">
             <div className="mb-5">
@@ -224,14 +220,12 @@ export default async function HomePage() {
           </Reveal>
         </Section>
 
-        {/* Outcomes / ROI (light) */}
         <Section theme="light">
           <Reveal>
             <OutcomesBand />
           </Reveal>
         </Section>
 
-        {/* Features — bento grids, alternating mockup side */}
         <Section theme="dark" id="features">
           <Reveal>
             <FeatureBento
@@ -337,7 +331,6 @@ export default async function HomePage() {
           </Reveal>
         </Section>
 
-        {/* Data flow diagram — anchors the "your data → assistant" pipeline after the feature trio. */}
         <Section theme="light" className="relative overflow-hidden">
           <div aria-hidden className="bg-dots pointer-events-none absolute inset-0 -z-10" />
           <div className="mb-14 max-w-2xl">
@@ -357,21 +350,18 @@ export default async function HomePage() {
           </Reveal>
         </Section>
 
-        {/* Enterprise security (dark) — bento */}
         <Section theme="dark" id="security">
           <Reveal>
-            <EnterpriseSecurity cta={{ label: "Read our security overview", href: "/security" }} />
+            <EnterpriseSecurity cta={{ label: "Read our security overview", href: ROUTES.SECURITY }} />
           </Reveal>
         </Section>
 
-        {/* Integrations (light) */}
         <Section theme="light">
           <Reveal>
-            <IntegrationsGrid cta={{ label: "Browse all integrations", href: "/help" }} />
+            <IntegrationsGrid cta={{ label: "Browse all integrations", href: ROUTES.HELP }} />
           </Reveal>
         </Section>
 
-        {/* Case study (dark) */}
         <Section theme="dark">
           <Reveal>
             <CaseStudy
@@ -388,7 +378,6 @@ export default async function HomePage() {
           </Reveal>
         </Section>
 
-        {/* Testimonials (light) — grid of 3 */}
         <Section theme="light">
           <div className="mb-14 text-center">
             <p className="eyebrow text-foreground/55 mb-4">{t("testimonials.eyebrow")}</p>
@@ -401,7 +390,6 @@ export default async function HomePage() {
           </Reveal>
         </Section>
 
-        {/* Comparison (light) */}
         <Section theme="light">
           <Reveal>
             <ComparisonTable
@@ -411,7 +399,10 @@ export default async function HomePage() {
                 { feature: "Grounded in your own data", cells: ["yes", "no", "partial"] },
                 { feature: "Citations on every answer", cells: ["yes", "no", "partial"] },
                 { feature: "Connects to your tools", cells: ["yes", "partial", "partial"] },
-                { feature: "Enterprise security (SSO, audit)", cells: ["yes", "partial", "partial"] },
+                {
+                  feature: "Enterprise security (SSO, audit)",
+                  cells: ["yes", "partial", "partial"],
+                },
                 { feature: "Usage analytics & ROI", cells: ["yes", "no", "partial"] },
                 { feature: "Live in minutes", cells: ["yes", "yes", "no"] },
                 { feature: "Dedicated support", cells: ["yes", "no", "partial"] },
@@ -420,7 +411,6 @@ export default async function HomePage() {
           </Reveal>
         </Section>
 
-        {/* Pricing (dark) */}
         <Section theme="dark" id="pricing">
           <div className="mb-14 max-w-2xl">
             <div className="mb-5">
@@ -438,7 +428,6 @@ export default async function HomePage() {
           </Reveal>
         </Section>
 
-        {/* FAQ (light) */}
         <Section theme="light" id="faq">
           <div className="mb-14 text-center">
             <p className="eyebrow text-foreground/55 mb-4">{t("faq.eyebrow")}</p>
@@ -451,7 +440,6 @@ export default async function HomePage() {
           </Reveal>
         </Section>
 
-        {/* Final CTA */}
         <Section theme="light" padding="pb-24 md:pb-32">
           <Reveal>
             <FinalCta

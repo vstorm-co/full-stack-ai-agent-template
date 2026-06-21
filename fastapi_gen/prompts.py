@@ -215,27 +215,8 @@ def prompt_basic_info() -> dict[str, str]:
 
 
 def prompt_database() -> DatabaseType:
-    """Prompt for database selection."""
-    console.print()
-    console.print("[bold cyan]Database Configuration[/]")
-    console.print()
-
-    choices = [
-        questionary.Choice("PostgreSQL (async - asyncpg)", value=DatabaseType.POSTGRESQL),
-        questionary.Choice("MongoDB (async - motor)", value=DatabaseType.MONGODB),
-        questionary.Choice("SQLite (sync)", value=DatabaseType.SQLITE),
-    ]
-
-    return cast(
-        DatabaseType,
-        _check_cancelled(
-            questionary.select(
-                "Select database:",
-                choices=choices,
-                default=choices[0],
-            ).ask()
-        ),
-    )
+    """Return PostgreSQL (only supported database)."""
+    return DatabaseType.POSTGRESQL
 
 
 def prompt_orm_type() -> OrmType:
@@ -420,6 +401,7 @@ def prompt_background_tasks() -> BackgroundTaskType:
 
     choices = [
         questionary.Choice("Celery (classic, battle-tested)", value=BackgroundTaskType.CELERY),
+        questionary.Choice("Prefect (modern workflows, self-hosted or Cloud)", value=BackgroundTaskType.PREFECT),
         questionary.Choice("Taskiq (async-native, modern)", value=BackgroundTaskType.TASKIQ),
         questionary.Choice("ARQ (lightweight async Redis)", value=BackgroundTaskType.ARQ),
         questionary.Choice(
@@ -458,14 +440,17 @@ def prompt_integrations(
         questionary.Choice(
             "Redis — required for caching, rate limiting (Redis), task queues",
             value="redis",
+            checked=True,
         ),
         questionary.Choice(
             "Caching (fastapi-cache2) — requires Redis",
             value="caching",
+            checked=True,
         ),
         questionary.Choice(
             "Rate limiting (slowapi) — optional Redis storage",
             value="rate_limiting",
+            checked=True,
         ),
         questionary.Choice(
             "Pagination (fastapi-pagination)",
@@ -482,11 +467,8 @@ def prompt_integrations(
         ),
     ]
 
-    # Admin Panel only available with SQLAlchemy (not SQLModel) and SQL database
-    if (
-        database in (DatabaseType.POSTGRESQL, DatabaseType.SQLITE)
-        and orm_type == OrmType.SQLALCHEMY
-    ):
+    # Admin Panel only available with SQLAlchemy (not SQLModel)
+    if database == DatabaseType.POSTGRESQL and orm_type == OrmType.SQLALCHEMY:
         choices.append(
             questionary.Choice(
                 "SQL Admin Panel (SQLAdmin) — web UI for browsing/editing database tables",
@@ -699,23 +681,21 @@ def prompt_frontend() -> FrontendType:
 
 def prompt_brand_color() -> BrandColorType:
     """Prompt for brand color selection."""
-    console.print()
-    console.print("[bold cyan]Brand Color[/]")
-    console.print()
+    choices = [
+        questionary.Choice("Blue (default)", value=BrandColorType.BLUE),
+        questionary.Choice("Green", value=BrandColorType.GREEN),
+        questionary.Choice("Red", value=BrandColorType.RED),
+        questionary.Choice("Violet", value=BrandColorType.VIOLET),
+        questionary.Choice("Orange", value=BrandColorType.ORANGE),
+    ]
 
     return cast(
         BrandColorType,
         _check_cancelled(
             questionary.select(
                 "Select brand color:",
-                choices=[
-                    questionary.Choice("Blue", value=BrandColorType.BLUE),
-                    questionary.Choice("Green", value=BrandColorType.GREEN),
-                    questionary.Choice("Red", value=BrandColorType.RED),
-                    questionary.Choice("Violet", value=BrandColorType.VIOLET),
-                    questionary.Choice("Orange", value=BrandColorType.ORANGE),
-                ],
-                default=BrandColorType.BLUE,
+                choices=choices,
+                default=choices[0],
             ).ask()
         ),
     )
@@ -731,7 +711,6 @@ def prompt_ai_framework() -> AIFrameworkType:
         questionary.Choice("PydanticAI (recommended)", value=AIFrameworkType.PYDANTIC_AI),
         questionary.Choice("LangChain", value=AIFrameworkType.LANGCHAIN),
         questionary.Choice("LangGraph (ReAct agent)", value=AIFrameworkType.LANGGRAPH),
-        questionary.Choice("CrewAI (multi-agent crews)", value=AIFrameworkType.CREWAI),
         questionary.Choice(
             "DeepAgents (agentic coding, LangChain)", value=AIFrameworkType.DEEPAGENTS
         ),
@@ -827,7 +806,7 @@ def prompt_web_capabilities(ai_framework: AIFrameworkType) -> tuple[bool, bool]:
     """Prompt for web search / web fetch.
 
     PydanticAI and PydanticDeep use the model-native WebSearch/WebFetch
-    capabilities. LangChain, LangGraph, CrewAI and DeepAgents use a
+    capabilities. LangChain, LangGraph and DeepAgents use a
     Tavily-backed web search tool plus a portable fetch_url tool.
 
     Returns:
@@ -862,11 +841,11 @@ def prompt_web_capabilities(ai_framework: AIFrameworkType) -> tuple[bool, bool]:
 
     enable_web_search = cast(
         bool,
-        _check_cancelled(questionary.confirm(search_q, default=False).ask()),
+        _check_cancelled(questionary.confirm(search_q, default=True).ask()),
     )
     enable_web_fetch = cast(
         bool,
-        _check_cancelled(questionary.confirm(fetch_q, default=False).ask()),
+        _check_cancelled(questionary.confirm(fetch_q, default=True).ask()),
     )
     return enable_web_search, enable_web_fetch
 
@@ -890,50 +869,22 @@ def prompt_charts() -> bool:
         _check_cancelled(
             questionary.confirm(
                 "Enable the chart-generation tool for the agent?",
-                default=False,
-            ).ask()
-        ),
-    )
-
-
-def prompt_antv_charts() -> bool:
-    """Prompt for the AntV advanced-diagram tools + interactive map tool.
-
-    Returns:
-        Whether the AntV / map tools are enabled.
-    """
-    console.print()
-    console.print("[bold cyan]AntV Diagrams & Maps[/]")
-    console.print(
-        "Adds an interactive map tool (Leaflet/OpenStreetMap, works out of the "
-        "box) plus AntV advanced-diagram tools (flowchart, mind-map, org-chart, "
-        "sankey, ...) served by an mcp-server-chart Docker sidecar. The diagrams "
-        "need the sidecar running (docker compose --profile antv up -d); maps work "
-        "without it."
-    )
-    console.print()
-
-    return cast(
-        bool,
-        _check_cancelled(
-            questionary.confirm(
-                "Enable AntV diagram + map tools for the agent?",
-                default=False,
+                default=True,
             ).ask()
         ),
     )
 
 
 def prompt_code_execution() -> bool:
-    """Prompt for the Monty-backed run_python code-execution tool (PydanticAI only)."""
+    """Prompt for the Monty-backed run_python code-execution tool."""
     console.print()
     console.print("[bold cyan]Code Execution (Monty sandbox)[/]")
     console.print(
         "Adds a `run_python` tool that lets the agent execute Python in a sandboxed "
         "interpreter (pydantic-monty). The model can compute projections, run "
-        "aggregations, and call create_chart/create_map directly from inside the "
-        "code. Restricted stdlib: math, asyncio, json, datetime, re — no numpy/pandas. "
-        "PydanticAI only. Activate at runtime with ENABLE_CODE_EXECUTION=true."
+        "aggregations, and parse pasted tables — pure compute, no host access. "
+        "Restricted stdlib: math, asyncio, json, datetime, re — no numpy/pandas. "
+        "Activate at runtime with ENABLE_CODE_EXECUTION=true."
     )
     console.print()
 
@@ -941,8 +892,8 @@ def prompt_code_execution() -> bool:
         bool,
         _check_cancelled(
             questionary.confirm(
-                "Enable the run_python code-execution tool (PydanticAI only)?",
-                default=False,
+                "Enable the run_python code-execution tool?",
+                default=True,
             ).ask()
         ),
     )
@@ -964,7 +915,7 @@ def prompt_skills() -> bool:
         _check_cancelled(
             questionary.confirm(
                 "Enable the skills system (PydanticAI only)?",
-                default=False,
+                default=True,
             ).ask()
         ),
     )
@@ -988,7 +939,7 @@ def prompt_deep_research() -> bool:
         _check_cancelled(
             questionary.confirm(
                 "Enable the deep research agent (PydanticAI only)?",
-                default=False,
+                default=True,
             ).ask()
         ),
     )
@@ -1060,11 +1011,11 @@ def prompt_rag_config(database: DatabaseType = DatabaseType.POSTGRESQL) -> RAGFe
         vector_store = VectorStoreType(vector_store_choice)
 
         enable_google_drive_ingestion = _check_cancelled(
-            questionary.confirm("Enable Google Drive document ingestion?", default=False).ask()
+            questionary.confirm("Enable Google Drive document ingestion?", default=True).ask()
         )
 
         enable_s3_ingestion = _check_cancelled(
-            questionary.confirm("Enable S3/MinIO document ingestion?", default=False).ask()
+            questionary.confirm("Enable S3/MinIO document ingestion?", default=True).ask()
         )
 
         reranker_choice = _check_cancelled(
@@ -1142,7 +1093,7 @@ def prompt_channels() -> tuple[bool, bool]:
         _check_cancelled(
             questionary.confirm(
                 "Enable Telegram bot integration? (multi-bot, polling + webhook, role-based access)",
-                default=False,
+                default=True,
             ).ask()
         ),
     )
@@ -1152,7 +1103,7 @@ def prompt_channels() -> tuple[bool, bool]:
         _check_cancelled(
             questionary.confirm(
                 "Enable Slack bot integration? (Events API, threads, @mention support)",
-                default=False,
+                default=True,
             ).ask()
         ),
     )
@@ -1237,7 +1188,7 @@ def prompt_email_config() -> tuple[bool, EmailProviderType, bool]:
         _check_cancelled(
             questionary.confirm(
                 "Enable transactional emails? (welcome, invitations, billing notifications)",
-                default=False,
+                default=True,
             ).ask()
         ),
     )
@@ -1285,7 +1236,7 @@ def prompt_teams_billing(database: DatabaseType) -> dict[str, Any]:  # noqa: ARG
     """Prompt for Teams & Billing configuration.
 
     Args:
-        database: Selected database (billing requires SQL or MongoDB).
+        database: Selected database.
 
     Returns:
         Dict with all teams/billing related config values.
@@ -1299,7 +1250,7 @@ def prompt_teams_billing(database: DatabaseType) -> dict[str, Any]:  # noqa: ARG
         _check_cancelled(
             questionary.confirm(
                 "Enable multi-tenant teams? (Organizations, Members, Invitations, role-based access)",
-                default=False,
+                default=True,
             ).ask()
         ),
     )
@@ -1325,7 +1276,7 @@ def prompt_teams_billing(database: DatabaseType) -> dict[str, Any]:  # noqa: ARG
         _check_cancelled(
             questionary.confirm(
                 "Enable Stripe billing? (Plans, Subscriptions, checkout, customer portal, webhooks)",
-                default=False,
+                default=True,
             ).ask()
         ),
     )
@@ -1381,7 +1332,7 @@ def prompt_teams_billing(database: DatabaseType) -> dict[str, Any]:  # noqa: ARG
             _check_cancelled(
                 questionary.confirm(
                     "Enable credit-based usage metering? (balance per org, usage events, top-up purchases)",
-                    default=False,
+                    default=True,
                 ).ask()
             ),
         )
@@ -1401,7 +1352,7 @@ def prompt_teams_billing(database: DatabaseType) -> dict[str, Any]:  # noqa: ARG
                 _check_cancelled(
                     questionary.confirm(
                         "Enable admin usage dashboard? (/admin/usage/*)",
-                        default=False,
+                        default=True,
                     ).ask()
                 ),
             )
@@ -1503,7 +1454,6 @@ def run_interactive_prompts() -> ProjectConfig:
         "enable_web_search": False,
         "enable_web_fetch": False,
         "enable_charts": False,
-        "enable_antv_charts": False,
         "enable_code_execution": False,
         "enable_skills": False,
         "enable_deep_research": False,
@@ -1511,7 +1461,6 @@ def run_interactive_prompts() -> ProjectConfig:
         "orm_type": OrmType.SQLALCHEMY,
         "sandbox_backend": "state",
         "reverse_proxy": ReverseProxyType.NONE,
-        "brand_color": BrandColorType.BLUE,
         "marketing_features": {},
         "auth_mode": AuthMode.LOCAL,
         "delegated_auth_use_shared_secret": False,
@@ -1530,10 +1479,7 @@ def run_interactive_prompts() -> ProjectConfig:
         state["database"] = prompt_database()
 
     def step_orm_type() -> None:
-        if state["database"] in (DatabaseType.POSTGRESQL, DatabaseType.SQLITE):
-            state["orm_type"] = prompt_orm_type()
-        else:
-            state["orm_type"] = OrmType.SQLALCHEMY
+        state["orm_type"] = prompt_orm_type()
 
     def step_oauth() -> None:
         state["oauth_provider"] = prompt_oauth()
@@ -1542,7 +1488,7 @@ def run_interactive_prompts() -> ProjectConfig:
         state["enable_session_management"] = _check_cancelled(
             questionary.confirm(
                 "Enable session management? (track active sessions, logout from devices)",
-                default=False,
+                default=True,
             ).ask()
         )
 
@@ -1565,7 +1511,7 @@ def run_interactive_prompts() -> ProjectConfig:
         state["integrations"] = prompt_integrations(
             database=state["database"], orm_type=state["orm_type"]
         )
-        # Auto-enable Redis for distributed task queues
+        # Auto-enable Redis for distributed task queues (Prefect manages its own storage)
         if state["background_tasks"] in (
             BackgroundTaskType.CELERY,
             BackgroundTaskType.TASKIQ,
@@ -1593,6 +1539,8 @@ def run_interactive_prompts() -> ProjectConfig:
                 "[yellow]Note:[/] OAuth social login requires a frontend — resetting to None."
             )
             state["oauth_provider"] = OAuthProvider.NONE
+        if state["frontend"] != FrontendType.NONE:
+            state["brand_color"] = prompt_brand_color()
 
     def step_python_version() -> None:
         state["python_version"] = prompt_python_version()
@@ -1604,7 +1552,7 @@ def run_interactive_prompts() -> ProjectConfig:
         state["ai_framework"] = prompt_ai_framework()
 
     def step_logfire() -> None:
-        # Skip Logfire prompt entirely when no AI framework (CrewAI conflict doesn't apply)
+        # Skip Logfire prompt entirely when no AI framework is selected.
         if state["ai_framework"] == AIFrameworkType.NONE:
             state["enable_logfire"] = True
             from .config import LogfireFeatures
@@ -1665,17 +1613,11 @@ def run_interactive_prompts() -> ProjectConfig:
         else:
             state["enable_charts"] = prompt_charts()
 
-    def step_antv_charts() -> None:
-        if state["ai_framework"] == AIFrameworkType.NONE:
-            state["enable_antv_charts"] = False
-        else:
-            state["enable_antv_charts"] = prompt_antv_charts()
-
     def step_code_execution() -> None:
-        if state["ai_framework"] == AIFrameworkType.PYDANTIC_AI:
-            state["enable_code_execution"] = prompt_code_execution()
-        else:
+        if state["ai_framework"] == AIFrameworkType.NONE:
             state["enable_code_execution"] = False
+        else:
+            state["enable_code_execution"] = prompt_code_execution()
 
     def step_skills() -> None:
         if state["ai_framework"] == AIFrameworkType.PYDANTIC_AI:
@@ -1726,12 +1668,6 @@ def run_interactive_prompts() -> ProjectConfig:
                 redis_enabled=state["integrations"].get("enable_redis", False)
             )
 
-    def step_brand_color() -> None:
-        if state["frontend"] != FrontendType.NONE:
-            state["brand_color"] = prompt_brand_color()
-        else:
-            state["brand_color"] = BrandColorType.BLUE
-
     def step_marketing() -> None:
         if state["frontend"] != FrontendType.NONE:
             state["marketing_features"] = prompt_marketing_features()
@@ -1753,23 +1689,20 @@ def run_interactive_prompts() -> ProjectConfig:
         ("Python Version", step_python_version),
         ("Ports", step_ports),
         ("AI Framework", step_ai_framework),
+        ("Chart Tool", step_charts),
+        ("Code Execution", step_code_execution),
+        ("Skills System", step_skills),
+        ("Deep Research", step_deep_research),
         ("Observability (Logfire)", step_logfire),
         ("Agent Sandbox", step_sandbox_backend),
         ("LLM Provider", step_llm_provider),
         ("Web Search & Fetch", step_web_capabilities),
         ("RAG", step_rag_config),
-        ("Chart Tool", step_charts),
-        ("AntV Diagrams & Maps", step_antv_charts),
-        ("Code Execution", step_code_execution),
-        ("Skills System", step_skills),
-        ("Deep Research", step_deep_research),
         ("LangSmith", step_langsmith),
         ("Messaging Channels", step_channels),
         ("Teams & Billing", step_teams_billing),
         ("Email", step_email),
         ("Rate Limit Config", step_rate_limit_config),
-        ("Brand Color", step_brand_color),
-        ("Marketing & Public Pages", step_marketing),
     ]
 
     # Linear pass — no inter-section prompts. snapshots[] is kept around so a
@@ -1809,7 +1742,6 @@ def run_interactive_prompts() -> ProjectConfig:
     enable_web_search = state["enable_web_search"]
     enable_web_fetch = state["enable_web_fetch"]
     enable_charts = state["enable_charts"]
-    enable_antv_charts = state["enable_antv_charts"]
     enable_code_execution = state["enable_code_execution"]
     enable_skills = state["enable_skills"]
     enable_deep_research = state["enable_deep_research"]
@@ -1824,8 +1756,20 @@ def run_interactive_prompts() -> ProjectConfig:
     rate_limit_requests = state["rate_limit_requests"]
     rate_limit_period = state["rate_limit_period"]
     rate_limit_storage = state["rate_limit_storage"]
-    brand_color = state["brand_color"]
-    marketing_features = state["marketing_features"]
+    # Marketing features are always enabled when frontend is present — no prompt needed.
+    frontend = state.get("frontend")
+    marketing_features = (
+        {
+            "enable_marketing_site": True,
+            "enable_changelog": True,
+            "enable_testimonials": True,
+            "enable_comparison_pages": True,
+            "enable_affiliate_program": True,
+            "enable_status_badge": True,
+        }
+        if frontend != FrontendType.NONE
+        else {}
+    )
 
     # Extract ci_type separately for type safety
     ci_type = cast(CIType, dev_tools.pop("ci_type"))
@@ -1855,7 +1799,6 @@ def run_interactive_prompts() -> ProjectConfig:
         enable_web_search=enable_web_search,
         enable_web_fetch=enable_web_fetch,
         enable_charts=enable_charts,
-        enable_antv_charts=enable_antv_charts,
         enable_code_execution=enable_code_execution,
         enable_skills=enable_skills,
         enable_deep_research=enable_deep_research,
@@ -1868,7 +1811,7 @@ def run_interactive_prompts() -> ProjectConfig:
         ci_type=ci_type,
         reverse_proxy=reverse_proxy,
         frontend=frontend,
-        brand_color=brand_color,
+        brand_color=state.get("brand_color", BrandColorType.BLUE),
         backend_port=ports["backend_port"],
         frontend_port=ports.get("frontend_port", 3000),
         # Teams & Billing
@@ -1894,8 +1837,7 @@ def show_summary(config: ProjectConfig) -> None:
 
     console.print(f"  [cyan]Project:[/] {config.project_name}")
     console.print(f"  [cyan]Database:[/] {config.database.value}")
-    if config.database in (DatabaseType.POSTGRESQL, DatabaseType.SQLITE):
-        console.print(f"  [cyan]ORM:[/] {config.orm_type.value}")
+    console.print(f"  [cyan]ORM:[/] {config.orm_type.value}")
     auth_str = "JWT + API Key"
     if config.oauth_provider != OAuthProvider.NONE:
         auth_str += f" + {config.oauth_provider.value} OAuth"

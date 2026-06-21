@@ -64,7 +64,6 @@ export function PricingTeaser({ plans, fullPricingHref = "/pricing" }: PricingTe
 
   return (
     <div className="border-foreground/10 bg-foreground/[0.02] relative isolate overflow-hidden rounded-3xl border p-8 md:p-14">
-      {/* Brand glow under the price */}
       <div
         aria-hidden
         className="pointer-events-none absolute -top-32 -right-40 -z-10 h-[520px] w-[520px] rounded-full blur-3xl"
@@ -76,7 +75,6 @@ export function PricingTeaser({ plans, fullPricingHref = "/pricing" }: PricingTe
       <div aria-hidden className="bg-dots pointer-events-none absolute inset-0 -z-10 opacity-50" />
 
       <div className="grid gap-12 md:grid-cols-[1.1fr_1fr] md:items-center">
-        {/* LEFT — slider + price */}
         <div>
           <div className="mb-5 flex items-baseline justify-between gap-4">
             <label htmlFor="pricing-seats" className="eyebrow text-foreground/55">
@@ -100,9 +98,7 @@ export function PricingTeaser({ plans, fullPricingHref = "/pricing" }: PricingTe
             className="bg-foreground/10 h-2 w-full cursor-pointer appearance-none rounded-full accent-[var(--color-brand)]"
           />
 
-          {activePlan.badge && (
-            <span className="eyebrow-badge mt-10 mb-3">{activePlan.badge}</span>
-          )}
+          {activePlan.badge && <span className="eyebrow-badge mt-10 mb-3">{activePlan.badge}</span>}
           <div className={cn("flex items-baseline gap-3", !activePlan.badge && "mt-12")}>
             <div className="text-foreground font-mono text-[clamp(4.5rem,14vw,9.5rem)] leading-[0.85] font-medium tracking-tighter tabular-nums">
               {isCustom ? t("custom") : currencyWrap(activePlan.price, total ?? 0)}
@@ -122,7 +118,6 @@ export function PricingTeaser({ plans, fullPricingHref = "/pricing" }: PricingTe
           </p>
         </div>
 
-        {/* RIGHT — tier pills, description, features, CTA */}
         <div>
           <div className="mb-6 flex flex-wrap gap-2">
             {plans.map((plan, i) => (

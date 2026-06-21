@@ -1,4 +1,4 @@
-{%- if cookiecutter.enable_teams and cookiecutter.enable_rag and cookiecutter.use_jwt and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
+{%- if cookiecutter.enable_teams and cookiecutter.enable_rag and cookiecutter.use_jwt %}
 """backfill default Knowledge Bases per org + assign existing rag_documents
 
 Revision ID: 0008_backfill_default_kbs
@@ -34,8 +34,6 @@ def _now() -> datetime:
 def upgrade() -> None:
     conn = op.get_bind()
 
-{%- if cookiecutter.use_postgresql %}
-    # Create a Default KB for every existing org that doesn't have one
     orgs = conn.execute(sa.text("SELECT id, name FROM organizations")).fetchall()
     for org in orgs:
         org_id = str(org.id)
@@ -47,7 +45,6 @@ def upgrade() -> None:
         if existing:
             continue
 
-        # Derive collection name from first rag_document in this org, or use slug
         first_doc = conn.execute(sa.text(
             "SELECT collection_name FROM rag_documents WHERE organization_id = :org_id LIMIT 1"
         ), {"org_id": org_id}).fetchone()
@@ -59,14 +56,12 @@ def upgrade() -> None:
             VALUES (:id, 'Default', 'Default knowledge base', 'org', :collection_name, TRUE, :org_id, :now)
         """), {"id": kb_id, "collection_name": collection_name, "org_id": org_id, "now": _now()})
 
-        # Assign all org's rag_documents to this Default KB
         conn.execute(sa.text("""
             UPDATE rag_documents
             SET knowledge_base_id = :kb_id
             WHERE organization_id = :org_id AND knowledge_base_id IS NULL
         """), {"kb_id": kb_id, "org_id": org_id})
 
-    # Handle unclaimed rag_documents (no org) — assign to a global app KB
     unclaimed = conn.execute(sa.text(
         "SELECT COUNT(*) FROM rag_documents WHERE organization_id IS NULL AND knowledge_base_id IS NULL"
     )).scalar()
@@ -87,55 +82,6 @@ def upgrade() -> None:
             WHERE organization_id IS NULL AND knowledge_base_id IS NULL
         """), {"kb_id": app_kb_id})
 
-{%- else %}
-    # SQLite variant — same logic, different syntax
-    orgs = conn.execute(sa.text("SELECT id, name FROM organizations")).fetchall()
-    for org in orgs:
-        org_id = str(org[0])
-
-        existing = conn.execute(sa.text(
-            "SELECT id FROM knowledge_bases WHERE organization_id = :org_id AND is_default = 1 LIMIT 1"
-        ), {"org_id": org_id}).fetchone()
-
-        if existing:
-            continue
-
-        first_doc = conn.execute(sa.text(
-            "SELECT collection_name FROM rag_documents WHERE organization_id = :org_id LIMIT 1"
-        ), {"org_id": org_id}).fetchone()
-        collection_name = first_doc[0] if first_doc else f"org_{org_id[:8]}"
-
-        kb_id = str(uuid.uuid4())
-        conn.execute(sa.text("""
-            INSERT INTO knowledge_bases (id, name, description, scope, collection_name, is_default, organization_id, created_at)
-            VALUES (:id, 'Default', 'Default knowledge base', 'org', :collection_name, 1, :org_id, :now)
-        """), {"id": kb_id, "collection_name": collection_name, "org_id": org_id, "now": _now().isoformat()})
-
-        conn.execute(sa.text("""
-            UPDATE rag_documents SET knowledge_base_id = :kb_id
-            WHERE organization_id = :org_id AND knowledge_base_id IS NULL
-        """), {"kb_id": kb_id, "org_id": org_id})
-
-    unclaimed = conn.execute(sa.text(
-        "SELECT COUNT(*) FROM rag_documents WHERE organization_id IS NULL AND knowledge_base_id IS NULL"
-    )).scalar()
-    if unclaimed and unclaimed > 0:
-        first_unclaimed = conn.execute(sa.text(
-            "SELECT collection_name FROM rag_documents WHERE organization_id IS NULL LIMIT 1"
-        )).fetchone()
-        collection_name = first_unclaimed[0] if first_unclaimed else "default"
-
-        app_kb_id = str(uuid.uuid4())
-        conn.execute(sa.text("""
-            INSERT INTO knowledge_bases (id, name, description, scope, collection_name, is_default, created_at)
-            VALUES (:id, 'Global', 'Pre-existing unclaimed documents', 'app', :collection_name, 0, :now)
-        """), {"id": app_kb_id, "collection_name": collection_name, "now": _now().isoformat()})
-
-        conn.execute(sa.text("""
-            UPDATE rag_documents SET knowledge_base_id = :kb_id
-            WHERE organization_id IS NULL AND knowledge_base_id IS NULL
-        """), {"kb_id": app_kb_id})
-{%- endif %}
 
 
 def downgrade() -> None:

@@ -51,9 +51,9 @@ async def app_exception_handler(
     }
 
     if exc.status_code >= 500:
-        logger.error(f"{exc.code}: {exc.message}", extra=log_extra)
+        logger.error("%s: %s", exc.code, exc.message, extra=log_extra)
     else:
-        logger.warning(f"{exc.code}: {exc.message}", extra=log_extra)
+        logger.warning("%s: %s", exc.code, exc.message, extra=log_extra)
 
     if _is_websocket(request):
         return None
@@ -68,7 +68,7 @@ async def app_exception_handler(
             "error": {
                 "code": exc.code,
                 "message": exc.message,
-                "details": exc.details or None,
+                "details": exc.details,
             }
         },
         headers=headers,
@@ -108,5 +108,4 @@ def register_exception_handlers(app: FastAPI) -> None:
     # Handler returns None for WebSocket connections (no JSONResponse there),
     # which Starlette's HTTP-handler type doesn't model.
     app.add_exception_handler(AppException, app_exception_handler)  # ty: ignore[invalid-argument-type]
-    # Uncomment to catch all unhandled exceptions:
-    # app.add_exception_handler(Exception, unhandled_exception_handler)
+    app.add_exception_handler(Exception, unhandled_exception_handler)  # ty: ignore[invalid-argument-type]

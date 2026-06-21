@@ -1,4 +1,5 @@
 """Tests for core modules."""
+# ruff: noqa: I001 - Imports structured for Jinja2 template conditionals
 
 from app.core.config import settings
 from app.core.exceptions import (
@@ -9,6 +10,20 @@ from app.core.exceptions import (
     NotFoundError,
     ValidationError,
 )
+from app.core.middleware import RequestIDMiddleware
+{%- if cookiecutter.enable_caching %}
+from app.core.cache import setup_cache
+{%- endif %}
+{%- if cookiecutter.enable_rate_limiting %}
+from app.core.rate_limit import limiter
+{%- endif %}
+{%- if cookiecutter.enable_logfire %}
+from unittest.mock import patch
+
+from fastapi import FastAPI
+
+from app.core.logfire_setup import instrument_app, setup_logfire
+{%- endif %}
 
 
 class TestSettings:
@@ -82,8 +97,6 @@ class TestCacheSetup:
 
     def test_setup_cache_function_exists(self):
         """Test setup_cache function exists."""
-        from app.core.cache import setup_cache
-
         assert setup_cache is not None
         assert callable(setup_cache)
 {%- endif %}
@@ -94,8 +107,6 @@ class TestMiddleware:
 
     def test_request_id_middleware_exists(self):
         """Test request ID middleware is configured."""
-        from app.core.middleware import RequestIDMiddleware
-
         assert RequestIDMiddleware is not None
 
 
@@ -107,16 +118,11 @@ class TestRateLimit:
 
     def test_limiter_exists(self):
         """Test rate limiter is configured."""
-        from app.core.rate_limit import limiter
-
         assert limiter is not None
 {%- endif %}
 
 
 {%- if cookiecutter.enable_logfire %}
-
-
-from unittest.mock import patch  # noqa: E402
 
 
 class TestLogfireSetup:
@@ -125,18 +131,12 @@ class TestLogfireSetup:
     @patch("app.core.logfire_setup.logfire")
     def test_setup_logfire_configures(self, mock_logfire):
         """Test setup_logfire calls configure."""
-        from app.core.logfire_setup import setup_logfire
-
         setup_logfire()
         mock_logfire.configure.assert_called_once()
 
     @patch("app.core.logfire_setup.logfire")
     def test_instrument_app_instruments_fastapi(self, mock_logfire):
         """Test instrument_app instruments FastAPI."""
-        from fastapi import FastAPI
-
-        from app.core.logfire_setup import instrument_app
-
         app = FastAPI()
         instrument_app(app)
         mock_logfire.instrument_fastapi.assert_called()

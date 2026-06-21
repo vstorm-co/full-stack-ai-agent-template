@@ -34,7 +34,6 @@ class RateLimitRule:
         )
 
 
-# Category constants
 class RateLimitCategory:
     AGENT_INVOCATION = "agent_invocation"
     RAG_UPLOAD = "rag_upload"

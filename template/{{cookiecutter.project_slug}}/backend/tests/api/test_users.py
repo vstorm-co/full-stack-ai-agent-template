@@ -22,6 +22,7 @@ from app.api.deps import get_db_session
 from app.api.deps import get_redis
 {%- endif %}
 from app.core.config import settings
+from app.core.exceptions import NotFoundError
 from app.main import app
 
 
@@ -36,11 +37,7 @@ class MockUser:
         is_active=True,
         role="user",
     ):
-{%- if cookiecutter.use_postgresql %}
         self.id = id or uuid4()
-{%- else %}
-        self.id = id or str(uuid4())
-{%- endif %}
         self.email = email
         self.full_name = full_name
         self.is_active = is_active
@@ -194,8 +191,6 @@ async def test_read_user_by_id_not_found(
     mock_user_service: MagicMock,
 ):
     """Test getting non-existent user."""
-    from app.core.exceptions import NotFoundError
-
     mock_user_service.get_by_id = ServiceMock(
         side_effect=NotFoundError(message="User not found")
     )
@@ -241,7 +236,6 @@ async def test_delete_user_by_id_not_found(
     mock_user_service: MagicMock,
 ):
     """Test deleting non-existent user."""
-    from app.core.exceptions import NotFoundError
 
     mock_user_service.delete = ServiceMock(
         side_effect=NotFoundError(message="User not found")

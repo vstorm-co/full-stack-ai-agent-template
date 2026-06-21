@@ -1,4 +1,4 @@
-{%- if cookiecutter.include_example_crud and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
+{%- if cookiecutter.include_example_crud %}
 """create items table (example CRUD scaffold)
 
 Revision ID: 0021_create_items
@@ -11,9 +11,7 @@ migration when you rename or remove the Item domain.
 """
 
 import sqlalchemy as sa
-{%- if cookiecutter.use_postgresql %}
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
-{%- endif %}
 
 from alembic import op
 
@@ -32,7 +30,6 @@ depends_on = None
 def upgrade() -> None:
     op.create_table(
         "items",
-{%- if cookiecutter.use_postgresql %}
         sa.Column(
             "id",
             PG_UUID(as_uuid=True),
@@ -45,15 +42,6 @@ def upgrade() -> None:
             sa.ForeignKey("users.id", ondelete="CASCADE"),
             nullable=False,
         ),
-{%- else %}
-        sa.Column("id", sa.String(36), primary_key=True),
-        sa.Column(
-            "owner_id",
-            sa.String(36),
-            sa.ForeignKey("users.id", ondelete="CASCADE"),
-            nullable=False,
-        ),
-{%- endif %}
         sa.Column("name", sa.String(255), nullable=False),
         sa.Column("description", sa.Text(), nullable=True),
         sa.Column("is_published", sa.Boolean(), nullable=False, server_default=sa.false()),

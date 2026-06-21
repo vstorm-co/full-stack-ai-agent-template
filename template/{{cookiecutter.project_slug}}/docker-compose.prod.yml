@@ -137,9 +137,6 @@ services:
     container_name: {{ cookiecutter.project_slug }}_backend
     volumes:
       - media_data:/app/media
-{%- if cookiecutter.use_sqlite %}
-      - sqlite_data:/app/data
-{%- endif %}
 {%- if cookiecutter.use_chromadb %}
       - chroma_data:/app/chroma_data
 {%- endif %}
@@ -153,9 +150,7 @@ services:
     environment:
       - DEBUG=false
       - ENVIRONMENT=production
-{%- if cookiecutter.use_postgresql %}
       - POSTGRES_HOST=db
-{%- endif %}
 {%- if cookiecutter.enable_redis %}
       - REDIS_HOST=redis
 {%- endif %}
@@ -198,12 +193,9 @@ services:
     ports:
       - "{{ cookiecutter.backend_port }}:{{ cookiecutter.backend_port }}"
 {%- endif %}
-{%- if cookiecutter.use_postgresql or cookiecutter.enable_redis or cookiecutter.use_milvus or cookiecutter.use_qdrant %}
     depends_on:
-{%- if cookiecutter.use_postgresql %}
       db:
         condition: service_healthy
-{%- endif %}
 {%- if cookiecutter.enable_redis %}
       redis:
         condition: service_healthy
@@ -216,7 +208,6 @@ services:
       qdrant:
         condition: service_healthy
 {%- endif %}
-{%- endif %}
     restart: unless-stopped
     deploy:
       resources:
@@ -227,7 +218,6 @@ services:
           cpus: '0.5'
           memory: 256M
 
-{%- if cookiecutter.use_postgresql %}
 
   db:
     image: postgres:16-alpine
@@ -252,7 +242,6 @@ services:
         limits:
           cpus: '1'
           memory: 512M
-{%- endif %}
 
 {%- if cookiecutter.enable_redis %}
 
@@ -386,9 +375,6 @@ services:
     container_name: {{ cookiecutter.project_slug }}_celery_worker
     volumes:
       - media_data:/app/media
-{%- if cookiecutter.use_sqlite %}
-      - sqlite_data:/app/data
-{%- endif %}
 {%- if cookiecutter.use_chromadb %}
       - chroma_data:/app/chroma_data
 {%- endif %}
@@ -420,10 +406,8 @@ services:
         condition: service_started
       redis:
         condition: service_healthy
-{%- if cookiecutter.use_postgresql %}
       db:
         condition: service_healthy
-{%- endif %}
 {%- if cookiecutter.use_milvus %}
       milvus:
         condition: service_healthy
@@ -527,9 +511,6 @@ services:
     container_name: {{ cookiecutter.project_slug }}_taskiq_worker
     volumes:
       - media_data:/app/media
-{%- if cookiecutter.use_sqlite %}
-      - sqlite_data:/app/data
-{%- endif %}
 {%- if cookiecutter.use_chromadb %}
       - chroma_data:/app/chroma_data
 {%- endif %}
@@ -541,9 +522,7 @@ services:
       - ./backend/.env
     environment:
       - DEBUG=false
-{%- if cookiecutter.use_postgresql %}
       - POSTGRES_HOST=db
-{%- endif %}
 {%- if cookiecutter.enable_redis %}
       - REDIS_HOST=redis
 {%- endif %}
@@ -564,10 +543,8 @@ services:
         condition: service_started
       redis:
         condition: service_healthy
-{%- if cookiecutter.use_postgresql %}
       db:
         condition: service_healthy
-{%- endif %}
 {%- if cookiecutter.use_milvus %}
       milvus:
         condition: service_healthy
@@ -626,9 +603,6 @@ services:
     container_name: {{ cookiecutter.project_slug }}_arq_worker
     volumes:
       - media_data:/app/media
-{%- if cookiecutter.use_sqlite %}
-      - sqlite_data:/app/data
-{%- endif %}
 {%- if cookiecutter.use_chromadb %}
       - chroma_data:/app/chroma_data
 {%- endif %}
@@ -637,10 +611,8 @@ services:
       - ./backend/.env
     environment:
       - DEBUG=false
-{%- if cookiecutter.use_postgresql %}
       - POSTGRES_HOST=db
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-{%- endif %}
 {%- if cookiecutter.enable_redis %}
       - REDIS_HOST=redis
       - REDIS_PASSWORD=${REDIS_PASSWORD}
@@ -663,10 +635,8 @@ services:
         condition: service_started
       redis:
         condition: service_healthy
-{%- if cookiecutter.use_postgresql %}
       db:
         condition: service_healthy
-{%- endif %}
 {%- if cookiecutter.use_milvus %}
       milvus:
         condition: service_healthy
@@ -735,19 +705,13 @@ networks:
 
 volumes:
   media_data:
-{%- if cookiecutter.use_sqlite %}
-  sqlite_data:
-{%- endif %}
 {%- if cookiecutter.use_chromadb %}
   chroma_data:
 {%- endif %}
 {%- if cookiecutter.include_traefik_service %}
   traefik_letsencrypt:
 {%- endif %}
-{%- if cookiecutter.use_postgresql or cookiecutter.enable_redis or cookiecutter.use_milvus or cookiecutter.use_qdrant %}
-{%- if cookiecutter.use_postgresql %}
   postgres_data:
-{%- endif %}
 {%- if cookiecutter.enable_redis %}
   redis_data:
 {%- endif %}
@@ -758,7 +722,6 @@ volumes:
 {%- endif %}
 {%- if cookiecutter.use_qdrant %}
   qdrant_data:
-{%- endif %}
 {%- endif %}
 {%- else %}
 # Docker is disabled for this project

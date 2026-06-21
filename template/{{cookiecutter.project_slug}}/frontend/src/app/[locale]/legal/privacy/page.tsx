@@ -23,11 +23,7 @@ export async function generateMetadata({
   });
 }
 
-export default async function PrivacyPage({
-  params,
-}: {
-  params: Promise<{ locale: Locale }>;
-}) {
+export default async function PrivacyPage({ params }: { params: Promise<{ locale: Locale }> }) {
   const { locale } = await params;
   const t = await getTranslations("marketing.legal.privacy");
 

@@ -20,14 +20,12 @@ async def test_not_found_error_format(client: AsyncClient):
 {%- if cookiecutter.use_jwt %}
 
 from unittest.mock import AsyncMock, MagicMock
-{%- if cookiecutter.use_sqlite %}
-ServiceMock = MagicMock
-{%- else %}
 ServiceMock = AsyncMock
-{%- endif %}
 
 from httpx import ASGITransport
 
+from app.api.deps import get_user_service
+from app.core.exceptions import AlreadyExistsError, AuthenticationError
 {%- if cookiecutter.enable_redis %}
 from app.api.deps import get_redis
 {%- endif %}
@@ -58,8 +56,6 @@ async def test_missing_auth_returns_401(client: AsyncClient):
 @pytest.fixture
 def mock_user_service_with_errors() -> MagicMock:
     """Create mock user service that raises errors."""
-    from app.core.exceptions import AlreadyExistsError, AuthenticationError
-
     service = MagicMock()
     service.register = ServiceMock(
         side_effect=AlreadyExistsError(message="Email already registered")
@@ -81,8 +77,6 @@ async def error_client(
 {%- endif %}
 ) -> AsyncClient:
     """Client with mocked services that raise errors."""
-    from app.api.deps import get_user_service
-
     app.dependency_overrides[get_user_service] = lambda: mock_user_service_with_errors
 {%- if cookiecutter.enable_redis %}
     app.dependency_overrides[get_redis] = lambda: mock_redis

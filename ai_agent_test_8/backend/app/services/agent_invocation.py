@@ -1,0 +1,244 @@
+"""Framework-agnostic agent invocation for channel messages (non-streaming)."""
+
+import logging
+from dataclasses import dataclass, field
+from typing import Any
+from uuid import UUID
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.agents.assistant import Deps, get_agent
+from app.core.config import settings
+from app.repositories import conversation_repo, knowledge_base_repo
+from app.services.agent import build_message_history
+from app.services.usage import UsageService
+
+
+@dataclass
+class ToolEvent:
+    """A tool call + result pair collected during agent execution."""
+
+    tool_name: str
+    args: dict[str, Any] = field(default_factory=dict)
+    result: str = ""
+
+
+logger = logging.getLogger(__name__)
+
+
+def _provider_from_model(model_name: str) -> str:
+    name = (model_name or "").lower()
+    if name.startswith(("gpt", "o1", "o3", "o4", "openai")):
+        return "openai"
+    if name.startswith(("claude", "anthropic")):
+        return "anthropic"
+    if name.startswith(("gemini", "google")):
+        return "google"
+    return "unknown"
+
+
+class AgentInvocationService:
+    """Invoke the configured AI agent and return the final text response.
+
+    Used by channel adapters where streaming is not required. Both the user
+    message and the assistant reply are persisted to the database.
+    """
+
+    def __init__(self, db: AsyncSession) -> None:
+        self.db = db
+
+    async def invoke(
+        self,
+        *,
+        user_message: str,
+        conversation_id: UUID,
+        user_id: UUID | None = None,
+        project_id: UUID | None = None,
+        organization_id: UUID | None = None,
+        system_prompt_override: str | None = None,
+        model_override: str | None = None,
+    ) -> tuple[str, list[ToolEvent]]:
+        """Run the agent and return final text + tool events.
+
+        Returns:
+            Tuple of (response_text, tool_events).
+        """
+        await self._persist_user_message(conversation_id, user_message)
+
+        history = await self._load_history(conversation_id)
+        # Resolve active KB collections server-side — never trust the client
+        kb_collection_names = await self._load_active_kb_collection_names(
+            conversation_id=conversation_id,
+            user_id=user_id,
+            organization_id=organization_id,
+        )
+
+        tool_events: list[ToolEvent] = []
+        response_text, tool_events = await self._call_agent(
+            user_message=user_message,
+            history=history,
+            conversation_id=conversation_id,
+            user_id=user_id,
+            project_id=project_id,
+            kb_collection_names=kb_collection_names,
+            system_prompt_override=system_prompt_override,
+            model_override=model_override,
+        )
+
+        await self._persist_assistant_message(conversation_id, response_text)
+
+        return response_text, tool_events
+
+    async def _call_agent(
+        self,
+        *,
+        user_message: str,
+        history: list[dict[str, str]],
+        **kwargs: Any,
+    ) -> tuple[str, list[ToolEvent]]:
+        """Dispatch to the framework-specific agent implementation."""
+        return await self._call_pydantic_ai(user_message=user_message, history=history, **kwargs)
+
+    async def _call_pydantic_ai(
+        self,
+        *,
+        user_message: str,
+        history: list[dict[str, str]],
+        **kwargs: Any,
+    ) -> tuple[str, list[ToolEvent]]:
+        """Invoke PydanticAI agent and extract tool events from result messages."""
+
+        model_name: str | None = kwargs.get("model_override")
+        assistant = get_agent(model_name=model_name)
+
+        model_history = build_message_history(history)
+        deps = Deps(kb_collection_names=kwargs.get("kb_collection_names") or [])
+
+        result = await assistant.agent.run(
+            user_message,
+            message_history=model_history,
+            deps=deps,
+        )
+
+        tool_events = self._extract_tool_events(result.all_messages())
+        organization_id = kwargs.get("organization_id")
+        if organization_id is not None:
+            try:
+                usage = result.usage()
+                effective_model = assistant.model_name or model_name or "unknown"
+                await UsageService(self.db).record(
+                    organization_id=organization_id,
+                    model=effective_model,
+                    provider=_provider_from_model(effective_model),
+                    input_tokens=getattr(usage, "input_tokens", 0) or 0,
+                    output_tokens=getattr(usage, "output_tokens", 0) or 0,
+                    cached_tokens=getattr(usage, "cache_read_tokens", 0) or 0,
+                    ai_framework="pydantic_ai",
+                    actor_user_id=kwargs.get("user_id"),
+                    conversation_id=kwargs.get("conversation_id"),
+                )
+            except Exception:
+                logger.exception(
+                    "channel_usage_record_failed",
+                    extra={"org_id": str(organization_id)},
+                )
+
+        return str(result.output), tool_events
+
+    @staticmethod
+    def _extract_tool_events(messages: list[Any]) -> list[ToolEvent]:
+        """Extract tool call/result pairs from pydantic-ai message history."""
+        from pydantic_ai.messages import ModelRequest, ModelResponse
+
+        pending: dict[str, ToolEvent] = {}
+        events: list[ToolEvent] = []
+
+        for msg in messages:
+            if isinstance(msg, ModelResponse):
+                for part in msg.parts:
+                    tool_name = getattr(part, "tool_name", None)
+                    tool_call_id = getattr(part, "tool_call_id", None)
+                    if tool_name and tool_call_id:
+                        args = getattr(part, "args", None)
+                        te = ToolEvent(
+                            tool_name=tool_name,
+                            args=args if isinstance(args, dict) else {},
+                        )
+                        pending[tool_call_id] = te
+                        events.append(te)
+            elif isinstance(msg, ModelRequest):
+                for part in msg.parts:
+                    tool_call_id = getattr(part, "tool_call_id", None)
+                    content = getattr(part, "content", None)
+                    if tool_call_id and tool_call_id in pending and content:
+                        pending[tool_call_id].result = str(content)[:500]
+
+        return events
+
+    async def _load_active_kb_collection_names(
+        self,
+        *,
+        conversation_id: UUID,
+        user_id: UUID | None,
+        organization_id: UUID | None,
+    ) -> list[str]:
+        """Return vector-store collection names for the active KBs of this conversation.
+
+        Resolution is always server-side: we intersect the conversation's
+        active_knowledge_base_ids with the KBs actually visible to the user,
+        preventing any client-supplied KB IDs from leaking cross-org data.
+        """
+        conv = await conversation_repo.get_conversation_by_id(self.db, conversation_id)
+        if not conv:
+            return []
+
+        effective_org_id = organization_id or getattr(conv, "organization_id", None)
+
+        active_ids: list[str] = conv.active_knowledge_base_ids or []
+        if not active_ids:
+            # Fall back to the org's default KB so the agent is never blind
+            if effective_org_id is not None:
+                default_kb = await knowledge_base_repo.get_default_for_org(
+                    self.db, effective_org_id
+                )
+                if default_kb:
+                    return [default_kb.collection_name]
+            return []
+
+        # Security: only return collections the user is actually allowed to see
+        accessible = await knowledge_base_repo.get_accessible(
+            self.db,
+            user_id=user_id,
+            organization_id=effective_org_id,
+        )
+        active_set = {str(i) for i in active_ids}
+        return [kb.collection_name for kb in accessible if str(kb.id) in active_set]
+
+    async def _persist_user_message(self, conversation_id: UUID, content: str) -> None:
+        """Persist the user message directly via conversation repo."""
+        await conversation_repo.create_message(
+            self.db,
+            conversation_id=conversation_id,
+            role="user",
+            content=content,
+        )
+
+    async def _persist_assistant_message(self, conversation_id: UUID, content: str) -> None:
+        """Persist the assistant reply directly via conversation repo."""
+        await conversation_repo.create_message(
+            self.db,
+            conversation_id=conversation_id,
+            role="assistant",
+            content=content,
+            model_name=settings.AI_MODEL,
+        )
+
+    async def _load_history(self, conversation_id: UUID) -> list[dict[str, str]]:
+        """Load conversation message history ordered chronologically."""
+        messages = await conversation_repo.get_messages_by_conversation(
+            self.db,
+            conversation_id=conversation_id,
+            skip=0,
+            limit=200,
+        )
+        return [{"role": m.role, "content": m.content} for m in messages]

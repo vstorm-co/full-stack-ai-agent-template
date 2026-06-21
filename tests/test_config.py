@@ -46,8 +46,6 @@ class TestEnums:
     def test_database_type_values(self) -> None:
         """Test DatabaseType enum values."""
         assert DatabaseType.POSTGRESQL.value == "postgresql"
-        assert DatabaseType.MONGODB.value == "mongodb"
-        assert DatabaseType.SQLITE.value == "sqlite"
 
     def test_background_task_type_values(self) -> None:
         """Test BackgroundTaskType enum values."""
@@ -155,8 +153,6 @@ class TestProjectConfig:
             "author_email",
             "database",
             "use_postgresql",
-            "use_mongodb",
-            "use_sqlite",
             "use_database",
             "auth",
             "use_jwt",
@@ -212,38 +208,6 @@ class TestCookiecutterContext:
 
         assert context["database"] == "postgresql"
         assert context["use_postgresql"] is True
-        assert context["use_mongodb"] is False
-        assert context["use_sqlite"] is False
-        assert context["use_database"] is True
-
-    def test_mongodb_database_flags(self) -> None:
-        """Test MongoDB sets correct flags."""
-        config = ProjectConfig(
-            project_name="test",
-            database=DatabaseType.MONGODB,
-            background_tasks=BackgroundTaskType.NONE,
-        )
-        context = config.to_cookiecutter_context()
-
-        assert context["database"] == "mongodb"
-        assert context["use_postgresql"] is False
-        assert context["use_mongodb"] is True
-        assert context["use_sqlite"] is False
-        assert context["use_database"] is True
-
-    def test_sqlite_database_flags(self) -> None:
-        """Test SQLite sets correct flags."""
-        config = ProjectConfig(
-            project_name="test",
-            database=DatabaseType.SQLITE,
-            background_tasks=BackgroundTaskType.NONE,
-        )
-        context = config.to_cookiecutter_context()
-
-        assert context["database"] == "sqlite"
-        assert context["use_postgresql"] is False
-        assert context["use_mongodb"] is False
-        assert context["use_sqlite"] is True
         assert context["use_database"] is True
 
     def test_celery_background_task_flags(self) -> None:
@@ -427,18 +391,6 @@ class TestCookiecutterContext:
 class TestOptionCombinationValidation:
     """Tests for invalid option combination validation."""
 
-    def test_admin_panel_not_supported_with_mongodb(self) -> None:
-        """Test that admin panel (SQLAdmin) does not support MongoDB."""
-        with pytest.raises(
-            ValidationError, match="Admin panel \\(SQLAdmin\\) requires PostgreSQL or SQLite"
-        ):
-            ProjectConfig(
-                project_name="test",
-                database=DatabaseType.MONGODB,
-                enable_admin_panel=True,
-                background_tasks=BackgroundTaskType.NONE,
-            )
-
     def test_deep_research_requires_pydantic_ai(self) -> None:
         """Test that deep research is only supported with the PydanticAI framework."""
         with pytest.raises(
@@ -451,34 +403,11 @@ class TestOptionCombinationValidation:
                 background_tasks=BackgroundTaskType.NONE,
             )
 
-    def test_sqlmodel_requires_sql_database(self) -> None:
-        """Test that SQLModel requires PostgreSQL or SQLite database."""
-        with pytest.raises(
-            ValidationError, match="SQLModel requires PostgreSQL or SQLite database"
-        ):
-            ProjectConfig(
-                project_name="test",
-                database=DatabaseType.MONGODB,
-                orm_type=OrmType.SQLMODEL,
-                background_tasks=BackgroundTaskType.NONE,
-            )
-
     def test_sqlmodel_with_postgresql_is_valid(self) -> None:
         """Test that SQLModel with PostgreSQL is valid."""
         config = ProjectConfig(
             project_name="test",
             database=DatabaseType.POSTGRESQL,
-            orm_type=OrmType.SQLMODEL,
-            background_tasks=BackgroundTaskType.NONE,
-        )
-        assert config.use_sqlmodel is True
-        assert config.use_sqlalchemy is False
-
-    def test_sqlmodel_with_sqlite_is_valid(self) -> None:
-        """Test that SQLModel with SQLite is valid."""
-        config = ProjectConfig(
-            project_name="test",
-            database=DatabaseType.SQLITE,
             orm_type=OrmType.SQLMODEL,
             background_tasks=BackgroundTaskType.NONE,
         )
@@ -505,17 +434,6 @@ class TestOptionCombinationValidation:
         )
         assert config.enable_admin_panel is True
         assert config.database == DatabaseType.POSTGRESQL
-
-    def test_admin_panel_with_sqlite_is_valid(self) -> None:
-        """Test that admin panel with SQLite is valid."""
-        config = ProjectConfig(
-            project_name="test",
-            database=DatabaseType.SQLITE,
-            enable_admin_panel=True,
-            background_tasks=BackgroundTaskType.NONE,
-        )
-        assert config.enable_admin_panel is True
-        assert config.database == DatabaseType.SQLITE
 
     def test_caching_with_redis_is_valid(self) -> None:
         """Test that caching with Redis enabled is valid."""
@@ -560,17 +478,6 @@ class TestOptionCombinationValidation:
             )
         assert "OpenRouter is only supported with PydanticAI" in str(exc_info.value)
 
-    def test_openrouter_with_crewai_raises_validation_error(self) -> None:
-        """Test that OpenRouter + CrewAI combination is rejected."""
-        with pytest.raises(ValidationError) as exc_info:
-            ProjectConfig(
-                project_name="test",
-                llm_provider=LLMProviderType.OPENROUTER,
-                ai_framework=AIFrameworkType.CREWAI,
-                background_tasks=BackgroundTaskType.NONE,
-            )
-        assert "OpenRouter is only supported with PydanticAI" in str(exc_info.value)
-
     def test_openrouter_with_pydanticai_is_valid(self) -> None:
         """Test that OpenRouter + PydanticAI combination is accepted."""
         config = ProjectConfig(
@@ -581,34 +488,6 @@ class TestOptionCombinationValidation:
         )
         assert config.llm_provider == LLMProviderType.OPENROUTER
         assert config.ai_framework == AIFrameworkType.PYDANTIC_AI
-
-    def test_crewai_framework_context_flags(self) -> None:
-        """Test that CrewAI framework sets correct context flags."""
-        config = ProjectConfig(
-            project_name="test",
-            ai_framework=AIFrameworkType.CREWAI,
-            background_tasks=BackgroundTaskType.NONE,
-            enable_logfire=False,  # CrewAI is incompatible with current logfire
-        )
-        context = config.to_cookiecutter_context()
-
-        assert context["use_crewai"] is True
-        assert context["use_pydantic_ai"] is False
-        assert context["use_langchain"] is False
-        assert context["use_langgraph"] is False
-
-    def test_crewai_with_logfire_raises_validation_error(self) -> None:
-        """Test that CrewAI + Logfire combination is rejected."""
-        from pydantic import ValidationError
-
-        with pytest.raises(ValidationError) as exc_info:
-            ProjectConfig(
-                project_name="test",
-                ai_framework=AIFrameworkType.CREWAI,
-                background_tasks=BackgroundTaskType.NONE,
-                enable_logfire=True,
-            )
-        assert "incompatible with Logfire" in str(exc_info.value)
 
     def test_openrouter_with_deepagents_raises_validation_error(self) -> None:
         """Test that OpenRouter + DeepAgents combination is rejected."""
@@ -656,7 +535,6 @@ class TestOptionCombinationValidation:
         assert context["use_pydantic_ai"] is False
         assert context["use_langchain"] is False
         assert context["use_langgraph"] is False
-        assert context["use_crewai"] is False
 
     def test_pydantic_deep_framework_context_flags(self) -> None:
         """Test that PydanticDeep framework sets correct context flags."""
@@ -671,7 +549,6 @@ class TestOptionCombinationValidation:
         assert context["use_pydantic_ai"] is False
         assert context["use_langchain"] is False
         assert context["use_langgraph"] is False
-        assert context["use_crewai"] is False
         assert context["use_deepagents"] is False
 
     def test_openrouter_with_pydantic_deep_is_valid(self) -> None:
@@ -706,17 +583,6 @@ class TestLangSmithIntegration:
             ProjectConfig(
                 project_name="test",
                 ai_framework=AIFrameworkType.PYDANTIC_AI,
-                enable_langsmith=True,
-                background_tasks=BackgroundTaskType.NONE,
-            )
-        assert "LangSmith requires LangChain, LangGraph, or DeepAgents" in str(exc_info.value)
-
-    def test_langsmith_with_crewai_raises_error(self) -> None:
-        """Test that LangSmith + CrewAI is rejected."""
-        with pytest.raises(ValidationError) as exc_info:
-            ProjectConfig(
-                project_name="test",
-                ai_framework=AIFrameworkType.CREWAI,
                 enable_langsmith=True,
                 background_tasks=BackgroundTaskType.NONE,
             )
@@ -1041,18 +907,6 @@ class TestNewDependencyValidations:
                 background_tasks=BackgroundTaskType.NONE,
             )
 
-    def test_pgvector_requires_postgresql(self) -> None:
-        """Test that pgvector vector store requires PostgreSQL database."""
-        with pytest.raises(ValidationError, match="pgvector requires PostgreSQL database"):
-            ProjectConfig(
-                project_name="test",
-                database=DatabaseType.SQLITE,
-                rag_features=RAGFeatures(
-                    enable_rag=True,
-                    vector_store=VectorStoreType.PGVECTOR,
-                ),
-                background_tasks=BackgroundTaskType.NONE,
-            )
 
 
 class TestPackageVersionFallback:

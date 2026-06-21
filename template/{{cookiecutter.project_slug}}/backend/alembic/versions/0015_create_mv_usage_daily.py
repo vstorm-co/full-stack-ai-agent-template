@@ -1,4 +1,4 @@
-{%- if cookiecutter.enable_billing and cookiecutter.enable_credits_system and cookiecutter.use_postgresql %}
+{%- if cookiecutter.enable_billing and cookiecutter.enable_credits_system %}
 """create materialized view mv_usage_daily
 
 Revision ID: 0015_create_mv_usage_daily

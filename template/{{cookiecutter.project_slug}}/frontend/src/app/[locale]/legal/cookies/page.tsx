@@ -23,21 +23,12 @@ export async function generateMetadata({
   });
 }
 
-export default async function CookiesPage({
-  params,
-}: {
-  params: Promise<{ locale: Locale }>;
-}) {
+export default async function CookiesPage({ params }: { params: Promise<{ locale: Locale }> }) {
   const { locale } = await params;
   const t = await getTranslations("marketing.legal.cookies");
 
   return (
-    <LegalPage
-      title={t("title")}
-      summary={t("summary")}
-      lastUpdated={LAST_UPDATED}
-      locale={locale}
-    >
+    <LegalPage title={t("title")} summary={t("summary")} lastUpdated={LAST_UPDATED} locale={locale}>
       {locale === "pl" ? <CookiesBodyPl /> : <CookiesBodyEn />}
     </LegalPage>
   );

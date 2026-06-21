@@ -5,11 +5,13 @@ Verifies that listing and creating resources always uses the active organization
 context so users in different orgs cannot see each other's data.
 """
 
+import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-{%- if cookiecutter.use_postgresql %}
+from app.schemas.conversation import ConversationCreate
+from app.services.conversation import ConversationService
 
 
 class TestConversationTenantIsolation:
@@ -20,13 +22,11 @@ class TestConversationTenantIsolation:
         return MagicMock()
 
     def _make_org(self, org_id=None):
-        import uuid
         org = MagicMock()
         org.id = org_id or uuid.uuid4()
         return org
 
     def _make_user(self, user_id=None):
-        import uuid
         user = MagicMock()
         user.id = user_id or uuid.uuid4()
         return user
@@ -34,9 +34,6 @@ class TestConversationTenantIsolation:
     @pytest.mark.anyio
     async def test_list_filters_by_org(self, mock_db):
         """list_conversations passes organization_id filter to repo."""
-        import uuid
-        from app.services.conversation import ConversationService
-
         org_id = uuid.uuid4()
         user_id = uuid.uuid4()
 
@@ -61,10 +58,6 @@ class TestConversationTenantIsolation:
     @pytest.mark.anyio
     async def test_create_stamps_org_id(self, mock_db):
         """create_conversation passes organization_id to repo."""
-        import uuid
-        from app.schemas.conversation import ConversationCreate
-        from app.services.conversation import ConversationService
-
         org_id = uuid.uuid4()
         user_id = uuid.uuid4()
         mock_conv = MagicMock()
@@ -84,9 +77,6 @@ class TestConversationTenantIsolation:
     @pytest.mark.anyio
     async def test_user_a_cannot_see_org_b_conversations(self, mock_db):
         """User in org A gets no results when org B's conversations exist."""
-        import uuid
-        from app.services.conversation import ConversationService
-
         org_a = uuid.uuid4()
         user_a = uuid.uuid4()
 
@@ -108,9 +98,6 @@ class TestConversationTenantIsolation:
     @pytest.mark.anyio
     async def test_list_conversations_passes_user_and_org(self, mock_db):
         """Both user_id and organization_id are passed to repo."""
-        import uuid
-        from app.services.conversation import ConversationService
-
         org_id = uuid.uuid4()
         user_id = uuid.uuid4()
 
@@ -129,105 +116,6 @@ class TestConversationTenantIsolation:
             assert kwargs.get("organization_id") == org_id
 
 
-{%- elif cookiecutter.use_sqlite %}
-
-
-class TestConversationTenantIsolation:
-    """Conversation listing and creation respect organization_id (SQLite)."""
-
-    @pytest.fixture
-    def mock_db(self):
-        return MagicMock()
-
-    def test_list_filters_by_org(self, mock_db):
-        """list_conversations passes organization_id filter to repo."""
-        from app.services.conversation import ConversationService
-
-        org_id = "org-1"
-        user_id = "user-1"
-
-        with patch(
-            "app.repositories.conversation_repo.get_conversations_by_user",
-            return_value=[],
-        ) as mock_list, patch(
-            "app.repositories.conversation_repo.count_conversations",
-            return_value=0,
-        ) as mock_count:
-            svc = ConversationService(mock_db)
-            svc.list_conversations(user_id=user_id, organization_id=org_id)
-
-            mock_list.assert_called_once()
-            _, kwargs = mock_list.call_args
-            assert kwargs.get("organization_id") == org_id
-
-            mock_count.assert_called_once()
-            _, kwargs = mock_count.call_args
-            assert kwargs.get("organization_id") == org_id
-
-    def test_create_stamps_org_id(self, mock_db):
-        """create_conversation passes organization_id to repo."""
-        from app.schemas.conversation import ConversationCreate
-        from app.services.conversation import ConversationService
-
-        org_id = "org-1"
-        user_id = "user-1"
-        mock_conv = MagicMock()
-
-        with patch(
-            "app.repositories.conversation_repo.create_conversation",
-            return_value=mock_conv,
-        ) as mock_create:
-            svc = ConversationService(mock_db)
-            data = ConversationCreate(user_id=user_id, organization_id=org_id)
-            svc.create_conversation(data)
-
-            mock_create.assert_called_once()
-            _, kwargs = mock_create.call_args
-            assert kwargs.get("organization_id") == org_id
-
-    def test_user_a_cannot_see_org_b_conversations(self, mock_db):
-        """User in org A gets no results when org B's conversations exist."""
-        from app.services.conversation import ConversationService
-
-        org_a = "org-a"
-        user_a = "user-a"
-
-        with patch(
-            "app.repositories.conversation_repo.get_conversations_by_user",
-            return_value=[],
-        ), patch(
-            "app.repositories.conversation_repo.count_conversations",
-            return_value=0,
-        ):
-            svc = ConversationService(mock_db)
-            items, total = svc.list_conversations(
-                user_id=user_a, organization_id=org_a
-            )
-            assert items == []
-            assert total == 0
-
-    @pytest.mark.parametrize("org_id", ["org-a", "org-b", "org-c"])
-    def test_different_orgs_produce_separate_calls(self, mock_db, org_id):
-        """Each org_id value is forwarded unchanged to the repo."""
-        from app.services.conversation import ConversationService
-
-        with patch(
-            "app.repositories.conversation_repo.get_conversations_by_user",
-            return_value=[],
-        ) as mock_list, patch(
-            "app.repositories.conversation_repo.count_conversations",
-            return_value=0,
-        ):
-            svc = ConversationService(mock_db)
-            svc.list_conversations(user_id="user-1", organization_id=org_id)
-
-            _, kwargs = mock_list.call_args
-            assert kwargs.get("organization_id") == org_id
-
-
-{%- else %}
-# Tenant isolation tests not applicable for this DB configuration.
-{%- endif %}
 {%- else %}
 """Tenant isolation tests — not configured (enable_teams=false or no JWT)."""
 {%- endif %}

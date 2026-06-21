@@ -1,4 +1,4 @@
-{%- if cookiecutter.enable_teams and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) and cookiecutter.use_jwt %}
+{%- if cookiecutter.enable_teams and cookiecutter.use_jwt %}
 """backfill organization_id on conversations and rag_documents
 
 Revision ID: 0006_backfill_conv_org
@@ -13,9 +13,7 @@ This is a data migration — safe to re-run (NULL rows already handled).
 
 from alembic import op
 import sqlalchemy as sa
-{%- if cookiecutter.use_postgresql %}
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
-{%- endif %}
 
 revision = "0006_backfill_conv_org"
 down_revision = "0005_org_tenant_isolation"
@@ -26,7 +24,6 @@ depends_on = None
 def upgrade() -> None:
     conn = op.get_bind()
 
-    # Backfill conversations
     conn.execute(sa.text("""
         UPDATE conversations
         SET organization_id = o.id

@@ -1,9 +1,11 @@
 """Tests for CLI commands module."""
+# ruff: noqa: I001 - Imports structured for Jinja2 template conditionals
 
 import click
 from click.testing import CliRunner
 
 from app.commands import (
+    _commands,
     command,
     discover_commands,
     error,
@@ -12,6 +14,11 @@ from app.commands import (
     success,
     warning,
 )
+from app.commands.example import hello
+{%- if cookiecutter.use_database %}
+from app.commands.cleanup import cleanup
+from app.commands.seed import seed
+{%- endif %}
 
 
 class TestCommandDecorator:
@@ -19,8 +26,6 @@ class TestCommandDecorator:
 
     def test_command_registers_function(self):
         """Test that @command decorator registers a click command."""
-        from app.commands import _commands
-
         initial_count = len(_commands)
 
         @command("test-cmd", help="Test command")
@@ -32,8 +37,6 @@ class TestCommandDecorator:
 
     def test_command_uses_function_name_as_default(self):
         """Test that command name defaults to function name."""
-        from app.commands import _commands
-
         @command()
         def my_test_command():
             pass
@@ -107,8 +110,6 @@ class TestSeedCommand:
 
     def test_seed_dry_run(self):
         """Test seed command with --dry-run."""
-        from app.commands.seed import seed
-
         runner = CliRunner()
         result = runner.invoke(seed, ["--dry-run", "--count", "5"])
         assert result.exit_code == 0
@@ -117,8 +118,6 @@ class TestSeedCommand:
 
     def test_seed_dry_run_with_clear(self):
         """Test seed command with --dry-run and --clear."""
-        from app.commands.seed import seed
-
         runner = CliRunner()
         result = runner.invoke(seed, ["--dry-run", "--clear"])
         assert result.exit_code == 0
@@ -131,8 +130,6 @@ class TestHelloCommand:
 
     def test_hello_command_runs(self):
         """Test hello command executes."""
-        from app.commands.example import hello
-
         runner = CliRunner()
         result = runner.invoke(hello)
         assert result.exit_code == 0
@@ -140,8 +137,6 @@ class TestHelloCommand:
 
     def test_hello_command_with_name(self):
         """Test hello command with --name option."""
-        from app.commands.example import hello
-
         runner = CliRunner()
         result = runner.invoke(hello, ["--name", "Alice"])
         assert result.exit_code == 0
@@ -156,8 +151,6 @@ class TestCleanupCommand:
 
     def test_cleanup_dry_run(self):
         """Test cleanup command with --dry-run."""
-        from app.commands.cleanup import cleanup
-
         runner = CliRunner()
         result = runner.invoke(cleanup, ["--dry-run"])
         assert result.exit_code == 0
@@ -165,8 +158,6 @@ class TestCleanupCommand:
 
     def test_cleanup_with_days_option(self):
         """Test cleanup command with --days option."""
-        from app.commands.cleanup import cleanup
-
         runner = CliRunner()
         result = runner.invoke(cleanup, ["--dry-run", "--days", "7"])
         assert result.exit_code == 0

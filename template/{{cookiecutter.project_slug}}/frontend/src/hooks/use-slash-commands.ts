@@ -1,7 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { qk } from "@/lib/query-keys";
 import {
   createCustomCommand,
   deleteSlashCommand,
@@ -36,53 +38,63 @@ interface UseSlashCommandsResult {
 /**
  * Manages the user's slash command settings.
  *
+ * React Query owns the list: cached across navigations, deduped, no refetch
+ * storms. Mutations patch the cache directly so the UI stays instant.
+ *
  * Errors from individual mutations propagate as throws so the calling UI can
- * show a toast — they're never swallowed. The list state is refreshed
- * optimistically when a mutation succeeds.
+ * show a toast — they're never swallowed.
  */
 export function useSlashCommands(): UseSlashCommandsResult {
-  const [records, setRecords] = useState<UserSlashCommandRecord[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
+  const {
+    data: records = [],
+    isLoading,
+    error: queryError,
+    refetch,
+  } = useQuery({
+    queryKey: qk.slashCommands.list(),
+    queryFn: listSlashCommands,
+  });
+
+  const error = queryError instanceof Error ? queryError.message : queryError ? "Failed to load commands" : null;
+
+  const writeCache = useCallback(
+    (updater: (prev: UserSlashCommandRecord[]) => UserSlashCommandRecord[]) =>
+      queryClient.setQueryData<UserSlashCommandRecord[]>(qk.slashCommands.list(), (prev = []) =>
+        updater(prev),
+      ),
+    [queryClient],
+  );
+
+  // Kept for API compatibility: the list auto-fetches on mount; this forces a
+  // background refresh and resolves once the refetch settles.
   const refresh = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      setRecords(await listSlashCommands());
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load commands");
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
+    await refetch();
+  }, [refetch]);
 
   const createCustom = useCallback<UseSlashCommandsResult["createCustom"]>(
     async (input) => {
       const created = await createCustomCommand(input);
-      setRecords((prev) => [...prev, created]);
+      writeCache((prev) => [...prev, created]);
       return created;
     },
-    [],
+    [writeCache],
   );
 
   const updateCustom = useCallback<UseSlashCommandsResult["updateCustom"]>(
     async (id, patch) => {
       const updated = await updateSlashCommand(id, patch);
-      setRecords((prev) => prev.map((r) => (r.id === id ? updated : r)));
+      writeCache((prev) => prev.map((r) => (r.id === id ? updated : r)));
       return updated;
     },
-    [],
+    [writeCache],
   );
 
   const setBuiltinEnabled = useCallback<UseSlashCommandsResult["setBuiltinEnabled"]>(
     async (name, isEnabled) => {
       const updated = await upsertBuiltinOverride({ name, is_enabled: isEnabled });
-      setRecords((prev) => {
+      writeCache((prev) => {
         const existing = prev.findIndex((r) => r.name === name && r.prompt === null);
         if (existing >= 0) {
           const next = prev.slice();
@@ -92,13 +104,16 @@ export function useSlashCommands(): UseSlashCommandsResult {
         return [...prev, updated];
       });
     },
-    [],
+    [writeCache],
   );
 
-  const remove = useCallback<UseSlashCommandsResult["remove"]>(async (id) => {
-    await deleteSlashCommand(id);
-    setRecords((prev) => prev.filter((r) => r.id !== id));
-  }, []);
+  const remove = useCallback<UseSlashCommandsResult["remove"]>(
+    async (id) => {
+      await deleteSlashCommand(id);
+      writeCache((prev) => prev.filter((r) => r.id !== id));
+    },
+    [writeCache],
+  );
 
   const commands = useMemo(() => mergeWithUserCommands(records), [records]);
 
@@ -119,10 +134,7 @@ export function useSlashCommands(): UseSlashCommandsResult {
  * Helper used by the settings UI to figure out, for a given built-in,
  * whether it's currently enabled given the override state.
  */
-export function isBuiltinEnabled(
-  name: string,
-  records: UserSlashCommandRecord[],
-): boolean {
+export function isBuiltinEnabled(name: string, records: UserSlashCommandRecord[]): boolean {
   const ovr = records.find((r) => r.name === name && r.prompt === null);
   return ovr ? ovr.is_enabled : true;
 }

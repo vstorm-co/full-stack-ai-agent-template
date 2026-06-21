@@ -6,6 +6,7 @@ import { ArrowUpRight, Cpu } from "lucide-react";
 
 import { LoadingState } from "@/components/states";
 import { apiClient } from "@/lib/api-client";
+import { ROUTES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 interface ByModel {
@@ -63,7 +64,7 @@ export function TopModels() {
   const totalCredits = data?.total_credits_charged ?? 0;
 
   return (
-    <section className="border-border bg-card flex flex-col rounded-2xl border p-5 lg:p-6">
+    <section className="border-border bg-card flex flex-col rounded-xl border p-5 lg:p-6">
       <header className="flex items-end justify-between gap-3">
         <div>
           <p className="text-foreground/55 font-mono text-[11px] tracking-wider uppercase">
@@ -74,7 +75,7 @@ export function TopModels() {
           </h2>
         </div>
         <Link
-          href="/billing/usage"
+          href={ROUTES.BILLING_USAGE}
           className="text-foreground/55 hover:text-foreground inline-flex items-center gap-1 text-xs font-medium transition-colors"
         >
           Full breakdown
@@ -142,5 +143,4 @@ export function TopModels() {
     </section>
   );
 }
-
 {% endraw %}

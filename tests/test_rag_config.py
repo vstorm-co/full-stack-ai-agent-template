@@ -86,8 +86,8 @@ class TestEmbeddingProviderAutoDerivation:
         )
         # assert config.embedd. == EmbeddingProviderType.VOYAGE
 
-    def test_openrouter_derives_sentence_transformers(self) -> None:
-        """Test that OpenRouter LLM provider derives Sentence Transformers embeddings."""
+    def test_openrouter_derives_openai_embeddings(self) -> None:
+        """Test that OpenRouter LLM provider derives OpenAI embeddings."""
         config = ProjectConfig(
             project_name="test",
             llm_provider=LLMProviderType.OPENROUTER,
@@ -98,7 +98,7 @@ class TestEmbeddingProviderAutoDerivation:
         )
         assert (
             config.to_cookiecutter_context()["embedding_provider"]
-            == EmbeddingProviderType.SENTENCE_TRANSFORMERS
+            == EmbeddingProviderType.OPENAI
         )
 
     def test_openai_derives_openai_embeddings(self) -> None:
@@ -209,11 +209,11 @@ class TestRAGCookiecutterContext:
         assert context["use_openai_embeddings"] is False
         assert context["use_sentence_transformers"] is False
 
-    def test_sentence_transformers_context_flags(self) -> None:
-        """Test Sentence Transformers embeddings sets correct context flags."""
+    def test_openrouter_derives_openai_embeddings_context_flags(self) -> None:
+        """Test OpenRouter LLM provider derives OpenAI embeddings (not sentence transformers)."""
         config = ProjectConfig(
             project_name="test",
-            llm_provider=LLMProviderType.OPENROUTER,  # Derives Sentence Transformers
+            llm_provider=LLMProviderType.OPENROUTER,
             rag_features=RAGFeatures(enable_rag=True),
             background_tasks=BackgroundTaskType.CELERY,
             enable_redis=True,
@@ -221,8 +221,8 @@ class TestRAGCookiecutterContext:
         )
         context = config.to_cookiecutter_context()
 
-        assert context["use_sentence_transformers"] is True
-        assert context["use_openai_embeddings"] is False
+        assert context["use_sentence_transformers"] is False
+        assert context["use_openai_embeddings"] is True
         assert context["use_voyage_embeddings"] is False
 
     def test_reranker_enabled_context_flags(self) -> None:

@@ -24,8 +24,8 @@ cp backend/.env.example backend/.env
 docker compose up -d --build
 
 # 3. Apply migrations
-{% if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}docker compose exec app uv run alembic upgrade head
-{% endif %}
+docker compose exec app uv run alembic upgrade head
+
 
 # 4. Verify
 curl http://localhost:{{ cookiecutter.backend_port }}/api/v1/health
@@ -128,8 +128,8 @@ Catches missing required env vars early. See `ENV_VARS.md` for the full list.
 ## Post-deploy checks
 
 - [ ] `/api/v1/health` returns `{"status": "ok"}`
-{% if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}- [ ] `alembic current` matches expected revision
-{% endif %}{% if cookiecutter.use_frontend %}- [ ] Frontend renders, login flow works end-to-end
+- [ ] `alembic current` matches expected revision
+{% if cookiecutter.use_frontend %}- [ ] Frontend renders, login flow works end-to-end
 {% endif %}{% if cookiecutter.enable_billing %}- [ ] Stripe test webhook delivers (use Stripe CLI: `stripe listen --forward-to https://your-domain/api/v1/billing/webhook`)
 {% endif %}{% if cookiecutter.enable_email %}- [ ] Test email sends (trigger password-reset flow)
 {% endif %}- [ ] Logs flowing to your aggregator{% if cookiecutter.enable_sentry %} + Sentry capturing errors{% endif %}{% if cookiecutter.enable_logfire %} + Logfire receiving traces{% endif %}
@@ -137,6 +137,6 @@ Catches missing required env vars early. See `ENV_VARS.md` for the full list.
 
 ## Rollback
 
-{% if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}- **Schema:** `alembic downgrade -1` rolls back one migration. Test on staging first.
-{% endif %}- **Code:** redeploy previous image tag. Pin tags (`v1.2.3`), never deploy `latest` to prod.
+- **Schema:** `alembic downgrade -1` rolls back one migration. Test on staging first.
+- **Code:** redeploy previous image tag. Pin tags (`v1.2.3`), never deploy `latest` to prod.
 - **Data:** restore from your most recent backup; verify `alembic current` matches the data version.

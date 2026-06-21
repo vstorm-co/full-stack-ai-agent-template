@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import logging
+import tempfile
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -88,8 +89,6 @@ class BaseDocumentSource(ABC):
         Returns:
             SyncResult with counts of ingested/skipped/failed files.
         """
-        import tempfile
-
         result = SyncResult()
         files = await self.list_files(path=path, extensions=extensions)
         result.total_files = len(files)
@@ -114,7 +113,7 @@ class BaseDocumentSource(ABC):
                 except Exception as e:
                     result.failed += 1
                     result.errors.append(f"{source_file.name}: {e}")
-                    logger.error(f"Failed to sync {source_file.name}: {e}")
+                    logger.error("Failed to sync %s: %s", source_file.name, e)
 
         return result
 {%- endif %}

@@ -5,9 +5,7 @@ from enum import IntEnum
 from typing import Any
 import re
 
-{%- if cookiecutter.use_postgresql %}
 from uuid import UUID
-{%- endif %}
 
 from pydantic import Field, field_validator
 
@@ -67,24 +65,10 @@ class MessageRatingCreate(MessageRatingBase):
 class MessageRatingRead(MessageRatingBase, TimestampSchema):
     """Schema for reading a rating."""
 
-{%- if cookiecutter.use_postgresql %}
     id: UUID
     message_id: UUID
 {%- if cookiecutter.use_jwt %}
     user_id: UUID
-{%- endif %}
-{%- elif cookiecutter.use_mongodb %}
-    id: str
-    message_id: str
-{%- if cookiecutter.use_jwt %}
-    user_id: str
-{%- endif %}
-{%- else %}
-    id: str
-    message_id: str
-{%- if cookiecutter.use_jwt %}
-    user_id: str
-{%- endif %}
 {%- endif %}
 
 
@@ -94,13 +78,7 @@ class MessageRatingWithDetails(MessageRatingRead):
     message_content: str | None = None
     message_role: str | None = None
 {%- if cookiecutter.use_jwt %}
-{%- if cookiecutter.use_postgresql %}
     conversation_id: UUID | None = None
-{%- elif cookiecutter.use_mongodb %}
-    conversation_id: str | None = None
-{%- else %}
-    conversation_id: str | None = None
-{%- endif %}
     user_email: str | None = None
     user_name: str | None = None
 {%- else %}

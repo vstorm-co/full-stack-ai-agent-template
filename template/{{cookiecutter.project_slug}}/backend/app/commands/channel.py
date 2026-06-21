@@ -10,68 +10,28 @@ Commands:
 """
 
 import asyncio
-{%- if cookiecutter.use_postgresql or cookiecutter.use_mongodb %}
 from contextlib import asynccontextmanager
-{%- else %}
-from contextlib import contextmanager
-{%- endif %}
 from typing import Any
+from uuid import UUID
 
 import click
 
 from app.commands import command, error, info, success
+from app.core.config import settings
+from app.db.session import get_db_context
+from app.schemas.channel_bot import AccessPolicy, ChannelBotCreate
 from app.services.channel_bot import ChannelBotService
-
-
-{%- if cookiecutter.use_postgresql %}
-
+from app.services.channels import get_adapter
+from app.services.channels.base import OutgoingMessage
 
 @asynccontextmanager
 async def _channel_service():
     """Open a DB session and yield a ChannelBotService bound to it."""
-    from app.db.session import get_db_context
-
     async with get_db_context() as db:
         yield ChannelBotService(db)
 
-
 def _coerce_bot_id(bot_id: str) -> Any:
-    from uuid import UUID
-
     return UUID(bot_id)
-{%- elif cookiecutter.use_sqlite %}
-
-
-def _channel_service():
-    """Open a DB session and yield a ChannelBotService bound to it."""
-    from app.db.session import get_db_session
-
-    @contextmanager
-    def _ctx():
-        with contextmanager(get_db_session)() as db:
-            yield ChannelBotService(db)
-
-    return _ctx()
-
-
-def _coerce_bot_id(bot_id: str) -> Any:
-    return bot_id
-{%- elif cookiecutter.use_mongodb %}
-
-
-@asynccontextmanager
-async def _channel_service():
-    """Yield a ChannelBotService (MongoDB does not need a session context)."""
-    yield ChannelBotService()
-
-
-def _coerce_bot_id(bot_id: str) -> Any:
-    return bot_id
-{%- endif %}
-
-
-# channel-list-bots
-
 
 @command("channel-list-bots", help="List all registered channel bots")
 @click.option("--platform", "-p", default=None, help="Filter by platform (e.g. telegram)")
@@ -79,13 +39,8 @@ def channel_list_bots(platform: str | None) -> None:
     """List all channel bots stored in the database."""
 
     async def _run() -> None:
-{%- if cookiecutter.use_sqlite %}
-        with _channel_service() as svc:
-            bots = svc.list_by_platform(platform)
-{%- else %}
         async with _channel_service() as svc:
             bots = await svc.list_by_platform(platform)
-{%- endif %}
 
         if not bots:
             info("No channel bots registered.")
@@ -99,10 +54,6 @@ def channel_list_bots(platform: str | None) -> None:
 
     asyncio.run(_run())
 
-
-# channel-add-bot
-
-
 @command("channel-add-bot", help="Register a new channel bot")
 @click.option("--platform", required=True, type=click.Choice(["telegram"]), help="Platform name")
 @click.option("--name", "-n", required=True, help="Bot display name")
@@ -115,8 +66,6 @@ def channel_list_bots(platform: str | None) -> None:
 )
 def channel_add_bot(platform: str, name: str, token: str, mode: str) -> None:
     """Encrypt the bot token and register the bot in the database."""
-    from app.schemas.channel_bot import AccessPolicy, ChannelBotCreate
-
     async def _run() -> None:
         data = ChannelBotCreate(
             platform=platform,
@@ -124,13 +73,8 @@ def channel_add_bot(platform: str, name: str, token: str, mode: str) -> None:
             token=token,
             access_policy=AccessPolicy(mode=mode),
         )
-{%- if cookiecutter.use_sqlite %}
-        with _channel_service() as svc:
-            bot = svc.create(data)
-{%- else %}
         async with _channel_service() as svc:
             bot = await svc.create(data)
-{%- endif %}
 
         success(f"Bot registered successfully! ID: {bot.id}")
         info(f"  Platform : {platform}")
@@ -139,28 +83,11 @@ def channel_add_bot(platform: str, name: str, token: str, mode: str) -> None:
 
     asyncio.run(_run())
 
-
-# channel-webhook-register
-
-
 @command("channel-webhook-register", help="Register webhook URL for a Telegram bot")
 @click.option("--bot-id", required=True, help="Bot UUID")
 def channel_webhook_register(bot_id: str) -> None:
     """Register the webhook URL for a bot with Telegram."""
-    from app.core.config import settings
-
     async def _run() -> None:
-        from app.services.channels import get_adapter
-
-{%- if cookiecutter.use_sqlite %}
-        with _channel_service() as svc:
-            try:
-                bot = svc.get(_coerce_bot_id(bot_id))
-            except Exception:
-                error(f"Bot not found: {bot_id}")
-                return
-            token = svc.get_decrypted_token(bot)
-{%- else %}
         async with _channel_service() as svc:
             try:
                 bot = await svc.get(_coerce_bot_id(bot_id))
@@ -168,7 +95,6 @@ def channel_webhook_register(bot_id: str) -> None:
                 error(f"Bot not found: {bot_id}")
                 return
             token = svc.get_decrypted_token(bot)
-{%- endif %}
 
         adapter = get_adapter("telegram")
         webhook_url = (
@@ -184,27 +110,12 @@ def channel_webhook_register(bot_id: str) -> None:
 
     asyncio.run(_run())
 
-
-# channel-webhook-delete
-
-
 @command("channel-webhook-delete", help="Remove webhook for a bot (switch to polling)")
 @click.option("--bot-id", required=True, help="Bot UUID")
 def channel_webhook_delete(bot_id: str) -> None:
     """Remove the webhook for a bot from Telegram."""
 
     async def _run() -> None:
-        from app.services.channels import get_adapter
-
-{%- if cookiecutter.use_sqlite %}
-        with _channel_service() as svc:
-            try:
-                bot = svc.get(_coerce_bot_id(bot_id))
-            except Exception:
-                error(f"Bot not found: {bot_id}")
-                return
-            token = svc.get_decrypted_token(bot)
-{%- else %}
         async with _channel_service() as svc:
             try:
                 bot = await svc.get(_coerce_bot_id(bot_id))
@@ -212,7 +123,6 @@ def channel_webhook_delete(bot_id: str) -> None:
                 error(f"Bot not found: {bot_id}")
                 return
             token = svc.get_decrypted_token(bot)
-{%- endif %}
 
         adapter = get_adapter("telegram")
         ok = await adapter.delete_webhook(token)
@@ -223,10 +133,6 @@ def channel_webhook_delete(bot_id: str) -> None:
 
     asyncio.run(_run())
 
-
-# channel-test-message
-
-
 @command("channel-test-message", help="Send a test message through a bot")
 @click.option("--bot-id", required=True, help="Bot UUID")
 @click.option("--chat-id", required=True, help="Telegram chat ID to send the message to")
@@ -235,18 +141,6 @@ def channel_test_message(bot_id: str, chat_id: str, text: str) -> None:
     """Send a test message to a chat via a registered bot."""
 
     async def _run() -> None:
-        from app.services.channels import get_adapter
-        from app.services.channels.base import OutgoingMessage
-
-{%- if cookiecutter.use_sqlite %}
-        with _channel_service() as svc:
-            try:
-                bot = svc.get(_coerce_bot_id(bot_id))
-            except Exception:
-                error(f"Bot not found: {bot_id}")
-                return
-            token = svc.get_decrypted_token(bot)
-{%- else %}
         async with _channel_service() as svc:
             try:
                 bot = await svc.get(_coerce_bot_id(bot_id))
@@ -254,7 +148,6 @@ def channel_test_message(bot_id: str, chat_id: str, text: str) -> None:
                 error(f"Bot not found: {bot_id}")
                 return
             token = svc.get_decrypted_token(bot)
-{%- endif %}
 
         adapter = get_adapter("telegram")
         msg = OutgoingMessage(platform_chat_id=chat_id, text=text)

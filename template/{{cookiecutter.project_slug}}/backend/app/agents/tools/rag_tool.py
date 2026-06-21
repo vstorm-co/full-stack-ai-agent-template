@@ -1,11 +1,24 @@
 {%- if cookiecutter.enable_rag %}
+# ruff: noqa: I001 - Imports structured for Jinja2 template conditionals
 """RAG tool for agent knowledge base search."""
 
-import asyncio
 import contextvars
 import logging
-from concurrent.futures import ThreadPoolExecutor
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+
+from app.core.config import settings
+from app.core.exceptions import ExternalServiceError
+from app.services.rag.embeddings import EmbeddingService
+from app.services.rag.retrieval import RetrievalService
+{%- if cookiecutter.use_milvus %}
+from app.services.rag.vectorstore import MilvusVectorStore
+{%- elif cookiecutter.use_qdrant %}
+from app.services.rag.vectorstore import QdrantVectorStore
+{%- elif cookiecutter.use_chromadb %}
+from app.services.rag.vectorstore import ChromaVectorStore
+{%- elif cookiecutter.use_pgvector %}
+from app.services.rag.vectorstore import PgVectorStore
+{%- endif %}
 
 logger = logging.getLogger(__name__)
 
@@ -15,23 +28,11 @@ if TYPE_CHECKING:
 _retrieval_service: "BaseRetrievalService | None" = None
 
 
-def _get_retrieval_service() -> "BaseRetrievalService":
+def get_retrieval_service() -> "BaseRetrievalService":
     """Get or create retrieval service singleton."""
     global _retrieval_service
     if _retrieval_service is not None:
         return _retrieval_service
-    from app.core.config import settings
-    from app.services.rag.retrieval import RetrievalService
-{%- if cookiecutter.use_milvus %}
-    from app.services.rag.vectorstore import MilvusVectorStore
-{%- elif cookiecutter.use_qdrant %}
-    from app.services.rag.vectorstore import QdrantVectorStore
-{%- elif cookiecutter.use_chromadb %}
-    from app.services.rag.vectorstore import ChromaVectorStore
-{%- elif cookiecutter.use_pgvector %}
-    from app.services.rag.vectorstore import PgVectorStore
-{%- endif %}
-    from app.services.rag.embeddings import EmbeddingService
 
     rag_settings = settings.rag
     embedding_service = EmbeddingService(rag_settings)
@@ -48,12 +49,7 @@ def _get_retrieval_service() -> "BaseRetrievalService":
     return _retrieval_service
 
 
-def get_retrieval_service() -> "BaseRetrievalService":
-    """Get the RetrievalService singleton."""
-    return _get_retrieval_service()
-
-
-def _format_results(results: list) -> str:
+def _format_results(results: list[Any]) -> str:
     if not results:
         return "No relevant documents found in the knowledge base."
     formatted = []
@@ -97,8 +93,6 @@ async def search_knowledge_base(
             injected via PydanticAI Deps or the _active_kb_collections ContextVar.
         top_k: Number of top results to retrieve (default: 5).
     """
-    from typing import Any
-
     resolved = kb_collection_names if kb_collection_names else (_active_kb_collections.get() or [])
     if not resolved:
         return "No active knowledge bases selected for this conversation."
@@ -114,42 +108,13 @@ async def search_knowledge_base(
                 query=query, collection_names=resolved, limit=top_k
             )
     except Exception as e:
-        logger.error("Knowledge base search failed: %s", e)
-        return f"Error accessing knowledge base: {e}"
+        logger.error("Knowledge base search failed: %s", e, exc_info=True)
+        raise ExternalServiceError(
+            message="Knowledge base search failed",
+            details={"query": query, "error": str(e)},
+        ) from e
 
     return _format_results(results)
-
-
-def _run_async_search(query: str, kb_collection_names: list[str], top_k: int) -> str:
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
-        return loop.run_until_complete(search_knowledge_base(query, kb_collection_names, top_k=top_k))
-    finally:
-        loop.close()
-
-
-def search_knowledge_base_sync(
-    query: str,
-    kb_collection_names: list[str] | None = None,
-    top_k: int = 5,
-) -> str:
-    """Synchronous wrapper for search_knowledge_base. Use in CrewAI agents."""
-    logger.debug(
-        "search_knowledge_base_sync called: query=%s, kb_collections=%s, top_k=%s",
-        query,
-        kb_collection_names,
-        top_k,
-    )
-    try:
-        with ThreadPoolExecutor(max_workers=1) as executor:
-            future = executor.submit(_run_async_search, query, kb_collection_names or [], top_k)
-            result = future.result()
-        logger.debug("search_knowledge_base_sync completed successfully")
-        return result
-    except Exception as e:
-        logger.error("search_knowledge_base_sync failed: %s", str(e), exc_info=True)
-        raise
 
 {%- else %}
 async def search_knowledge_base(
@@ -162,16 +127,13 @@ async def search_knowledge_base(
 
     Args:
         query: The search query string.
-        collection: Name of a single collection. If None, uses RAG_DEFAULT_COLLECTION env var.
+        collection: Name of a single collection. If None, uses settings.rag.collection_name.
         collections: List of collection names for cross-collection search (overrides collection).
         top_k: Number of top results to retrieve (default: 5).
     """
-    import os
-    from typing import Any
-
     service: Any = get_retrieval_service()
 
-    default_collection = os.environ.get("RAG_DEFAULT_COLLECTION", "all")
+    default_collection = settings.rag.collection_name
     target_collection = collection or default_collection
 
     if collections and len(collections) > 1:
@@ -194,8 +156,11 @@ async def search_knowledge_base(
                     query=query, collection_names=all_collections, limit=top_k
                 )
         except Exception as e:
-            logger.error(f"Failed to list collections: {e}")
-            return f"Error accessing knowledge base: {e}"
+            logger.error("Failed to list collections: %s", e, exc_info=True)
+            raise ExternalServiceError(
+                message="Failed to list knowledge base collections",
+                details={"error": str(e)},
+            ) from e
     else:
         results = await service.retrieve(
             query=query,
@@ -205,95 +170,9 @@ async def search_knowledge_base(
 
     return _format_results(results)
 
-
-def _run_async_search(query: str, collection: str | None, top_k: int) -> str:
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
-        return loop.run_until_complete(search_knowledge_base(query, collection, top_k=top_k))
-    finally:
-        loop.close()
-
-
-def search_knowledge_base_sync(
-    query: str,
-    collection: str | None = None,
-    top_k: int = 5,
-) -> str:
-    """Synchronous wrapper for search_knowledge_base. Use in CrewAI agents."""
-    logger.debug(
-        "search_knowledge_base_sync called: query=%s, collection=%s, top_k=%s",
-        query,
-        collection,
-        top_k,
-    )
-    try:
-        with ThreadPoolExecutor(max_workers=1) as executor:
-            future = executor.submit(_run_async_search, query, collection, top_k)
-            result = future.result()
-        logger.debug("search_knowledge_base_sync completed successfully")
-        return result
-    except Exception as e:
-        logger.error("search_knowledge_base_sync failed: %s", str(e), exc_info=True)
-        raise
-
 {%- endif %}
 
-{%- if cookiecutter.use_crewai %}
-from crewai.tools import BaseTool
-from pydantic import BaseModel, Field
-
-{%- if cookiecutter.enable_teams %}
-class SearchDocumentsInput(BaseModel):
-    query: str = Field(..., description="Query string for searching the knowledge base")
-    top_k: int = Field(default=5, description="Number of top results to return")
-
-
-class SearchKnowledgeBase(BaseTool):
-    """Search the knowledge base for relevant documents."""
-
-    name: str = "search_documents"
-    description: str = (
-        "Search the knowledge base for relevant documents. "
-        "Return formatted excerpts with scores and sources."
-    )
-    args_schema: type[BaseModel] = SearchDocumentsInput
-    # Resolved server-side from the conversation's active KBs — never supplied by the LLM
-    kb_collection_names: list[str] = Field(default_factory=list)
-
-    def _run(self, query: str, top_k: int = 5) -> str:
-        return search_knowledge_base_sync(query, self.kb_collection_names, top_k)
-
-    async def _arun(self, query: str, top_k: int = 5) -> str:
-        return await search_knowledge_base(query, self.kb_collection_names, top_k)
-
-{%- else %}
-class SearchDocumentsInput(BaseModel):
-    query: str = Field(..., description="Query string for searching the knowledge base")
-    collection: str = Field(default="documents", description="Collection to search")
-    top_k: int = Field(default=5, description="Number of top results to return")
-
-
-class SearchKnowledgeBase(BaseTool):
-    """Search the knowledge base for relevant documents."""
-
-    name: str = "search_documents"
-    description: str = (
-        "Search the knowledge base for relevant documents. "
-        "Return formatted excerpts with scores and sources."
-    )
-    args_schema: type[BaseModel] = SearchDocumentsInput
-
-    def _run(self, query: str, collection: str = "documents", top_k: int = 5) -> str:
-        return search_knowledge_base_sync(query, collection, top_k)
-
-    async def _arun(self, query: str, collection: str = "documents", top_k: int = 5) -> str:
-        return await search_knowledge_base(query, collection, top_k)
-
-{%- endif %}
-{%- else %}
-__all__ = ["search_knowledge_base", "search_knowledge_base_sync"]
-{%- endif %}
+__all__ = ["search_knowledge_base"]
 
 {%- else %}
 """RAG tool - not configured."""

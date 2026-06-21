@@ -7,28 +7,12 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { ArrowRight, Check, X } from "lucide-react";
 
-import { OAuthButtons, OAuthDivider } from "@/components/auth/oauth-buttons";
+import { OAuthBlock } from "@/components/auth/oauth-buttons";
 import { Button, Input, Label } from "@/components/ui";
 import { useAuth } from "@/hooks";
 import { ApiError } from "@/lib/api-client";
 import { ROUTES } from "@/lib/constants";
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-function getPasswordStrength(pw: string): { score: number; label: string; color: string } {
-  if (!pw) return { score: 0, label: "", color: "" };
-  let score = 0;
-  if (pw.length >= 8) score++;
-  if (pw.length >= 12) score++;
-  if (/[a-z]/.test(pw) && /[A-Z]/.test(pw)) score++;
-  if (/\d/.test(pw)) score++;
-  if (/[^a-zA-Z0-9]/.test(pw)) score++;
-
-  if (score <= 1) return { score: 1, label: "Weak", color: "bg-destructive" };
-  if (score <= 2) return { score: 2, label: "Fair", color: "bg-orange-500" };
-  if (score <= 3) return { score: 3, label: "Good", color: "bg-yellow-500" };
-  return { score: 4, label: "Strong", color: "bg-brand" };
-}
+import { EMAIL_RE, getPasswordStrength } from "@/lib/utils";
 
 export function RegisterForm() {
   const t = useTranslations("auth");
@@ -244,14 +228,14 @@ export function RegisterForm() {
         <p className="text-foreground/50 text-center text-xs">
           By creating an account, you agree to our{" "}
           <Link
-            href="/legal/terms"
+            href={ROUTES.LEGAL_TERMS}
             className="text-foreground/70 hover:text-foreground underline-offset-4 hover:underline"
           >
             Terms
           </Link>{" "}
           and{" "}
           <Link
-            href="/legal/privacy"
+            href={ROUTES.LEGAL_PRIVACY}
             className="text-foreground/70 hover:text-foreground underline-offset-4 hover:underline"
           >
             Privacy Policy
@@ -260,17 +244,8 @@ export function RegisterForm() {
         </p>
       </form>
 
-      <OAuthBlock label={t("orSignUpWith")} />
+      <OAuthBlock label={t("orSignUpWith")} variant="signup" />
     </div>
   );
 }
 
-function OAuthBlock({ label }: { label: string }) {
-  if (!process.env.NEXT_PUBLIC_OAUTH_PROVIDERS) return null;
-  return (
-    <div className="space-y-5">
-      <OAuthDivider label={label} />
-      <OAuthButtons variant="signup" />
-    </div>
-  );
-}

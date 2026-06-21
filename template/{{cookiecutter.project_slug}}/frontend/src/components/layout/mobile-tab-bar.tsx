@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
 {%- if cookiecutter.enable_teams and cookiecutter.enable_rag %}
   Database,
@@ -15,7 +16,7 @@ import type { LucideIcon } from "lucide-react";
 
 import { useAuth } from "@/hooks";
 import { ROUTES } from "@/lib/constants";
-import { cn } from "@/lib/utils";
+import { cn, isAppAdmin } from "@/lib/utils";
 
 interface TabItem {
   label: string;
@@ -30,21 +31,22 @@ export function MobileTabBar() {
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAuth();
+  const t = useTranslations("nav");
 
   const stripped = pathname.replace(/^\/[a-z]{2}/, "");
 
   const items: TabItem[] = [
-    { label: "Chat", href: ROUTES.CHAT, icon: MessageSquare, startsWith: true },
+    { label: t("chat"), href: ROUTES.CHAT, icon: MessageSquare, startsWith: true },
 {%- if cookiecutter.enable_teams and cookiecutter.enable_rag %}
-    { label: "KB", href: ROUTES.KB, icon: Database, startsWith: true },
+    { label: t("kb"), href: ROUTES.KB, icon: Database, startsWith: true },
 {%- endif %}
     {
-      label: "Home",
-      href: user?.role === "admin" ? ROUTES.DASHBOARD : ROUTES.CHAT,
+      label: t("home"),
+      href: isAppAdmin(user) ? ROUTES.DASHBOARD : ROUTES.CHAT,
       icon: LayoutDashboard,
     },
     {
-      label: "Search",
+      label: t("search"),
       icon: Search,
       onClick: () => {
         // Trigger global ⌘K command palette via synthetic keyboard event.
@@ -56,7 +58,7 @@ export function MobileTabBar() {
         document.dispatchEvent(event);
       },
     },
-    { label: "Settings", href: ROUTES.SETTINGS, icon: Settings, startsWith: true },
+    { label: t("settings"), href: ROUTES.SETTINGS, icon: Settings, startsWith: true },
   ];
 
   const isActive = (item: TabItem) => {
@@ -69,7 +71,7 @@ export function MobileTabBar() {
     <nav
       role="navigation"
       aria-label="Primary"
-      className="border-foreground/10 bg-background/95 supports-[backdrop-filter]:bg-background/85 fixed inset-x-0 bottom-0 z-40 flex items-stretch justify-around border-t backdrop-blur-md pb-[env(safe-area-inset-bottom)] lg:hidden"
+      className="border-foreground/10 bg-background/95 supports-[backdrop-filter]:bg-background/85 fixed inset-x-0 bottom-0 z-40 flex items-stretch justify-around border-t pb-[env(safe-area-inset-bottom)] backdrop-blur-md lg:hidden"
     >
       {items.map((item) => {
         const active = isActive(item);
@@ -80,10 +82,7 @@ export function MobileTabBar() {
         const inner = (
           <>
             <item.icon
-              className={cn(
-                "h-5 w-5 transition-transform",
-                active && "text-foreground scale-110",
-              )}
+              className={cn("h-5 w-5 transition-transform", active && "text-foreground scale-110")}
             />
             <span className="font-mono">{item.label}</span>
             {active && (

@@ -10,9 +10,12 @@ from typing import Any
 from aiogram import Bot, Dispatcher, Router
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import Message as AiogramMessage
 
+from app.db.session import get_db_context
 from app.services.channels.base import ChannelAdapter, IncomingMessage, OutgoingMessage
+from app.services.channels.router import ChannelMessageRouter
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +30,6 @@ class TelegramAdapter(ChannelAdapter):
     def __init__(self) -> None:
         self._polling_tasks: dict[str, asyncio.Task[None]] = {}
 
-    # Send
 
     async def send_message(self, bot_token: str, msg: OutgoingMessage) -> None:
         """Send a reply back to Telegram.
@@ -35,8 +37,6 @@ class TelegramAdapter(ChannelAdapter):
         Tries Markdown parse mode first; falls back to plain text if
         Telegram rejects the formatting (common with LLM-generated markdown).
         """
-        from aiogram.exceptions import TelegramBadRequest
-
         bot = Bot(
             token=bot_token,
             default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN),
@@ -73,7 +73,6 @@ class TelegramAdapter(ChannelAdapter):
         finally:
             await bot.session.close()
 
-    # Polling
 
     async def start_polling(self, bot_id: str, bot_token: str) -> None:
         """Start a supervised polling loop for this bot."""
@@ -118,7 +117,6 @@ class TelegramAdapter(ChannelAdapter):
         )
         dp = Dispatcher()
 
-        # Register the message handler bound to this bot_id
         @dp.message()
         async def on_message(message: AiogramMessage) -> None:
             await self._handle_update(message, bot_id)
@@ -128,7 +126,6 @@ class TelegramAdapter(ChannelAdapter):
         finally:
             await bot.session.close()
 
-    # Webhook
 
     async def register_webhook(
         self, bot_token: str, url: str, secret: str | None
@@ -168,7 +165,6 @@ class TelegramAdapter(ChannelAdapter):
         # Use hmac.compare_digest for constant-time comparison
         return hmac.compare_digest(received.encode(), secret.encode())
 
-    # Parsing
 
     def parse_incoming(
         self, raw_payload: dict[str, Any], bot_id: str
@@ -216,7 +212,6 @@ class TelegramAdapter(ChannelAdapter):
             message_id=message_id,
         )
 
-    # Internal update handler
 
     async def _handle_update(
         self, message: AiogramMessage, bot_id: str
@@ -246,25 +241,9 @@ class TelegramAdapter(ChannelAdapter):
             message_id=str(message.message_id),
         )
 
-        from app.services.channels.router import ChannelMessageRouter
         router = ChannelMessageRouter()
 
-{%- if cookiecutter.use_postgresql %}
-        from app.db.session import get_db_context
         async with get_db_context() as db:
             await router.route(incoming, db)
-{%- elif cookiecutter.use_sqlite %}
-        from contextlib import contextmanager
-        from app.db.session import get_db_session
-        # NOTE: Holding a sync SQLite session across an `await` boundary is not
-        # ideal — the session stays open while the coroutine is suspended. For
-        # production SQLite usage the router should adopt a more careful session
-        # management strategy (e.g. open/close around each synchronous DB call,
-        # or use asyncio.to_thread for the sync work).
-        with contextmanager(get_db_session)() as db:
-            await router.route(incoming, db)
-{%- elif cookiecutter.use_mongodb %}
-        await router.route(incoming, None)  # MongoDB repos don't need db session
-{%- endif %}
 
 {%- endif %}

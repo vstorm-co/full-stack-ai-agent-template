@@ -9,7 +9,7 @@ All available options when generating a project.
 | `--database` | `postgresql`, `mongodb`, `sqlite` | Database backend (async by default) |
 | `--orm` | `sqlalchemy`, `sqlmodel` | ORM choice (SQLModel for simplified syntax) |
 | `--oauth` | `none`, `google` | OAuth2 social login |
-| `--ai-framework` | `pydantic_ai`, `pydantic_deep`, `langchain`, `langgraph`, `crewai`, `deepagents` | AI agent framework |
+| `--ai-framework` | `pydantic_ai`, `pydantic_deep`, `langchain`, `langgraph`, `deepagents` | AI agent framework |
 | `--llm-provider` | `openai`, `anthropic`, `google`, `openrouter` | LLM provider |
 | `--background-tasks` | `none`, `celery`, `taskiq`, `arq` | Background task queue |
 | `--frontend` | `none`, `nextjs` | Frontend framework |
@@ -35,7 +35,6 @@ fastapi-fullstack create my_app --minimal
 | `pydantic_deep` | OpenAI, Anthropic, Google | Deep coding assistant (filesystem tools, Docker/Daytona sandbox) |
 | `langchain` | OpenAI, Anthropic, Google | Comprehensive chain-based agents |
 | `langgraph` | OpenAI, Anthropic, Google | Graph-based ReAct agents |
-| `crewai` | OpenAI, Anthropic, Google | Multi-agent orchestration |
 | `deepagents` | OpenAI, Anthropic, Google | Agentic framework with subagent delegation |
 
 ```bash

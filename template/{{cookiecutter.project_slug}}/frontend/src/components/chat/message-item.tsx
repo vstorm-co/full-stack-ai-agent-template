@@ -16,6 +16,50 @@ import type { MessagePart } from "@/types";
 import { RESEARCH_TOOL_NAMES } from "./research-panel";
 {%- endif %}
 
+function ThinkingBlock({ text, open, isStreaming }: { text: string; open: boolean; isStreaming: boolean }) {
+  return (
+    <details
+      className="border-foreground/10 bg-muted/40 group rounded-2xl rounded-tl-sm border px-3 py-2 sm:px-4"
+      open={open}
+    >
+      <summary className="text-foreground/55 hover:text-foreground/80 flex cursor-pointer items-center gap-2 font-mono text-[10px] tracking-wider uppercase select-none">
+        <span className="bg-foreground/30 inline-block h-1.5 w-1.5 rounded-full" />
+        Thinking
+        {isStreaming && (
+          <span className="bg-foreground/40 inline-block h-1 w-1 animate-pulse rounded-full" />
+        )}
+      </summary>
+      <pre className="text-foreground/65 mt-2 max-h-72 overflow-y-auto font-mono text-[11px] leading-relaxed whitespace-pre-wrap">
+        {text}
+      </pre>
+    </details>
+  );
+}
+
+function TextBubble({ text, showCursor, isUser }: { text: string; showCursor: boolean; isUser: boolean }) {
+  return (
+    <div
+      className={cn(
+        "relative rounded-2xl px-3 py-2 sm:px-4 sm:py-2.5",
+        isUser
+          ? "bg-foreground text-background rounded-tr-sm"
+          : "bg-muted rounded-tl-sm",
+      )}
+    >
+      {isUser ? (
+        <p className="text-sm break-words whitespace-pre-wrap">{text}</p>
+      ) : (
+        <div className="prose-sm max-w-none text-sm">
+          <MarkdownContent content={text} />
+          {showCursor && (
+            <span className="ml-1 inline-block h-4 w-1.5 animate-pulse rounded-full bg-current" />
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface MessageItemProps {
   message: ChatMessage;
   groupPosition?: "first" | "middle" | "last" | "single";
@@ -60,11 +104,9 @@ export function MessageItem({ message, groupPosition, onRegenerate }: MessageIte
         isGrouped ? "py-2 sm:py-3" : "py-3 sm:py-4",
         isUser && "flex-row-reverse",
       )}
-    >
-      {/* Timeline connector line for grouped messages */}
-      {isGrouped && !isUser && (
+    >      {isGrouped && !isUser && (
         <div
-          className="absolute left-[15px] w-0.5 bg-orange-500/40 sm:left-[17px]"
+          className="absolute left-[15px] w-0.5 bg-border sm:left-[17px]"
           style={
             groupPosition === "first"
               ? { top: "24px", bottom: "0" }
@@ -78,7 +120,7 @@ export function MessageItem({ message, groupPosition, onRegenerate }: MessageIte
       <div
         className={cn(
           "z-10 flex h-8 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-full sm:h-9 sm:w-9",
-          isUser ? "bg-primary text-primary-foreground" : "bg-orange-500/10 text-orange-500",
+          isUser ? "bg-foreground text-background" : "bg-muted text-foreground",
           isGrouped && !isUser && "ring-background ring-2",
         )}
       >
@@ -104,7 +146,6 @@ export function MessageItem({ message, groupPosition, onRegenerate }: MessageIte
           isUser && "flex flex-col items-end",
         )}
       >
-        {/* Attachments — images render as previews, others as file chips */}
         {isUser &&
           (() => {
             const attachments: AttachmentDisplay[] =
@@ -164,52 +205,6 @@ export function MessageItem({ message, groupPosition, onRegenerate }: MessageIte
             parts.length === 0 &&
             (!message.toolCalls || message.toolCalls.length === 0);
 
-          const ThinkingBlock = ({ text, open }: { text: string; open: boolean }) => (
-            <details
-              className="border-foreground/10 bg-muted/40 group rounded-2xl rounded-tl-sm border px-3 py-2 sm:px-4"
-              open={open}
-            >
-              <summary className="text-foreground/55 hover:text-foreground/80 flex cursor-pointer items-center gap-2 font-mono text-[10px] tracking-wider uppercase select-none">
-                <span className="bg-foreground/30 inline-block h-1.5 w-1.5 rounded-full" />
-                Thinking
-                {message.isStreaming && (
-                  <span className="bg-foreground/40 inline-block h-1 w-1 animate-pulse rounded-full" />
-                )}
-              </summary>
-              <pre className="text-foreground/65 mt-2 max-h-72 overflow-y-auto font-mono text-[11px] leading-relaxed whitespace-pre-wrap">
-                {text}
-              </pre>
-            </details>
-          );
-
-          const TextBubble = ({
-            text,
-            showCursor,
-          }: {
-            text: string;
-            showCursor: boolean;
-          }) => (
-            <div
-              className={cn(
-                "relative rounded-2xl px-3 py-2 sm:px-4 sm:py-2.5",
-                isUser
-                  ? "bg-primary text-primary-foreground rounded-tr-sm"
-                  : "bg-muted rounded-tl-sm",
-              )}
-            >
-              {isUser ? (
-                <p className="text-sm break-words whitespace-pre-wrap">{text}</p>
-              ) : (
-                <div className="prose-sm max-w-none text-sm">
-                  <MarkdownContent content={text} />
-                  {showCursor && (
-                    <span className="ml-1 inline-block h-4 w-1.5 animate-pulse rounded-full bg-current" />
-                  )}
-                </div>
-              )}
-            </div>
-          );
-
           return (
             <>
               {showPlaceholder && (
@@ -227,64 +222,68 @@ export function MessageItem({ message, groupPosition, onRegenerate }: MessageIte
                 </div>
               )}
 
-              {useParts
-                ? /* Ordered timeline: render each part in arrival order. */
-                  parts.map((part, i) => {
-                    if (part.type === "thinking" && part.content) {
-                      return (
-                        <ThinkingBlock
-                          key={part.id}
-                          text={part.content}
-                          open={Boolean(message.isStreaming) && i === parts.length - 1}
-                        />
-                      );
-                    }
-                    if (part.type === "tool" && part.toolCall) {
-                      return (
-                        <div key={part.id} className="w-full">
-                          <ToolCallCard toolCall={part.toolCall} />
-                        </div>
-                      );
-                    }
-                    if (part.type === "text" && part.content) {
-                      return (
-                        <TextBubble
-                          key={part.id}
-                          text={part.content}
-                          showCursor={
-                            Boolean(message.isStreaming) && i === parts.length - 1
-                          }
-                        />
-                      );
-                    }
-                    return null;
-                  })
-                : /* Legacy fallback: CrewAI / user / pre-parts messages. */
-                  <>
-                    {!isUser && message.thinking && (
+              {useParts ? (
+                /* Ordered timeline: render each part in arrival order. */
+                parts.map((part, i) => {
+                  if (part.type === "thinking" && part.content) {
+                    return (
                       <ThinkingBlock
-                        text={message.thinking}
-                        open={Boolean(message.isStreaming)}
+                        key={part.id}
+                        text={part.content}
+                        open={Boolean(message.isStreaming) && i === parts.length - 1}
+                        isStreaming={Boolean(message.isStreaming)}
                       />
-                    )}
-                    {message.content && (
-                      <TextBubble
-                        text={message.content}
-                        showCursor={!isUser && Boolean(message.isStreaming)}
-                      />
-                    )}
-                    {message.toolCalls && message.toolCalls.length > 0 && (
-                      <div className="w-full space-y-2">
-                        {message.toolCalls
-{%- if cookiecutter.enable_deep_research %}
-                          .filter((tc) => !RESEARCH_TOOL_NAMES.has(tc.name))
-{%- endif %}
-                          .map((toolCall) => (
-                            <ToolCallCard key={toolCall.id} toolCall={toolCall} />
-                          ))}
+                    );
+                  }
+                  if (part.type === "tool" && part.toolCall) {
+                    return (
+                      <div key={part.id} className="w-full">
+                        <ToolCallCard toolCall={part.toolCall} />
                       </div>
-                    )}
-                  </>}
+                    );
+                  }
+                  if (part.type === "text" && part.content) {
+                    return (
+                      <TextBubble
+                        key={part.id}
+                        text={part.content}
+                        showCursor={Boolean(message.isStreaming) && i === parts.length - 1}
+                        isUser={isUser}
+                      />
+                    );
+                  }
+                  return null;
+                })
+              ) : (
+                /* Legacy fallback: user / pre-parts messages. */
+                <>
+                  {!isUser && message.thinking && (
+                    <ThinkingBlock
+                      text={message.thinking}
+                      open={Boolean(message.isStreaming)}
+                      isStreaming={Boolean(message.isStreaming)}
+                    />
+                  )}
+                  {message.content && (
+                    <TextBubble
+                      text={message.content}
+                      showCursor={!isUser && Boolean(message.isStreaming)}
+                      isUser={isUser}
+                    />
+                  )}
+                  {message.toolCalls && message.toolCalls.length > 0 && (
+                    <div className="w-full space-y-2">
+                      {message.toolCalls
+{%- if cookiecutter.enable_deep_research %}
+                        .filter((tc) => !RESEARCH_TOOL_NAMES.has(tc.name))
+{%- endif %}
+                        .map((toolCall) => (
+                          <ToolCallCard key={toolCall.id} toolCall={toolCall} />
+                        ))}
+                    </div>
+                  )}
+                </>
+              )}
             </>
           );
         })()}
@@ -347,8 +346,6 @@ function visibleParts(parts: MessagePart[]): MessagePart[] {
   );
 }
 {%- endif %}
-
-// --- Attachment helpers ---------------------------------------------------
 
 type AttachmentDisplay =
   | { kind: "image"; file: ChatMessageFile }

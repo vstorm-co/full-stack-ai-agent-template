@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { NextIntlClientProvider } from "next-intl";
-import { getMessages } from "next-intl/server";
+import { getMessages, getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
 import { CookieBanner } from "@/components/marketing/cookie-banner";
@@ -22,7 +22,9 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
-  const safeLocale: Locale = locales.includes(locale as Locale) ? (locale as Locale) : SITE.defaultLocale;
+  const safeLocale: Locale = locales.includes(locale as Locale)
+    ? (locale as Locale)
+    : SITE.defaultLocale;
 
   return {
     alternates: {
@@ -53,6 +55,7 @@ export default async function LocaleLayout({
   }
 
   const messages = await getMessages();
+  const t = await getTranslations("common");
 
   return (
     <Providers>
@@ -61,7 +64,7 @@ export default async function LocaleLayout({
         <BrandOverride />
 {%- endif %}
         <a href="#main" className="skip-link">
-          Skip to content
+          {t("skipToContent")}
         </a>
         {children}
         <CookieBanner />

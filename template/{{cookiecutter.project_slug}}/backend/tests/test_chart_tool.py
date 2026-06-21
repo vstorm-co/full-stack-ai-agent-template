@@ -1,5 +1,6 @@
 {%- if cookiecutter.enable_charts %}
 """Tests for the agent chart-generation tool."""
+# ruff: noqa: I001 - Imports structured for Jinja2 template conditionals
 
 import json
 
@@ -10,6 +11,9 @@ from app.agents.tools.chart_tool import (
     create_chart,
     parse_chart_spec,
 )
+{%- if cookiecutter.charts_channel_png %}
+from app.services.channels.chart_render import chart_to_markdown, render_chart_png
+{%- endif %}
 
 
 class TestCreateChart:
@@ -103,8 +107,6 @@ class TestChartRender:
 
     @pytest.mark.parametrize("chart_type", ["line", "bar", "pie", "area", "scatter"])
     def test_render_chart_png_returns_png_bytes(self, chart_type: str):
-        from app.agents.tools.chart_render import render_chart_png
-
         spec = parse_chart_spec(
             create_chart(
                 chart_type=chart_type,
@@ -119,8 +121,6 @@ class TestChartRender:
         assert png[:8] == b"\x89PNG\r\n\x1a\n"  # PNG magic header
 
     def test_chart_to_markdown_fallback(self):
-        from app.agents.tools.chart_render import chart_to_markdown
-
         spec = parse_chart_spec(
             create_chart(
                 chart_type="bar",

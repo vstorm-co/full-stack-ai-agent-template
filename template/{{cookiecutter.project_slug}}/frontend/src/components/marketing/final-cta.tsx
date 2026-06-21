@@ -18,7 +18,6 @@ interface FinalCtaProps {
 export function FinalCta({ stat, title, description, primary, secondary }: FinalCtaProps) {
   return (
     <div className="border-foreground/10 bg-foreground/[0.02] relative isolate overflow-hidden rounded-3xl border px-8 py-20 md:px-16 md:py-28">
-      {/* Brand glow anchoring the giant number */}
       <div
         aria-hidden
         className="pointer-events-none absolute top-1/3 -left-40 -z-10 h-[460px] w-[460px] rounded-full blur-3xl"
@@ -27,11 +26,7 @@ export function FinalCta({ stat, title, description, primary, secondary }: Final
             "radial-gradient(circle, oklch(from var(--color-brand) l c h / 0.35), transparent 65%)",
         }}
       />
-      {/* Dot grid — subtle texture */}
-      <div
-        aria-hidden
-        className="bg-dots pointer-events-none absolute inset-0 -z-10 opacity-60"
-      />
+      <div aria-hidden className="bg-dots pointer-events-none absolute inset-0 -z-10 opacity-60" />
 
       <div className="max-w-3xl">
         <div className="eyebrow text-foreground/55 mb-6 flex items-center gap-2">
@@ -71,9 +66,7 @@ export function FinalCta({ stat, title, description, primary, secondary }: Final
           )}
         </div>
 
-        {description && (
-          <p className="text-foreground/55 mt-6 font-mono text-xs">{description}</p>
-        )}
+        {description && <p className="text-foreground/55 mt-6 font-mono text-xs">{description}</p>}
       </div>
     </div>
   );

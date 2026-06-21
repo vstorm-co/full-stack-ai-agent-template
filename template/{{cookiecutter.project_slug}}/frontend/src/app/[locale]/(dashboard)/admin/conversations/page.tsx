@@ -12,33 +12,32 @@ import {
   ExternalLink,
   Search,
 } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+
 import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+  Badge,
+  Button,
+  type Column,
+  DataTable,
+  Input,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+} from "@/components/ui";
 import { useAdminConversations } from "@/hooks";
-import { cn } from "@/lib/utils";
+import { ROUTES } from "@/lib/constants";
+import { cn, formatDate } from "@/lib/utils";
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
 type SortDir = "asc" | "desc";
 type ConvSortKey = "title" | "owner" | "messages" | "created_at" | "updated_at";
 type Status = "active" | "archived" | "all";
+
+type Conversation = ReturnType<typeof useAdminConversations>["conversations"][number];
 
 function getInitials(nameOrEmail: string): string {
   return nameOrEmail
@@ -67,6 +66,33 @@ function UserAvatar({
   );
 }
 
+function SortButton({
+  active,
+  dir,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  dir: SortDir;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  const Icon = !active ? ArrowUpDown : dir === "asc" ? ArrowUp : ArrowDown;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "hover:text-foreground inline-flex items-center gap-1 text-left uppercase transition-colors",
+        active && "text-foreground",
+      )}
+    >
+      {children}
+      <Icon className={cn("h-3 w-3", !active && "opacity-40")} aria-hidden />
+    </button>
+  );
+}
+
 export default function AdminConversationsPage() {
   const t = useTranslations("admin");
   const { conversations, conversationsTotal, users, isLoading, fetchConversations, fetchUsers } =
@@ -82,7 +108,6 @@ export default function AdminConversationsPage() {
     dir: "desc",
   });
 
-  // Reset to first page when filters/sort change
   useEffect(() => {
     setPage(0);
   }, [search, selectedUserId, status, pageSize, sort.by, sort.dir]);
@@ -92,7 +117,6 @@ export default function AdminConversationsPage() {
     fetchUsers({ limit: 200, sort_by: "email", sort_dir: "asc" });
   }, [fetchUsers]);
 
-  // Debounced fetch for the conversations table.
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchConversations({
@@ -120,19 +144,101 @@ export default function AdminConversationsPage() {
     [users],
   );
 
-  return (
-    <div className="flex h-full flex-col">
-      <div className="mb-6">
-        <p className="text-foreground/55 font-mono text-[11px] tracking-wider uppercase">
-          Conversations
-        </p>
-        <h2 className="font-display text-foreground mt-1 text-xl font-semibold tracking-tight">
-          {t("conversationsTitle")}
-        </h2>
-        <p className="text-foreground/65 mt-1 text-sm">{t("conversationsDesc")}</p>
-      </div>
+  const columns: Column<Conversation>[] = useMemo(
+    () => [
+      {
+        key: "title",
+        header: (
+          <SortButton active={sort.by === "title"} dir={sort.dir} onClick={() => toggleSort("title")}>
+            {t("title")}
+          </SortButton>
+        ),
+        cell: (conv) => (
+          <span className="text-foreground font-medium">{conv.title || t("untitled")}</span>
+        ),
+      },
+      {
+        key: "owner",
+        hideBelow: "md",
+        header: (
+          <SortButton active={sort.by === "owner"} dir={sort.dir} onClick={() => toggleSort("owner")}>
+            {t("owner")}
+          </SortButton>
+        ),
+        cell: (conv) =>
+          conv.user_email ? (
+            <span className="flex items-center gap-2">
+              <UserAvatar userId={conv.user_id ?? null} label={conv.user_email} size="sm" />
+              <span className="text-muted-foreground truncate">{conv.user_email}</span>
+            </span>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          ),
+      },
+      {
+        key: "messages",
+        align: "right",
+        hideBelow: "sm",
+        header: (
+          <SortButton
+            active={sort.by === "messages"}
+            dir={sort.dir}
+            onClick={() => toggleSort("messages")}
+          >
+            {t("messages")}
+          </SortButton>
+        ),
+        cell: (conv) => <span className="tabular-nums">{conv.message_count}</span>,
+      },
+      {
+        key: "created_at",
+        hideBelow: "md",
+        header: (
+          <SortButton
+            active={sort.by === "created_at"}
+            dir={sort.dir}
+            onClick={() => toggleSort("created_at")}
+          >
+            {t("created")}
+          </SortButton>
+        ),
+        cell: (conv) => (
+          <span className="text-muted-foreground">
+            {formatDate(conv.created_at)}
+          </span>
+        ),
+      },
+      {
+        key: "status",
+        header: t("status"),
+        cell: (conv) =>
+          conv.is_archived ? (
+            <Badge variant="secondary">Archived</Badge>
+          ) : (
+            <Badge variant="default">Active</Badge>
+          ),
+      },
+      {
+        key: "actions",
+        align: "right",
+        header: "",
+        cell: (conv) => (
+          <Link
+            href={`${ROUTES.CHAT}?id=${conv.id}`}
+            className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 font-mono text-[11px] tracking-wider uppercase transition-colors"
+          >
+            <ExternalLink className="h-3 w-3" />
+            {t("view")}
+          </Link>
+        ),
+      },
+    ],
+    [sort.by, sort.dir, t],
+  );
 
-      <div className="mb-4 flex flex-wrap items-center gap-2">
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2">
         <div className="relative min-w-[240px] flex-1">
           <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
           <Input
@@ -188,100 +294,17 @@ export default function AdminConversationsPage() {
         </Select>
       </div>
 
-      <div className="text-muted-foreground mb-2 text-xs">{conversationsTotal} total</div>
+      <div className="text-muted-foreground text-xs">{conversationsTotal} total</div>
 
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <SortableHead
-              active={sort.by === "title"}
-              dir={sort.dir}
-              onClick={() => toggleSort("title")}
-            >
-              {t("title")}
-            </SortableHead>
-            <SortableHead
-              active={sort.by === "owner"}
-              dir={sort.dir}
-              onClick={() => toggleSort("owner")}
-            >
-              {t("owner")}
-            </SortableHead>
-            <SortableHead
-              active={sort.by === "messages"}
-              dir={sort.dir}
-              onClick={() => toggleSort("messages")}
-            >
-              {t("messages")}
-            </SortableHead>
-            <SortableHead
-              active={sort.by === "created_at"}
-              dir={sort.dir}
-              onClick={() => toggleSort("created_at")}
-            >
-              {t("created")}
-            </SortableHead>
-            <TableHead>{t("status")}</TableHead>
-            <TableHead />
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {isLoading && conversations.length === 0
-            ? Array.from({ length: 5 }).map((_, i) => (
-                <TableRow key={i}>
-                  {Array.from({ length: 6 }).map((__, j) => (
-                    <TableCell key={j}>
-                      <Skeleton className="h-4 w-full" />
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            : conversations.map((conv) => (
-                <TableRow key={conv.id}>
-                  <TableCell className="font-medium">{conv.title || t("untitled")}</TableCell>
-                  <TableCell>
-                    {conv.user_email ? (
-                      <span className="flex items-center gap-2">
-                        <UserAvatar
-                          userId={conv.user_id ?? null}
-                          label={conv.user_email}
-                          size="sm"
-                        />
-                        <span className="text-muted-foreground truncate">{conv.user_email}</span>
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell>{conv.message_count}</TableCell>
-                  <TableCell>{new Date(conv.created_at).toLocaleDateString()}</TableCell>
-                  <TableCell>
-                    {conv.is_archived ? (
-                      <Badge variant="secondary">Archived</Badge>
-                    ) : (
-                      <Badge variant="default">Active</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Link
-                      href={`/chat?id=${conv.id}`}
-                      className="text-foreground/40 hover:text-foreground inline-flex items-center gap-1 font-mono text-[11px] tracking-wider uppercase transition-colors"
-                    >
-                      <ExternalLink className="h-3 w-3" />
-                      {t("view")}
-                    </Link>
-                  </TableCell>
-                </TableRow>
-              ))}
-          {!isLoading && conversations.length === 0 && (
-            <TableRow>
-              <TableCell colSpan={6} className="text-muted-foreground py-8 text-center">
-                {t("noConversations")}
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
+      <DataTable<Conversation>
+        columns={columns}
+        rows={conversations}
+        getRowKey={(conv) => conv.id}
+        loading={isLoading && conversations.length === 0}
+        empty={t("noConversations")}
+        skeletonRows={5}
+      />
+
       <PaginationBar
         page={page}
         pageSize={pageSize}
@@ -292,35 +315,6 @@ export default function AdminConversationsPage() {
         onNext={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
       />
     </div>
-  );
-}
-
-function SortableHead({
-  active,
-  dir,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  dir: SortDir;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  const Icon = !active ? ArrowUpDown : dir === "asc" ? ArrowUp : ArrowDown;
-  return (
-    <TableHead>
-      <button
-        type="button"
-        onClick={onClick}
-        className={cn(
-          "hover:text-foreground inline-flex items-center gap-1 text-left transition-colors",
-          active && "text-foreground",
-        )}
-      >
-        {children}
-        <Icon className={cn("h-3 w-3", !active && "opacity-40")} aria-hidden />
-      </button>
-    </TableHead>
   );
 }
 
@@ -345,7 +339,7 @@ function PaginationBar({
   const start = page * pageSize + 1;
   const end = Math.min(total, (page + 1) * pageSize);
   return (
-    <div className="flex items-center justify-between border-t px-4 py-3">
+    <div className="flex items-center justify-between">
       <span className="text-muted-foreground text-sm">
         {start}–{end} of {total}
       </span>

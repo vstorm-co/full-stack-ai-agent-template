@@ -29,7 +29,6 @@ Run these from the project root directory.
 | `make lint` | Lint and type-check code (ruff + ty) |
 | `make clean` | Remove cache files (__pycache__, .pytest_cache, etc.) |
 
-{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
 
 ### Database
 
@@ -41,7 +40,6 @@ Run these from the project root directory.
 | `make db-downgrade` | Rollback last migration |
 | `make db-current` | Show current migration revision |
 | `make db-history` | Show full migration history |
-{%- endif %}
 
 {%- if cookiecutter.use_jwt %}
 
@@ -92,10 +90,8 @@ Run these from the project root directory.
 | `make docker-frontend-logs` | Follow frontend logs |
 | `make docker-frontend-build` | Build frontend image |
 {%- endif %}
-{%- if cookiecutter.use_postgresql %}
 | `make docker-db` | Start only PostgreSQL |
 | `make docker-db-stop` | Stop PostgreSQL |
-{%- endif %}
 {%- if cookiecutter.enable_redis %}
 | `make docker-redis` | Start only Redis |
 | `make docker-redis-stop` | Stop Redis |
@@ -140,7 +136,6 @@ uv run {{ cookiecutter.project_slug }} server run --port 9000  # Custom port
 uv run {{ cookiecutter.project_slug }} server routes           # Show all registered routes
 ```
 
-{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
 
 ### Database Commands
 
@@ -154,7 +149,6 @@ uv run {{ cookiecutter.project_slug }} db downgrade --revision base  # Rollback 
 uv run {{ cookiecutter.project_slug }} db current               # Show current revision
 uv run {{ cookiecutter.project_slug }} db history               # Show migration history
 ```
-{%- endif %}
 
 {%- if cookiecutter.use_jwt %}
 
@@ -302,7 +296,6 @@ uv run {{ cookiecutter.project_slug }} cmd rag-sync-s3 --collection docs --bucke
 ```
 {%- endif %}
 
-{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
 
 #### Sync Source Management
 
@@ -329,7 +322,6 @@ uv run {{ cookiecutter.project_slug }} cmd rag-source-sync <source-id>
 # Trigger sync for all active sources
 uv run {{ cookiecutter.project_slug }} cmd rag-source-sync --all
 ```
-{%- endif %}
 {%- endif %}
 
 ## Adding Custom Commands

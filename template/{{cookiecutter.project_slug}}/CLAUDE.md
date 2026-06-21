@@ -5,16 +5,14 @@
 **{{ cookiecutter.project_name }}** - FastAPI application generated with [Full-Stack AI Agent Template](https://github.com/vstorm-co/full-stack-ai-agent-template).
 
 **Stack:** FastAPI + Pydantic v2
-{%- if cookiecutter.use_postgresql %}, PostgreSQL (async via asyncpg){%- endif %}
-{%- if cookiecutter.use_mongodb %}, MongoDB (async via Motor){%- endif %}
-{%- if cookiecutter.use_sqlite %}, SQLite (sync){%- endif %}
+{%- if True %}, PostgreSQL (async via asyncpg){%- endif %}
+{%- if False %}, MongoDB (async via Motor){%- endif %}
+{%- if False %}, SQLite (sync){%- endif %}
 , JWT + API Key auth
 {%- if cookiecutter.enable_redis %}, Redis{%- endif %}
 {%- if cookiecutter.use_pydantic_ai %}, PydanticAI{%- endif %}
 {%- if cookiecutter.use_langchain %}, LangChain{%- endif %}
-{%- if cookiecutter.use_langgraph %}, LangGraph{%- endif %}
-{%- if cookiecutter.use_crewai %}, CrewAI{%- endif %}
-{%- if cookiecutter.use_deepagents %}, DeepAgents{%- endif %}
+{%- if cookiecutter.use_langgraph %}, LangGraph{%- endif %}{%- if cookiecutter.use_deepagents %}, DeepAgents{%- endif %}
 {%- if cookiecutter.enable_rag %}, RAG ({{ cookiecutter.vector_store }}){%- endif %}
 {%- if cookiecutter.use_celery %}, Celery{%- endif %}
 {%- if cookiecutter.use_taskiq %}, Taskiq{%- endif %}
@@ -30,12 +28,10 @@ uv run pytest
 uv run pytest tests/test_file.py::test_name -v
 uv run ruff check . --fix && uv run ruff format .
 uv run ty check
-{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
 
 # Database migrations
 uv run alembic upgrade head
 uv run alembic revision --autogenerate -m "Description"
-{%- endif %}
 {%- if cookiecutter.use_frontend %}
 
 # Frontend
@@ -143,12 +139,7 @@ async def get_conversation(
 - Update schemas: all fields `Optional` (`str | None = None`)
 - Use `Field(max_length=255)`, `Field(min_length=8)`, `EmailStr`
 - `@field_validator` for deserialization (e.g., JSON string → dict for SQLite)
-{%- if cookiecutter.use_postgresql %}
 - IDs are `UUID` type
-{%- endif %}
-{%- if cookiecutter.use_sqlite %}
-- IDs are `str` (UUID stored as text)
-{%- endif %}
 
 ## Exception Handling
 

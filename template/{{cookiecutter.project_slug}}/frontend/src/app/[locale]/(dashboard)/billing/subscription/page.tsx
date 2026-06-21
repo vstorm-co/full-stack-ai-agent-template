@@ -6,18 +6,10 @@ import { Check } from "lucide-react";
 import { toast } from "sonner";
 
 import { SubscriptionPanel } from "@/components/billing";
-import { PageHero } from "@/components/dashboard/page-hero";
 import { LoadingState } from "@/components/states";
+import { Badge, Button } from "@/components/ui";
 import { useBilling, usePlans } from "@/hooks";
-import { cn } from "@/lib/utils";
-
-function formatMoney(cents: number, currency: string) {
-  return (cents / 100).toLocaleString("en-US", {
-    style: "currency",
-    currency: currency.toUpperCase(),
-    minimumFractionDigits: 0,
-  });
-}
+import { cn, formatCurrency } from "@/lib/utils";
 
 export default function SubscriptionPage() {
   const searchParams = useSearchParams();
@@ -31,33 +23,22 @@ export default function SubscriptionPage() {
   }, [searchParams]);
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-8">
-      <PageHero
-        eyebrow="Billing · Subscription"
-        title={
-          <>
-            Manage your <em>plan.</em>
-          </>
-        }
-        description="Upgrade, downgrade, or pick a different billing interval. Changes take effect on the next billing cycle."
-      />
-
+    <div className="space-y-6">
       <SubscriptionPanel />
 
       <section className="space-y-3">
         <div>
-          <p className="text-foreground/55 font-mono text-[11px] tracking-wider uppercase">
-            Available plans
+          <h2 className="text-foreground text-sm font-semibold">Switch plan</h2>
+          <p className="text-muted-foreground text-xs">
+            Upgrade, downgrade, or pick a different billing interval. Changes take effect on the next
+            billing cycle.
           </p>
-          <h2 className="font-display text-foreground text-xl font-semibold tracking-tight">
-            Switch plan
-          </h2>
         </div>
 
         {plansLoading ? (
           <LoadingState variant="skeleton-cards" rows={3} />
         ) : plans.length === 0 ? (
-          <p className="text-foreground/55 text-sm">No alternative plans configured.</p>
+          <p className="text-muted-foreground text-sm">No alternative plans configured.</p>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {plans.map((plan) => {
@@ -66,8 +47,10 @@ export default function SubscriptionPage() {
                 <article
                   key={plan.id}
                   className={cn(
-                    "border-border bg-card flex flex-col rounded-2xl border p-5 transition-colors",
-                    plan.is_active ? "ring-brand/40 ring-2" : "hover:border-foreground/20",
+                    "bg-card flex flex-col rounded-xl border p-5 transition-colors",
+                    plan.is_active
+                      ? "border-foreground/30"
+                      : "border-border hover:border-foreground/30",
                   )}
                 >
                   <header className="space-y-1.5">
@@ -76,29 +59,29 @@ export default function SubscriptionPage() {
                         {plan.display_name}
                       </h3>
                       {plan.is_active && (
-                        <span className="bg-brand/15 text-foreground rounded-full px-2 py-0.5 text-[10px] font-medium tracking-wide uppercase">
+                        <Badge variant="outline" className="text-[10px] uppercase">
                           Current
-                        </span>
+                        </Badge>
                       )}
                     </div>
                     {plan.description && (
-                      <p className="text-foreground/60 text-xs leading-relaxed">
+                      <p className="text-muted-foreground text-xs leading-relaxed">
                         {plan.description}
                       </p>
                     )}
                   </header>
 
-                  <ul className="text-foreground/70 my-5 space-y-1.5 text-sm">
+                  <ul className="my-5 space-y-1.5 text-sm">
                     {activePrices.map((price) => (
                       <li key={price.id} className="flex items-baseline justify-between gap-2">
-                        <span className="text-foreground/55 capitalize">{price.interval}</span>
+                        <span className="text-muted-foreground capitalize">{price.interval}</span>
                         <span className="text-foreground font-mono tabular-nums">
-                          {formatMoney(price.amount_cents, price.currency)}
+                          {formatCurrency(price.amount_cents, price.currency)}
                         </span>
                       </li>
                     ))}
                     {plan.monthly_credits_base > 0 && (
-                      <li className="text-foreground/60 flex items-center gap-1.5 pt-1 text-xs">
+                      <li className="text-muted-foreground flex items-center gap-1.5 pt-1 text-xs">
                         <Check className="h-3.5 w-3.5" />
                         {plan.monthly_credits_base.toLocaleString()} credits / month
                       </li>
@@ -107,9 +90,11 @@ export default function SubscriptionPage() {
 
                   <div className="mt-auto space-y-2">
                     {activePrices.map((price) => (
-                      <button
+                      <Button
                         key={price.id}
                         type="button"
+                        variant="outline"
+                        size="sm"
                         disabled={checkoutLoading}
                         onClick={() =>
                           startCheckout({
@@ -118,10 +103,10 @@ export default function SubscriptionPage() {
                             cancel_url: window.location.href,
                           })
                         }
-                        className="border-foreground/15 hover:border-foreground/40 text-foreground inline-flex w-full items-center justify-center rounded-full border px-4 py-2 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                        className="w-full"
                       >
                         Choose {price.interval === "month" ? "monthly" : "annual"}
-                      </button>
+                      </Button>
                     ))}
                   </div>
                 </article>

@@ -41,14 +41,9 @@ class CSRFMiddleware(BaseHTTPMiddleware):
     a token to be present in both a cookie and a header for state-changing requests.
     """
 
-    # Methods that require CSRF protection
     PROTECTED_METHODS: ClassVar[set[str]] = {"POST", "PUT", "PATCH", "DELETE"}
-
-    # Cookie settings
     COOKIE_NAME: ClassVar[str] = "csrf_token"
     HEADER_NAME: ClassVar[str] = "X-CSRF-Token"
-
-    # Paths to exclude from CSRF protection
     EXEMPT_PATHS: ClassVar[set[str]] = {
         "/api/v1/auth/login",
         "/api/v1/auth/register",
@@ -68,16 +63,13 @@ class CSRFMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         """Handle the request and apply CSRF protection."""
-        # Skip for exempt paths
         if self._is_exempt(request):
             return await call_next(request)
 
-        # Get or generate CSRF token
         csrf_token = request.cookies.get(self.cookie_name)
         if not csrf_token:
             csrf_token = self._generate_token()
 
-        # Check CSRF for protected methods
         if request.method in self.PROTECTED_METHODS:
             header_token = request.headers.get(self.header_name)
 
@@ -99,10 +91,8 @@ class CSRFMiddleware(BaseHTTPMiddleware):
                     },
                 )
 
-        # Process the request
         response = await call_next(request)
 
-        # Set CSRF token cookie if not present
         if not request.cookies.get(self.cookie_name):
             response.set_cookie(
                 key=self.cookie_name,
@@ -119,16 +109,13 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         """Check if the request path is exempt from CSRF protection."""
         path = request.url.path
 
-        # Check exact path matches
         if path in self.exempt_paths:
             return True
 
-        # Check path prefixes
         for exempt in self.exempt_paths:
             if path.startswith(exempt):
                 return True
 
-        # Check if endpoint has "csrf-exempt" tag
         route = request.scope.get("route")
         return bool(route and hasattr(route, "tags") and "csrf-exempt" in route.tags)
 

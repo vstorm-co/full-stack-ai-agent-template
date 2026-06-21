@@ -8,16 +8,12 @@ app-admin role required by the bulk ``/rag`` endpoints.
 
 from typing import Any
 
-{%- if cookiecutter.use_postgresql %}
 from uuid import UUID
-{%- endif %}
 
 from fastapi import APIRouter, File, Query, UploadFile, status
 
 from app.api.deps import ActiveOrg, CurrentUser, KnowledgeBaseSvc
-{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
-from app.api.deps import RAGDocumentSvc, SyncSourceSvc, VectorStoreSvc  # noqa: F401
-{%- endif %}
+from app.api.deps import RAGDocumentSvc, SyncSourceSvc, VectorStoreSvc
 from app.core.exceptions import NotFoundError
 from app.schemas.knowledge_base import (
     KnowledgeBaseCreate,
@@ -25,7 +21,6 @@ from app.schemas.knowledge_base import (
     KnowledgeBaseRead,
     KnowledgeBaseUpdate,
 )
-{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
 from app.schemas.rag import RAGIngestResponse, RAGSyncResponse, RAGTrackedDocumentList
 from app.schemas.sync_source import (
     ConnectorList,
@@ -33,12 +28,8 @@ from app.schemas.sync_source import (
     SyncSourceList,
     SyncSourceRead,
 )
-{%- endif %}
 
 router = APIRouter()
-
-
-{%- if cookiecutter.use_postgresql %}
 
 
 @router.get("", response_model=KnowledgeBaseList)
@@ -72,7 +63,7 @@ async def create_knowledge_base(
         data,
         user_id=current_user.id,
         organization_id=active_org.id,
-        is_app_admin=getattr(current_user, "is_app_admin", False),
+        is_app_admin=current_user.is_app_admin,
     )
 
 
@@ -105,7 +96,7 @@ async def update_knowledge_base(
         data,
         user_id=current_user.id,
         organization_id=active_org.id,
-        is_app_admin=getattr(current_user, "is_app_admin", False),
+        is_app_admin=current_user.is_app_admin,
     )
 
 
@@ -121,7 +112,7 @@ async def delete_knowledge_base(
         kb_id,
         user_id=current_user.id,
         organization_id=active_org.id,
-        is_app_admin=getattr(current_user, "is_app_admin", False),
+        is_app_admin=current_user.is_app_admin,
     )
 
 
@@ -188,7 +179,7 @@ async def delete_kb_document(
     rag_doc_service: RAGDocumentSvc,
     current_user: CurrentUser,
     active_org: ActiveOrg,
-) -> Any:
+) -> None:
     """Remove a document from the KB (cascades to vectors + file storage).
 
     Verifies the doc actually belongs to this KB's collection — without that
@@ -205,11 +196,8 @@ async def delete_kb_document(
             details={"kb_id": str(kb_id), "doc_id": str(doc_id)},
         )
     await rag_doc_service.delete_document(str(doc_id))
-    return None
 
 
-# ─── Sync sources scoped to a KB ──────────────────────────────────────────
-#
 # These mirror /rag/sync/sources but with per-KB auth (a personal KB owner
 # can wire up a Google Drive folder without admin role) and automatically
 # pin the source to ``kb.collection_name`` so the user can't accidentally
@@ -231,6 +219,19 @@ async def list_kb_sync_sources(
     all_sources = await sync_source_svc.list_sources()
     items = [s for s in all_sources.items if s.collection_name == kb.collection_name]
     return SyncSourceList(items=items, total=len(items))
+
+
+@router.get("/{kb_id}/sync-sources/connectors", response_model=ConnectorList)
+async def list_kb_connectors(
+    kb_id: UUID,
+    service: KnowledgeBaseSvc,
+    sync_source_svc: SyncSourceSvc,
+    current_user: CurrentUser,
+    active_org: ActiveOrg,
+) -> Any:
+    """List available connector types (Google Drive, S3, …) for this KB."""
+    await service.get(kb_id, user_id=current_user.id, organization_id=active_org.id)
+    return sync_source_svc.list_connectors()
 
 
 @router.post(
@@ -300,7 +301,7 @@ async def delete_kb_sync_source(
     sync_source_svc: SyncSourceSvc,
     current_user: CurrentUser,
     active_org: ActiveOrg,
-) -> Any:
+) -> None:
     """Remove a sync source from this KB."""
     kb = await service.get(
         kb_id, user_id=current_user.id, organization_id=active_org.id
@@ -312,197 +313,8 @@ async def delete_kb_sync_source(
             details={"kb_id": str(kb_id), "source_id": str(source_id)},
         )
     await sync_source_svc.delete_source(str(source_id))
-    return None
 
 
-@router.get("/{kb_id}/sync-sources/connectors", response_model=ConnectorList)
-async def list_kb_connectors(
-    kb_id: UUID,
-    service: KnowledgeBaseSvc,
-    sync_source_svc: SyncSourceSvc,
-    current_user: CurrentUser,
-    active_org: ActiveOrg,
-) -> Any:
-    """List available connector types (Google Drive, S3, …) for this KB."""
-    await service.get(kb_id, user_id=current_user.id, organization_id=active_org.id)
-    return sync_source_svc.list_connectors()
-
-
-{%- elif cookiecutter.use_sqlite %}
-
-
-@router.get("", response_model=KnowledgeBaseList)
-def list_knowledge_bases(
-    service: KnowledgeBaseSvc,
-    current_user: CurrentUser,
-    active_org: ActiveOrg,
-) -> Any:
-    """List all Knowledge Bases accessible to the current user in this org context."""
-    items = service.list_accessible(
-        user_id=str(current_user.id),
-        organization_id=str(active_org.id),
-    )
-    return KnowledgeBaseList(items=items, total=len(items))
-
-
-@router.post("", response_model=KnowledgeBaseRead, status_code=status.HTTP_201_CREATED)
-def create_knowledge_base(
-    data: KnowledgeBaseCreate,
-    service: KnowledgeBaseSvc,
-    current_user: CurrentUser,
-    active_org: ActiveOrg,
-) -> Any:
-    """Create a new Knowledge Base."""
-    return service.create(
-        data,
-        user_id=str(current_user.id),
-        organization_id=str(active_org.id),
-        is_app_admin=getattr(current_user, "is_app_admin", False),
-    )
-
-
-@router.get("/{kb_id}", response_model=KnowledgeBaseRead)
-def get_knowledge_base(
-    kb_id: str,
-    service: KnowledgeBaseSvc,
-    current_user: CurrentUser,
-    active_org: ActiveOrg,
-) -> Any:
-    """Get a Knowledge Base by ID."""
-    return service.get(
-        kb_id,
-        user_id=str(current_user.id),
-        organization_id=str(active_org.id),
-    )
-
-
-@router.patch("/{kb_id}", response_model=KnowledgeBaseRead)
-def update_knowledge_base(
-    kb_id: str,
-    data: KnowledgeBaseUpdate,
-    service: KnowledgeBaseSvc,
-    current_user: CurrentUser,
-    active_org: ActiveOrg,
-) -> Any:
-    """Update name or description of a Knowledge Base."""
-    return service.update(
-        kb_id,
-        data,
-        user_id=str(current_user.id),
-        organization_id=str(active_org.id),
-        is_app_admin=getattr(current_user, "is_app_admin", False),
-    )
-
-
-@router.delete("/{kb_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
-def delete_knowledge_base(
-    kb_id: str,
-    service: KnowledgeBaseSvc,
-    current_user: CurrentUser,
-    active_org: ActiveOrg,
-) -> None:
-    """Delete a Knowledge Base. Default KBs cannot be deleted."""
-    service.delete(
-        kb_id,
-        user_id=str(current_user.id),
-        organization_id=str(active_org.id),
-        is_app_admin=getattr(current_user, "is_app_admin", False),
-    )
-
-
-@router.get("/{kb_id}/documents", response_model=RAGTrackedDocumentList)
-def list_kb_documents(
-    kb_id: str,
-    service: KnowledgeBaseSvc,
-    rag_doc_service: RAGDocumentSvc,
-    current_user: CurrentUser,
-    active_org: ActiveOrg,
-    skip: int = Query(0, ge=0),
-    limit: int = Query(50, ge=1, le=100),
-) -> Any:
-    """List documents ingested into a Knowledge Base."""
-    service.get(kb_id, user_id=str(current_user.id), organization_id=str(active_org.id))
-    return rag_doc_service.list_for_kb(kb_id=kb_id, skip=skip, limit=limit)
-
-
-{%- elif cookiecutter.use_mongodb %}
-
-
-@router.get("", response_model=KnowledgeBaseList)
-async def list_knowledge_bases(
-    service: KnowledgeBaseSvc,
-    current_user: CurrentUser,
-    active_org: ActiveOrg,
-) -> Any:
-    """List all Knowledge Bases accessible to the current user in this org context."""
-    items = await service.list_accessible(
-        user_id=str(current_user.id),
-        organization_id=str(active_org.id),
-    )
-    return KnowledgeBaseList(items=items, total=len(items))
-
-
-@router.post("", response_model=KnowledgeBaseRead, status_code=status.HTTP_201_CREATED)
-async def create_knowledge_base(
-    data: KnowledgeBaseCreate,
-    service: KnowledgeBaseSvc,
-    current_user: CurrentUser,
-    active_org: ActiveOrg,
-) -> Any:
-    """Create a new Knowledge Base."""
-    return await service.create(
-        data,
-        user_id=str(current_user.id),
-        organization_id=str(active_org.id),
-        is_app_admin=getattr(current_user, "is_app_admin", False),
-    )
-
-
-@router.get("/{kb_id}", response_model=KnowledgeBaseRead)
-async def get_knowledge_base(
-    kb_id: str,
-    service: KnowledgeBaseSvc,
-    current_user: CurrentUser,
-    active_org: ActiveOrg,
-) -> Any:
-    """Get a Knowledge Base by ID."""
-    return await service.get(kb_id, user_id=str(current_user.id), organization_id=str(active_org.id))
-
-
-@router.patch("/{kb_id}", response_model=KnowledgeBaseRead)
-async def update_knowledge_base(
-    kb_id: str,
-    data: KnowledgeBaseUpdate,
-    service: KnowledgeBaseSvc,
-    current_user: CurrentUser,
-    active_org: ActiveOrg,
-) -> Any:
-    """Update name or description of a Knowledge Base."""
-    return await service.update(
-        kb_id, data,
-        user_id=str(current_user.id),
-        organization_id=str(active_org.id),
-        is_app_admin=getattr(current_user, "is_app_admin", False),
-    )
-
-
-@router.delete("/{kb_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
-async def delete_knowledge_base(
-    kb_id: str,
-    service: KnowledgeBaseSvc,
-    current_user: CurrentUser,
-    active_org: ActiveOrg,
-) -> None:
-    """Delete a Knowledge Base. Default KBs cannot be deleted."""
-    await service.delete(
-        kb_id,
-        user_id=str(current_user.id),
-        organization_id=str(active_org.id),
-        is_app_admin=getattr(current_user, "is_app_admin", False),
-    )
-
-
-{%- endif %}
 {%- else %}
 """Knowledge Base routes — not configured."""
 {%- endif %}

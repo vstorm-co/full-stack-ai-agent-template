@@ -14,6 +14,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { ROUTES } from "@/lib/constants";
 
 interface NavItem {
   label: string;
@@ -25,33 +26,33 @@ interface NavItem {
 const ITEMS: NavItem[] = [
   {
     label: "Profile",
-    href: "/settings/profile",
+    href: ROUTES.SETTINGS_PROFILE,
     icon: UserCircle,
     description: "Avatar, name, email, sessions",
   },
   {
     label: "Account",
-    href: "/settings/account",
+    href: ROUTES.SETTINGS_ACCOUNT,
     icon: Shield,
     description: "Password, two-factor, danger zone",
   },
 {%- if cookiecutter.use_auth and cookiecutter.use_ai %}
   {
     label: "Slash commands",
-    href: "/settings/slash-commands",
+    href: ROUTES.SETTINGS_SLASH_COMMANDS,
     icon: Slash,
     description: "Custom shortcuts + built-in toggles",
   },
 {%- endif %}
   {
     label: "Notifications",
-    href: "/settings/notifications",
+    href: ROUTES.SETTINGS_NOTIFICATIONS,
     icon: Bell,
     description: "What we email you about",
   },
   {
     label: "Appearance",
-    href: "/settings/appearance",
+    href: ROUTES.SETTINGS_APPEARANCE,
     icon: Palette,
     description: "Theme, density, brand color",
   },
@@ -63,7 +64,6 @@ export function SettingsNav() {
 
   return (
     <>
-      {/* Desktop: vertical sidebar nav */}
       <nav className="hidden lg:block">
         <ul className="space-y-1">
           {ITEMS.map((item) => {
@@ -103,8 +103,7 @@ export function SettingsNav() {
         </ul>
       </nav>
 
-      {/* Mobile: horizontal scrollable pill tabs */}
-      <nav className="scrollbar-thin -mx-3 flex gap-1.5 overflow-x-auto px-3 pb-2 lg:hidden">
+      <nav className="-mx-3 flex scrollbar-thin gap-1.5 overflow-x-auto px-3 pb-2 lg:hidden">
         {ITEMS.map((item) => {
           const active = stripped === item.href || stripped.startsWith(item.href + "/");
           return (

@@ -147,6 +147,39 @@ def create_chart(
     return spec.model_dump_json()
 
 
+def create_chart_tool(
+    chart_type: ChartType,
+    title: str,
+    data: list[dict[str, Any]],
+    series: list[dict[str, Any]] | None = None,
+    x_key: str = "x",
+    style: dict[str, Any] | None = None,
+) -> str:
+    """Create a chart (line/bar/pie/area/scatter) to visualize data for the user.
+
+    Use whenever the user asks to plot, chart, graph, or visualize numbers,
+    trends, comparisons, or distributions. Do not repeat the returned JSON
+    back to the user — just briefly describe the chart you created.
+
+    Args:
+        chart_type: One of "line", "bar", "pie", "area", "scatter".
+        title: Short chart title.
+        data: Row dicts, e.g. [{"x": "Jan", "revenue": 120}]. For pie:
+            [{"x": "Chrome", "value": 64}, ...].
+        series: Optional [{"key", "label"?, "color"?}] selecting fields to plot.
+        x_key: Row field for the x-axis / pie label (default "x").
+        style: Optional {"palette", "grid", "legend", "x_label", "y_label", "stacked"}.
+    """
+    return create_chart(
+        chart_type=chart_type,
+        title=title,
+        data=data,
+        series=series,
+        x_key=x_key,
+        style=style,
+    )
+
+
 def parse_chart_spec(result: str) -> ChartSpec | None:
     """Parse a ``create_chart`` tool result back into a ChartSpec.
 

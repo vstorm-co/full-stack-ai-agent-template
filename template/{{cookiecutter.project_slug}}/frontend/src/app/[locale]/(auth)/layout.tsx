@@ -12,11 +12,7 @@ const HIGHLIGHTS = [
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="bg-background text-foreground min-h-screen lg:grid lg:grid-cols-[1.1fr_minmax(0,560px)]">
-      {/* LEFT — form panel (always light, regardless of system theme) */}
-      <main
-        id="main"
-        className="theme-light bg-background text-foreground relative flex flex-col"
-      >
+      <main id="main" className="theme-light bg-background text-foreground relative flex flex-col">
         <header className="flex h-16 items-center px-6 sm:px-10">
           <Link
             href={ROUTES.HOME}
@@ -36,17 +32,14 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         </footer>
       </main>
 
-      {/* RIGHT — brand island (floating rounded card, hidden on mobile) */}
       <aside className="hidden p-5 lg:block lg:p-6">
         <div className="theme-dark bg-background text-foreground border-foreground/10 relative flex h-full flex-col justify-between overflow-hidden rounded-3xl border p-10 shadow-2xl lg:p-12">
-          {/* Background visuals */}
           <div aria-hidden className="pointer-events-none absolute inset-0">
             <div className="bg-grid absolute inset-0 opacity-[0.55]" />
             <div className="bg-brand/[0.28] absolute -top-32 -right-20 h-[460px] w-[460px] rounded-full blur-[120px]" />
             <div className="bg-brand/[0.12] absolute -bottom-20 -left-10 h-[320px] w-[420px] rounded-full blur-[140px]" />
           </div>
 
-          {/* TOP — eyebrow chip */}
           <div className="relative z-10">
             <span className="eyebrow-badge inline-flex items-center gap-2">
               <Sparkles className="h-3 w-3" aria-hidden />
@@ -54,9 +47,8 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             </span>
           </div>
 
-          {/* MIDDLE — headline + highlights */}
           <div className="relative z-10 max-w-[28rem]">
-            <h2 className="text-display-lg text-foreground mb-6 leading-[1.05] [&_em]:font-accent [&_em]:font-normal [&_em]:italic">
+            <h2 className="text-display-lg text-foreground [&_em]:font-accent mb-6 leading-[1.05] [&_em]:font-normal [&_em]:italic">
               Ship the AI feature <em>your team</em> actually wants.
             </h2>
             <p className="text-foreground/65 max-w-md text-base leading-relaxed">
@@ -74,7 +66,6 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             </ul>
           </div>
 
-          {/* BOTTOM — glass testimonial card */}
           <figure className="border-foreground/10 bg-card/40 relative z-10 max-w-md rounded-2xl border p-5 backdrop-blur-xl">
             <blockquote className="text-foreground/90 text-sm leading-relaxed">
               &ldquo;Replaced four SaaS tools and shipped our first AI feature in two weeks.&rdquo;

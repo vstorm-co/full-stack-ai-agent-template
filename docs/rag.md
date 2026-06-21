@@ -266,7 +266,6 @@ result = await search_knowledge_base(
 | Function | Description |
 |----------|-------------|
 | `search_knowledge_base` | Async search function |
-| `search_knowledge_base_sync` | Sync wrapper for CrewAI |
 
 ### Tool Definition
 

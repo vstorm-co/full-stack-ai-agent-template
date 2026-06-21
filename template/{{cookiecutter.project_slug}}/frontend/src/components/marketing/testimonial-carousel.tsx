@@ -30,7 +30,7 @@ export function TestimonialCarousel({ items, autoPlayMs = 7000 }: TestimonialCar
   return (
     <div className="border-foreground/15 bg-card mx-auto max-w-3xl rounded-3xl border p-10 md:p-14">
       <Quote className="text-brand h-10 w-10" />
-      <blockquote className="text-foreground mt-6 font-display text-2xl font-medium leading-snug md:text-3xl">
+      <blockquote className="text-foreground font-display mt-6 text-2xl leading-snug font-medium md:text-3xl">
         &ldquo;{t.quote}&rdquo;
       </blockquote>
       <div className="mt-8 flex items-center justify-between">

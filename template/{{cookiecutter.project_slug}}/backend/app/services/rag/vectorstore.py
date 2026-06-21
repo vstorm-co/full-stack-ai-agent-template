@@ -13,40 +13,37 @@ _RESERVED_COLLECTION_NAMES = frozenset({"all"})
 
 
 class BaseVectorStore(ABC):
-    """Abstract base class for vector store implementations."""
-
     @abstractmethod
     async def insert_document(self, collection_name: str, document: Document) -> None:
-        """Embeds and stores document chunks."""
+        pass
 
     @abstractmethod
     async def search(
-        self, collection_name: str, query: str, limit: int = 4, filter: str = ""
+        self, collection_name: str, query: str, limit: int = 4, filter_expr: str = ""
     ) -> list[SearchResult]:
-        """Retrieves similar chunks based on a text query."""
+        pass
 
     @abstractmethod
     async def delete_collection(self, collection_name: str) -> None:
-        """Removes a collection and all its data."""
+        pass
 
     @abstractmethod
     async def delete_document(self, collection_name: str, document_id: str) -> None:
-        """Removes all chunks associated with a document ID."""
+        pass
 
     @abstractmethod
     async def get_collection_info(self, collection_name: str) -> CollectionInfo:
-        """Returns metadata and stats about a collection."""
+        pass
 
     @abstractmethod
     async def list_collections(self) -> list[str]:
-        """Returns list of all collection names."""
+        pass
 
     @abstractmethod
     async def get_documents(self, collection_name: str) -> list[DocumentInfo]:
-        """Returns list of unique documents in a collection."""
+        pass
 
     async def get_document_list(self, collection_name: str) -> RAGDocumentList:
-        """Returns documents as API-ready list response."""
         docs = await self.get_documents(collection_name)
         return RAGDocumentList(
             items=[
@@ -64,11 +61,6 @@ class BaseVectorStore(ABC):
         )
 
     async def create_collection(self, name: str) -> None:
-        """Validate the name and create the collection.
-
-        Raises:
-            ValueError: If name is invalid or reserved.
-        """
         if not _COLLECTION_NAME_RE.match(name):
             raise ValueError(
                 "Collection name must start with a letter and contain only "
@@ -79,7 +71,9 @@ class BaseVectorStore(ABC):
         await self._ensure_collection(name)
 
     def _build_chunk_metadata(self, chunk: "DocumentPageChunk", document: Document) -> dict[str, Any]:
-        """Build metadata dict for a chunk."""
+        # `document.metadata.model_dump()` is spread last so it can override per-chunk
+        # defaults. `getattr` with defaults is used for optional image fields that may
+        # not be present on all chunk types.
         meta = {
             "page_num": chunk.page_num,
             "chunk_num": chunk.chunk_num,
@@ -96,7 +90,10 @@ class BaseVectorStore(ABC):
         return document_id.replace('"', "").replace("\\", "")
 
     def _group_documents(self, results: list[dict[str, Any]]) -> list[DocumentInfo]:
-        """Group query results by parent_doc_id into DocumentInfo list."""
+        # Iterates results twice: first to record the initial occurrence of each
+        # parent_doc_id (capturing filename/filesize/filetype and merging source_path,
+        # content_hash, and any extra dict into additional_info), then to increment
+        # chunk_count for every row belonging to that document.
         doc_map: dict[str, dict[str, Any]] = {}
         for item in results:
             doc_id = item.get("parent_doc_id")
@@ -182,13 +179,13 @@ class MilvusVectorStore(BaseVectorStore):
         ]
         await self.client.insert(collection_name, data=data)
 
-    async def search(self, collection_name: str, query: str, limit: int = 4, filter: str = "") -> list[SearchResult]:
+    async def search(self, collection_name: str, query: str, limit: int = 4, filter_expr: str = "") -> list[SearchResult]:
         query_vector = self.embedder.embed_query(query)
         results = await self.client.search(
             collection_name=collection_name,
             data=[query_vector],
             limit=limit,
-            filter=filter,
+            filter=filter_expr,
             output_fields=["content", "parent_doc_id", "metadata"],
         )
         return [
@@ -202,6 +199,15 @@ class MilvusVectorStore(BaseVectorStore):
         ]
 
     async def get_collection_info(self, collection_name: str) -> CollectionInfo:
+        # A KB created on /kb or /rag has no Milvus collection until its first
+        # document is ingested — report zero vectors instead of erroring so the
+        # collection still renders consistently across /kb and /rag.
+        if not await self.client.has_collection(collection_name):
+            return CollectionInfo(
+                name=collection_name,
+                total_vectors=0,
+                dim=self.settings.embeddings_config.dim,
+            )
         count = await self.client.get_collection_stats(collection_name)
         return CollectionInfo(name=collection_name, total_vectors=count.get("row_count", 0), dim=self.settings.embeddings_config.dim)
 
@@ -213,7 +219,10 @@ class MilvusVectorStore(BaseVectorStore):
         await self.client.delete(collection_name=collection_name, filter=f'parent_doc_id == "{sanitized}"')
 
     async def get_documents(self, collection_name: str) -> list[DocumentInfo]:
-        await self._ensure_collection(collection_name)
+        # Return empty list for non-existent collections instead of silently
+        # creating them, which would be inconsistent with get_collection_info.
+        if not await self.client.has_collection(collection_name):
+            return []
         results = await self.client.query(collection_name=collection_name, filter="", output_fields=["parent_doc_id", "metadata"], limit=10000)
         return self._group_documents(results)
 
@@ -241,7 +250,9 @@ class QdrantVectorStore(BaseVectorStore):
         self.client = AsyncQdrantClient(
             host=app_settings.QDRANT_HOST,
             port=app_settings.QDRANT_PORT,
-            api_key=app_settings.QDRANT_API_KEY or None,
+            # QDRANT_API_KEY is str | None; pass directly without `or None`
+            # to avoid silently coercing empty strings to None.
+            api_key=app_settings.QDRANT_API_KEY,
         )
 
     async def _ensure_collection(self, name: str) -> None:
@@ -274,12 +285,11 @@ class QdrantVectorStore(BaseVectorStore):
         ]
         await self.client.upsert(collection_name=collection_name, points=points)
 
-    async def search(self, collection_name: str, query: str, limit: int = 4, filter: str = "") -> list[SearchResult]:
+    async def search(self, collection_name: str, query: str, limit: int = 4, filter_expr: str = "") -> list[SearchResult]:
         query_vector = self.embedder.embed_query(query)
         qdrant_filter = None
-        if filter and "parent_doc_id" in filter:
-            import re
-            m = re.search(r'parent_doc_id\s*==\s*"([^"]+)"', filter)
+        if filter_expr and "parent_doc_id" in filter_expr:
+            m = re.search(r'parent_doc_id\s*==\s*"([^"]+)"', filter_expr)
             if m:
                 qdrant_filter = Filter(must=[FieldCondition(key="parent_doc_id", match=MatchValue(value=m.group(1)))])
         results = await self.client.search(
@@ -334,6 +344,7 @@ class QdrantVectorStore(BaseVectorStore):
 
 
 {%- if cookiecutter.use_chromadb %}
+import asyncio
 import chromadb
 
 from app.core.config import settings as app_settings
@@ -367,12 +378,9 @@ class ChromaVectorStore(BaseVectorStore):
 
     async def _ensure_collection(self, name: str) -> None:
         """Ensure collection exists (ChromaDB creates on access)."""
-        import asyncio
         await asyncio.to_thread(self._get_collection, name)
 
     async def insert_document(self, collection_name: str, document: Document) -> None:
-        import asyncio
-
         if not document.chunked_pages:
             raise ValueError("Document has no chunked pages.")
 
@@ -387,9 +395,7 @@ class ChromaVectorStore(BaseVectorStore):
 
         await asyncio.to_thread(_upsert)
 
-    async def search(self, collection_name: str, query: str, limit: int = 4, filter: str = "") -> list[SearchResult]:
-        import asyncio
-
+    async def search(self, collection_name: str, query: str, limit: int = 4, filter_expr: str = "") -> list[SearchResult]:
         query_vector = self.embedder.embed_query(query)
 
         def _query():
@@ -400,9 +406,8 @@ class ChromaVectorStore(BaseVectorStore):
                 "include": ["documents", "metadatas", "distances"],
             }
             # Convert Milvus-style filter to ChromaDB where clause
-            if filter and "parent_doc_id" in filter:
-                import re
-                m = re.search(r'parent_doc_id\s*==\s*"([^"]+)"', filter)
+            if filter_expr and "parent_doc_id" in filter_expr:
+                m = re.search(r'parent_doc_id\s*==\s*"([^"]+)"', filter_expr)
                 if m:
                     kwargs["where"] = {"parent_doc_id": m.group(1)}
             return collection.query(**kwargs)
@@ -421,8 +426,6 @@ class ChromaVectorStore(BaseVectorStore):
         return search_results
 
     async def get_collection_info(self, collection_name: str) -> CollectionInfo:
-        import asyncio
-
         def _info():
             collection = self._get_collection(collection_name)
             return collection.count()
@@ -431,11 +434,9 @@ class ChromaVectorStore(BaseVectorStore):
         return CollectionInfo(name=collection_name, total_vectors=count, dim=self.settings.embeddings_config.dim)
 
     async def delete_collection(self, collection_name: str) -> None:
-        import asyncio
         await asyncio.to_thread(self.client.delete_collection, collection_name)
 
     async def delete_document(self, collection_name: str, document_id: str) -> None:
-        import asyncio
         sanitized = self._sanitize_id(document_id)
 
         def _delete():
@@ -445,8 +446,6 @@ class ChromaVectorStore(BaseVectorStore):
         await asyncio.to_thread(_delete)
 
     async def get_documents(self, collection_name: str) -> list[DocumentInfo]:
-        import asyncio
-
         def _get():
             collection = self._get_collection(collection_name)
             return collection.get(include=["metadatas"])
@@ -459,8 +458,6 @@ class ChromaVectorStore(BaseVectorStore):
         return self._group_documents(results)
 
     async def list_collections(self) -> list[str]:
-        import asyncio
-
         def _list():
             return [c.name for c in self.client.list_collections()]
 
@@ -482,7 +479,6 @@ from app.services.rag.embeddings import EmbeddingService
 
 def _validate_collection_name(name: str) -> str:
     """Validate collection name to prevent SQL injection."""
-    import re
     if not re.match(r"^[a-zA-Z0-9_]+$", name):
         raise ValueError(f"Invalid collection name: {name}. Only alphanumeric and underscores allowed.")
     return name
@@ -493,6 +489,11 @@ class PgVectorStore(BaseVectorStore):
 
     Uses the existing PostgreSQL database with pgvector extension.
     No additional Docker services needed.
+
+    NOTE: This class creates its own SQLAlchemy engine per instance. In
+    production, prefer injecting a shared engine from app.db.session to
+    avoid multiple connection pools. Call `await self.aclose()` on shutdown
+    to release pool connections.
     """
 
     def __init__(self, settings: RAGSettings, embedding_service: EmbeddingService):
@@ -501,6 +502,10 @@ class PgVectorStore(BaseVectorStore):
         self.dim = settings.embeddings_config.dim
         self.engine = create_async_engine(app_settings.DATABASE_URL, echo=False)
         self.async_session = sessionmaker(self.engine, class_=AsyncSession, expire_on_commit=False)
+
+    async def aclose(self) -> None:
+        """Dispose the connection pool. Call during application shutdown."""
+        await self.engine.dispose()
 
     def _table(self, name: str) -> str:
         """Get validated table name for a collection."""
@@ -525,6 +530,19 @@ class PgVectorStore(BaseVectorStore):
                 ON {table} USING hnsw (embedding vector_cosine_ops)
             """))
             await session.commit()
+
+    async def _collection_exists(self, name: str) -> bool:
+        """Return True if the backing table for a collection exists."""
+        table = self._table(name)
+        async with self.async_session() as session:
+            result = await session.execute(
+                text(
+                    "SELECT 1 FROM information_schema.tables "
+                    "WHERE table_name = :table AND table_schema = 'public'"
+                ),
+                {"table": table},
+            )
+            return result.scalar() is not None
 
     async def insert_document(self, collection_name: str, document: Document) -> None:
         table = self._table(collection_name)
@@ -551,19 +569,35 @@ class PgVectorStore(BaseVectorStore):
                 )
             await session.commit()
 
-    async def search(self, collection_name: str, query: str, limit: int = 4, filter: str = "") -> list[SearchResult]:
+    async def search(self, collection_name: str, query: str, limit: int = 4, filter_expr: str = "") -> list[SearchResult]:
         table = self._table(collection_name)
         query_vector = self.embedder.embed_query(query)
+
+        # Parse the shared `parent_doc_id == "<value>"` filter format and apply
+        # it as a parameterised WHERE clause to avoid returning results from
+        # unrelated documents (same behaviour as Qdrant/Chroma implementations).
+        doc_id_filter: str | None = None
+        if filter_expr and "parent_doc_id" in filter_expr:
+            m = re.search(r'parent_doc_id\s*==\s*"([^"]+)"', filter_expr)
+            if m:
+                doc_id_filter = m.group(1)
+
+        where_clause = "WHERE parent_doc_id = :doc_id" if doc_id_filter else ""
+        params: dict[str, Any] = {"query_vec": str(query_vector), "limit": limit}
+        if doc_id_filter:
+            params["doc_id"] = doc_id_filter
+
         async with self.async_session() as session:
             result = await session.execute(
                 text(f"""
                     SELECT content, parent_doc_id, metadata,
                            1 - (embedding <=> :query_vec) AS score
                     FROM {table}
+                    {where_clause}
                     ORDER BY embedding <=> :query_vec
                     LIMIT :limit
                 """),
-                {"query_vec": str(query_vector), "limit": limit},
+                params,
             )
             rows = result.fetchall()
         return [
@@ -600,8 +634,12 @@ class PgVectorStore(BaseVectorStore):
             await session.commit()
 
     async def get_documents(self, collection_name: str) -> list[DocumentInfo]:
+        # Return an empty list for non-existent collections instead of silently
+        # creating them via _ensure_collection, which is inconsistent with
+        # get_collection_info (which already handles the missing case gracefully).
+        if not await self._collection_exists(collection_name):
+            return []
         table = self._table(collection_name)
-        await self._ensure_collection(collection_name)
         async with self.async_session() as session:
             result = await session.execute(
                 text(f"SELECT parent_doc_id, metadata FROM {table}")
@@ -618,5 +656,7 @@ class PgVectorStore(BaseVectorStore):
             result = await session.execute(
                 text("SELECT table_name FROM information_schema.tables WHERE table_name LIKE 'rag_%' AND table_schema = 'public'")
             )
-            return [row[0].replace("rag_", "") for row in result.fetchall()]
+            # removeprefix (Python 3.9+) strips only the leading "rag_" occurrence,
+            # unlike str.replace which would also hit inner occurrences.
+            return [row[0].removeprefix("rag_") for row in result.fetchall()]
 {%- endif %}

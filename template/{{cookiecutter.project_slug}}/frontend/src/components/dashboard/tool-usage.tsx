@@ -59,7 +59,7 @@ export function ToolUsage() {
   const maxCalls = items[0]?.total_calls ?? 0;
 
   return (
-    <section className="border-border bg-card flex flex-col rounded-2xl border p-5 lg:p-6">
+    <section className="border-border bg-card flex flex-col rounded-xl border p-5 lg:p-6">
       <header>
         <p className="text-foreground/55 font-mono text-[11px] tracking-wider uppercase">
           Tools used · 7d
@@ -139,5 +139,4 @@ export function ToolUsage() {
     </section>
   );
 }
-
 {% endraw %}

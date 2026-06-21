@@ -32,10 +32,10 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # === Project ===
     PROJECT_NAME: str = "{{ cookiecutter.project_name }}"
     API_V1_STR: str = "/api/v1"
     DEBUG: bool = False
+    DB_ECHO: bool = False  # Set DB_ECHO=true to log SQL queries (latency + log-noise drain by default)
     ENVIRONMENT: Literal["development", "local", "staging", "production"] = "local"
     TIMEZONE: str = "{{ cookiecutter.timezone }}"  # IANA timezone (e.g. "UTC", "Europe/Warsaw", "America/New_York")
     MODELS_CACHE_DIR: Path = Path("./models_cache")
@@ -46,15 +46,12 @@ class Settings(BaseSettings):
 
 {%- if cookiecutter.enable_logfire %}
 
-    # === Logfire ===
     LOGFIRE_TOKEN: str | None = None
     LOGFIRE_SERVICE_NAME: str = "{{ cookiecutter.project_slug }}"
     LOGFIRE_ENVIRONMENT: str = "development"
 {%- endif %}
 
-{%- if cookiecutter.use_postgresql %}
 
-    # === Database (PostgreSQL async) ===
     POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: int = 5432
     POSTGRES_USER: str = "postgres"
@@ -79,45 +76,14 @@ class Settings(BaseSettings):
             f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
         )
 
-    # Pool configuration
     DB_POOL_SIZE: int = {{ cookiecutter.db_pool_size }}
     DB_MAX_OVERFLOW: int = {{ cookiecutter.db_max_overflow }}
     DB_POOL_TIMEOUT: int = {{ cookiecutter.db_pool_timeout }}
-{%- endif %}
 
-{%- if cookiecutter.use_mongodb %}
 
-    # === Database (MongoDB async) ===
-    MONGO_HOST: str = "localhost"
-    MONGO_PORT: int = 27017
-    MONGO_DB: str = "{{ cookiecutter.project_slug }}"
-    MONGO_USER: str | None = None
-    MONGO_PASSWORD: str | None = None
-
-    @computed_field  # type: ignore[prop-decorator]
-    @property
-    def MONGO_URL(self) -> str:
-        """Build MongoDB connection URL."""
-        if self.MONGO_USER and self.MONGO_PASSWORD:
-            return f"mongodb://{self.MONGO_USER}:{self.MONGO_PASSWORD}@{self.MONGO_HOST}:{self.MONGO_PORT}"
-        return f"mongodb://{self.MONGO_HOST}:{self.MONGO_PORT}"
-{%- endif %}
-
-{%- if cookiecutter.use_sqlite %}
-
-    # === Database (SQLite sync) ===
-    SQLITE_PATH: str = "./data/{{ cookiecutter.project_slug }}.db"
-
-    @computed_field  # type: ignore[prop-decorator]
-    @property
-    def DATABASE_URL(self) -> str:
-        """Build SQLite connection URL."""
-        return f"sqlite:///{self.SQLITE_PATH}"
-{%- endif %}
 
 {%- if cookiecutter.use_jwt or (cookiecutter.enable_admin_panel and cookiecutter.admin_require_auth) or cookiecutter.enable_oauth %}
 
-    # === Auth (SECRET_KEY for JWT/Session/Admin) ===
     SECRET_KEY: str = "change-me-in-production-use-openssl-rand-hex-32"
 
     @field_validator("SECRET_KEY")
@@ -126,7 +92,6 @@ class Settings(BaseSettings):
         """Validate SECRET_KEY is secure in production."""
         if len(v) < 32:
             raise ValueError("SECRET_KEY must be at least 32 characters long")
-        # Get environment from values if available
         env = info.data.get("ENVIRONMENT", "local") if info.data else "local"
         if v == "change-me-in-production-use-openssl-rand-hex-32" and env == "production":
             raise ValueError(
@@ -138,7 +103,6 @@ class Settings(BaseSettings):
 
 {%- if cookiecutter.use_jwt %}
 
-    # === JWT Settings ===
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30  # 30 minutes
     REFRESH_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
     ALGORITHM: str = "HS256"
@@ -151,7 +115,6 @@ class Settings(BaseSettings):
 
 {%- if cookiecutter.enable_oauth_google %}
 
-    # === OAuth2 (Google) ===
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""
     GOOGLE_REDIRECT_URI: str = "http://localhost:{{ cookiecutter.backend_port }}/api/v1/oauth/google/callback"
@@ -159,7 +122,6 @@ class Settings(BaseSettings):
 
 {%- if cookiecutter.use_delegated_auth %}
 
-    # === Delegated auth (external token issuer) ===
 {%- if cookiecutter.use_shared_secret_jwt %}
     # Shared-secret HS256 mode: client backend signs short-lived JWTs for our
     # API using a pre-shared secret. Simpler than full IdP, suitable for
@@ -192,7 +154,6 @@ class Settings(BaseSettings):
 {%- endif %}
 {%- if cookiecutter.enable_seed_admin %}
 
-    # === Initial app-admin seed ===
     # Set to a registered user's email to auto-promote them to app-admin on startup.
     # Run `{{ cookiecutter.project_slug }} cmd create-app-admin <email>` for the same effect.
     FIRST_ADMIN_EMAIL: str = "{{ cookiecutter.seed_admin_email }}"
@@ -200,7 +161,6 @@ class Settings(BaseSettings):
 
 {%- if cookiecutter.enable_email_domain_allowlist %}
 
-    # === OAuth email domain allowlist ===
     # Comma-separated list of email domains permitted to register via OAuth.
     # Empty string = allow all domains.
     ALLOWED_EMAIL_DOMAINS: str = "{{ cookiecutter.allowed_email_domains }}"
@@ -208,7 +168,6 @@ class Settings(BaseSettings):
 
 {%- if cookiecutter.enable_embed_mode %}
 
-    # === Embed mode ===
     # Comma-separated origins allowed to embed the app in an iframe.
     # Sets Content-Security-Policy frame-ancestors and CORS allow_origins.
     EMBED_ALLOWED_ORIGINS: str = "{{ cookiecutter.embed_allowed_origins }}"
@@ -216,7 +175,6 @@ class Settings(BaseSettings):
 
 {%- if cookiecutter.enable_brand_from_config %}
 
-    # === Runtime brand (white-label) ===
     # Override the bake-time brand colour/logo at runtime via env vars.
     BRAND_COLOR: str = "{{ cookiecutter.brand_color }}"
     BRAND_LOGO_URL: str = ""
@@ -224,7 +182,6 @@ class Settings(BaseSettings):
 
 {%- if cookiecutter.use_api_key %}
 
-    # === Auth (API Key) ===
     API_KEY: str = "change-me-in-production"
     API_KEY_HEADER: str = "X-API-Key"
 
@@ -243,7 +200,6 @@ class Settings(BaseSettings):
 
 {%- if cookiecutter.enable_redis %}
 
-    # === Redis ===
     REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379
     REDIS_PASSWORD: str | None = None
@@ -260,43 +216,46 @@ class Settings(BaseSettings):
 
 {%- if cookiecutter.enable_rate_limiting %}
 
-    # === Rate Limiting ===
     RATE_LIMIT_REQUESTS: int = {{ cookiecutter.rate_limit_requests }}
     RATE_LIMIT_PERIOD: int = {{ cookiecutter.rate_limit_period }}  # seconds
 {%- endif %}
 
 {%- if cookiecutter.use_celery %}
 
-    # === Celery ===
     CELERY_BROKER_URL: str = "redis://localhost:6379/0"
     CELERY_RESULT_BACKEND: str = "redis://localhost:6379/0"
 {%- endif %}
 
 {%- if cookiecutter.use_taskiq %}
 
-    # === Taskiq ===
     TASKIQ_BROKER_URL: str = "redis://localhost:6379/1"
     TASKIQ_RESULT_BACKEND: str = "redis://localhost:6379/1"
 {%- endif %}
 
 {%- if cookiecutter.use_arq %}
 
-    # === ARQ (Async Redis Queue) ===
     ARQ_REDIS_HOST: str = "localhost"
     ARQ_REDIS_PORT: int = 6379
     ARQ_REDIS_PASSWORD: str | None = None
     ARQ_REDIS_DB: int = 2
 {%- endif %}
 
+{%- if cookiecutter.use_prefect %}
+
+    # Prefect API — set to http://prefect-server:4200/api for self-hosted,
+    # or the Prefect Cloud workspace URL for cloud mode.
+    PREFECT_API_URL: str = "http://localhost:4200/api"
+    # Only required when PREFECT_CLOUD=true (your workspace API key)
+    PREFECT_API_KEY: str | None = None
+{%- endif %}
+
 {%- if cookiecutter.enable_sentry %}
 
-    # === Sentry ===
     SENTRY_DSN: str | None = None
 {%- endif %}
 
 {%- if cookiecutter.enable_prometheus %}
 
-    # === Prometheus ===
     PROMETHEUS_METRICS_PATH: str = "/metrics"
     PROMETHEUS_INCLUDE_IN_SCHEMA: bool = False
     # When set, /metrics requires `Authorization: Bearer <token>`. Leave empty
@@ -307,7 +266,6 @@ class Settings(BaseSettings):
 
 {%- if cookiecutter.enable_file_storage %}
 
-    # === File Storage (S3/MinIO) ===
     S3_ENDPOINT: str | None = None
     S3_ACCESS_KEY: str = ""
     S3_SECRET_KEY: str = ""
@@ -316,7 +274,6 @@ class Settings(BaseSettings):
 {%- endif %}
 
 
-    # === AI Agent ({{ cookiecutter.ai_framework }}, {{ cookiecutter.llm_provider }}) ===
 {%- if cookiecutter.use_openai %}
     OPENAI_API_KEY: str = ""
 {%- endif %}
@@ -349,17 +306,14 @@ class Settings(BaseSettings):
     AI_THINKING_EFFORT: str = "medium"  # "low", "medium", "high"
 {%- if cookiecutter.use_all_providers %}
     AI_AVAILABLE_MODELS: list[str] = [
-        # OpenAI
         "openai/gpt-5.5",
         "openai/gpt-5.5-pro",
         "openai/gpt-5.4",
         "openai/gpt-5-mini",
         "openai/gpt-4.1",
-        # Anthropic
         "anthropic/claude-opus-4-7",
         "anthropic/claude-sonnet-4-6",
         "anthropic/claude-haiku-4-5-20251001",
-        # Google
         "google/gemini-2.5-flash",
         "google/gemini-2.5-pro",
         # OpenRouter (proxies many providers)
@@ -411,7 +365,6 @@ class Settings(BaseSettings):
     LLM_PROVIDER: str = "{{ cookiecutter.llm_provider }}"
 {%- if cookiecutter.enable_langsmith %}
 
-    # === LangSmith Observability ===
     LANGCHAIN_TRACING_V2: bool = True
     LANGCHAIN_API_KEY: str | None = None
     LANGCHAIN_PROJECT: str = "{{ cookiecutter.project_slug }}"
@@ -419,26 +372,10 @@ class Settings(BaseSettings):
 {%- endif %}
 {%- if cookiecutter.enable_web_search %}
 
-    # === Web Search (Tavily) ===
     TAVILY_API_KEY: str = ""
-{%- endif %}
-{%- if cookiecutter.enable_antv_charts %}
-
-    # === AntV charts (advanced diagrams via mcp-server-chart sidecar) ===
-    # Opt-in at runtime: the code ships, but stays off until you flip this on
-    # and start the antvis-chart sidecar (docker compose --profile antv).
-    ENABLE_ANTV_CHARTS: bool = False
-    # MCP endpoint of the antvis-chart sidecar (streamable HTTP)
-    ANTV_MCP_URL: str = "http://antvis-chart:1122/mcp"
-    # Optional self-hosted GPT-Vis render backend (empty = AntV public service)
-    ANTV_VIS_REQUEST_SERVER: str = ""
-    # Comma-separated AntV tools to disable — defaults (set on the sidecar) drop
-    # the basic charts that overlap create_chart and the China-only maps.
-    ANTV_DISABLED_TOOLS: str = ""
 {%- endif %}
 {%- if cookiecutter.enable_code_execution %}
 
-    ENABLE_CODE_EXECUTION: bool = False
     CODE_EXECUTION_TIMEOUT_SECS: float = 10.0
     CODE_EXECUTION_MAX_ALLOCATIONS: int = 50_000_000
 {%- endif %}
@@ -450,7 +387,6 @@ class Settings(BaseSettings):
 {%- endif %}
 {%- if cookiecutter.use_deepagents %}
 
-    # === DeepAgents Configuration ===
     # Backend type: "state" (in-memory, ephemeral per WebSocket connection)
     DEEPAGENTS_BACKEND_TYPE: str = "{{ cookiecutter.sandbox_backend }}"
     # Memory file paths (comma-separated AGENTS.md paths, e.g. "/memory/AGENTS.md")
@@ -470,10 +406,8 @@ class Settings(BaseSettings):
 {%- endif %}
 {%- if cookiecutter.use_pydantic_deep %}
 
-    # === PydanticDeep Configuration ===
     # Backend type: "state" (in-memory) or "daytona" (Daytona cloud workspace)
     PYDANTIC_DEEP_BACKEND_TYPE: str = "{{ cookiecutter.sandbox_backend }}"
-    # Feature flags
     PYDANTIC_DEEP_INCLUDE_SUBAGENTS: bool = True   # subagent delegation
     PYDANTIC_DEEP_INCLUDE_SKILLS: bool = True       # SKILL.md discovery
     PYDANTIC_DEEP_INCLUDE_PLAN: bool = True         # planner subagent
@@ -484,7 +418,6 @@ class Settings(BaseSettings):
 
 {%- if cookiecutter.use_telegram or cookiecutter.use_slack %}
 
-    # === Messaging Channels ===
     # Fernet encryption key for bot tokens — generate with: openssl rand -hex 32
     CHANNEL_ENCRYPTION_KEY: str = "change-me-generate-with-openssl-rand-hex-32"
 
@@ -516,9 +449,7 @@ class Settings(BaseSettings):
 
 {%- if cookiecutter.enable_rag %}
 
-    # === RAG (Retrieval Augmented Generation) ===
 {%- if cookiecutter.use_milvus %}
-    # Vector Database (Milvus)
     MILVUS_HOST: str = "localhost"
     MILVUS_PORT: int = 19530
     MILVUS_DATABASE: str = "default"
@@ -531,13 +462,11 @@ class Settings(BaseSettings):
         return f"http://{self.MILVUS_HOST}:{self.MILVUS_PORT}"
 {%- endif %}
 {%- if cookiecutter.use_qdrant %}
-    # Vector Database (Qdrant)
     QDRANT_HOST: str = "localhost"
     QDRANT_PORT: int = 6333
     QDRANT_API_KEY: str = ""
 {%- endif %}
 {%- if cookiecutter.use_chromadb %}
-    # Vector Database (ChromaDB)
     CHROMA_HOST: str = ""  # empty = embedded/persistent mode
     CHROMA_PORT: int = 8100
     CHROMA_PERSIST_DIR: str = "./chroma_data"
@@ -546,9 +475,8 @@ class Settings(BaseSettings):
     # Vector Database (pgvector) — uses existing PostgreSQL
 {%- endif %}
 
-    # Embeddings
     {%- if cookiecutter.use_openai_embeddings %}
-    EMBEDDING_MODEL: str = "text-embedding-3-small"
+    EMBEDDING_MODEL: str = "text-embedding-3-large"
     {%- elif cookiecutter.use_voyage_embeddings %}
     EMBEDDING_MODEL: str = "voyage-3"
     VOYAGE_API_KEY: str = ""
@@ -557,21 +485,18 @@ class Settings(BaseSettings):
     {%- elif cookiecutter.use_sentence_transformers %}
     EMBEDDING_MODEL: str = "all-MiniLM-L6-v2"
     {%- else %}
-    EMBEDDING_MODEL: str = "text-embedding-3-small"
+    EMBEDDING_MODEL: str = "text-embedding-3-large"
     {%- endif %}
 
-    # Chunking
     RAG_CHUNK_SIZE: int = 512
     RAG_CHUNK_OVERLAP: int = 50
 
-    # Retrieval
     RAG_DEFAULT_COLLECTION: str = "documents"
     RAG_TOP_K: int = 10
     RAG_CHUNKING_STRATEGY: str = "recursive"  # recursive, markdown, or fixed
     RAG_HYBRID_SEARCH: bool = False  # Enable BM25 + vector hybrid search
     RAG_ENABLE_OCR: bool = False  # OCR fallback for scanned PDFs (requires tesseract)
 
-    # Reranker
     {%- if cookiecutter.enable_reranker and cookiecutter.use_cohere_reranker %}
     COHERE_API_KEY: str = ""
     {%- endif %}
@@ -581,9 +506,7 @@ class Settings(BaseSettings):
     CROSS_ENCODER_MODEL: str = "cross-encoder/ms-marco-MiniLM-L6-v2"
     {%- endif %}
 
-    # Document Parser
     {%- if cookiecutter.use_all_pdf_parsers %}
-    # PDF Parser runtime selection
     PDF_PARSER: str = "pymupdf"  # For RAG ingestion: pymupdf, llamaparse, liteparse
     CHAT_PDF_PARSER: str = "pymupdf"  # For chat file attachments: pymupdf, llamaparse, liteparse
     LLAMAPARSE_API_KEY: str = ""
@@ -601,17 +524,14 @@ class Settings(BaseSettings):
     {%- endif %}
 
 {%- if cookiecutter.enable_rag_image_description %}
-    # Image Description (LLM vision)
     RAG_ENABLE_IMAGE_DESCRIPTION: bool = True  # set to false to disable LLM image description
     RAG_IMAGE_DESCRIPTION_MODEL: str = ""  # empty = use AI_MODEL
 {%- endif %}
 
-    # Google Drive (optional, for document ingestion via service account)
     {%- if cookiecutter.enable_google_drive_ingestion %}
     GOOGLE_DRIVE_CREDENTIALS_FILE: str = "credentials/google-drive-sa.json"
     {%- endif %}
 
-    # S3 (optional, for document ingestion from S3/MinIO)
     {%- if cookiecutter.enable_s3_ingestion %}
     S3_RAG_ENDPOINT: str | None = None
     S3_RAG_ACCESS_KEY: str = ""
@@ -624,7 +544,6 @@ class Settings(BaseSettings):
 
 {%- if cookiecutter.enable_billing %}
 
-    # === Stripe Billing ===
     STRIPE_SECRET_KEY: str = ""
     STRIPE_PUBLISHABLE_KEY: str = ""
     STRIPE_WEBHOOK_SECRET: str = ""
@@ -660,7 +579,6 @@ class Settings(BaseSettings):
 
 {%- if cookiecutter.enable_email %}
 
-    # === Email ===
     EMAIL_PROVIDER: str = "{{ cookiecutter.email_provider }}"
     EMAIL_FROM: str = "noreply@{{ cookiecutter.project_slug }}.com"
     EMAIL_FROM_NAME: str = "{{ cookiecutter.project_name }}"
@@ -679,7 +597,6 @@ class Settings(BaseSettings):
 
 {%- if cookiecutter.enable_cors %}
 
-    # === CORS ===
     CORS_ORIGINS: list[str] = [
         "http://localhost:3000",
         "http://localhost:8080",
@@ -711,8 +628,6 @@ class Settings(BaseSettings):
     @property
     def rag(self) -> "RAGSettings":
         """Build RAG-specific settings."""
-        from app.services.rag.config import RAGSettings, DocumentParser, PdfParser, EmbeddingsConfig
-
         {%- if cookiecutter.use_all_pdf_parsers %}
         pdf_parser = PdfParser(
             method=self.PDF_PARSER,
@@ -754,7 +669,7 @@ class Settings(BaseSettings):
 
 {%- if cookiecutter.enable_rag %}
 # Rebuild Settings to resolve RAGSettings forward reference
-from app.services.rag.config import RAGSettings
+from app.services.rag.config import DocumentExtensions, DocumentParser, EmbeddingsConfig, PdfParser, RAGSettings
 Settings.model_rebuild()
 {%- endif %}
 

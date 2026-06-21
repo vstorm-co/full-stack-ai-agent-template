@@ -17,7 +17,10 @@ import logging
 import time
 from typing import Any
 
+from app.core.config import settings
+from app.db.session import get_db_context
 from app.services.channels.base import ChannelAdapter, IncomingMessage, OutgoingMessage
+from app.services.channels.router import ChannelMessageRouter
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +33,6 @@ class SlackAdapter(ChannelAdapter):
     def __init__(self) -> None:
         self._socket_tasks: dict[str, asyncio.Task[None]] = {}
 
-    # Send
 
     async def send_message(self, bot_token: str, msg: OutgoingMessage) -> None:
         """Send a reply back to Slack via the Web API."""
@@ -64,7 +66,6 @@ class SlackAdapter(ChannelAdapter):
 
         await client.chat_postMessage(**kwargs)
 
-    # Polling — Socket Mode (development)
 
     async def start_polling(self, bot_id: str, bot_token: str) -> None:
         """Start Slack Socket Mode (equivalent to polling for dev)."""
@@ -103,8 +104,6 @@ class SlackAdapter(ChannelAdapter):
 
     async def _run_socket_mode(self, bot_id: str, bot_token: str) -> None:
         """Run one Socket Mode session."""
-        from app.core.config import settings
-
         try:
             from slack_sdk.socket_mode.aiohttp import SocketModeClient
             from slack_sdk.socket_mode.request import SocketModeRequest
@@ -133,11 +132,9 @@ class SlackAdapter(ChannelAdapter):
 
         client.socket_mode_request_listeners.append(handler)  # type: ignore[arg-type]
         await client.connect()
-        # Keep running until cancelled
         while True:
             await asyncio.sleep(1)
 
-    # Webhook
 
     async def register_webhook(
         self, bot_token: str, url: str, secret: str | None
@@ -182,7 +179,6 @@ class SlackAdapter(ChannelAdapter):
 
         return hmac.compare_digest(computed, signature)
 
-    # Parsing
 
     def parse_incoming(
         self, raw_payload: dict[str, Any], bot_id: str
@@ -213,7 +209,6 @@ class SlackAdapter(ChannelAdapter):
         thread_ts: str | None = event.get("thread_ts")
         message_ts: str | None = event.get("ts")
 
-        # Map Slack channel types
         chat_type = "private" if channel_type in ("im", "mpim") else "group"
 
         # For threads: fold thread_ts into platform_chat_id so each thread
@@ -233,33 +228,14 @@ class SlackAdapter(ChannelAdapter):
             message_id=message_ts,
         )
 
-    # Internal event handler
-
     async def _handle_event(self, event: dict[str, Any], bot_id: str) -> None:
         """Handle a Slack event from Socket Mode or webhook."""
         incoming = self.parse_incoming({"event": event}, bot_id)
         if incoming is None:
             return
 
-        from app.services.channels.router import ChannelMessageRouter
-
         router = ChannelMessageRouter()
 
-{%- if cookiecutter.use_postgresql %}
-        from app.db.session import get_db_context
         async with get_db_context() as db:
             await router.route(incoming, db)
-{%- elif cookiecutter.use_sqlite %}
-        from contextlib import contextmanager
-        from app.db.session import get_db_session
-        # NOTE: Holding a sync SQLite session across an `await` boundary is not
-        # ideal — the session stays open while the coroutine is suspended. For
-        # production SQLite usage the router should adopt a more careful session
-        # management strategy (e.g. open/close around each synchronous DB call,
-        # or use asyncio.to_thread for the sync work).
-        with contextmanager(get_db_session)() as db:
-            await router.route(incoming, db)
-{%- elif cookiecutter.use_mongodb %}
-        await router.route(incoming, None)
-{%- endif %}
 {%- endif %}

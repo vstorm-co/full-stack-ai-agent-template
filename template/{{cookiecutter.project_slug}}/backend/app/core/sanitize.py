@@ -19,20 +19,17 @@ from pathlib import Path
 from typing import TypeVar
 from urllib.parse import urlparse
 
-# Default allowed HTML tags for rich text content
 DEFAULT_ALLOWED_TAGS = frozenset({
     "a", "abbr", "acronym", "b", "blockquote", "br", "code",
     "em", "i", "li", "ol", "p", "pre", "strong", "ul",
 })
 
-# Default allowed HTML attributes
 DEFAULT_ALLOWED_ATTRIBUTES = {
     "a": frozenset({"href", "title", "rel"}),
     "abbr": frozenset({"title"}),
     "acronym": frozenset({"title"}),
 }
 
-# Allowed URL schemes for webhook URLs
 WEBHOOK_ALLOWED_SCHEMES = frozenset({"http", "https"})
 
 # Shared Address Space (RFC 6598) — CGNAT range.
@@ -97,7 +94,6 @@ def sanitize_filename(filename: str, allow_unicode: bool = False) -> str:
     if not filename:
         return ""
 
-    # Normalize unicode
     if allow_unicode:
         filename = unicodedata.normalize("NFKC", filename)
     else:
@@ -107,22 +103,13 @@ def sanitize_filename(filename: str, allow_unicode: bool = False) -> str:
             .decode("ascii")
         )
 
-    # Get just the filename (remove any path components)
     filename = os.path.basename(filename)
-
-    # Remove null bytes
     filename = filename.replace("\x00", "")
 
-    # Replace path separators and special characters
     filename = re.sub(r"[/\\:*?\"<>|]", "_", filename)
-
-    # Replace multiple underscores/spaces with single underscore
     filename = re.sub(r"[\s_]+", "_", filename)
-
-    # Remove leading/trailing underscores and dots
     filename = filename.strip("._")
 
-    # Ensure we have a valid filename
     if not filename:
         return "unnamed"
 
@@ -157,10 +144,8 @@ def validate_safe_path(
     base_path = Path(base_dir).resolve()
     user_path_sanitized = sanitize_filename(user_path.lstrip("/\\"))
 
-    # Resolve the full path
     full_path = (base_path / user_path_sanitized).resolve()
 
-    # Check if the resolved path is within the base directory
     try:
         full_path.relative_to(base_path)
     except ValueError as err:
@@ -229,20 +214,17 @@ def validate_webhook_url(
     if allowed_schemes is None:
         allowed_schemes = WEBHOOK_ALLOWED_SCHEMES
 
-    # Parse the URL
     try:
         parsed = urlparse(url)
     except Exception as err:
         raise ValueError(f"Invalid webhook URL: {url!r}") from err
 
-    # Validate scheme
     if parsed.scheme not in allowed_schemes:
         raise SSRFBlockedError(
             f"URL scheme {parsed.scheme!r} is not allowed. "
             f"Allowed schemes: {', '.join(sorted(allowed_schemes))}"
         )
 
-    # Extract hostname
     hostname = parsed.hostname
     if not hostname:
         raise ValueError(f"Invalid webhook URL: no hostname found in {url!r}")
@@ -255,7 +237,6 @@ def validate_webhook_url(
             "Remove the user:password@ portion from the URL."
         )
 
-    # Try to parse hostname directly as an IP address
     try:
         addr = ipaddress.ip_address(hostname)
         if _is_ip_blocked(str(addr)):
@@ -270,11 +251,9 @@ def validate_webhook_url(
         # Not an IP literal — continue to DNS resolution below
         pass
 
-    # Determine the correct default port based on the scheme
     default_port = 443 if parsed.scheme == "https" else 80
     port = parsed.port or default_port
 
-    # Resolve hostname via DNS and check all returned addresses
     # TODO: socket.getaddrinfo() is blocking I/O — in async code paths
     # (PostgreSQL, MongoDB) consider using loop.getaddrinfo() or run_in_executor.
     try:
@@ -321,17 +300,14 @@ def sanitize_string(
     if not value:
         return ""
 
-    # Strip null bytes and other control characters (except newlines if allowed)
     if allow_newlines:
         value = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", "", value)
     else:
         value = re.sub(r"[\x00-\x1f\x7f]", "", value)
 
-    # Strip whitespace if requested
     if strip_whitespace:
         value = value.strip()
 
-    # Truncate if needed
     if max_length is not None and len(value) > max_length:
         value = value[:max_length]
 

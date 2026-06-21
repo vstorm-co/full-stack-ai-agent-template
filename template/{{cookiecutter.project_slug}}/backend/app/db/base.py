@@ -1,4 +1,3 @@
-{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
 {%- if cookiecutter.use_sqlmodel %}
 """SQLModel base model."""
 
@@ -17,7 +16,6 @@ NAMING_CONVENTION = {
     "pk": "%(table_name)s_pkey",
 }
 
-# Apply naming convention to SQLModel metadata
 SQLModel.metadata.naming_convention = NAMING_CONVENTION
 
 
@@ -71,7 +69,4 @@ class TimestampMixin:
         onupdate=func.now(),
         nullable=True,
     )
-{%- endif %}
-{%- else %}
-"""Database base - not using SQLAlchemy."""
 {%- endif %}

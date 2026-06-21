@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-{%- if cookiecutter.use_postgresql %}
 from uuid import UUID
-{%- endif %}
 
 from pydantic import Field, field_validator
 
@@ -51,11 +49,7 @@ class BuiltinOverrideUpsert(BaseSchema):
 
 
 class UserSlashCommandRead(UserSlashCommandBase, TimestampSchema):
-{%- if cookiecutter.use_postgresql %}
     id: UUID
-{%- elif cookiecutter.use_sqlite %}
-    id: str
-{%- endif %}
     # NULL = override of a built-in (controls is_enabled only). Otherwise
     # this is a user-defined custom command.
     prompt: str | None = None

@@ -2,12 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Command } from "cmdk";
 import {
 {%- if cookiecutter.use_ai %}
   Activity,
 {%- endif %}
   ArrowRight,
+{%- if cookiecutter.enable_billing %}
+  BarChart3,
+{%- endif %}
+  Bell,
   BookOpen,
 {%- if cookiecutter.enable_teams %}
   Building2,
@@ -18,12 +23,21 @@ import {
 {%- if cookiecutter.enable_rag %}
   Database,
 {%- endif %}
+{%- if cookiecutter.enable_billing %}
+  FileText,
+{%- endif %}
   LayoutDashboard,
   LogOut,
   MessageSquare,
+  Palette,
   Plus,
   Search,
   Settings,
+  Shield,
+  Slash,
+{%- if cookiecutter.enable_billing %}
+  Sparkles,
+{%- endif %}
 {%- if cookiecutter.use_ai %}
   Star,
 {%- endif %}
@@ -34,9 +48,10 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-import { useAuth } from "@/hooks";
+import { useAuth{%- if cookiecutter.enable_rag %}, useKnowledgeBases{%- endif %} } from "@/hooks";
 import { apiClient } from "@/lib/api-client";
 import { ROUTES } from "@/lib/constants";
+import { isAppAdmin } from "@/lib/utils";
 
 interface ConversationItem {
   id: string;
@@ -46,12 +61,16 @@ interface ConversationItem {
 
 export function CommandPalette() {
   const router = useRouter();
+  const t = useTranslations("nav");
   const { user, logout } = useAuth();
+{%- if cookiecutter.enable_rag %}
+  const { kbs } = useKnowledgeBases();
+{%- endif %}
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [conversations, setConversations] = useState<ConversationItem[]>([]);
 
-  // Global ⌘K / Ctrl+K shortcut
+  // Global ⌘K / Ctrl+K shortcut + a custom event so UI buttons can open it.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
@@ -59,11 +78,15 @@ export function CommandPalette() {
         setOpen((o) => !o);
       }
     };
+    const openHandler = () => setOpen(true);
     document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
+    window.addEventListener("command-palette:open", openHandler);
+    return () => {
+      document.removeEventListener("keydown", handler);
+      window.removeEventListener("command-palette:open", openHandler);
+    };
   }, []);
 
-  // Fetch recent conversations once when opened
   useEffect(() => {
     if (!open) return;
     if (conversations.length > 0) return;
@@ -107,7 +130,12 @@ export function CommandPalette() {
         </Command.Empty>
 
         <Group heading="Quick actions">
-          <PaletteItem icon={Plus} label="Start new chat" onSelect={() => go(ROUTES.CHAT)} shortcut="⌘N" />
+          <PaletteItem
+            icon={Plus}
+            label="Start new chat"
+            onSelect={() => go(ROUTES.CHAT)}
+            shortcut="⌘N"
+          />
 {%- if cookiecutter.enable_rag %}
           <PaletteItem
             icon={Database}
@@ -133,27 +161,42 @@ export function CommandPalette() {
           </Group>
         )}
 
-        <Group heading="Navigate">
+{%- if cookiecutter.enable_rag %}
+        {open && kbs.length > 0 && (
+          <Group heading={t("knowledgeBases")}>
+            {kbs.slice(0, 6).map((kb) => (
+              <PaletteItem
+                key={kb.id}
+                icon={Database}
+                label={kb.name}
+                onSelect={() => go(ROUTES.KB_DETAIL(kb.id))}
+              />
+            ))}
+          </Group>
+        )}
+{%- endif %}
+
+        <Group heading={t("navigate")}>
           <PaletteItem
             icon={LayoutDashboard}
-            label="Dashboard"
+            label={t("dashboard")}
             onSelect={() => go(ROUTES.DASHBOARD)}
           />
-          <PaletteItem icon={MessageSquare} label="Chat" onSelect={() => go(ROUTES.CHAT)} />
+          <PaletteItem icon={MessageSquare} label={t("chat")} onSelect={() => go(ROUTES.CHAT)} />
 {%- if cookiecutter.enable_teams and cookiecutter.enable_rag %}
-          <PaletteItem icon={Database} label="Knowledge bases" onSelect={() => go(ROUTES.KB)} />
+          <PaletteItem icon={Database} label={t("knowledgeBases")} onSelect={() => go(ROUTES.KB)} />
 {%- endif %}
 {%- if cookiecutter.enable_teams %}
-          <PaletteItem icon={Building2} label="Organizations" onSelect={() => go(ROUTES.ORGS)} />
+          <PaletteItem icon={Building2} label={t("organizations")} onSelect={() => go(ROUTES.ORGS)} />
 {%- endif %}
 {%- if cookiecutter.enable_billing %}
-          <PaletteItem icon={CreditCard} label="Billing" onSelect={() => go(ROUTES.BILLING)} />
+          <PaletteItem icon={CreditCard} label={t("billing")} onSelect={() => go(ROUTES.BILLING)} />
 {%- endif %}
-          <PaletteItem icon={UserCircle} label="Profile" onSelect={() => go(ROUTES.PROFILE)} />
-          <PaletteItem icon={Settings} label="Settings" onSelect={() => go(ROUTES.SETTINGS)} />
+          <PaletteItem icon={UserCircle} label={t("profile")} onSelect={() => go(ROUTES.PROFILE)} />
+          <PaletteItem icon={Settings} label={t("settings")} onSelect={() => go(ROUTES.SETTINGS)} />
           <PaletteItem
             icon={BookOpen}
-            label="API documentation"
+            label={t("apiDocs")}
             onSelect={() => {
               setOpen(false);
               window.open("/docs", "_blank");
@@ -161,27 +204,85 @@ export function CommandPalette() {
           />
         </Group>
 
+        <Group heading={t("settingsSection")}>
+          <PaletteItem
+            icon={UserCircle}
+            label={t("profile")}
+            onSelect={() => go(ROUTES.SETTINGS_PROFILE)}
+          />
+          <PaletteItem
+            icon={Shield}
+            label={t("account")}
+            onSelect={() => go(ROUTES.SETTINGS_ACCOUNT)}
+          />
+          <PaletteItem
+            icon={Palette}
+            label={t("appearance")}
+            onSelect={() => go(ROUTES.SETTINGS_APPEARANCE)}
+          />
+          <PaletteItem
+            icon={Bell}
+            label={t("notifications")}
+            onSelect={() => go(ROUTES.SETTINGS_NOTIFICATIONS)}
+          />
+          <PaletteItem
+            icon={Slash}
+            label={t("slashCommands")}
+            onSelect={() => go(ROUTES.SETTINGS_SLASH_COMMANDS)}
+          />
+        </Group>
+
+{%- if cookiecutter.enable_billing %}
+        <Group heading={t("billingSection")}>
+          <PaletteItem
+            icon={CreditCard}
+            label={t("overview")}
+            onSelect={() => go(ROUTES.BILLING)}
+          />
+          <PaletteItem
+            icon={BarChart3}
+            label={t("usage")}
+            onSelect={() => go(ROUTES.BILLING_USAGE)}
+          />
+          <PaletteItem
+            icon={Sparkles}
+            label={t("credits")}
+            onSelect={() => go(ROUTES.BILLING_CREDITS)}
+          />
+          <PaletteItem
+            icon={FileText}
+            label={t("invoices")}
+            onSelect={() => go(ROUTES.BILLING_INVOICES)}
+          />
+          <PaletteItem
+            icon={CreditCard}
+            label={t("subscription")}
+            onSelect={() => go(ROUTES.BILLING_SUBSCRIPTION)}
+          />
+        </Group>
+{%- endif %}
+
 {%- if cookiecutter.use_ai %}
-        {user?.role === "admin" && (
-          <Group heading="Admin">
+        {isAppAdmin(user) && (
+          <Group heading={t("admin")}>
             <PaletteItem
               icon={Star}
-              label="Response ratings"
+              label={t("responseRatings")}
               onSelect={() => go(ROUTES.ADMIN_RATINGS)}
             />
             <PaletteItem
               icon={Activity}
-              label="All conversations"
+              label={t("allConversations")}
               onSelect={() => go(ROUTES.ADMIN_CONVERSATIONS)}
             />
           </Group>
         )}
 {%- endif %}
 
-        <Group heading="Account">
+        <Group heading={t("account")}>
           <PaletteItem
             icon={LogOut}
-            label="Sign out"
+            label={t("logout")}
             onSelect={() => {
               setOpen(false);
               logout();
@@ -190,7 +291,7 @@ export function CommandPalette() {
         </Group>
       </Command.List>
 
-      <div className="border-foreground/10 text-foreground/45 flex items-center justify-between border-t px-4 py-2 font-mono text-[10px] uppercase tracking-wider">
+      <div className="border-foreground/10 text-foreground/45 flex items-center justify-between border-t px-4 py-2 font-mono text-[10px] tracking-wider uppercase">
         <span className="inline-flex items-center gap-1.5">
           <kbd className="border-foreground/15 rounded border px-1 py-0.5">↑↓</kbd>
           Navigate
@@ -208,7 +309,7 @@ function Group({ heading, children }: { heading: string; children: React.ReactNo
   return (
     <Command.Group
       heading={heading}
-      className="[&_[cmdk-group-heading]]:text-foreground/45 [&_[cmdk-group-heading]]:font-mono [&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:pt-3 [&_[cmdk-group-heading]]:pb-1.5"
+      className="[&_[cmdk-group-heading]]:text-foreground/45 [&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:pt-3 [&_[cmdk-group-heading]]:pb-1.5 [&_[cmdk-group-heading]]:font-mono [&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:uppercase"
     >
       {children}
     </Command.Group>

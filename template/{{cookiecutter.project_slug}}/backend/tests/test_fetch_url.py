@@ -8,7 +8,6 @@ import pytest
 from app.agents.tools.fetch_url import (
     _extract_text,
     fetch_url,
-    fetch_url_sync,
 )
 from app.core.sanitize import SSRFBlockedError
 
@@ -92,10 +91,4 @@ class TestFetchUrl:
             result = await fetch_url("https://example.com/img.png")
         assert "not text" in result
 
-    def test_fetch_url_sync_wraps_async(self):
-        with patch(
-            "app.agents.tools.fetch_url.fetch_url",
-            new=AsyncMock(return_value="sync result"),
-        ):
-            assert fetch_url_sync("https://example.com") == "sync result"
 {%- endif %}

@@ -1,9 +1,7 @@
-{%- if cookiecutter.include_example_crud and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
+{%- if cookiecutter.include_example_crud %}
 """Item schemas — example resource scaffold."""
 
-{%- if cookiecutter.use_postgresql %}
 from uuid import UUID
-{%- endif %}
 
 from pydantic import Field
 
@@ -33,13 +31,8 @@ class ItemUpdate(BaseSchema):
 class ItemRead(ItemBase, TimestampSchema):
     """Response shape for ``GET /items/{id}`` and inside ``ItemList``."""
 
-{%- if cookiecutter.use_postgresql %}
     id: UUID
     owner_id: UUID
-{%- else %}
-    id: str
-    owner_id: str
-{%- endif %}
 
 
 class ItemList(BaseSchema):

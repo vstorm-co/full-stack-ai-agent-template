@@ -29,7 +29,6 @@ logger = logging.getLogger(__name__)
 
 SCOPES = ["https://www.googleapis.com/auth/drive.readonly"]
 
-# Google Drive MIME types for exportable Google Docs formats
 GOOGLE_DOCS_EXPORT: dict[str, tuple[str, str]] = {
     "application/vnd.google-apps.document": ("application/pdf", ".pdf"),
     "application/vnd.google-apps.spreadsheet": (
@@ -197,7 +196,7 @@ class GoogleDriveConnector(BaseSyncConnector):
                 while not done:
                     _, done = downloader.next_chunk()
 
-            logger.info(f"Downloaded {file.name} from Google Drive ({dest_path.stat().st_size} bytes)")
+            logger.info("Downloaded %s from Google Drive (%d bytes)", file.name, dest_path.stat().st_size)
             return dest_path
 
         return await asyncio.to_thread(_download)

@@ -1,8 +1,11 @@
 "use client";
 
 import { useCallback, useRef } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { apiClient } from "@/lib/api-client";
+import { qk } from "@/lib/query-keys";
+import { getErrorMessage, setUrlParam } from "@/lib/utils";
 import { useConversationStore, useChatStore } from "@/stores";
 import type { Conversation, ConversationMessage, ConversationListResponse } from "@/types";
 
@@ -19,17 +22,15 @@ interface MessagesResponse {
   total: number;
 }
 
+const PAGE_SIZE = 30;
+
 export function useConversations() {
+  const queryClient = useQueryClient();
   const {
-    conversations,
     currentConversationId,
     currentMessages,
-    isLoading,
+    isLoading: selectLoading,
     error,
-    setConversations,
-    addConversation,
-    updateConversation,
-    removeConversation,
     setCurrentConversationId,
     setCurrentMessages,
     setLoading,
@@ -37,68 +38,83 @@ export function useConversations() {
   } = useConversationStore();
   const { clearMessages } = useChatStore();
   const hasMoreRef = useRef(true);
-  const PAGE_SIZE = 30;
+  // Tracks the in-flight message fetch so a rapid conversation switch can abort
+  // the previous request — otherwise a slower earlier fetch could resolve last
+  // and overwrite the messages of the conversation the user actually selected.
+  const messagesAbortRef = useRef<AbortController | null>(null);
 
-  const fetchConversations = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      // Fetch both active and archived in one call so the sidebar tabs can
-      // partition them client-side. Archived items are filtered out of the
-      // default tab, and surfaced only when the user opens "Archived".
+  // React Query owns the list: cached across navigations, deduped, no refetch
+  // storms (this replaces the old manual fetch + session-singleton guard).
+  // Both active and archived are fetched in one call so the sidebar tabs can
+  // partition them client-side. Mutations patch the cache directly.
+  const { data: conversations = [], isLoading: listLoading } = useQuery({
+    queryKey: qk.conversations.list(),
+    queryFn: async () => {
       const response = await apiClient.get<ConversationListResponse>(
         `/conversations?limit=${PAGE_SIZE}&include_archived=true`,
       );
-      setConversations(response.items);
       hasMoreRef.current = response.items.length >= PAGE_SIZE;
-      // URL ?id= param always takes priority
-      const urlId = new URLSearchParams(window.location.search).get("id");
-      if (urlId && useConversationStore.getState().currentConversationId !== urlId) {
-        setCurrentConversationId(urlId);
-        clearMessages();
-        setCurrentMessages([]);
-        try {
-          const msgs = await apiClient.get<MessagesResponse>(`/conversations/${urlId}/messages`);
-          setCurrentMessages(msgs.items);
-        } catch {
-          // Not accessible (deleted, no permission) — clear the stale id
-          setCurrentConversationId(null);
-        }
+      return response.items;
+    },
+  });
+
+  // `isLoading` historically reflected both the list fetch and the
+  // select-messages fetch; preserve that union.
+  const isLoading = listLoading || selectLoading;
+
+  const writeCache = useCallback(
+    (updater: (prev: Conversation[]) => Conversation[]) =>
+      queryClient.setQueryData<Conversation[]>(qk.conversations.list(), (prev = []) =>
+        updater(prev),
+      ),
+    [queryClient],
+  );
+
+  const fetchConversations = useCallback(async () => {
+    // The list query auto-fetches and dedupes; force a fresh pull here to keep
+    // the previous explicit-refresh semantics (e.g. after a new conversation is
+    // created over WS).
+    await queryClient.invalidateQueries({ queryKey: qk.conversations.list() });
+    // URL ?id= param always takes priority: select that conversation and load
+    // its messages if it isn't already the current one.
+    const urlId = new URLSearchParams(window.location.search).get("id");
+    if (urlId && useConversationStore.getState().currentConversationId !== urlId) {
+      setCurrentConversationId(urlId);
+      clearMessages();
+      setCurrentMessages([]);
+      try {
+        const msgs = await apiClient.get<MessagesResponse>(`/conversations/${urlId}/messages`);
+        setCurrentMessages(msgs.items);
+      } catch {
+        // Not accessible (deleted, no permission) — clear the stale id
+        setCurrentConversationId(null);
       }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to fetch conversations";
-      setError(message);
-    } finally {
-      setLoading(false);
     }
-  }, [
-    setConversations,
-    setLoading,
-    setError,
-    setCurrentConversationId,
-    setCurrentMessages,
-    clearMessages,
-  ]);
+  }, [queryClient, setCurrentConversationId, setCurrentMessages, clearMessages]);
 
   const loadingMoreRef = useRef(false);
 
   const fetchMoreConversations = useCallback(async () => {
     if (!hasMoreRef.current || loadingMoreRef.current) return;
     loadingMoreRef.current = true;
-    const current = useConversationStore.getState().conversations;
+    const current = queryClient.getQueryData<Conversation[]>(qk.conversations.list()) ?? [];
     try {
       const response = await apiClient.get<ConversationListResponse>(
         `/conversations?limit=${PAGE_SIZE}&skip=${current.length}&include_archived=true`,
       );
       if (response.items.length > 0) {
-        setConversations([...current, ...response.items]);
+        // Dedupe in case a refetch raced with the append.
+        writeCache((prev) => {
+          const seen = new Set(prev.map((c) => c.id));
+          return [...prev, ...response.items.filter((c) => !seen.has(c.id))];
+        });
       }
       hasMoreRef.current = response.items.length >= PAGE_SIZE;
     } catch {
     } finally {
       loadingMoreRef.current = false;
     }
-  }, [setConversations]);
+  }, [queryClient, writeCache]);
 
   const createConversation = useCallback(
     async (title?: string): Promise<Conversation | null> => {
@@ -115,36 +131,52 @@ export function useConversations() {
           updated_at: response.updated_at,
           is_archived: response.is_archived,
         };
-        addConversation(newConversation);
+        writeCache((prev) => [newConversation, ...prev]);
         return newConversation;
       } catch (err) {
-        const message = err instanceof Error ? err.message : "Failed to create conversation";
+        const message = getErrorMessage(err, "Failed to create conversation");
         setError(message);
         return null;
       } finally {
         setLoading(false);
       }
     },
-    [addConversation, setLoading, setError],
+    [writeCache, setLoading, setError],
   );
 
   const selectConversation = useCallback(
     async (id: string) => {
+      // Abort any previous in-flight message fetch so an earlier, slower request
+      // can't resolve after this one and show the wrong messages.
+      messagesAbortRef.current?.abort();
+      const controller = new AbortController();
+      messagesAbortRef.current = controller;
+
       setCurrentConversationId(id);
       clearMessages();
-      const url = new URL(window.location.href);
-      url.searchParams.set("id", id);
-      window.history.replaceState({}, "", url.toString());
+      setUrlParam("id", id);
       setLoading(true);
       setError(null);
       try {
-        const response = await apiClient.get<MessagesResponse>(`/conversations/${id}/messages`);
+        const response = await apiClient.get<MessagesResponse>(`/conversations/${id}/messages`, {
+          signal: controller.signal,
+        });
+        // Guard against a superseded request resolving after a newer select.
+        if (controller.signal.aborted) return;
         setCurrentMessages(response.items);
       } catch (err) {
-        const message = err instanceof Error ? err.message : "Failed to fetch messages";
+        // Ignore aborted/superseded requests — they're expected on rapid switch.
+        if (controller.signal.aborted || (err instanceof DOMException && err.name === "AbortError")) {
+          return;
+        }
+        const message = getErrorMessage(err, "Failed to fetch messages");
         setError(message);
       } finally {
-        setLoading(false);
+        // Only the most recent request owns the loading flag.
+        if (messagesAbortRef.current === controller) {
+          setLoading(false);
+          messagesAbortRef.current = null;
+        }
       }
     },
     [setCurrentConversationId, clearMessages, setCurrentMessages, setLoading, setError],
@@ -154,64 +186,73 @@ export function useConversations() {
     async (id: string) => {
       try {
         await apiClient.patch(`/conversations/${id}`, { is_archived: true });
-        updateConversation(id, { is_archived: true });
+        writeCache((prev) => prev.map((c) => (c.id === id ? { ...c, is_archived: true } : c)));
         toast.success("Conversation archived");
       } catch (err) {
-        const message = err instanceof Error ? err.message : "Failed to archive conversation";
+        const message = getErrorMessage(err, "Failed to archive conversation");
         setError(message);
         toast.error(message);
       }
     },
-    [updateConversation, setError],
+    [writeCache, setError],
   );
 
   const unarchiveConversation = useCallback(
     async (id: string) => {
       try {
         await apiClient.patch(`/conversations/${id}`, { is_archived: false });
-        updateConversation(id, { is_archived: false });
+        writeCache((prev) => prev.map((c) => (c.id === id ? { ...c, is_archived: false } : c)));
         toast.success("Conversation restored");
       } catch (err) {
-        const message = err instanceof Error ? err.message : "Failed to restore conversation";
+        const message = getErrorMessage(err, "Failed to restore conversation");
         setError(message);
         toast.error(message);
       }
     },
-    [updateConversation, setError],
+    [writeCache, setError],
   );
 
   const deleteConversation = useCallback(
     async (id: string) => {
       try {
         await apiClient.delete(`/conversations/${id}`);
-        removeConversation(id);
+        writeCache((prev) => prev.filter((c) => c.id !== id));
+        // Mirror the old store behavior: clear the active selection if it was
+        // the conversation we just removed.
+        if (useConversationStore.getState().currentConversationId === id) {
+          setCurrentConversationId(null);
+        }
         toast.success("Conversation deleted");
       } catch (err) {
-        const message = err instanceof Error ? err.message : "Failed to delete conversation";
+        const message = getErrorMessage(err, "Failed to delete conversation");
         setError(message);
         toast.error(message);
       }
     },
-    [removeConversation, setError],
+    [writeCache, setCurrentConversationId, setError],
   );
 
   const renameConversation = useCallback(
     async (id: string, title: string) => {
       try {
         await apiClient.patch(`/conversations/${id}`, { title });
-        updateConversation(id, { title });
+        writeCache((prev) => prev.map((c) => (c.id === id ? { ...c, title } : c)));
         toast.success("Conversation renamed");
       } catch (err) {
-        const message = err instanceof Error ? err.message : "Failed to rename conversation";
+        const message = getErrorMessage(err, "Failed to rename conversation");
         setError(message);
         toast.error(message);
       }
     },
-    [updateConversation, setError],
+    [writeCache, setError],
   );
   const updateActiveKBs = useCallback(
     async (conversationId: string, kbIds: string[]) => {
-      updateConversation(conversationId, { active_knowledge_base_ids: kbIds });
+      writeCache((prev) =>
+        prev.map((c) =>
+          c.id === conversationId ? { ...c, active_knowledge_base_ids: kbIds } : c,
+        ),
+      );
       try {
         await apiClient.patch(`/conversations/${conversationId}`, {
           active_knowledge_base_ids: kbIds,
@@ -220,7 +261,7 @@ export function useConversations() {
         toast.error("Failed to update knowledge bases");
       }
     },
-    [updateConversation],
+    [writeCache],
   );
 
   const startNewChat = useCallback(async () => {
@@ -239,13 +280,7 @@ export function useConversations() {
     // Strip the stale ?id= immediately so a refresh mid-flight lands on a
     // fresh /chat instead of the old conversation. The new id will be set
     // by the WS conversation_created event on first message.
-    if (typeof window !== "undefined") {
-      const url = new URL(window.location.href);
-      if (url.searchParams.has("id")) {
-        url.searchParams.delete("id");
-        window.history.replaceState({}, "", url.toString());
-      }
-    }
+    setUrlParam("id", null);
   }, [clearMessages, setCurrentMessages, setCurrentConversationId]);
 
   return {

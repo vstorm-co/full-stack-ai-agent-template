@@ -1,4 +1,4 @@
-{%- if cookiecutter.enable_teams and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
+{%- if cookiecutter.enable_teams %}
 """create organization tables
 
 Revision ID: 0001_org
@@ -10,9 +10,7 @@ Tables: organizations, organization_members, invitations
 
 from alembic import op
 import sqlalchemy as sa
-{%- if cookiecutter.use_postgresql %}
 from sqlalchemy.dialects import postgresql
-{%- endif %}
 
 revision = "0001_org"
 down_revision = "0000_users"
@@ -21,16 +19,11 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # --- organizations ---
     op.create_table(
         "organizations",
         sa.Column(
             "id",
-{%- if cookiecutter.use_postgresql %}
             postgresql.UUID(as_uuid=True),
-{%- else %}
-            sa.String(36),
-{%- endif %}
             nullable=False,
         ),
         sa.Column("name", sa.String(128), nullable=False),
@@ -39,11 +32,7 @@ def upgrade() -> None:
         sa.Column("avatar_url", sa.String(500), nullable=True),
         sa.Column(
             "created_by_user_id",
-{%- if cookiecutter.use_postgresql %}
             postgresql.UUID(as_uuid=True),
-{%- else %}
-            sa.String(36),
-{%- endif %}
             nullable=False,
         ),
 {%- if cookiecutter.enable_billing %}
@@ -76,44 +65,27 @@ def upgrade() -> None:
     op.create_index("ix_organization_tier", "organizations", ["subscription_tier"])
 {%- endif %}
 
-    # --- organization_members ---
     op.create_table(
         "organization_members",
         sa.Column(
             "id",
-{%- if cookiecutter.use_postgresql %}
             postgresql.UUID(as_uuid=True),
-{%- else %}
-            sa.String(36),
-{%- endif %}
             nullable=False,
         ),
         sa.Column(
             "organization_id",
-{%- if cookiecutter.use_postgresql %}
             postgresql.UUID(as_uuid=True),
-{%- else %}
-            sa.String(36),
-{%- endif %}
             nullable=False,
         ),
         sa.Column(
             "user_id",
-{%- if cookiecutter.use_postgresql %}
             postgresql.UUID(as_uuid=True),
-{%- else %}
-            sa.String(36),
-{%- endif %}
             nullable=False,
         ),
         sa.Column("role", sa.String(20), nullable=False, server_default="member"),
         sa.Column(
             "invited_by_user_id",
-{%- if cookiecutter.use_postgresql %}
             postgresql.UUID(as_uuid=True),
-{%- else %}
-            sa.String(36),
-{%- endif %}
             nullable=True,
         ),
         sa.Column(
@@ -148,36 +120,23 @@ def upgrade() -> None:
         "ix_org_member_org_role", "organization_members", ["organization_id", "role"]
     )
 
-    # --- invitations ---
     op.create_table(
         "invitations",
         sa.Column(
             "id",
-{%- if cookiecutter.use_postgresql %}
             postgresql.UUID(as_uuid=True),
-{%- else %}
-            sa.String(36),
-{%- endif %}
             nullable=False,
         ),
         sa.Column(
             "organization_id",
-{%- if cookiecutter.use_postgresql %}
             postgresql.UUID(as_uuid=True),
-{%- else %}
-            sa.String(36),
-{%- endif %}
             nullable=False,
         ),
         sa.Column("email", sa.String(255), nullable=False),
         sa.Column("role", sa.String(20), nullable=False, server_default="member"),
         sa.Column(
             "invited_by_user_id",
-{%- if cookiecutter.use_postgresql %}
             postgresql.UUID(as_uuid=True),
-{%- else %}
-            sa.String(36),
-{%- endif %}
             nullable=False,
         ),
         sa.Column("token", sa.String(64), nullable=False),
@@ -192,11 +151,7 @@ def upgrade() -> None:
         sa.Column("accepted_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column(
             "accepted_by_user_id",
-{%- if cookiecutter.use_postgresql %}
             postgresql.UUID(as_uuid=True),
-{%- else %}
-            sa.String(36),
-{%- endif %}
             nullable=True,
         ),
         sa.ForeignKeyConstraint(
@@ -222,7 +177,6 @@ def upgrade() -> None:
     op.create_index("ix_invitation_email", "invitations", ["email"])
     op.create_index("ix_invitation_token", "invitations", ["token"], unique=True)
     op.create_index("ix_invitation_status", "invitations", ["status"])
-{%- if cookiecutter.use_postgresql %}
     # Partial unique index: only one pending invite per (org, email)
     op.create_index(
         "uq_pending_invitation",
@@ -231,7 +185,6 @@ def upgrade() -> None:
         unique=True,
         postgresql_where=sa.text("status = 'pending'"),
     )
-{%- endif %}
 
 
 def downgrade() -> None:

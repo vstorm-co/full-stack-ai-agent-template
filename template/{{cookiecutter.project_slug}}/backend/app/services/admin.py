@@ -11,14 +11,23 @@ import logging
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
-
 from sqlalchemy import func, select
 
 {%- if cookiecutter.use_ai %}
 from app.db.models.conversation import Conversation, Message
 {%- endif %}
 from app.db.models.user import User
+{%- if cookiecutter.enable_session_management %}
+from app.db.models.session import Session as UserSession
+{%- endif %}
+{%- if cookiecutter.enable_billing and cookiecutter.enable_credits_system %}
+from app.db.models.credit_transaction import CreditTransaction
+{%- endif %}
+{%- if cookiecutter.enable_billing %}
+from app.db.models.plan import Price
+from app.db.models.stripe_event import StripeEvent
+from app.db.models.subscription import Subscription
+{%- endif %}
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +43,6 @@ class AdminService:
         feature isn't enabled — the schema doesn't change shape between
         configurations.
         """
-        # Total users
         total_users = (await self.db.execute(select(func.count(User.id)))).scalar_one()
 
         # Active in last 24h via session.last_used_at — best-effort, returns 0
@@ -43,8 +51,6 @@ class AdminService:
 {%- if cookiecutter.enable_session_management %}
         cutoff = datetime.now(UTC) - timedelta(hours=24)
         try:
-            from app.db.models.session import Session as UserSession
-
             active_24h = int(
                 (
                     await self.db.execute(
@@ -76,8 +82,6 @@ class AdminService:
         mrr_cents = 0
 {%- if cookiecutter.enable_billing and cookiecutter.enable_credits_system %}
         try:
-            from app.db.models.credit_transaction import CreditTransaction
-
             since = datetime.now(UTC) - timedelta(days=30)
             credits_30d_raw = (
                 await self.db.execute(
@@ -93,9 +97,6 @@ class AdminService:
 {%- endif %}
 {%- if cookiecutter.enable_billing %}
         try:
-            from app.db.models.plan import Price
-            from app.db.models.subscription import Subscription
-
             # Sum active subscription unit_amount * quantity, monthly equiv.
             stmt = (
                 select(
@@ -127,74 +128,23 @@ class AdminService:
     ) -> tuple[list[Any], int]:
         """Page through the Stripe webhook idempotency log.
 
-        Returns ([], 0) when the StripeEvent table doesn't exist (billing
-        disabled in this deployment). Caller projects to schema.
+        Returns ([], 0) when billing is disabled in this deployment.
         """
+{%- if cookiecutter.enable_billing %}
         try:
-            from app.db.models.stripe_event import StripeEvent
+            total = (await self.db.execute(select(func.count(StripeEvent.id)))).scalar_one()
+            rows = (
+                await self.db.execute(
+                    select(StripeEvent)
+                    .order_by(StripeEvent.created_at.desc())
+                    .offset(skip)
+                    .limit(limit)
+                )
+            ).scalars().all()
+            return list(rows), int(total)
         except Exception:  # noqa: BLE001
-            logger.exception("admin_stats_stripe_event_import_failed")
+            logger.exception("admin_stats_stripe_event_query_failed")
             return [], 0
-
-        total = (await self.db.execute(select(func.count(StripeEvent.id)))).scalar_one()
-        rows = (
-            await self.db.execute(
-                select(StripeEvent)
-                .order_by(StripeEvent.created_at.desc())
-                .offset(skip)
-                .limit(limit)
-            )
-        ).scalars().all()
-        return list(rows), int(total)
-
-{%- elif cookiecutter.use_mongodb %}
-
-{%- if cookiecutter.use_ai %}
-from app.db.models.conversation import Conversation, Message
-{%- endif %}
-from app.db.models.user import User
-
-logger = logging.getLogger(__name__)
-
-
-class AdminService:
-    def __init__(self) -> None:
-        pass
-
-    async def workspace_stats(self) -> dict[str, Any]:
-        total_users = await User.find().count()
-
-        cutoff = datetime.now(UTC) - timedelta(hours=24)
-        active_24h: int = 0
-        try:
-            from app.db.models.session import Session as UserSession
-
-            active_24h = await UserSession.find(
-                UserSession.last_used_at >= cutoff
-            ).count()
-        except Exception:  # noqa: BLE001
-            logger.exception("admin_stats_active_users_query_failed")
-
-{%- if cookiecutter.use_ai %}
-        total_conversations = await Conversation.find().count()
-        total_messages = await Message.find().count()
 {%- else %}
-        total_conversations = 0
-        total_messages = 0
-{%- endif %}
-
-        return {
-            "total_users": int(total_users),
-            "active_users_24h": int(active_24h),
-            "total_conversations": int(total_conversations),
-            "total_messages": int(total_messages),
-            "credits_charged_30d": 0,
-            "mrr_cents": 0,
-        }
-
-    async def list_stripe_events(
-        self, *, skip: int = 0, limit: int = 50
-    ) -> tuple[list[Any], int]:
         return [], 0
-
 {%- endif %}

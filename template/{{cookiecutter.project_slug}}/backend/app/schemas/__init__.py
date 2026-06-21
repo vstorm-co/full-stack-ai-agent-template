@@ -39,7 +39,7 @@ from app.schemas.webhook import (
     WebhookTestResponse,
 )
 {%- endif %}
-{%- if cookiecutter.enable_rag and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
+{%- if cookiecutter.enable_rag %}
 {%- set _ = schemas.extend(["SyncSourceCreate", "SyncSourceRead", "SyncSourceUpdate", "SyncSourceList", "ConnectorInfo", "ConnectorList", "ConnectorConfigField"]) %}
 
 from app.schemas.sync_source import (

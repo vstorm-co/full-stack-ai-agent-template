@@ -33,9 +33,7 @@ export const useKBSelectionStore = create<KBSelectionState>()(
       setActiveKBIds: (ids) => set({ activeKBIds: Array.from(new Set(ids)) }),
       toggle: (id) => {
         const current = get().activeKBIds;
-        const next = current.includes(id)
-          ? current.filter((x) => x !== id)
-          : [...current, id];
+        const next = current.includes(id) ? current.filter((x) => x !== id) : [...current, id];
         set({ activeKBIds: next });
       },
       clear: () => set({ activeKBIds: [] }),

@@ -23,11 +23,7 @@ export async function generateMetadata({
   });
 }
 
-export default async function TermsPage({
-  params,
-}: {
-  params: Promise<{ locale: Locale }>;
-}) {
+export default async function TermsPage({ params }: { params: Promise<{ locale: Locale }> }) {
   const { locale } = await params;
   const t = await getTranslations("marketing.legal.terms");
 

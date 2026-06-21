@@ -256,7 +256,6 @@ Collections are shared across **all users**:
 
 ### Document Tracking
 
-{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
 
 Ingested documents are tracked in the SQL database via the `RAGDocument` model:
 
@@ -276,7 +275,6 @@ Ingested documents are tracked in the SQL database via the `RAGDocument` model:
 
 Failed ingestions can be retried via `POST /rag/documents/{id}/retry`.
 
-{%- endif %}
 
 ### Sync Operations
 

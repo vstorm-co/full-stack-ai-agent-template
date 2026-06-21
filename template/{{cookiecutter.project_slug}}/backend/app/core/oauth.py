@@ -9,7 +9,6 @@ oauth = OAuth()
 
 {%- if cookiecutter.enable_oauth_google %}
 
-# Configure Google OAuth2
 oauth.register(
     name="google",
     client_id=settings.GOOGLE_CLIENT_ID,

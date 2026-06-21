@@ -36,7 +36,6 @@ export function Section({
         className,
       )}
     >
-      {/* Top hairline with radial fade — softens the dark↔light transition */}
       <div
         aria-hidden
         className="pointer-events-none absolute inset-x-0 top-0 h-px"

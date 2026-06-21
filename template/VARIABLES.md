@@ -55,10 +55,8 @@ These variables are set automatically by the generator.
 
 | Variable | Type | Default | Description | Dependencies |
 |----------|------|---------|-------------|--------------|
-| `database` | enum | `"postgresql"` | Database type. Values: `postgresql`, `mongodb`, `sqlite`, `none` | - |
+| `database` | enum | `"postgresql"` | Database type. Values: `postgresql`, `none` | - |
 | `use_postgresql` | bool | `true` | PostgreSQL is selected | Computed from `database` |
-| `use_mongodb` | bool | `false` | MongoDB is selected | Computed from `database` |
-| `use_sqlite` | bool | `false` | SQLite is selected | Computed from `database` |
 | `use_database` | bool | `true` | Any database is enabled | Computed from `database` |
 | `db_pool_size` | int | `5` | Database connection pool size | Requires SQL database |
 | `db_max_overflow` | int | `10` | Max overflow connections above pool size | Requires SQL database |
@@ -134,10 +132,12 @@ These variables are set automatically by the generator.
 
 | Variable | Type | Default | Description | Dependencies |
 |----------|------|---------|-------------|--------------|
-| `background_tasks` | enum | `"none"` | Background task system. Values: `celery`, `taskiq`, `arq`, `none` | - |
+| `background_tasks` | enum | `"none"` | Background task system. Values: `celery`, `taskiq`, `arq`, `prefect`, `none` | - |
 | `use_celery` | bool | `false` | Celery is selected | Computed from `background_tasks` |
 | `use_taskiq` | bool | `false` | Taskiq is selected | Computed from `background_tasks` |
 | `use_arq` | bool | `false` | ARQ is selected | Computed from `background_tasks` |
+| `use_prefect` | bool | `false` | Prefect is selected | Computed from `background_tasks` |
+| `prefect_cloud` | bool | `false` | Use Prefect Cloud instead of self-hosted server | Requires `use_prefect` |
 
 **Notes:**
 
@@ -266,12 +266,11 @@ These variables are set automatically by the generator.
 
 | Variable | Type | Default | Description | Dependencies |
 |----------|------|---------|-------------|--------------|
-| `ai_framework` | enum | `"pydantic_ai"` | AI framework. Values: `pydantic_ai`, `langchain`, `langgraph`, `crewai`, `deepagents`, `pydantic_deep`, `none` | - |
+| `ai_framework` | enum | `"pydantic_ai"` | AI framework. Values: `pydantic_ai`, `langchain`, `langgraph`, `deepagents`, `pydantic_deep`, `none` | - |
 | `use_ai` | bool | `true` | Any AI framework is selected (false when `ai_framework=none`) | Computed from `ai_framework` |
 | `use_pydantic_ai` | bool | `true` | PydanticAI is selected | Computed from `ai_framework` |
 | `use_langchain` | bool | `false` | LangChain is selected | Computed from `ai_framework` |
 | `use_langgraph` | bool | `false` | LangGraph (ReAct agent) is selected | Computed from `ai_framework` |
-| `use_crewai` | bool | `false` | CrewAI (multi-agent crews) is selected | Computed from `ai_framework` |
 | `use_deepagents` | bool | `false` | DeepAgents (agentic coding, LangChain) is selected | Computed from `ai_framework` |
 | `use_pydantic_deep` | bool | `false` | PydanticDeep (deep agentic coding, Docker sandbox) is selected | Computed from `ai_framework` |
 | `sandbox_backend` | enum | `"state"` | Agent sandbox environment for DeepAgents/PydanticDeep. Values: `state`, `daytona` | Only used when `use_deepagents` or `use_pydantic_deep` is true |
@@ -281,12 +280,11 @@ These variables are set automatically by the generator.
 | `use_google` | bool | `false` | Google Gemini is selected | Computed from `llm_provider` |
 | `use_openrouter` | bool | `false` | OpenRouter is selected | Computed from `llm_provider` |
 | `enable_langsmith` | bool | `false` | Enable LangSmith observability (tracing, prompt management) | Requires LangChain, LangGraph, or DeepAgents |
-| `enable_web_search` | bool | `false` | Web search. PydanticAI/PydanticDeep use the model-native WebSearch capability; LangChain/LangGraph/CrewAI/DeepAgents use a Tavily-backed tool (needs `TAVILY_API_KEY`) | Requires an AI framework |
-| `enable_web_fetch` | bool | `false` | Web fetch. PydanticAI/PydanticDeep use the model-native WebFetch capability; LangChain/LangGraph/CrewAI/DeepAgents use the portable `fetch_url` tool | Requires an AI framework |
-| `web_fetch_tool` | bool | `false` | Computed: portable `fetch_url` tool is generated | `enable_web_fetch` and framework is LangChain/LangGraph/CrewAI/DeepAgents |
+| `enable_web_search` | bool | `false` | Web search. PydanticAI/PydanticDeep use the model-native WebSearch capability; LangChain/LangGraph/DeepAgents use a Tavily-backed tool (needs `TAVILY_API_KEY`) | Requires an AI framework |
+| `enable_web_fetch` | bool | `false` | Web fetch. PydanticAI/PydanticDeep use the model-native WebFetch capability; LangChain/LangGraph/DeepAgents use the portable `fetch_url` tool | Requires an AI framework |
+| `web_fetch_tool` | bool | `false` | Computed: portable `fetch_url` tool is generated | `enable_web_fetch` and framework is LangChain/LangGraph/DeepAgents |
 | `enable_charts` | bool | `false` | Enable the chart-generation tool (line/bar/pie/area/scatter); interactive in web chat, PNG on Slack/Telegram | Requires an AI framework |
 | `charts_channel_png` | bool | `false` | Computed: render charts to PNG for messaging channels | `enable_charts` and (`use_slack` or `use_telegram`) |
-| `enable_antv_charts` | bool | `false` | Adds the interactive `create_map` tool (Leaflet/OpenStreetMap, works out of the box) plus AntV advanced-diagram tools (flowchart, mind-map, org-chart, sankey, ...) via an `mcp-server-chart` Docker sidecar. Wired into all 5 frameworks. The AntV diagrams need the sidecar running (`docker compose --profile antv up -d`) and `ENABLE_ANTV_CHARTS=true` at runtime; maps work without it. Present in the production compose but profile-gated — off by default and publishes no host port, so it's opt-in per environment; for prod, self-host GPT-Vis-SSR via `ANTV_VIS_REQUEST_SERVER` rather than AntV's public render backend | Requires an AI framework |
 | `enable_code_execution` | bool | `false` | Adds a `run_python` tool backed by the Monty sandboxed Python interpreter (`pydantic-monty`). The model can compute projections, run aggregations, and call `create_chart`/`create_map` from inside the sandbox — charts render as interactive Recharts cards immediately. Sandbox allows `math`, `asyncio`, `json`, `datetime`, `re`; no `statistics`, `random`, `itertools`, numpy/pandas. Activated at runtime with `ENABLE_CODE_EXECUTION=true`. **PydanticAI only.** Temporary shim — swap to the official `CodeExecutionToolset` when it ships in pydantic-ai | Requires `use_pydantic_ai` |
 | `enable_skills` | bool | `false` | Adds a `pydantic-ai-skills` `SkillsToolset` that loads `SKILL.md` files from `backend/skills/` as agent tools (the model picks a skill, then follows its instructions). Ships the loader only — drop your own skills into `backend/skills/`; the toolset no-ops when the directory is empty. Pairs well with `enable_code_execution` for skills that compute. **PydanticAI only.** | Requires `use_pydantic_ai` |
 | `enable_deep_research` | bool | `false` | Turns the assistant into a deep research agent: a TODO planner (`pydantic-ai-todo`), researcher/analyst/writer subagents (`subagents-pydantic-ai`), and an automatic context manager (`summarization-pydantic-ai`). The planner delegates web work to subagents and streams a live research panel (plan checklist, subagent status, context-usage meter). TODO state persists in PostgreSQL when available, else in memory. Activated at runtime with `ENABLE_DEEP_RESEARCH=true`; the client can opt a single turn out with `deep_research=false`. **PydanticAI only.** | Requires `use_pydantic_ai` |
@@ -295,9 +293,8 @@ These variables are set automatically by the generator.
 
 - PydanticAI uses `iter()` for full event streaming over WebSocket
 - LangGraph implements a ReAct (Reasoning + Acting) agent pattern with graph-based architecture
-- CrewAI enables multi-agent teams that collaborate on complex tasks
 - DeepAgents provides an agentic coding assistant with built-in filesystem tools (ls, read_file, write_file, edit_file, glob, grep) and task management
-- OpenRouter with LangChain, LangGraph, CrewAI, or DeepAgents is not supported
+- OpenRouter with LangChain, LangGraph, or DeepAgents is not supported
 
 ---
 
@@ -453,8 +450,6 @@ Many `use_*` and `enable_*` variables are computed from their parent enum variab
 ```bash
 database = "postgresql"
   → use_postgresql = true
-  → use_mongodb = false
-  → use_sqlite = false
   → use_database = true
 
 orm_type = "sqlmodel"
@@ -465,7 +460,5 @@ orm_type = "sqlmodel"
 These computed variables are used in Jinja2 conditionals within templates:
 
 ```jinja2
-{% if cookiecutter.use_postgresql %}
 # PostgreSQL-specific code
-{% endif %}
 ```

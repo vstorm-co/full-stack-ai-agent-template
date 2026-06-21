@@ -1,38 +1,33 @@
-{% raw %}import type { ReactNode } from "react";
+"use client";
 
-import { AdminNav } from "@/components/admin/admin-nav";
-import { PageHero } from "@/components/dashboard/page-hero";
+import type { ReactNode } from "react";
+import { Activity,{%- if cookiecutter.enable_billing %} CreditCard,{%- endif %} LayoutDashboard, MessageSquare, Star, Users } from "lucide-react";
+
+import { ROUTES } from "@/lib/constants";
+import { PageHeader } from "@/components/dashboard/page-header";
+import { PageTabs, type PageTab } from "@/components/dashboard/page-tabs";
+
+const ADMIN_TABS: PageTab[] = [
+  { label: "Overview", href: ROUTES.ADMIN, icon: LayoutDashboard, exact: true },
+  { label: "Users", href: ROUTES.ADMIN_USERS, icon: Users },
+  { label: "Conversations", href: ROUTES.ADMIN_CONVERSATIONS, icon: MessageSquare },
+  { label: "Ratings", href: ROUTES.ADMIN_RATINGS, icon: Star },
+{%- if cookiecutter.enable_billing %}
+  { label: "Stripe events", href: ROUTES.ADMIN_STRIPE_EVENTS, icon: CreditCard },
+{%- endif %}
+  { label: "System", href: ROUTES.ADMIN_SYSTEM, icon: Activity },
+];
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-6 pb-10">
-      <PageHero
-        eyebrow="Admin · power-user tools"
-        title={
-          <>
-            Operate the <em>workspace.</em>
-          </>
-        }
-        description="Users, conversations, ratings, billing webhooks, system health — all in one place."
-        actions={
-          <span className="border-foreground/15 text-foreground/65 inline-flex items-center gap-2 rounded-full border px-3 py-1 font-mono text-[11px] tracking-wider uppercase">
-            <span
-              aria-hidden
-              className="bg-brand h-1.5 w-1.5 animate-pulse rounded-full"
-              style={{ boxShadow: "0 0 6px var(--color-brand)" }}
-            />
-            Admin role required
-          </span>
-        }
+    <div className="space-y-6 pb-8">
+      <PageHeader
+        eyebrow="Admin"
+        title="Workspace administration"
+        description="Users, conversations, ratings, billing webhooks, and system health."
       />
-
-      <div className="grid gap-6 lg:grid-cols-[200px_1fr] lg:gap-8">
-        <aside className="lg:sticky lg:top-6 lg:self-start">
-          <AdminNav />
-        </aside>
-        <div className="min-w-0">{children}</div>
-      </div>
+      <PageTabs tabs={ADMIN_TABS} />
+      <div className="min-w-0">{children}</div>
     </div>
   );
 }
-{% endraw %}

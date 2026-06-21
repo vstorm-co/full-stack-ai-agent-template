@@ -26,7 +26,6 @@ from typing import Any
 
 import click
 
-# Registry for custom commands
 _commands: list[click.Command] = []
 _discovered = False
 

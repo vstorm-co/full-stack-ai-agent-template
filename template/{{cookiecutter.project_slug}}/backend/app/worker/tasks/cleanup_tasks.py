@@ -1,4 +1,4 @@
-{%- if cookiecutter.enable_billing and cookiecutter.enable_credits_system and cookiecutter.use_postgresql and (cookiecutter.use_celery or cookiecutter.use_taskiq or cookiecutter.use_arq) %}
+{%- if cookiecutter.enable_billing and cookiecutter.enable_credits_system and (cookiecutter.use_celery or cookiecutter.use_taskiq or cookiecutter.use_arq or cookiecutter.use_prefect) %}
 """Cleanup tasks — periodic purge of old usage events."""
 
 import asyncio
@@ -9,6 +9,8 @@ from typing import Any
 from celery import shared_task
 {%- elif cookiecutter.use_taskiq %}
 from app.worker.taskiq_app import broker
+{%- elif cookiecutter.use_prefect %}
+from prefect import flow
 {%- endif %}
 
 from app.db.session import get_worker_db_context
@@ -78,6 +80,22 @@ async def cleanup_usage_events_task(ctx: dict[str, Any]) -> dict[str, int]:
 
 
 async def refresh_usage_matview_task(ctx: dict[str, Any]) -> None:
+    """Cron: refresh ``mv_usage_daily`` so the dashboard timeline stays fresh."""
+    await _refresh_usage_matview()
+
+{%- elif cookiecutter.use_prefect %}
+
+
+@flow(name="cleanup-usage-events", log_prints=True)
+async def cleanup_usage_events_flow() -> dict[str, int]:
+    """Cron: purge usage events older than 90 days and refresh the daily matview."""
+    count = await _cleanup_usage_events()
+    logger.info("cleanup_usage_events_done", extra={"deleted": count})
+    return {"deleted": count}
+
+
+@flow(name="refresh-usage-matview", log_prints=True)
+async def refresh_usage_matview_flow() -> None:
     """Cron: refresh ``mv_usage_daily`` so the dashboard timeline stays fresh."""
     await _refresh_usage_matview()
 {%- endif %}

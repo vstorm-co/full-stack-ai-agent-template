@@ -3,9 +3,7 @@
 
 from typing import Literal
 
-{%- if cookiecutter.use_postgresql %}
 from uuid import UUID
-{%- endif %}
 
 from pydantic import Field
 
@@ -37,15 +35,9 @@ class KnowledgeBaseUpdate(BaseSchema):
 class KnowledgeBaseRead(BaseSchema, TimestampSchema):
     """Schema for reading a Knowledge Base (API response)."""
 
-{%- if cookiecutter.use_postgresql %}
     id: UUID
     owner_user_id: UUID | None = None
     organization_id: UUID | None = None
-{%- else %}
-    id: str
-    owner_user_id: str | None = None
-    organization_id: str | None = None
-{%- endif %}
     name: str
     description: str | None = None
     scope: KBScopeLiteral

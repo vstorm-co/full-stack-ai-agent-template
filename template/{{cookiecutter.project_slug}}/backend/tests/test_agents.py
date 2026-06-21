@@ -11,7 +11,7 @@ from app.agents.prompts import DEFAULT_SYSTEM_PROMPT
 {%- if cookiecutter.enable_rag %}
 from app.agents.prompts import get_system_prompt_with_rag
 {%- endif %}
-from app.agents.tools.datetime_tool import get_current_datetime
+from app.agents.utils import get_current_datetime
 
 
 class TestDeps:
@@ -143,7 +143,7 @@ from app.agents.prompts import DEFAULT_SYSTEM_PROMPT
 {%- if cookiecutter.enable_rag %}
 from app.agents.prompts import get_system_prompt_with_rag
 {%- endif %}
-from app.agents.tools.datetime_tool import get_current_datetime
+from app.agents.utils import get_current_datetime
 
 
 class TestAgentContext:

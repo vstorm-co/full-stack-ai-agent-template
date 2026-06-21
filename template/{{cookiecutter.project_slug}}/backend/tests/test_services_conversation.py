@@ -1,4 +1,4 @@
-{%- if cookiecutter.use_postgresql and cookiecutter.use_sqlalchemy %}
+{%- if cookiecutter.use_sqlalchemy %}
 """Tests for ConversationService (PostgreSQL async variant)."""
 
 from unittest.mock import AsyncMock, MagicMock, patch

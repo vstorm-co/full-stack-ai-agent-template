@@ -2,9 +2,11 @@
 """Channel message router — processes incoming messages end-to-end."""
 
 import asyncio
+import json
 import logging
 import time
 from typing import Any
+from uuid import UUID
 
 from app.core.channel_crypto import decrypt_token
 from app.core.exceptions import AuthorizationError, BadRequestError
@@ -22,32 +24,19 @@ from app.services.channels import get_adapter
 from app.services.channels.base import IncomingMessage, OutgoingMessage
 {%- if cookiecutter.enable_charts %}
 from app.agents.tools.chart_tool import parse_chart_spec
-from app.agents.tools.chart_render import chart_to_markdown, render_chart_png
+from app.services.channels.chart_render import chart_to_markdown, render_chart_png
 {%- endif %}
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# In-memory rate limiter state
-# key = "{bot_id}:{identity_id}", value = (count, window_start_ts)
-# ---------------------------------------------------------------------------
+# key format: "{bot_id}:{identity_id}", value = (count, window_start_ts)
 _rate_buckets: dict[str, tuple[int, float]] = {}
 
 _DEFAULT_RPM = 10  # requests per minute
 
-# ---------------------------------------------------------------------------
-# Per-chat lock — serialises concurrent messages in group channels.
-#
-# In group chats (Telegram groups, Slack channels) multiple users can send
-# messages at the same time.  Without a lock the router would process them
-# concurrently, causing:
-#   • Duplicate ChannelSession creation (DB constraint violation)
-#   • Interleaved agent invocations sharing the same Conversation
-#   • Rate-limit counter races
-#
-# The lock is keyed on (bot_id, platform_chat_id).  Private 1-on-1 chats
-# also acquire the lock but contention there is negligible.
-# ---------------------------------------------------------------------------
+# In group chats multiple users can message simultaneously. Without a lock the router
+# would race: duplicate ChannelSession creation, interleaved agent calls, rate-limit races.
+# Key = (bot_id, platform_chat_id); 1-on-1 chats also acquire it but contention is negligible.
 _chat_locks: dict[str, asyncio.Lock] = {}
 
 
@@ -86,93 +75,58 @@ class ChannelMessageRouter:
             7. Invoke agent via AgentInvocationService.
             8. Send reply via adapter.
         """
-        # 1. Load bot
-{%- if cookiecutter.use_postgresql %}
         bot = await channel_bot_repo.get_by_id(db, incoming.bot_id)
-{%- elif cookiecutter.use_sqlite %}
-        bot = channel_bot_repo.get_by_id(db, incoming.bot_id)
-{%- elif cookiecutter.use_mongodb %}
-        bot = await channel_bot_repo.get_by_id(incoming.bot_id)
-{%- else %}
-        bot = await channel_bot_repo.get_by_id(db, incoming.bot_id)
-{%- endif %}
         if not bot or not bot.is_active:
             logger.debug("Bot %s not found or inactive — ignoring", incoming.bot_id)
             return
 
-        # 2. Check access policy
         try:
             self._check_access(incoming, bot)
         except AuthorizationError as exc:
             await self._send_reply(bot, incoming, exc.message)
             return
 
-        # 3. Handle commands
         command_reply = await self._handle_command(incoming.text, incoming, bot, db)
         if command_reply is not None:
             await self._send_reply(bot, incoming, command_reply)
             return
 
-        # 4. Resolve identity
         try:
             identity = await self._resolve_identity(incoming, bot, db)
         except AuthorizationError as exc:
             await self._send_reply(bot, incoming, exc.message)
             return
 
-        # 5. Resolve session
         session = await self._resolve_session(incoming, bot, identity, db)
 
-        # 6. Rate limit
         try:
             self._check_rate_limit(bot, str(identity.id))
         except BadRequestError as exc:
             await self._send_reply(bot, incoming, exc.message)
             return
 
-        # 7. Invoke agent
         tool_events = []
-{%- if cookiecutter.enable_teams and cookiecutter.use_postgresql %}
+{%- if cookiecutter.enable_teams %}
         conv = await conversation_repo.get_conversation_by_id(db, session.conversation_id)
         org_id = conv.organization_id if conv else None
 {%- endif %}
         try:
-{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
             svc = AgentInvocationService(db)
             response_text, tool_events = await svc.invoke(
                 user_message=incoming.text,
                 conversation_id=session.conversation_id,
                 user_id=identity.user_id,
                 project_id=getattr(session, "project_id", None),
-{%- if cookiecutter.enable_teams and cookiecutter.use_postgresql %}
+{%- if cookiecutter.enable_teams %}
                 organization_id=org_id,
 {%- endif %}
                 system_prompt_override=getattr(bot, "system_prompt_override", None),
                 model_override=getattr(bot, "ai_model_override", None),
             )
-{%- elif cookiecutter.use_mongodb %}
-            svc = AgentInvocationService()
-            response_text, tool_events = await svc.invoke(
-                user_message=incoming.text,
-                conversation_id=str(session.conversation_id),
-                user_id=str(identity.user_id) if identity.user_id else None,
-                project_id=getattr(session, "project_id", None),
-                system_prompt_override=getattr(bot, "system_prompt_override", None),
-                model_override=getattr(bot, "ai_model_override", None),
-            )
-{%- else %}
-            svc = AgentInvocationService(db)
-            response_text, tool_events = await svc.invoke(
-                user_message=incoming.text,
-                conversation_id=session.conversation_id,
-                user_id=identity.user_id,
-            )
-{%- endif %}
         except Exception:
             logger.exception("Agent invocation failed for bot %s", incoming.bot_id)
             response_text = "Sorry, something went wrong. Please try again."
 
-        # 8. Send tool event summaries (if any)
         for te in tool_events:
 {%- if cookiecutter.enable_charts %}
             if te.tool_name == "create_chart_tool":
@@ -192,10 +146,7 @@ class ChannelMessageRouter:
             except Exception:
                 logger.debug("Failed to send tool event for %s", te.tool_name)
 
-        # 9. Send reply
         await self._send_reply(bot, incoming, response_text)
-
-    # Access policy helpers
 
     @staticmethod
     def _parse_policy(bot: Any) -> dict[str, Any]:
@@ -206,7 +157,6 @@ class ChannelMessageRouter:
         """
         raw = bot.access_policy or {}
         if isinstance(raw, str):
-            import json
             return json.loads(raw) if raw else {}
         return raw
 
@@ -228,8 +178,6 @@ class ChannelMessageRouter:
                     message=policy.get("denied_message", "This bot is only available in specific groups.")
                 )
         # "open" and "jwt_linked" pass through here; jwt_linked is enforced at identity resolution
-
-    # Command handling
 
     async def _handle_command(
         self, text: str, incoming: IncomingMessage, bot: Any, db: Any
@@ -267,7 +215,6 @@ class ChannelMessageRouter:
             )
 
         if cmd == "/new":
-{%- if cookiecutter.use_postgresql %}
             session = await channel_session_repo.get_by_bot_and_chat(
                 db, bot_id=bot.id, platform_chat_id=incoming.platform_chat_id
             )
@@ -292,31 +239,12 @@ class ChannelMessageRouter:
                 await channel_session_repo.update(
                     db, db_session=session, update_data={"conversation_id": new_conv.id}
                 )
-{%- elif cookiecutter.use_sqlite %}
-            session = channel_session_repo.get_by_bot_and_chat(
-                db, bot_id=bot.id, platform_chat_id=incoming.platform_chat_id
-            )
-            if session:
-                new_conv = conversation_repo.create_conversation(db, title=f"{incoming.platform.capitalize()} Chat")
-                channel_session_repo.update(
-                    db, db_session=session, update_data={"conversation_id": new_conv.id}
-                )
-{%- elif cookiecutter.use_mongodb %}
-            session = await channel_session_repo.get_by_bot_and_chat(
-                bot_id=str(bot.id), platform_chat_id=incoming.platform_chat_id
-            )
-            if session:
-                new_conv = await conversation_repo.create_conversation(title=f"{incoming.platform.capitalize()} Chat")
-                session.conversation_id = str(new_conv.id)
-                await session.save()
-{%- endif %}
             return "New conversation started! How can I help you?"
 
         if cmd == "/link":
             if not arg:
                 return "Usage: /link <code>"
             try:
-{%- if cookiecutter.use_postgresql %}
                 linked = await channel_identity_repo.get_by_link_code(db, arg)
                 if not linked or not linked.user_id:
                     return "Invalid or expired link code. Please generate a new one from the web app."
@@ -343,65 +271,12 @@ class ChannelMessageRouter:
                     db_identity=linked,
                     update_data={"link_code": None, "link_code_expires_at": None},
                 )
-{%- elif cookiecutter.use_sqlite %}
-                linked = channel_identity_repo.get_by_link_code(db, arg)
-                if not linked or not linked.user_id:
-                    return "Invalid or expired link code. Please generate a new one from the web app."
-                identity = channel_identity_repo.get_by_platform_user(
-                    db,
-                    platform=incoming.platform,
-                    platform_user_id=incoming.platform_user_id,
-                )
-                if identity:
-                    channel_identity_repo.update(
-                        db, db_identity=identity, update_data={"user_id": linked.user_id}
-                    )
-                else:
-                    channel_identity_repo.create(
-                        db,
-                        platform=incoming.platform,
-                        platform_user_id=incoming.platform_user_id,
-                        platform_username=incoming.platform_username,
-                        platform_display_name=incoming.platform_display_name,
-                        user_id=linked.user_id,
-                    )
-                channel_identity_repo.update(
-                    db,
-                    db_identity=linked,
-                    update_data={"link_code": None, "link_code_expires_at": None},
-                )
-{%- elif cookiecutter.use_mongodb %}
-                linked = await channel_identity_repo.get_by_link_code(arg)
-                if not linked or not linked.user_id:
-                    return "Invalid or expired link code. Please generate a new one from the web app."
-                identity = await channel_identity_repo.get_by_platform_user(
-                    platform=incoming.platform,
-                    platform_user_id=incoming.platform_user_id,
-                )
-                if identity:
-                    identity.user_id = linked.user_id
-                    await identity.save()
-                else:
-                    from app.db.models.channel_identity import ChannelIdentity
-                    new_identity = ChannelIdentity(
-                        platform=incoming.platform,
-                        platform_user_id=incoming.platform_user_id,
-                        platform_username=incoming.platform_username,
-                        platform_display_name=incoming.platform_display_name,
-                        user_id=linked.user_id,
-                    )
-                    await new_identity.insert()
-                linked.link_code = None
-                linked.link_code_expires_at = None
-                await linked.save()
-{%- endif %}
                 return "Successfully linked your account."
             except Exception:
                 logger.exception("Unexpected error processing /link command")
                 return "A system error occurred. Please try again later."
 
         if cmd == "/unlink":
-{%- if cookiecutter.use_postgresql %}
             identity = await channel_identity_repo.get_by_platform_user(
                 db,
                 platform=incoming.platform,
@@ -411,30 +286,10 @@ class ChannelMessageRouter:
                 await channel_identity_repo.update(
                     db, db_identity=identity, update_data={"user_id": None}
                 )
-{%- elif cookiecutter.use_sqlite %}
-            identity = channel_identity_repo.get_by_platform_user(
-                db,
-                platform=incoming.platform,
-                platform_user_id=incoming.platform_user_id,
-            )
-            if identity:
-                channel_identity_repo.update(
-                    db, db_identity=identity, update_data={"user_id": None}
-                )
-{%- elif cookiecutter.use_mongodb %}
-            identity = await channel_identity_repo.get_by_platform_user(
-                platform=incoming.platform,
-                platform_user_id=incoming.platform_user_id,
-            )
-            if identity:
-                identity.user_id = None
-                await identity.save()
-{%- endif %}
             return "Your account has been unlinked."
 
 {%- if cookiecutter.use_pydantic_deep %}
         if cmd == "/project":
-{%- if cookiecutter.use_postgresql %}
             session = await channel_session_repo.get_by_bot_and_chat(
                 db, bot_id=bot.id, platform_chat_id=incoming.platform_chat_id
             )
@@ -445,7 +300,6 @@ class ChannelMessageRouter:
                     )
                 return "Project binding cleared."
             if session and arg:
-                from uuid import UUID
                 try:
                     project_id = UUID(arg)
                     await channel_session_repo.update(
@@ -454,41 +308,10 @@ class ChannelMessageRouter:
                     return f"Bound to project {arg}."
                 except ValueError:
                     return "Invalid project UUID."
-{%- elif cookiecutter.use_sqlite %}
-            session = channel_session_repo.get_by_bot_and_chat(
-                db, bot_id=bot.id, platform_chat_id=incoming.platform_chat_id
-            )
-            if arg.lower() == "off":
-                if session:
-                    channel_session_repo.update(
-                        db, db_session=session, update_data={"project_id": None}
-                    )
-                return "Project binding cleared."
-            if session and arg:
-                channel_session_repo.update(
-                    db, db_session=session, update_data={"project_id": arg}
-                )
-                return f"Bound to project {arg}."
-{%- elif cookiecutter.use_mongodb %}
-            session = await channel_session_repo.get_by_bot_and_chat(
-                bot_id=str(bot.id), platform_chat_id=incoming.platform_chat_id
-            )
-            if arg.lower() == "off":
-                if session:
-                    session.project_id = None
-                    await session.save()
-                return "Project binding cleared."
-            if session and arg:
-                session.project_id = arg
-                await session.save()
-                return f"Bound to project {arg}."
-{%- endif %}
             return "Usage: /project <uuid> or /project off"
 {%- endif %}
 
         return None
-
-    # Identity resolution
 
     async def _resolve_identity(
         self, incoming: IncomingMessage, bot: Any, db: Any
@@ -497,7 +320,6 @@ class ChannelMessageRouter:
         policy: dict[str, Any] = self._parse_policy(bot)
         mode: str = policy.get("mode", "open")
 
-{%- if cookiecutter.use_postgresql %}
         identity = await channel_identity_repo.get_by_platform_user(
             db,
             platform=incoming.platform,
@@ -512,37 +334,6 @@ class ChannelMessageRouter:
                 platform_display_name=incoming.platform_display_name,
                 user_id=None,
             )
-{%- elif cookiecutter.use_sqlite %}
-        identity = channel_identity_repo.get_by_platform_user(
-            db,
-            platform=incoming.platform,
-            platform_user_id=incoming.platform_user_id,
-        )
-        if not identity:
-            identity = channel_identity_repo.create(
-                db,
-                platform=incoming.platform,
-                platform_user_id=incoming.platform_user_id,
-                platform_username=incoming.platform_username,
-                platform_display_name=incoming.platform_display_name,
-                user_id=None,
-            )
-{%- elif cookiecutter.use_mongodb %}
-        identity = await channel_identity_repo.get_by_platform_user(
-            platform=incoming.platform,
-            platform_user_id=incoming.platform_user_id,
-        )
-        if not identity:
-            from app.db.models.channel_identity import ChannelIdentity
-            identity = ChannelIdentity(
-                platform=incoming.platform,
-                platform_user_id=incoming.platform_user_id,
-                platform_username=incoming.platform_username,
-                platform_display_name=incoming.platform_display_name,
-                user_id=None,
-            )
-            await identity.insert()
-{%- endif %}
 
         if (
             mode == "jwt_linked"
@@ -555,14 +346,11 @@ class ChannelMessageRouter:
 
         return identity
 
-    # Session resolution
-
     async def _resolve_session(
         self, incoming: IncomingMessage, bot: Any, identity: Any, db: Any
     ) -> Any:
         """Get or create ChannelSession (+ backing Conversation) for this bot+chat."""
 
-{%- if cookiecutter.use_postgresql %}
         session = await channel_session_repo.get_by_bot_and_chat(
             db, bot_id=bot.id, platform_chat_id=incoming.platform_chat_id
         )
@@ -595,44 +383,7 @@ class ChannelMessageRouter:
                 platform_chat_id=incoming.platform_chat_id,
                 conversation_id=conv.id,
             )
-{%- elif cookiecutter.use_sqlite %}
-        session = channel_session_repo.get_by_bot_and_chat(
-            db, bot_id=bot.id, platform_chat_id=incoming.platform_chat_id
-        )
-        if not session:
-            conv = conversation_repo.create_conversation(
-                db,
-                title=f"{incoming.platform.capitalize()} Chat",
-                user_id=identity.user_id,
-            )
-            session = channel_session_repo.create(
-                db,
-                bot_id=bot.id,
-                identity_id=identity.id,
-                platform_chat_id=incoming.platform_chat_id,
-                conversation_id=conv.id,
-            )
-{%- elif cookiecutter.use_mongodb %}
-        session = await channel_session_repo.get_by_bot_and_chat(
-            bot_id=str(bot.id), platform_chat_id=incoming.platform_chat_id
-        )
-        if not session:
-            conv = await conversation_repo.create_conversation(
-                title=f"{incoming.platform.capitalize()} Chat",
-                user_id=str(identity.user_id) if identity.user_id else None,
-            )
-            from app.db.models.channel_session import ChannelSession
-            session = ChannelSession(
-                bot_id=str(bot.id),
-                identity_id=str(identity.id),
-                platform_chat_id=incoming.platform_chat_id,
-                conversation_id=str(conv.id),
-            )
-            await session.insert()
-{%- endif %}
         return session
-
-    # Rate limiting
 
     def _check_rate_limit(self, bot: Any, identity_id: str) -> None:
         """In-memory token-bucket rate limiter.
@@ -663,8 +414,6 @@ class ChannelMessageRouter:
                 _rate_buckets[key] = (1, now)
         else:
             _rate_buckets[key] = (1, now)
-
-    # Send helper
 
     async def _send_reply(self, bot: Any, incoming: IncomingMessage, text: str) -> None:
         """Decrypt the bot token and send a reply via the appropriate adapter."""

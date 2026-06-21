@@ -1,12 +1,13 @@
 {%- if cookiecutter.enable_billing %}
-"""Handlers for invoice.* webhook events."""
-
 import logging
-{%- if cookiecutter.use_postgresql %}
 import stripe
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import app.repositories.subscription as sub_repo
+{%- if cookiecutter.enable_email %}
+from app.core.config import settings
+from app.services.email.service import get_email_service
+{%- endif %}
 
 logger = logging.getLogger(__name__)
 
@@ -20,8 +21,6 @@ def _format_amount(invoice) -> str:
 async def _send_payment_succeeded_email(invoice) -> None:
 {%- if cookiecutter.enable_email %}
     try:
-        from app.services.email.service import get_email_service
-        from app.core.config import settings
         email_svc = get_email_service()
         await email_svc.send_payment_succeeded(
             to=invoice.customer_email or "",
@@ -40,8 +39,6 @@ async def _send_payment_succeeded_email(invoice) -> None:
 async def _send_payment_failed_email(invoice) -> None:
 {%- if cookiecutter.enable_email %}
     try:
-        from app.services.email.service import get_email_service
-        from app.core.config import settings
         email_svc = get_email_service()
         await email_svc.send_payment_failed(
             to=invoice.customer_email or "",
@@ -91,141 +88,6 @@ async def handle_upcoming(db: AsyncSession, event: stripe.Event) -> None:
         extra={"invoice_id": invoice.id, "subscription_id": invoice.subscription},
     )
 
-{%- elif cookiecutter.use_sqlite %}
-import stripe
-from sqlalchemy.orm import Session
-
-import app.repositories.subscription as sub_repo
-{%- if cookiecutter.enable_credits_system %}
-import app.repositories.credit_transaction as credit_tx_repo
-from app.db.models.credit_transaction import CreditTransactionType
-{%- endif %}
-
-logger = logging.getLogger(__name__)
-
-
-def _format_amount(invoice) -> str:
-    amount = (invoice.amount_paid or invoice.amount_due or 0) / 100
-    currency = (invoice.currency or "usd").upper()
-    return f"{currency} {amount:.2f}"
-
-
-async def handle_payment_succeeded(db: Session, event: stripe.Event) -> None:
-    invoice = event.data.object
-    if invoice.billing_reason not in ("subscription_create", "subscription_cycle", "subscription_update"):
-        return
-
-    sub = sub_repo.get_by_stripe_id(db, invoice.subscription)
-    if not sub:
-        return
-
-{%- if cookiecutter.enable_credits_system %}
-    if invoice.billing_reason in ("subscription_create", "subscription_cycle"):
-        logger.info("credits_grant_due", sub_id=sub.id)
-{%- endif %}
-
-{%- if cookiecutter.enable_email %}
-    try:
-        from app.services.email.service import get_email_service
-        from app.core.config import settings
-        email_svc = get_email_service()
-        await email_svc.send_payment_succeeded(
-            to=invoice.customer_email or "",
-            name=invoice.customer_name or "there",
-            plan_name=invoice.lines.data[0].description if invoice.lines and invoice.lines.data else "subscription",
-            amount=_format_amount(invoice),
-            invoice_url=invoice.hosted_invoice_url or settings.BILLING_PORTAL_RETURN_URL,
-        )
-    except Exception:
-        logger.exception("email_payment_succeeded_failed")
-{%- endif %}
-
-
-async def handle_payment_failed(db: Session, event: stripe.Event) -> None:
-    logger.warning("invoice_payment_failed", extra={"invoice_id": event.data.object.id})
-{%- if cookiecutter.enable_email %}
-    invoice = event.data.object
-    try:
-        from app.services.email.service import get_email_service
-        from app.core.config import settings
-        email_svc = get_email_service()
-        await email_svc.send_payment_failed(
-            to=invoice.customer_email or "",
-            name=invoice.customer_name or "there",
-            amount=_format_amount(invoice),
-            update_url=settings.BILLING_PORTAL_RETURN_URL,
-        )
-    except Exception:
-        logger.exception("email_payment_failed_failed")
-{%- endif %}
-
-
-async def handle_upcoming(db: Session, event: stripe.Event) -> None:
-    logger.info("invoice_upcoming", extra={"invoice_id": event.data.object.id})
-
-{%- elif cookiecutter.use_mongodb %}
-import stripe
-from motor.motor_asyncio import AsyncIOMotorDatabase
-
-import app.repositories.subscription as sub_repo
-
-logger = logging.getLogger(__name__)
-
-
-def _format_amount(invoice) -> str:
-    amount = (invoice.amount_paid or invoice.amount_due or 0) / 100
-    currency = (invoice.currency or "usd").upper()
-    return f"{currency} {amount:.2f}"
-
-
-async def handle_payment_succeeded(db: AsyncIOMotorDatabase, event: stripe.Event) -> None:
-    invoice = event.data.object
-    if invoice.billing_reason not in ("subscription_create", "subscription_cycle"):
-        return
-    sub = await sub_repo.get_by_stripe_id(db, invoice.subscription)
-    if not sub:
-        return
-    logger.info("invoice_payment_succeeded", extra={"sub_id": str(sub.id)})
-{%- if cookiecutter.enable_email %}
-    try:
-        from app.services.email.service import get_email_service
-        from app.core.config import settings
-        email_svc = get_email_service()
-        await email_svc.send_payment_succeeded(
-            to=invoice.customer_email or "",
-            name=invoice.customer_name or "there",
-            plan_name=invoice.lines.data[0].description if invoice.lines and invoice.lines.data else "subscription",
-            amount=_format_amount(invoice),
-            invoice_url=invoice.hosted_invoice_url or settings.BILLING_PORTAL_RETURN_URL,
-        )
-    except Exception:
-        logger.exception("email_payment_succeeded_failed")
-{%- endif %}
-
-
-async def handle_payment_failed(db: AsyncIOMotorDatabase, event: stripe.Event) -> None:
-    invoice = event.data.object
-    logger.warning("invoice_payment_failed", extra={"invoice_id": invoice.id})
-{%- if cookiecutter.enable_email %}
-    try:
-        from app.services.email.service import get_email_service
-        from app.core.config import settings
-        email_svc = get_email_service()
-        await email_svc.send_payment_failed(
-            to=invoice.customer_email or "",
-            name=invoice.customer_name or "there",
-            amount=_format_amount(invoice),
-            update_url=settings.BILLING_PORTAL_RETURN_URL,
-        )
-    except Exception:
-        logger.exception("email_payment_failed_failed")
-{%- endif %}
-
-
-async def handle_upcoming(db: AsyncIOMotorDatabase, event: stripe.Event) -> None:
-    logger.info("invoice_upcoming", extra={"invoice_id": event.data.object.id})
-
-{%- endif %}
 {%- else %}
 """invoice_events — not enabled (enable_billing=false)."""
 {%- endif %}

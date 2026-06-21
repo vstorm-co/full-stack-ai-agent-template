@@ -18,7 +18,7 @@ Generate complete, type-safe applications with authentication, WebSocket streami
 
 ## Why FastAPI Fullstack?
 
-1. **AI-First Design**: Native support for PydanticAI, LangChain, LangGraph, CrewAI with WebSocket streaming and conversation persistence.
+1. **AI-First Design**: Native support for PydanticAI, LangChain, LangGraph, DeepAgents with WebSocket streaming and conversation persistence.
 
 2. **Production Ready**: 100% test coverage, strict typing, Docker/Kubernetes configs, and battle-tested in real applications.
 
@@ -46,13 +46,12 @@ fastapi-fullstack create my_app --preset ai-agent
 | **PydanticAI** | WebSocket | Logfire | OpenAI, Anthropic, OpenRouter |
 | **LangChain** | WebSocket | LangSmith | OpenAI, Anthropic |
 | **LangGraph** | WebSocket | LangSmith | OpenAI, Anthropic |
-| **CrewAI** | WebSocket | Logfire | OpenAI, Anthropic |
 
 ## Core Features
 
 | Feature | Description |
 |---------|-------------|
-| **AI Agents** | PydanticAI, LangChain, LangGraph, CrewAI with tool calling |
+| **AI Agents** | PydanticAI, LangChain, LangGraph, DeepAgents with tool calling |
 | **WebSocket Streaming** | Real-time responses with full event access |
 | **Authentication** | JWT + Refresh tokens, API Keys, OAuth2 (Google) |
 | **Databases** | PostgreSQL (async), MongoDB (async), SQLite |

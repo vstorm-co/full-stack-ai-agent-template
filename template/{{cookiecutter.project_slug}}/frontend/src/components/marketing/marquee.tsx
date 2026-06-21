@@ -14,7 +14,7 @@ export function Marquee({ items, itemsBottom, highlightEvery = 4, className }: M
   return (
     <div
       className={cn(
-        "marquee-strip bg-foreground text-background relative isolate select-none overflow-hidden py-6 md:py-8",
+        "marquee-strip bg-foreground text-background relative isolate overflow-hidden py-6 select-none md:py-8",
         className,
       )}
     >

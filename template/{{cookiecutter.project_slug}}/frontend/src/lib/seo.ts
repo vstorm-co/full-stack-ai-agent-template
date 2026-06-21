@@ -82,7 +82,10 @@ export function pageMetadata(input: PageMetaInput): Metadata {
     alternates: {
       canonical,
       languages: Object.fromEntries(
-        SITE.locales.map((loc) => [loc, `${SITE.url}${path === "/" ? `/${loc}` : `/${loc}${path}`}`]),
+        SITE.locales.map((loc) => [
+          loc,
+          `${SITE.url}${path === "/" ? `/${loc}` : `/${loc}${path}`}`,
+        ]),
       ),
     },
     openGraph: {

@@ -3,10 +3,12 @@
 
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import Field, field_validator
+
+from app.schemas.base import BaseSchema
 
 
-class RAGSearchRequest(BaseModel):
+class RAGSearchRequest(BaseSchema):
     """Parameters for a vector search query."""
     collection_name: str = Field("documents", description="Target collection for search")
     collection_names: list[str] | None = Field(None, description="Search across multiple collections (overrides collection_name)")
@@ -16,7 +18,7 @@ class RAGSearchRequest(BaseModel):
     filter: str | None = Field(None, description="Scalar filter expression (e.g. 'filetype == \"pdf\"')")
 
 
-class RAGSearchResult(BaseModel):
+class RAGSearchResult(BaseSchema):
     """A single retrieved chunk with its associated metadata."""
     content: str
     score: float
@@ -24,12 +26,12 @@ class RAGSearchResult(BaseModel):
     parent_doc_id: str
 
 
-class RAGSearchResponse(BaseModel):
+class RAGSearchResponse(BaseSchema):
     """List of results found in the vector store."""
     results: list[RAGSearchResult]
 
 
-class RAGCollectionInfo(BaseModel):
+class RAGCollectionInfo(BaseSchema):
     """Statistical information about a specific collection."""
     name: str
     total_vectors: int
@@ -37,12 +39,12 @@ class RAGCollectionInfo(BaseModel):
     indexing_status: str = "complete"
 
 
-class RAGCollectionList(BaseModel):
+class RAGCollectionList(BaseSchema):
     """List of all available collection names."""
     items: list[str]
 
 
-class RAGDocumentItem(BaseModel):
+class RAGDocumentItem(BaseSchema):
     """Information about a single document in a collection."""
     document_id: str = Field(..., description="Unique identifier of the document")
     filename: str | None = Field(None, description="Original filename of the document")
@@ -52,20 +54,19 @@ class RAGDocumentItem(BaseModel):
     additional_info: dict[str, Any] | None = Field(None, description="Additional metadata")
 
 
-class RAGDocumentList(BaseModel):
+class RAGDocumentList(BaseSchema):
     """List of all documents in a collection."""
     items: list[RAGDocumentItem]
     total: int = Field(..., description="Total number of unique documents")
 
 
-class RAGMessageResponse(BaseModel):
+class RAGMessageResponse(BaseSchema):
     """Simple message response."""
     message: str
 
-{%- if cookiecutter.use_postgresql %}
 
 
-class RAGTrackedDocumentItem(BaseModel):
+class RAGTrackedDocumentItem(BaseSchema):
     """A document tracked in the SQL database."""
     id: str
     collection_name: str
@@ -81,13 +82,13 @@ class RAGTrackedDocumentItem(BaseModel):
     completed_at: str | None = None
 
 
-class RAGTrackedDocumentList(BaseModel):
+class RAGTrackedDocumentList(BaseSchema):
     """List of tracked RAG documents."""
     items: list[RAGTrackedDocumentItem]
     total: int
 
 
-class RAGIngestResponse(BaseModel):
+class RAGIngestResponse(BaseSchema):
     """Response for document ingestion (async or sync)."""
     id: str
     status: str
@@ -97,22 +98,23 @@ class RAGIngestResponse(BaseModel):
     document_id: str | None = None
 
 
-class RAGRetryResponse(BaseModel):
+class RAGRetryResponse(BaseSchema):
     """Response for document retry."""
     id: str
     status: str
     message: str
 
 
-class RAGSyncRequest(BaseModel):
+class RAGSyncRequest(BaseSchema):
     """Request to trigger a sync operation."""
     collection_name: str = Field("documents", description="Target collection")
     mode: str = Field("full", description="Sync mode: full, new_only, update_only")
     path: str = Field("", description="Source path")
 
 
-class RAGSyncLogItem(BaseModel):
+class RAGSyncLogItem(BaseSchema):
     """A sync operation log entry."""
+
     id: str
     source: str
     collection_name: str
@@ -127,17 +129,25 @@ class RAGSyncLogItem(BaseModel):
     started_at: str | None = None
     completed_at: str | None = None
 
+    @field_validator("started_at", "completed_at", mode="before")
+    @classmethod
+    def serialize_datetime(cls, v: Any) -> str | None:
+        if v is None:
+            return None
+        if hasattr(v, "isoformat"):
+            return v.isoformat()
+        return str(v)
 
-class RAGSyncLogList(BaseModel):
+
+class RAGSyncLogList(BaseSchema):
     """List of sync log entries."""
     items: list[RAGSyncLogItem]
     total: int
 
 
-class RAGSyncResponse(BaseModel):
+class RAGSyncResponse(BaseSchema):
     """Response for sync trigger."""
     id: str
     status: str
     message: str
-{%- endif %}
 {%- endif %}

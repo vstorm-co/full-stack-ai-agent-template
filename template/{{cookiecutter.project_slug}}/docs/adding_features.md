@@ -221,7 +221,6 @@ def my_tool(param: str) -> dict:
     return {"result": result}
 ```
 {%- endif %}
-{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
 
 ## Adding a Database Migration
 
@@ -236,4 +235,3 @@ uv run alembic upgrade head
 uv run {{ cookiecutter.project_slug }} db migrate -m "Add notifications table"
 uv run {{ cookiecutter.project_slug }} db upgrade
 ```
-{%- endif %}

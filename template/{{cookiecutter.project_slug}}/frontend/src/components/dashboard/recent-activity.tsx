@@ -8,7 +8,7 @@ import type { LucideIcon } from "lucide-react";
 import { EmptyState, ErrorState, LoadingState } from "@/components/states";
 import { apiClient } from "@/lib/api-client";
 import { ROUTES } from "@/lib/constants";
-import { cn } from "@/lib/utils";
+import { cn, getErrorMessage, timeAgo } from "@/lib/utils";
 
 interface ActivityItem {
   id: string;
@@ -84,7 +84,7 @@ export function RecentActivity({ limit = 6 }: { limit?: number }) {
       events.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
       setItems(events.slice(0, limit));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load activity");
+      setError(getErrorMessage(err, "Failed to load activity"));
     }
   };
 
@@ -94,12 +94,12 @@ export function RecentActivity({ limit = 6 }: { limit?: number }) {
   }, [limit]);
 
   return (
-    <div className="border-border bg-card flex h-full flex-col rounded-2xl border p-5 lg:p-6">
+    <div className="border-border bg-card flex h-full flex-col rounded-xl border p-5 lg:p-6">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="font-display text-foreground text-base font-semibold">Recent activity</h2>
         <Link
           href={ROUTES.CHAT}
-          className="text-foreground/55 hover:text-foreground font-mono text-[11px] uppercase tracking-wider"
+          className="text-foreground/55 hover:text-foreground font-mono text-[11px] tracking-wider uppercase"
         >
           View all →
         </Link>
@@ -146,7 +146,7 @@ function ActivityRow({ item }: { item: ActivityItem }) {
         className={cn(
           "flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
           item.accent === "brand"
-            ? "bg-brand/15 text-foreground"
+            ? "bg-muted text-foreground"
             : item.accent === "danger"
               ? "bg-destructive/10 text-destructive"
               : "bg-foreground/8 text-foreground/80",
@@ -159,7 +159,7 @@ function ActivityRow({ item }: { item: ActivityItem }) {
         <p className="text-foreground/55 truncate text-xs">
           {item.description}
           {item.description && " · "}
-          {formatRelative(item.timestamp)}
+          {timeAgo(item.timestamp)}
         </p>
       </div>
     </div>
@@ -171,20 +171,8 @@ function ActivityRow({ item }: { item: ActivityItem }) {
   return content;
 }
 
-function formatRelative(iso: string): string {
-  const then = new Date(iso).getTime();
-  if (Number.isNaN(then)) return "";
-  const diffSec = Math.round((Date.now() - then) / 1000);
-  if (diffSec < 60) return "just now";
-  if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`;
-  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`;
-  if (diffSec < 86400 * 7) return `${Math.floor(diffSec / 86400)}d ago`;
-  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
 
 function humanizeTxType(t: string): string {
-  return t
-    .replace(/_/g, " ")
-    .replace(/^./, (c) => c.toUpperCase());
+  return t.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
 }
 {% endraw %}

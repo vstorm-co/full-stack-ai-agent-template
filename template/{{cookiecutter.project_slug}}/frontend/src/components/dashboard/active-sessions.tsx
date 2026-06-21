@@ -6,7 +6,8 @@ import { ArrowUpRight, Monitor, Shield, Smartphone } from "lucide-react";
 
 import { LoadingState } from "@/components/states";
 import { apiClient } from "@/lib/api-client";
-import { cn } from "@/lib/utils";
+import { ROUTES } from "@/lib/constants";
+import { cn, timeAgo } from "@/lib/utils";
 import type { Session, SessionListResponse } from "@/types";
 
 const MAX_ROWS = 4;
@@ -16,15 +17,6 @@ function DeviceIcon({ type }: { type?: string | null }) {
   return <Monitor className="h-4 w-4" />;
 }
 
-function relative(iso: string): string {
-  const t = new Date(iso).getTime();
-  if (Number.isNaN(t)) return "";
-  const diff = Math.round((Date.now() - t) / 1000);
-  if (diff < 60) return "just now";
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  return `${Math.floor(diff / 86400)}d ago`;
-}
 
 export function ActiveSessions() {
   const [sessions, setSessions] = useState<Session[] | null>(null);
@@ -41,18 +33,20 @@ export function ActiveSessions() {
   }, []);
 
   return (
-    <section className="border-border bg-card flex flex-col rounded-2xl border p-5 lg:p-6">
+    <section className="border-border bg-card flex flex-col rounded-xl border p-5 lg:p-6">
       <header className="flex items-end justify-between gap-3">
         <div>
           <p className="text-foreground/55 font-mono text-[11px] tracking-wider uppercase">
             Active sessions
           </p>
           <h2 className="font-display text-foreground mt-1 text-xl font-semibold tracking-tight">
-            {sessions ? `${sessions.length} signed-in device${sessions.length === 1 ? "" : "s"}` : "—"}
+            {sessions
+              ? `${sessions.length} signed-in device${sessions.length === 1 ? "" : "s"}`
+              : "—"}
           </h2>
         </div>
         <Link
-          href="/settings/profile"
+          href={ROUTES.SETTINGS_PROFILE}
           className="text-foreground/55 hover:text-foreground inline-flex items-center gap-1 text-xs font-medium transition-colors"
         >
           Revoke
@@ -78,7 +72,7 @@ export function ActiveSessions() {
                 <span
                   className={cn(
                     "bg-foreground/8 text-foreground inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
-                    s.is_current && "bg-brand/15",
+                    s.is_current && "bg-muted",
                   )}
                 >
                   <DeviceIcon type={s.device_type} />
@@ -93,7 +87,7 @@ export function ActiveSessions() {
                     )}
                   </p>
                   <p className="text-foreground/55 text-xs">
-                    {s.ip_address ? `${s.ip_address} · ` : ""}Active {relative(s.last_used_at)}
+                    {s.ip_address ? `${s.ip_address} · ` : ""}Active {timeAgo(s.last_used_at)}
                   </p>
                 </div>
               </li>

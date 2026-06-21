@@ -26,7 +26,8 @@ interface FeatureBentoProps {
   mockupSide?: "left" | "right";
 }
 
-const CARD = "group border-foreground/12 bg-card lift hover:border-foreground/25 relative overflow-hidden rounded-2xl border transition-colors";
+const CARD =
+  "group border-foreground/12 bg-card lift hover:border-foreground/25 relative overflow-hidden rounded-2xl border transition-colors";
 
 function BulletCard({
   b,
@@ -90,8 +91,9 @@ export function FeatureBento({
   );
 
   const visual = (
-    <div className={cn(CARD, "md:col-span-4 md:row-span-2", "flex items-center justify-center p-6")}>
-      {/* Brand glow behind the mockup */}
+    <div
+      className={cn(CARD, "md:col-span-4 md:row-span-2", "flex items-center justify-center p-6")}
+    >
       <div
         aria-hidden
         className="pointer-events-none absolute -top-20 left-1/2 -z-0 h-72 w-72 -translate-x-1/2 rounded-full blur-3xl"
@@ -112,7 +114,7 @@ export function FeatureBento({
   );
 
   return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-6 md:auto-rows-[190px]">
+    <div className="grid grid-cols-1 gap-4 md:auto-rows-[190px] md:grid-cols-6">
       {mockupSide === "left" ? (
         <>
           {visual}
@@ -125,7 +127,6 @@ export function FeatureBento({
         </>
       )}
 
-      {/* Bottom area: stat + wide benefit, then two benefits */}
       {statCard}
       <BulletCard b={bullets[0]} layout="row" className="md:col-span-4" />
       <BulletCard b={bullets[1]} layout="stack" className="md:col-span-3" />

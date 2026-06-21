@@ -1,21 +1,52 @@
-{%- if cookiecutter.enable_rag and (cookiecutter.use_celery or cookiecutter.use_taskiq or cookiecutter.use_arq) %}
+{%- if cookiecutter.enable_rag and (cookiecutter.use_celery or cookiecutter.use_taskiq or cookiecutter.use_arq or cookiecutter.use_prefect) %}
+# ruff: noqa: I001 - Imports structured for Jinja2 template conditionals
 """RAG ingestion & sync tasks — processes documents asynchronously."""
 
 import asyncio
+import hashlib
 import json
 import logging
 import tempfile
 from pathlib import Path
 from typing import Any
 
+import redis.asyncio as aioredis
 {%- if cookiecutter.use_celery %}
 from celery import shared_task
 {%- elif cookiecutter.use_taskiq %}
 from app.worker.taskiq_app import broker
+{%- elif cookiecutter.use_prefect %}
+from prefect import flow
+{%- endif %}
+
+from app.core.config import settings
+from app.db.session import get_worker_db_context
+from app.repositories import sync_source as sync_source_repo
+from app.services.rag.config import DocumentExtensions
+from app.services.rag.connectors import CONNECTOR_REGISTRY
+from app.services.rag.documents import DocumentProcessor
+from app.services.rag.embeddings import EmbeddingService
+from app.services.rag.ingestion import IngestionService
+from app.services.sync_source import SyncSourceService
+{%- if cookiecutter.use_milvus %}
+from app.services.rag.vectorstore import MilvusVectorStore as VectorStore
+{%- elif cookiecutter.use_qdrant %}
+from app.services.rag.vectorstore import QdrantVectorStore as VectorStore
+{%- elif cookiecutter.use_chromadb %}
+from app.services.rag.vectorstore import ChromaVectorStore as VectorStore
+{%- elif cookiecutter.use_pgvector %}
+from app.services.rag.vectorstore import PgVectorStore as VectorStore
 {%- endif %}
 
 logger = logging.getLogger(__name__)
 
+
+def _build_ingestion_service() -> IngestionService:
+    rag_settings = settings.rag
+    embed_service = EmbeddingService(settings=rag_settings)
+    vector_store = VectorStore(settings=rag_settings, embedding_service=embed_service)
+    processor = DocumentProcessor(settings=rag_settings)
+    return IngestionService(processor=processor, vector_store=vector_store)
 
 
 {%- if cookiecutter.use_celery %}
@@ -24,11 +55,11 @@ logger = logging.getLogger(__name__)
 @shared_task(bind=True, max_retries=2, soft_time_limit=300, time_limit=360)  # type: ignore
 def ingest_document_task(self: Any, rag_document_id: str, collection_name: str, filepath: str, source_path: str, replace: bool = False) -> dict[str, Any]:
     """Process a document: parse, chunk, embed, store in vector DB."""
-    logger.info(f"Starting ingestion: {source_path} -> {collection_name}")
+    logger.info("Starting ingestion: %s -> %s", source_path, collection_name)
     try:
         return asyncio.run(_run_ingestion(rag_document_id, collection_name, filepath, source_path, replace))
     except Exception as exc:
-        logger.error(f"Ingestion failed: {exc}")
+        logger.error("Ingestion failed: %s", exc)
         asyncio.run(_update_status(rag_document_id, "error", error_message=str(exc)))
         raise self.retry(exc=exc, countdown=30) from exc
 
@@ -36,11 +67,11 @@ def ingest_document_task(self: Any, rag_document_id: str, collection_name: str, 
 @shared_task(bind=True, max_retries=1, soft_time_limit=600, time_limit=720)  # type: ignore
 def sync_collection_task(self: Any, sync_log_id: str, source: str, collection_name: str, mode: str, path: str) -> dict[str, Any]:
     """Sync a collection from a local directory."""
-    logger.info(f"Starting sync: {source} -> {collection_name} (mode={mode})")
+    logger.info("Starting sync: %s -> %s (mode=%s)", source, collection_name, mode)
     try:
         return asyncio.run(_run_sync(sync_log_id, source, collection_name, mode, path))
     except Exception as exc:
-        logger.error(f"Sync failed: {exc}")
+        logger.error("Sync failed: %s", exc)
         asyncio.run(_update_sync_log(sync_log_id, "error", error_message=str(exc)))
         raise self.retry(exc=exc, countdown=60) from exc
 {%- elif cookiecutter.use_taskiq %}
@@ -49,11 +80,11 @@ def sync_collection_task(self: Any, sync_log_id: str, source: str, collection_na
 @broker.task
 async def ingest_document_task(rag_document_id: str, collection_name: str, filepath: str, source_path: str, replace: bool = False) -> dict[str, Any]:
     """Process a document: parse, chunk, embed, store in vector DB."""
-    logger.info(f"Starting ingestion: {source_path} -> {collection_name}")
+    logger.info("Starting ingestion: %s -> %s", source_path, collection_name)
     try:
         return await _run_ingestion(rag_document_id, collection_name, filepath, source_path, replace)
     except Exception as exc:
-        logger.error(f"Ingestion failed: {exc}")
+        logger.error("Ingestion failed: %s", exc)
         await _update_status(rag_document_id, "error", error_message=str(exc))
         raise
 
@@ -61,11 +92,11 @@ async def ingest_document_task(rag_document_id: str, collection_name: str, filep
 @broker.task
 async def sync_collection_task(sync_log_id: str, source: str, collection_name: str, mode: str, path: str) -> dict[str, Any]:
     """Sync a collection from a local directory."""
-    logger.info(f"Starting sync: {source} -> {collection_name} (mode={mode})")
+    logger.info("Starting sync: %s -> %s (mode=%s)", source, collection_name, mode)
     try:
         return await _run_sync(sync_log_id, source, collection_name, mode, path)
     except Exception as exc:
-        logger.error(f"Sync failed: {exc}")
+        logger.error("Sync failed: %s", exc)
         await _update_sync_log(sync_log_id, "error", error_message=str(exc))
         raise
 {%- elif cookiecutter.use_arq %}
@@ -73,22 +104,22 @@ async def sync_collection_task(sync_log_id: str, source: str, collection_name: s
 
 async def ingest_document_task(ctx: dict, rag_document_id: str, collection_name: str, filepath: str, source_path: str, replace: bool = False) -> dict[str, Any]:
     """Process a document: parse, chunk, embed, store in vector DB."""
-    logger.info(f"Starting ingestion: {source_path} -> {collection_name}")
+    logger.info("Starting ingestion: %s -> %s", source_path, collection_name)
     try:
         return await _run_ingestion(rag_document_id, collection_name, filepath, source_path, replace)
     except Exception as exc:
-        logger.error(f"Ingestion failed: {exc}")
+        logger.error("Ingestion failed: %s", exc)
         await _update_status(rag_document_id, "error", error_message=str(exc))
         raise
 
 
 async def sync_collection_task(ctx: dict, sync_log_id: str, source: str, collection_name: str, mode: str, path: str) -> dict[str, Any]:
     """Sync a collection from a local directory."""
-    logger.info(f"Starting sync: {source} -> {collection_name} (mode={mode})")
+    logger.info("Starting sync: %s -> %s (mode=%s)", source, collection_name, mode)
     try:
         return await _run_sync(sync_log_id, source, collection_name, mode, path)
     except Exception as exc:
-        logger.error(f"Sync failed: {exc}")
+        logger.error("Sync failed: %s", exc)
         await _update_sync_log(sync_log_id, "error", error_message=str(exc))
         raise
 {%- endif %}
@@ -101,11 +132,11 @@ async def sync_collection_task(ctx: dict, sync_log_id: str, source: str, collect
 @shared_task(bind=True, max_retries=2, soft_time_limit=600, time_limit=720)  # type: ignore
 def sync_single_source_task(self: Any, source_id: str, sync_log_id: str | None = None) -> dict[str, Any]:
     """Sync a single connector source. If sync_log_id provided, use existing log."""
-    logger.info(f"Starting source sync: {source_id}")
+    logger.info("Starting source sync: %s", source_id)
     try:
         return asyncio.run(_run_source_sync(source_id, sync_log_id=sync_log_id))
     except Exception as exc:
-        logger.error(f"Source sync failed: {exc}")
+        logger.error("Source sync failed: %s", exc)
         raise self.retry(exc=exc, countdown=60) from exc
 
 
@@ -113,14 +144,11 @@ def sync_single_source_task(self: Any, source_id: str, sync_log_id: str | None =
 def check_scheduled_syncs() -> None:
     """Periodic task: find sources due for sync and dispatch individual tasks."""
     async def _check() -> None:
-        from app.db.session import get_worker_db_context
-        from app.repositories import sync_source as sync_source_repo
-
         async with get_worker_db_context() as db:
             sources = await sync_source_repo.get_due_for_sync(db)
             for source in sources:
                 sync_single_source_task.delay(str(source.id))
-            logger.info(f"Scheduled sync check: dispatched {len(sources)} source(s)")
+            logger.info("Scheduled sync check: dispatched %d source(s)", len(sources))
 
     asyncio.run(_check())
 {%- elif cookiecutter.use_taskiq %}
@@ -129,68 +157,88 @@ def check_scheduled_syncs() -> None:
 @broker.task
 async def sync_single_source_task(source_id: str, sync_log_id: str | None = None) -> dict[str, Any]:
     """Sync a single connector source. If sync_log_id provided, use existing log."""
-    logger.info(f"Starting source sync: {source_id}")
+    logger.info("Starting source sync: %s", source_id)
     return await _run_source_sync(source_id, sync_log_id=sync_log_id)
 
 
 @broker.task
 async def check_scheduled_syncs() -> None:
     """Periodic task: find sources due for sync and dispatch individual tasks."""
-    from app.db.session import get_worker_db_context
-    from app.repositories import sync_source as sync_source_repo
-
     async with get_worker_db_context() as db:
         sources = await sync_source_repo.get_due_for_sync(db)
         for source in sources:
             await sync_single_source_task.kiq(str(source.id))
-        logger.info(f"Scheduled sync check: dispatched {len(sources)} source(s)")
+        logger.info("Scheduled sync check: dispatched %d source(s)", len(sources))
 {%- elif cookiecutter.use_arq %}
 
 
 async def sync_single_source_task(ctx: dict, source_id: str, sync_log_id: str | None = None) -> dict[str, Any]:
     """Sync a single connector source. If sync_log_id provided, use existing log."""
-    logger.info(f"Starting source sync: {source_id}")
+    logger.info("Starting source sync: %s", source_id)
     return await _run_source_sync(source_id, sync_log_id=sync_log_id)
 
 
 async def check_scheduled_syncs(ctx: dict) -> None:
     """Periodic task: find sources due for sync and dispatch individual tasks."""
-    from app.db.session import get_worker_db_context
-    from app.repositories import sync_source as sync_source_repo
-
     async with get_worker_db_context() as db:
         sources = await sync_source_repo.get_due_for_sync(db)
         pool = ctx["redis"]
         for source in sources:
             await pool.enqueue_job("sync_single_source_task", str(source.id))
-        logger.info(f"Scheduled sync check: dispatched {len(sources)} source(s)")
+        logger.info("Scheduled sync check: dispatched %d source(s)", len(sources))
+
+{%- elif cookiecutter.use_prefect %}
+
+
+@flow(name="ingest-document", log_prints=True)
+async def ingest_document_flow(rag_document_id: str, collection_name: str, filepath: str, source_path: str, replace: bool = False) -> dict[str, Any]:
+    """Process a document: parse, chunk, embed, store in vector DB."""
+    logger.info("Starting ingestion: %s -> %s", source_path, collection_name)
+    try:
+        return await _run_ingestion(rag_document_id, collection_name, filepath, source_path, replace)
+    except Exception as exc:
+        logger.error("Ingestion failed: %s", exc)
+        await _update_status(rag_document_id, "error", error_message=str(exc))
+        raise
+
+
+@flow(name="sync-collection", log_prints=True)
+async def sync_collection_flow(sync_log_id: str, source: str, collection_name: str, mode: str, path: str) -> dict[str, Any]:
+    """Sync a collection from a local directory."""
+    logger.info("Starting sync: %s -> %s (mode=%s)", source, collection_name, mode)
+    try:
+        return await _run_sync(sync_log_id, source, collection_name, mode, path)
+    except Exception as exc:
+        logger.error("Sync failed: %s", exc)
+        await _update_sync_log(sync_log_id, "error", error_message=str(exc))
+        raise
+
+
+@flow(name="sync-single-source", log_prints=True)
+async def sync_single_source_flow(source_id: str, sync_log_id: str | None = None) -> dict[str, Any]:
+    """Sync a single connector source. If sync_log_id provided, use existing log."""
+    logger.info("Starting source sync: %s", source_id)
+    return await _run_source_sync(source_id, sync_log_id=sync_log_id)
+
+
+@flow(name="rag-sync-check", log_prints=True)
+async def check_scheduled_syncs_flow() -> None:
+    """Scheduled flow: find sources due for sync and dispatch individual flows."""
+    import asyncio
+    async with get_worker_db_context() as db:
+        sources = await sync_source_repo.get_due_for_sync(db)
+        tasks = [asyncio.create_task(sync_single_source_flow(str(source.id))) for source in sources]
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
+        logger.info("Scheduled sync check: dispatched %d source(s)", len(sources))
 {%- endif %}
 
 
 
 
 async def _run_ingestion(rag_document_id: str, collection_name: str, filepath: str, source_path: str, replace: bool) -> dict[str, Any]:
-    from app.core.config import settings
-    from app.db.session import get_worker_db_context
     from app.services.rag_document import RAGDocumentService
-    from app.services.rag.documents import DocumentProcessor
-    from app.services.rag.embeddings import EmbeddingService
-    from app.services.rag.ingestion import IngestionService
-{%- if cookiecutter.use_milvus %}
-    from app.services.rag.vectorstore import MilvusVectorStore as VectorStore
-{%- elif cookiecutter.use_qdrant %}
-    from app.services.rag.vectorstore import QdrantVectorStore as VectorStore
-{%- elif cookiecutter.use_chromadb %}
-    from app.services.rag.vectorstore import ChromaVectorStore as VectorStore
-{%- elif cookiecutter.use_pgvector %}
-    from app.services.rag.vectorstore import PgVectorStore as VectorStore
-{%- endif %}
-
-    rag_settings = settings.rag
-    embed_service = EmbeddingService(settings=rag_settings)
-    vector_store = VectorStore(settings=rag_settings, embedding_service=embed_service)
-    processor = DocumentProcessor(settings=rag_settings)
-    ingestion_service = IngestionService(processor=processor, vector_store=vector_store)
+    ingestion_service = _build_ingestion_service()
 
     file_path = Path(filepath)
     try:
@@ -198,7 +246,7 @@ async def _run_ingestion(rag_document_id: str, collection_name: str, filepath: s
         async with get_worker_db_context() as db:
             await RAGDocumentService(db).complete_ingestion(rag_document_id, vector_document_id=result.document_id)
         await _notify_ws(rag_document_id, "done", source_path)
-        logger.info(f"Ingestion complete: {source_path}")
+        logger.info("Ingestion complete: %s", source_path)
         return {"status": "done", "document_id": result.document_id, "filename": source_path}
     except Exception as e:
         await _update_status(rag_document_id, "error", error_message=str(e))
@@ -206,30 +254,9 @@ async def _run_ingestion(rag_document_id: str, collection_name: str, filepath: s
 
 
 async def _run_sync(sync_log_id: str, source: str, collection_name: str, mode: str, path: str) -> dict[str, Any]:
-    import hashlib
-    from app.core.config import settings
-    from app.db.session import get_worker_db_context
     from app.services.rag_document import RAGDocumentService
     from app.services.rag_sync import RAGSyncService
-    from app.services.rag.documents import DocumentProcessor
-    from app.services.rag.embeddings import EmbeddingService
-    from app.services.rag.ingestion import IngestionService
-    from app.services.rag.config import DocumentExtensions
-{%- if cookiecutter.use_milvus %}
-    from app.services.rag.vectorstore import MilvusVectorStore as VectorStore
-{%- elif cookiecutter.use_qdrant %}
-    from app.services.rag.vectorstore import QdrantVectorStore as VectorStore
-{%- elif cookiecutter.use_chromadb %}
-    from app.services.rag.vectorstore import ChromaVectorStore as VectorStore
-{%- elif cookiecutter.use_pgvector %}
-    from app.services.rag.vectorstore import PgVectorStore as VectorStore
-{%- endif %}
-
-    rag_settings = settings.rag
-    embed_service = EmbeddingService(settings=rag_settings)
-    vector_store = VectorStore(settings=rag_settings, embedding_service=embed_service)
-    processor = DocumentProcessor(settings=rag_settings)
-    ingestion_service = IngestionService(processor=processor, vector_store=vector_store)
+    ingestion_service = _build_ingestion_service()
 
     target_path = Path(path).resolve()
     if not target_path.exists():
@@ -246,11 +273,10 @@ async def _run_sync(sync_log_id: str, source: str, collection_name: str, mode: s
     ingested = updated = skipped = failed = 0
 
     for filepath in files:
-        # Check if sync was cancelled
         async with get_worker_db_context() as db:
             sync_log_check = await RAGSyncService(db).get_sync_log(sync_log_id)
             if sync_log_check.status == "cancelled":
-                logger.info(f"Sync {sync_log_id} cancelled by user")
+                logger.info("Sync %s cancelled by user", sync_log_id)
                 return {"status": "cancelled", "ingested": ingested, "updated": updated, "skipped": skipped, "failed": failed}
 
         source_path = str(filepath.resolve())
@@ -296,7 +322,7 @@ async def _run_sync(sync_log_id: str, source: str, collection_name: str, mode: s
             else:
                 failed += 1
         except Exception as e:
-            logger.warning(f"Sync file error {filepath.name}: {e}")
+            logger.warning("Sync file error %s: %s", filepath.name, e)
             failed += 1
 
     async with get_worker_db_context() as db:
@@ -316,7 +342,6 @@ async def _run_sync(sync_log_id: str, source: str, collection_name: str, mode: s
 
 
 async def _update_status(rag_document_id: str, status: str, error_message: str | None = None) -> None:
-    from app.db.session import get_worker_db_context
     from app.services.rag_document import RAGDocumentService
     try:
         async with get_worker_db_context() as db:
@@ -328,31 +353,27 @@ async def _update_status(rag_document_id: str, status: str, error_message: str |
                 # set status="done" directly in _run_ingestion with the ID.
                 pass
     except Exception as e:
-        logger.warning(f"Failed to update RAGDocument status: {e}")
+        logger.warning("Failed to update RAGDocument status: %s", e)
 
 
 async def _notify_ws(rag_document_id: str, status: str, filename: str) -> None:
     try:
-        import json
-        import redis.asyncio as aioredis
-        from app.core.config import settings
         r = aioredis.from_url(f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}/{settings.REDIS_DB}")  # type: ignore[no-untyped-call]
         await r.publish("rag_status", json.dumps({
             "document_id": rag_document_id, "status": status, "filename": filename,
         }))
         await r.aclose()
     except Exception as e:
-        logger.warning(f"Failed to send WS notification: {e}")
+        logger.warning("Failed to send WS notification: %s", e)
 
 
 async def _update_sync_log(sync_log_id: str, status: str, error_message: str | None = None) -> None:
-    from app.db.session import get_worker_db_context
     from app.services.rag_sync import RAGSyncService
     try:
         async with get_worker_db_context() as db:
             await RAGSyncService(db).complete_sync(sync_log_id, status=status, error_message=error_message)
     except Exception as e:
-        logger.warning(f"Failed to update SyncLog: {e}")
+        logger.warning("Failed to update SyncLog: %s", e)
 
 
 async def _run_source_sync(source_id: str, sync_log_id: str | None = None) -> dict[str, Any]:
@@ -361,24 +382,7 @@ async def _run_source_sync(source_id: str, sync_log_id: str | None = None) -> di
     Fetches files from a remote connector (e.g. Google Drive, S3), downloads them
     to a temporary directory, and ingests each into the vector store.
     """
-    from app.core.config import settings
-    from app.db.session import get_worker_db_context
-    from app.services.sync_source import SyncSourceService
     from app.services.rag_sync import RAGSyncService
-    from app.services.rag.connectors import CONNECTOR_REGISTRY
-    from app.services.rag.documents import DocumentProcessor
-    from app.services.rag.embeddings import EmbeddingService
-    from app.services.rag.ingestion import IngestionService
-{%- if cookiecutter.use_milvus %}
-    from app.services.rag.vectorstore import MilvusVectorStore as VectorStore
-{%- elif cookiecutter.use_qdrant %}
-    from app.services.rag.vectorstore import QdrantVectorStore as VectorStore
-{%- elif cookiecutter.use_chromadb %}
-    from app.services.rag.vectorstore import ChromaVectorStore as VectorStore
-{%- elif cookiecutter.use_pgvector %}
-    from app.services.rag.vectorstore import PgVectorStore as VectorStore
-{%- endif %}
-
     async with get_worker_db_context() as db:
         source_svc = SyncSourceService(db)
 
@@ -402,11 +406,7 @@ async def _run_source_sync(source_id: str, sync_log_id: str | None = None) -> di
             log_id = str(log.id)
 
     connector = connector_cls()
-    rag_settings = settings.rag
-    embed_service = EmbeddingService(settings=rag_settings)
-    vector_store = VectorStore(settings=rag_settings, embedding_service=embed_service)
-    processor = DocumentProcessor(settings=rag_settings)
-    ingestion_svc = IngestionService(processor=processor, vector_store=vector_store)
+    ingestion_svc = _build_ingestion_service()
 
     ingested = skipped = failed = total = 0
 
@@ -426,10 +426,10 @@ async def _run_source_sync(source_id: str, sync_log_id: str | None = None) -> di
                     )
                     ingested += 1
                 except Exception as e:
-                    logger.warning(f"Failed to sync {remote_file.name}: {e}")
+                    logger.warning("Failed to sync %s: %s", remote_file.name, e)
                     failed += 1
     except Exception as e:
-        logger.error(f"Source sync failed for {source_id}: {e}")
+        logger.error("Source sync failed for %s: %s", source_id, e)
         failed = max(failed, 1)
 
     async with get_worker_db_context() as db:
@@ -450,11 +450,11 @@ async def _run_source_sync(source_id: str, sync_log_id: str | None = None) -> di
                 error=f"{failed} files failed" if failed else None,
             )
         except Exception:
-            logger.error(f"Failed to update sync status for source {source_id}")
+            logger.error("Failed to update sync status for source %s", source_id)
 
     logger.info(
-        f"Source sync complete: {source_id} — "
-        f"total={total}, ingested={ingested}, skipped={skipped}, failed={failed}"
+        "Source sync complete: %s — total=%d, ingested=%d, skipped=%d, failed=%d",
+        source_id, total, ingested, skipped, failed,
     )
     return {
         "status": "done" if not failed else "error",

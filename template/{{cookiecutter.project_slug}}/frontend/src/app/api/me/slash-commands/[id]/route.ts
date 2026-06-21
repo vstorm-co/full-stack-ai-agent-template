@@ -2,10 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { BackendApiError, backendFetch } from "@/lib/server-api";
 
-export async function PATCH(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> },
-) {
+export async function PATCH(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const accessToken = request.cookies.get("access_token")?.value;
   if (!accessToken) {
     return NextResponse.json({ detail: "Not authenticated" }, { status: 401 });
@@ -27,10 +24,7 @@ export async function PATCH(
   }
 }
 
-export async function DELETE(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> },
-) {
+export async function DELETE(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const accessToken = request.cookies.get("access_token")?.value;
   if (!accessToken) {
     return NextResponse.json({ detail: "Not authenticated" }, { status: 401 });

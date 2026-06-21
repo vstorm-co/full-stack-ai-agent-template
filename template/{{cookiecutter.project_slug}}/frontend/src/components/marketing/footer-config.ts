@@ -21,7 +21,7 @@ export function buildMarketingNavLinks(t: T) {
     { label: t("nav.solutions"), href: `${ROUTES.HOME}#how` },
     { label: t("nav.pricing"), href: ROUTES.PRICING },
 {%- if cookiecutter.enable_marketing_site %}
-    { label: t("nav.customers"), href: "/blog" },
+    { label: t("nav.customers"), href: ROUTES.BLOG },
 {%- endif %}
     { label: t("nav.resources"), href: `${ROUTES.HOME}#faq` },
   ];
@@ -90,7 +90,7 @@ export function buildMarketingNav(t: T): NavItem[] {
         {
           label: t("menu.items.changelog.label"),
           description: t("menu.items.changelog.desc"),
-          href: "/changelog",
+          href: ROUTES.CHANGELOG,
           icon: "changelog",
         },
       ],
@@ -121,13 +121,13 @@ export function buildMarketingNav(t: T): NavItem[] {
         {
           label: t("menu.items.research.label"),
           description: t("menu.items.research.desc"),
-          href: "/contact",
+          href: ROUTES.CONTACT,
           icon: "research",
         },
 {%- endif %}
       ],
 {%- if cookiecutter.enable_marketing_site %}
-      featured: { label: t("menu.talkToSales"), href: "/contact" },
+      featured: { label: t("menu.talkToSales"), href: ROUTES.CONTACT },
 {%- endif %}
     },
     { label: t("nav.pricing"), href: ROUTES.PRICING },
@@ -138,7 +138,7 @@ export function buildMarketingNav(t: T): NavItem[] {
         {
           label: t("footer.helpCenter"),
           description: t("menu.items.help.desc"),
-          href: "/help",
+          href: ROUTES.HELP,
           icon: "help",
         },
 {%- endif %}
@@ -152,19 +152,19 @@ export function buildMarketingNav(t: T): NavItem[] {
         {
           label: t("nav.security"),
           description: t("menu.items.security.desc"),
-          href: "/security",
+          href: ROUTES.SECURITY,
           icon: "security",
         },
         {
           label: t("nav.community"),
           description: t("menu.items.community.desc"),
-          href: "/community",
+          href: ROUTES.COMMUNITY,
           icon: "community",
         },
         {
           label: t("nav.blog"),
           description: t("menu.items.blog.desc"),
-          href: "/blog",
+          href: ROUTES.BLOG,
           icon: "blog",
         },
 {%- endif %}
@@ -180,25 +180,25 @@ export function buildFooterColumns(t: T): FooterColumn[] {
       links: [
         { label: t("nav.features"), href: `${ROUTES.HOME}#features` },
         { label: t("nav.pricing"), href: ROUTES.PRICING },
-        { label: t("nav.changelog"), href: "/changelog" },
+        { label: t("nav.changelog"), href: ROUTES.CHANGELOG },
       ],
     },
 {%- if cookiecutter.enable_marketing_site %}
     {
       title: t("footer.company"),
       links: [
-        { label: t("nav.about"), href: "/about" },
-        { label: t("nav.blog"), href: "/blog" },
-        { label: t("nav.contact"), href: "/contact" },
+        { label: t("nav.about"), href: ROUTES.ABOUT },
+        { label: t("nav.blog"), href: ROUTES.BLOG },
+        { label: t("nav.contact"), href: ROUTES.CONTACT },
       ],
     },
     {
       title: t("footer.resources"),
       links: [
-        { label: t("footer.helpCenter"), href: "/help" },
+        { label: t("footer.helpCenter"), href: ROUTES.HELP },
         { label: t("footer.apiDocs"), href: `${BACKEND_URL}/docs` },
-        { label: t("nav.security"), href: "/security" },
-        { label: t("nav.community"), href: "/community" },
+        { label: t("nav.security"), href: ROUTES.SECURITY },
+        { label: t("nav.community"), href: ROUTES.COMMUNITY },
       ],
     },
 {%- else %}
@@ -215,9 +215,9 @@ export function buildFooterColumns(t: T): FooterColumn[] {
 export function buildFooterLegal(t: T) {
   return [
 {%- if cookiecutter.enable_marketing_site %}
-    { label: t("footer.terms"), href: "/legal/terms" },
-    { label: t("footer.privacy"), href: "/legal/privacy" },
-    { label: t("footer.cookies"), href: "/legal/cookies" },
+    { label: t("footer.terms"), href: ROUTES.LEGAL_TERMS },
+    { label: t("footer.privacy"), href: ROUTES.LEGAL_PRIVACY },
+    { label: t("footer.cookies"), href: ROUTES.LEGAL_COOKIES },
 {%- endif %}
   ];
 }

@@ -2,8 +2,8 @@ export function CookiesBodyEn() {
   return (
     <>
       <p>
-        We use cookies and similar technologies (collectively, &ldquo;cookies&rdquo;) to operate
-        the Service and improve it. This page explains what we use and how to control it.
+        We use cookies and similar technologies (collectively, &ldquo;cookies&rdquo;) to operate the
+        Service and improve it. This page explains what we use and how to control it.
       </p>
 
       <h2>What is a cookie?</h2>
@@ -19,9 +19,15 @@ export function CookiesBodyEn() {
         CSRF token, preferred theme.
       </p>
       <ul>
-        <li><code>auth.session</code> — your authenticated session (httpOnly).</li>
-        <li><code>theme</code> — light/dark preference.</li>
-        <li><code>locale</code> — your selected language.</li>
+        <li>
+          <code>auth.session</code> — your authenticated session (httpOnly).
+        </li>
+        <li>
+          <code>theme</code> — light/dark preference.
+        </li>
+        <li>
+          <code>locale</code> — your selected language.
+        </li>
       </ul>
 
       <h3>Analytics</h3>
@@ -30,20 +36,26 @@ export function CookiesBodyEn() {
         and don&apos;t share with third parties for advertising.
       </p>
       <ul>
-        <li><code>analytics.session</code> — pageview and feature-usage counters.</li>
+        <li>
+          <code>analytics.session</code> — pageview and feature-usage counters.
+        </li>
       </ul>
 
       <h3>Functional</h3>
       <p>Remember your choices to make the Service feel less repetitive. Optional.</p>
       <ul>
-        <li><code>onboarding.completed_at</code> — whether you finished the setup wizard.</li>
-        <li><code>cookie.consent</code> — your response to the cookie banner.</li>
+        <li>
+          <code>onboarding.completed_at</code> — whether you finished the setup wizard.
+        </li>
+        <li>
+          <code>cookie.consent</code> — your response to the cookie banner.
+        </li>
       </ul>
 
       <h2>Your choices</h2>
       <p>
-        You can accept, reject, or customize categories from the cookie banner shown on first
-        visit. You can change your choice anytime from the link in the footer.
+        You can accept, reject, or customize categories from the cookie banner shown on first visit.
+        You can change your choice anytime from the link in the footer.
       </p>
       <p>
         You can also block cookies in your browser settings. Note: blocking essential cookies will
@@ -74,9 +86,9 @@ export function CookiesBodyPl() {
 
       <h2>Czym jest plik cookie?</h2>
       <p>
-        Mały plik, który Twoja przeglądarka przechowuje na urządzeniu gdy odwiedzasz stronę.
-        Cookies pozwalają nam utrzymywać Cię zalogowanego, pamiętać preferencje i rozumieć jak
-        używane są funkcje.
+        Mały plik, który Twoja przeglądarka przechowuje na urządzeniu gdy odwiedzasz stronę. Cookies
+        pozwalają nam utrzymywać Cię zalogowanego, pamiętać preferencje i rozumieć jak używane są
+        funkcje.
       </p>
 
       <h2>Kategorie</h2>
@@ -86,9 +98,15 @@ export function CookiesBodyPl() {
         preferowany motyw.
       </p>
       <ul>
-        <li><code>auth.session</code> — Twoja uwierzytelniona sesja (httpOnly).</li>
-        <li><code>theme</code> — preferencja jasny/ciemny.</li>
-        <li><code>locale</code> — wybrany język.</li>
+        <li>
+          <code>auth.session</code> — Twoja uwierzytelniona sesja (httpOnly).
+        </li>
+        <li>
+          <code>theme</code> — preferencja jasny/ciemny.
+        </li>
+        <li>
+          <code>locale</code> — wybrany język.
+        </li>
       </ul>
 
       <h3>Analityczne</h3>
@@ -97,14 +115,20 @@ export function CookiesBodyPl() {
         adresy IP i nie udostępniamy ich stronom trzecim do reklamy.
       </p>
       <ul>
-        <li><code>analytics.session</code> — licznik wyświetleń i użycia funkcji.</li>
+        <li>
+          <code>analytics.session</code> — licznik wyświetleń i użycia funkcji.
+        </li>
       </ul>
 
       <h3>Funkcjonalne</h3>
       <p>Pamiętają Twoje wybory by Usługa nie była powtarzalna. Opcjonalne.</p>
       <ul>
-        <li><code>onboarding.completed_at</code> — czy ukończyłeś kreator setupu.</li>
-        <li><code>cookie.consent</code> — Twoja odpowiedź na banner cookies.</li>
+        <li>
+          <code>onboarding.completed_at</code> — czy ukończyłeś kreator setupu.
+        </li>
+        <li>
+          <code>cookie.consent</code> — Twoja odpowiedź na banner cookies.
+        </li>
       </ul>
 
       <h2>Twoje wybory</h2>
@@ -119,8 +143,8 @@ export function CookiesBodyPl() {
 
       <h2>Cookies stron trzecich</h2>
       <p>
-        Nie ustawiamy reklamowych cookies. Niektóre osadzone treści (wideo, widgety płatności)
-        mogą ustawiać cookies — podlegają one politykom swoich dostawców.
+        Nie ustawiamy reklamowych cookies. Niektóre osadzone treści (wideo, widgety płatności) mogą
+        ustawiać cookies — podlegają one politykom swoich dostawców.
       </p>
 
       <h2>Kontakt</h2>

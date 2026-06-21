@@ -5,25 +5,15 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Any
-{%- if cookiecutter.use_postgresql or cookiecutter.use_mongodb %}
 from uuid import UUID
-{%- endif %}
 
 from pydantic import Field
 
 from app.schemas.base import BaseSchema, TimestampSchema
 
 
-# ---------------------------------------------------------------------------
-# Plans & Prices
-# ---------------------------------------------------------------------------
-
 class PriceRead(BaseSchema):
-{%- if cookiecutter.use_postgresql %}
     id: UUID
-{%- else %}
-    id: str
-{%- endif %}
     stripe_price_id: str
     interval: str
     amount_cents: int
@@ -35,11 +25,7 @@ class PriceRead(BaseSchema):
 
 
 class PlanRead(BaseSchema):
-{%- if cookiecutter.use_postgresql %}
     id: UUID
-{%- else %}
-    id: str
-{%- endif %}
     code: str
     display_name: str
     description: str | None = None
@@ -60,20 +46,10 @@ class PlanList(BaseSchema):
     plans: list[PlanRead]
 
 
-# ---------------------------------------------------------------------------
-# Subscriptions
-# ---------------------------------------------------------------------------
-
 class SubscriptionRead(BaseSchema, TimestampSchema):
-{%- if cookiecutter.use_postgresql %}
     id: UUID
     organization_id: UUID
     price_id: UUID
-{%- else %}
-    id: str
-    organization_id: str
-    price_id: str
-{%- endif %}
     stripe_subscription_id: str
     stripe_customer_id: str
     seats_quantity: int
@@ -87,24 +63,12 @@ class SubscriptionRead(BaseSchema, TimestampSchema):
 
 
 class SubscriptionChangePlan(BaseSchema):
-{%- if cookiecutter.use_postgresql %}
     new_price_id: UUID
-{%- else %}
-    new_price_id: str
-{%- endif %}
 
-
-# ---------------------------------------------------------------------------
-# Checkout & Portal
-# ---------------------------------------------------------------------------
 
 class CheckoutSessionCreate(BaseSchema):
     seats: int = Field(default=1, ge=1, le=500)
-{%- if cookiecutter.use_postgresql %}
     price_id: UUID
-{%- else %}
-    price_id: str
-{%- endif %}
     success_url: str = Field(..., description="Redirect URL on success")
     cancel_url: str = Field(..., description="Redirect URL on cancel")
 
@@ -118,10 +82,6 @@ class PortalSessionRead(BaseSchema):
     url: str
 
 
-# ---------------------------------------------------------------------------
-# Credits
-# ---------------------------------------------------------------------------
-
 {%- if cookiecutter.enable_credits_system %}
 
 class CreditBalanceRead(BaseSchema):
@@ -130,17 +90,10 @@ class CreditBalanceRead(BaseSchema):
 
 
 class CreditTransactionRead(BaseSchema, TimestampSchema):
-{%- if cookiecutter.use_postgresql %}
     id: UUID
     organization_id: UUID
     actor_user_id: UUID | None = None
     usage_event_id: UUID | None = None
-{%- else %}
-    id: str
-    organization_id: str
-    actor_user_id: str | None = None
-    usage_event_id: str | None = None
-{%- endif %}
     delta: int
     balance_after: int
     type: str
@@ -154,13 +107,8 @@ class CreditTransactionList(BaseSchema):
 
 
 class UsageEventRead(BaseSchema, TimestampSchema):
-{%- if cookiecutter.use_postgresql %}
     id: UUID
     organization_id: UUID
-{%- else %}
-    id: str
-    organization_id: str
-{%- endif %}
     model: str
     provider: str
     input_tokens: int

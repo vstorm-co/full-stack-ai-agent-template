@@ -5,9 +5,7 @@ import asyncio
 import logging
 from typing import Any
 
-{%- if cookiecutter.use_postgresql %}
 from uuid import UUID
-{%- endif %}
 
 from fastapi import APIRouter, HTTPException, Request, Response
 
@@ -22,7 +20,6 @@ router = APIRouter()
 _background_tasks: set[asyncio.Task[None]] = set()
 
 
-{%- if cookiecutter.use_postgresql %}
 
 
 @router.post("/{bot_id}/webhook", status_code=200)
@@ -57,67 +54,4 @@ async def telegram_webhook(
     return Response(status_code=200)
 
 
-{%- elif cookiecutter.use_sqlite %}
-
-
-@router.post("/{bot_id}/webhook", status_code=200)
-async def telegram_webhook(
-    bot_id: str,
-    request: Request,
-    bot_service: ChannelBotSvc,
-) -> Response:
-    """Receive Telegram webhook updates."""
-    adapter = get_adapter("telegram")
-    headers: dict[str, str] = dict(request.headers)
-    payload: dict[str, Any] = await request.json()
-
-    bot = bot_service.find_active(bot_id)
-    if bot is None:
-        return Response(status_code=200)
-
-    if bot.webhook_secret and not adapter.verify_webhook_signature(headers, bot.webhook_secret):
-        raise HTTPException(status_code=403, detail="Invalid webhook signature")
-
-    incoming = adapter.parse_incoming(payload, str(bot_id))
-    if incoming is None:
-        return Response(status_code=200)
-
-    task = asyncio.create_task(process_channel_event(incoming))
-    _background_tasks.add(task)
-    task.add_done_callback(_background_tasks.discard)
-    return Response(status_code=200)
-
-
-{%- elif cookiecutter.use_mongodb %}
-
-
-@router.post("/{bot_id}/webhook", status_code=200)
-async def telegram_webhook(
-    bot_id: str,
-    request: Request,
-    bot_service: ChannelBotSvc,
-) -> Response:
-    """Receive Telegram webhook updates."""
-    adapter = get_adapter("telegram")
-    headers: dict[str, str] = dict(request.headers)
-    payload: dict[str, Any] = await request.json()
-
-    bot = await bot_service.find_active(bot_id)
-    if bot is None:
-        return Response(status_code=200)
-
-    if bot.webhook_secret and not adapter.verify_webhook_signature(headers, bot.webhook_secret):
-        raise HTTPException(status_code=403, detail="Invalid webhook signature")
-
-    incoming = adapter.parse_incoming(payload, str(bot_id))
-    if incoming is None:
-        return Response(status_code=200)
-
-    task = asyncio.create_task(process_channel_event(incoming))
-    _background_tasks.add(task)
-    task.add_done_callback(_background_tasks.discard)
-    return Response(status_code=200)
-
-
-{%- endif %}
 {%- endif %}

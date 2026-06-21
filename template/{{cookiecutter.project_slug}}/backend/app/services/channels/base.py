@@ -1,6 +1,4 @@
 {%- if cookiecutter.use_telegram or cookiecutter.use_slack %}
-"""Base classes for channel adapters."""
-
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Literal

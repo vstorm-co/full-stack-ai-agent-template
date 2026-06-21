@@ -64,10 +64,6 @@ spec:
           volumeMounts:
             - name: media-data
               mountPath: /app/media
-{%- if cookiecutter.use_sqlite %}
-            - name: sqlite-data
-              mountPath: /app/data
-{%- endif %}
 {%- if cookiecutter.use_chromadb %}
             - name: chroma-data
               mountPath: /app/chroma_data
@@ -80,11 +76,6 @@ spec:
         - name: media-data
           persistentVolumeClaim:
             claimName: {{ cookiecutter.project_slug }}-media
-{%- if cookiecutter.use_sqlite %}
-        - name: sqlite-data
-          persistentVolumeClaim:
-            claimName: {{ cookiecutter.project_slug }}-sqlite
-{%- endif %}
 {%- if cookiecutter.use_chromadb %}
         - name: chroma-data
           persistentVolumeClaim:

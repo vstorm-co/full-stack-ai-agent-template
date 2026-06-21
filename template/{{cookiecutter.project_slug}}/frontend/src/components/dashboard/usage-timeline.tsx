@@ -1,20 +1,22 @@
 {% raw %}"use client";
 
 import { useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { Activity } from "lucide-react";
-import {
-  Area,
-  AreaChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 
 import { SegmentedControl } from "@/components/dashboard/segmented-control";
 import { EmptyState, ErrorState, LoadingState } from "@/components/states";
 import { apiClient, ApiError } from "@/lib/api-client";
+import { getErrorMessage } from "@/lib/utils";
+
+// Recharts loads on demand — keeps it out of the dashboard's initial bundle.
+const UsageTimelineChart = dynamic(
+  () => import("@/components/dashboard/usage-timeline-chart").then((m) => m.UsageTimelineChart),
+  {
+    ssr: false,
+    loading: () => <div className="bg-foreground/5 h-full w-full animate-pulse rounded-md" />,
+  },
+);
 
 interface UsageBucket {
   day: string;
@@ -64,7 +66,7 @@ export function UsageTimeline() {
         if (err instanceof ApiError && err.status === 404) {
           setData([]);
         } else {
-          setError(err instanceof Error ? err.message : "Failed to load usage timeline");
+          setError(getErrorMessage(err, "Failed to load usage timeline"));
         }
       } finally {
         setLoading(false);
@@ -91,7 +93,7 @@ export function UsageTimeline() {
   const totalForMetric = chartData.reduce((sum, p) => sum + (p[metric] as number), 0);
 
   return (
-    <div className="border-border bg-card flex flex-col rounded-2xl border p-5 lg:p-6">
+    <div className="border-border bg-card flex flex-col rounded-xl border p-5 lg:p-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-foreground/55 font-mono text-[11px] tracking-wider uppercase">
@@ -143,75 +145,9 @@ export function UsageTimeline() {
             fill
           />
         ) : (
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData} margin={{ top: 10, right: 4, left: 0, bottom: 0 }}>
-              <defs>
-                <linearGradient id="usage-gradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="var(--color-chart)" stopOpacity={0.35} />
-                  <stop offset="100%" stopColor="var(--color-chart)" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid
-                stroke="oklch(from var(--color-foreground) l c h / 0.06)"
-                strokeDasharray="3 3"
-                vertical={false}
-              />
-              <XAxis
-                dataKey="label"
-                stroke="oklch(from var(--color-foreground) l c h / 0.4)"
-                fontSize={11}
-                tickLine={false}
-                axisLine={false}
-                tick={{ fontFamily: "var(--font-mono)" }}
-                interval="preserveStartEnd"
-              />
-              <YAxis
-                stroke="oklch(from var(--color-foreground) l c h / 0.4)"
-                fontSize={11}
-                tickLine={false}
-                axisLine={false}
-                tick={{ fontFamily: "var(--font-mono)" }}
-                width={36}
-              />
-              <Tooltip
-                content={<UsageTooltip metric={metric} />}
-                cursor={{ stroke: "var(--color-chart)", strokeOpacity: 0.4 }}
-              />
-              <Area
-                type="monotone"
-                dataKey={metric}
-                stroke="var(--color-chart)"
-                strokeWidth={2}
-                fill="url(#usage-gradient)"
-                isAnimationActive={false}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
+          <UsageTimelineChart chartData={chartData} metric={metric} />
         )}
       </div>
-    </div>
-  );
-}
-
-function UsageTooltip({
-  active,
-  payload,
-  label,
-  metric,
-}: {
-  active?: boolean;
-  payload?: Array<{ value: number }>;
-  label?: string;
-  metric: Metric;
-}) {
-  const first = payload?.[0];
-  if (!active || !first) return null;
-  return (
-    <div className="border-border bg-card text-foreground rounded-lg border px-3 py-2 text-xs shadow-lg">
-      <p className="text-foreground/55 font-mono text-[10px] tracking-wider uppercase">{label}</p>
-      <p className="mt-1 font-semibold">
-        {first.value.toLocaleString()} {METRIC_LABELS[metric].toLowerCase()}
-      </p>
     </div>
   );
 }
@@ -221,5 +157,4 @@ function formatDayLabel(day: string, _range: number): string {
   if (Number.isNaN(d.getTime())) return day;
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
-
 {% endraw %}

@@ -1,26 +1,33 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
   AlertCircle,
-  ArrowLeft,
   ArrowUpRight,
   Coins,
   Sparkles,
   TrendingDown,
   TrendingUp,
+  Wallet,
 } from "lucide-react";
-import { Area, AreaChart, ResponsiveContainer } from "recharts";
 import { toast } from "sonner";
 
-import { PageHero } from "@/components/dashboard/page-hero";
+import { StatCard } from "@/components/dashboard/stat-card";
 import { LoadingState } from "@/components/states";
-import { Button } from "@/components/ui";
+import { Alert, AlertDescription, AlertTitle, Badge, Button } from "@/components/ui";
 import { useBilling, useCredits } from "@/hooks";
 import { apiClient } from "@/lib/api-client";
+import { ROUTES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+
+// Recharts sparkline loads on demand so the credits page bundle stays light.
+const UsageSpark = dynamic(() => import("./usage-spark").then((m) => m.UsageSpark), {
+  ssr: false,
+  loading: () => <div className="bg-foreground/5 h-full w-full animate-pulse rounded-md" />,
+});
 
 interface UsageBucket {
   day: string;
@@ -84,198 +91,182 @@ export default function CreditsPage() {
 
   const low = balance && balance.low_threshold > 0 && balance.balance < balance.low_threshold;
 
+  // Projected days of runway from the average daily burn over the timeline window.
+  const projection = useMemo(() => {
+    if (!balance || !timeline || timeline.length === 0) return null;
+    const totalUsed = timeline.reduce((a, b) => a + b.credits_charged, 0);
+    const perDay = totalUsed / timeline.length;
+    if (perDay <= 0 || balance.balance <= 0) return null;
+    const daysLeft = Math.floor(balance.balance / perDay);
+    return { perDay, daysLeft };
+  }, [balance, timeline]);
+
   return (
-    <div className="mx-auto w-full max-w-4xl space-y-6 pb-10">
-      <div>
-        <Link
-          href="/billing"
-          className="text-foreground/55 hover:text-foreground inline-flex items-center gap-1.5 font-mono text-[11px] tracking-wider uppercase"
+    <div className="space-y-6">
+      <div className="flex justify-end">
+        <Button
+          onClick={() =>
+            startCheckout({
+              success_url: window.location.href + "?topup=1",
+              cancel_url: window.location.href,
+            })
+          }
+          disabled={checkoutLoading}
+          size="sm"
         >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          Back to billing
-        </Link>
+          <Wallet className="h-3.5 w-3.5" />
+          {checkoutLoading ? "Opening…" : "Top up"}
+        </Button>
       </div>
 
-      <PageHero
-        eyebrow="Credits"
-        title={
-          <>
-            Balance &amp; <em>usage.</em>
-          </>
-        }
-        description="Credits power AI completions, embeddings, and tool calls."
-        actions={
-          <Button
-            onClick={() =>
-              startCheckout({
-                success_url: window.location.href + "?topup=1",
-                cancel_url: window.location.href,
-              })
-            }
-            disabled={checkoutLoading}
-            className="rounded-full"
-          >
-            {checkoutLoading ? "Opening…" : "Top up"}
-          </Button>
-        }
-      />
+      {isLoading ? (
+        <LoadingState variant="stats" rows={3} />
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <StatCard
+            label="Current balance"
+            value={balance?.balance.toLocaleString() ?? "—"}
+            unit="credits"
+            icon={Sparkles}
+          />
+          <StatCard
+            label="Used · last 7 days"
+            value={last7Total.toLocaleString()}
+            unit="credits"
+            delta={timeline ? Number(trendPct.toFixed(1)) : undefined}
+            deltaLabel="wk-over-wk"
+            icon={Coins}
+          />
+          <StatCard
+            label="Low threshold"
+            value={balance?.low_threshold ? balance.low_threshold.toLocaleString() : "Off"}
+            icon={AlertCircle}
+          />
+        </div>
+      )}
 
-      {/* Balance card with sparkline */}
-      <section
-        className={cn(
-          "relative overflow-hidden rounded-3xl border p-6 sm:p-8",
-          low ? "border-destructive/30 bg-destructive/[0.04]" : "border-foreground/10 bg-card",
-        )}
-      >
-        <div className="bg-brand/[0.06] pointer-events-none absolute -top-32 -right-32 h-72 w-72 rounded-full blur-[120px]" />
-        <div className="relative grid gap-8 md:grid-cols-[1fr_1.4fr] md:items-center">
-          <div>
-            <p className="text-foreground/55 font-mono text-[11px] tracking-wider uppercase">
-              Current balance
-            </p>
-            {isLoading ? (
-              <div className="bg-foreground/8 mt-3 h-12 w-40 animate-pulse rounded-md" />
-            ) : (
-              <p className="font-display text-foreground mt-2 text-5xl font-bold tracking-tight tabular-nums">
-                {balance?.balance.toLocaleString() ?? "—"}
-              </p>
-            )}
-            <p className="text-foreground/55 mt-2 text-sm">credits remaining</p>
-            {low && balance && (
-              <p className="text-destructive mt-3 inline-flex items-center gap-2 text-xs font-medium">
-                <AlertCircle className="h-3.5 w-3.5" />
-                Below alert threshold of {balance.low_threshold.toLocaleString()} credits.
-              </p>
-            )}
-          </div>
+      {low && balance && (
+        <Alert variant="warning">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Low credit balance</AlertTitle>
+          <AlertDescription>
+            Balance is below your alert threshold of{" "}
+            {balance.low_threshold.toLocaleString()} credits.
+            {projection && (
+              <>
+                {" "}
+                At the current rate (~{Math.round(projection.perDay).toLocaleString()}/day) it will
+                run out in about {projection.daysLeft.toLocaleString()}{" "}
+                {projection.daysLeft === 1 ? "day" : "days"}.
+              </>
+            )}{" "}
+            Top up to avoid interruptions.
+          </AlertDescription>
+        </Alert>
+      )}
 
-          <div>
-            <div className="flex items-baseline justify-between">
-              <span className="text-foreground/55 font-mono text-[11px] tracking-wider uppercase">
-                Usage · last 30 days
-              </span>
-              {timeline && (
-                <span
-                  className={cn(
-                    "inline-flex items-center gap-1 font-mono text-[11px] font-semibold",
-                    trendPct > 0
-                      ? "text-destructive"
-                      : trendPct < 0
-                        ? "text-brand"
-                        : "text-foreground/55",
-                  )}
-                >
-                  {trendPct > 0 ? (
-                    <TrendingUp className="h-3 w-3" />
-                  ) : trendPct < 0 ? (
-                    <TrendingDown className="h-3 w-3" />
-                  ) : null}
-                  {Math.abs(trendPct).toFixed(1)}% wk-over-wk
-                </span>
+      {!low && projection && projection.daysLeft <= 14 && (
+        <Alert variant="default">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Credits running low soon</AlertTitle>
+          <AlertDescription>
+            At the current rate (~{Math.round(projection.perDay).toLocaleString()}/day) your balance
+            will last about {projection.daysLeft.toLocaleString()}{" "}
+            {projection.daysLeft === 1 ? "day" : "days"}.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <section className="border-border bg-card rounded-xl border p-5">
+        <div className="flex items-baseline justify-between">
+          <h2 className="text-foreground text-sm font-semibold">Usage · last 30 days</h2>
+          {timeline && (
+            <span
+              className={cn(
+                "inline-flex items-center gap-1 font-mono text-[11px] font-semibold",
+                trendPct > 0
+                  ? "text-destructive"
+                  : trendPct < 0
+                    ? "text-muted-foreground"
+                    : "text-muted-foreground",
               )}
-            </div>
-            <div className="mt-3 flex items-baseline gap-2">
-              <span className="font-display text-foreground text-2xl font-bold">
-                {last7Total.toLocaleString()}
-              </span>
-              <span className="text-foreground/55 text-sm">credits · last 7 days</span>
-            </div>
-            <div className="mt-2 h-16 w-full">
-              {!timeline ? (
-                <div className="bg-foreground/8 h-full animate-pulse rounded-md" />
-              ) : sparkData.length < 2 ? (
-                <p className="text-foreground/45 text-xs">Not enough data yet.</p>
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={sparkData}>
-                    <defs>
-                      <linearGradient id="credits-spark" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="var(--color-brand)" stopOpacity={0.45} />
-                        <stop offset="100%" stopColor="var(--color-brand)" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <Area
-                      type="monotone"
-                      dataKey="v"
-                      stroke="var(--color-brand)"
-                      strokeWidth={1.5}
-                      fill="url(#credits-spark)"
-                      isAnimationActive={false}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-          </div>
+            >
+              {trendPct > 0 ? (
+                <TrendingUp className="h-3 w-3" />
+              ) : trendPct < 0 ? (
+                <TrendingDown className="h-3 w-3" />
+              ) : null}
+              {Math.abs(trendPct).toFixed(1)}% wk-over-wk
+            </span>
+          )}
+        </div>
+        <div className="mt-4 h-24 w-full">
+          {!timeline ? (
+            <div className="bg-foreground/5 h-full animate-pulse rounded-md" />
+          ) : sparkData.length < 2 ? (
+            <p className="text-muted-foreground text-xs">Not enough data yet.</p>
+          ) : (
+            <UsageSpark data={sparkData} />
+          )}
         </div>
       </section>
 
-      {/* Transactions */}
-      <section className="border-foreground/10 bg-card rounded-2xl border">
-        <div className="border-foreground/10 flex items-center justify-between border-b px-6 py-5">
+      <section className="border-border bg-card rounded-xl border">
+        <div className="border-border flex items-center justify-between border-b px-5 py-4">
           <div>
-            <h2 className="font-display text-foreground text-base font-semibold tracking-tight">
-              Transaction history
-            </h2>
-            <p className="text-foreground/55 text-xs">
+            <h2 className="text-foreground text-sm font-semibold">Transaction history</h2>
+            <p className="text-muted-foreground text-xs">
               All credit grants, top-ups, and consumption events.
             </p>
           </div>
           {transactions && transactions.total > (transactions.items.length ?? 0) && (
-            <span className="text-foreground/55 font-mono text-[11px] tracking-wider uppercase">
-              Showing {transactions.items.length} / {transactions.total}
+            <span className="text-muted-foreground font-mono text-[11px] tracking-wider uppercase">
+              {transactions.items.length} / {transactions.total}
             </span>
           )}
         </div>
 
         {txLoading ? (
-          <div className="p-6">
+          <div className="p-5">
             <LoadingState variant="skeleton-list" rows={4} />
           </div>
         ) : !transactions || transactions.items.length === 0 ? (
-          <div className="border-foreground/10 m-6 rounded-xl border-2 border-dashed p-10 text-center">
-            <Coins className="text-foreground/40 mx-auto h-8 w-8" />
-            <p className="text-foreground/65 mt-3 text-sm">No transactions yet</p>
-            <p className="text-foreground/45 mt-1 text-xs">
+          <div className="px-5 py-12 text-center">
+            <Coins className="text-muted-foreground mx-auto h-7 w-7" />
+            <p className="text-foreground mt-3 text-sm">No transactions yet</p>
+            <p className="text-muted-foreground mt-1 text-xs">
               Activity will show here once you start using AI features.
             </p>
           </div>
         ) : (
-          <ul className="divide-foreground/10 divide-y">
+          <ul className="divide-border divide-y">
             {transactions.items.map((tx) => (
               <li
                 key={tx.id}
-                className="flex flex-wrap items-center justify-between gap-3 px-6 py-4"
+                className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5"
               >
                 <div className="min-w-0 flex-1">
                   <p className="text-foreground text-sm font-medium">
                     {tx.description ?? "Credit transaction"}
                   </p>
-                  <p className="text-foreground/55 mt-1 flex flex-wrap items-center gap-2 font-mono text-[11px] tracking-wider uppercase">
-                    <span
-                      className={cn(
-                        "inline-flex rounded-full border px-2 py-0.5",
-                        tx.delta > 0
-                          ? "border-brand/30 text-brand"
-                          : "border-foreground/15 text-foreground/55",
-                      )}
-                    >
+                  <div className="text-muted-foreground mt-1 flex flex-wrap items-center gap-2 text-xs">
+                    <Badge variant="outline" className="font-mono text-[10px] uppercase">
                       {humanizeType(tx.type)}
-                    </span>
+                    </Badge>
                     <span>{formatDateTime(tx.created_at)}</span>
-                  </p>
+                  </div>
                 </div>
                 <div className="text-right">
                   <p
                     className={cn(
                       "font-mono text-sm font-semibold tabular-nums",
-                      tx.delta > 0 ? "text-brand" : "text-foreground",
+                      tx.delta > 0 ? "text-foreground" : "text-muted-foreground",
                     )}
                   >
                     {tx.delta > 0 ? "+" : ""}
                     {tx.delta.toLocaleString()}
                   </p>
-                  <p className="text-foreground/45 mt-0.5 font-mono text-[10px] tracking-wider uppercase">
+                  <p className="text-muted-foreground mt-0.5 font-mono text-[10px] tracking-wider uppercase">
                     bal {tx.balance_after.toLocaleString()}
                   </p>
                 </div>
@@ -285,10 +276,10 @@ export default function CreditsPage() {
         )}
       </section>
 
-      <p className="text-foreground/55 inline-flex items-center gap-1.5 text-xs">
+      <p className="text-muted-foreground inline-flex items-center gap-1.5 text-xs">
         Need a custom credit pack?{" "}
         <Link
-          href="/contact"
+          href={ROUTES.CONTACT}
           className="text-foreground hover:text-foreground/80 inline-flex items-center gap-1 font-medium underline-offset-4 hover:underline"
         >
           Contact us

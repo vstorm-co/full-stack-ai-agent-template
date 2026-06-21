@@ -1,4 +1,3 @@
-{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
 """create users table
 
 Revision ID: 0000_users
@@ -13,9 +12,7 @@ provider was selected, keeping the schema minimal for password-only setups.
 """
 
 import sqlalchemy as sa
-{%- if cookiecutter.use_postgresql %}
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
-{%- endif %}
 
 from alembic import op
 
@@ -30,14 +27,9 @@ def upgrade() -> None:
         "users",
         sa.Column(
             "id",
-{%- if cookiecutter.use_postgresql %}
             PG_UUID(as_uuid=True),
             primary_key=True,
             server_default=sa.text("gen_random_uuid()"),
-{%- else %}
-            sa.String(36),
-            primary_key=True,
-{%- endif %}
         ),
         sa.Column("email", sa.String(255), nullable=False, unique=True, index=True),
         sa.Column("hashed_password", sa.String(255), nullable=True),
@@ -63,22 +55,3 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_table("users")
-{%- else %}
-"""create users table — skipped (no SQL DB)
-
-Revision ID: 0000_users
-"""
-
-revision = "0000_users"
-down_revision = None
-branch_labels = None
-depends_on = None
-
-
-def upgrade() -> None:
-    pass
-
-
-def downgrade() -> None:
-    pass
-{%- endif %}

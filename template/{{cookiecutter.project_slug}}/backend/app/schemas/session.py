@@ -2,21 +2,15 @@
 """Session schemas."""
 
 from datetime import datetime
-{%- if cookiecutter.use_postgresql %}
 from uuid import UUID
-{%- endif %}
 
-from pydantic import BaseModel
+from app.schemas.base import BaseSchema
 
 
-class SessionRead(BaseModel):
+class SessionRead(BaseSchema):
     """Session response schema."""
 
-{%- if cookiecutter.use_postgresql %}
     id: UUID
-{%- else %}
-    id: str
-{%- endif %}
     device_name: str | None = None
     device_type: str | None = None
     ip_address: str | None = None
@@ -25,14 +19,14 @@ class SessionRead(BaseModel):
     last_used_at: datetime
 
 
-class SessionListResponse(BaseModel):
+class SessionListResponse(BaseSchema):
     """Response for list of sessions."""
 
     sessions: list[SessionRead]
     total: int
 
 
-class LogoutAllResponse(BaseModel):
+class LogoutAllResponse(BaseSchema):
     """Response for logout all sessions."""
 
     message: str

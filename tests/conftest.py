@@ -22,7 +22,7 @@ def minimal_config() -> ProjectConfig:
     """Minimal project configuration."""
     return ProjectConfig(
         project_name="test_project",
-        database=DatabaseType.SQLITE,
+        database=DatabaseType.POSTGRESQL,
         background_tasks=BackgroundTaskType.NONE,
         enable_logfire=False,
         enable_docker=False,

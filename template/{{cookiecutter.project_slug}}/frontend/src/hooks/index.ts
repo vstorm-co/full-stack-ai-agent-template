@@ -1,4 +1,5 @@
 export { useAuth } from "./use-auth";
+export { useCopyToClipboard } from "./use-copy-to-clipboard";
 export { useAdminUsers } from "./use-admin-users";
 export { useWebSocket } from "./use-websocket";
 export { useChat } from "./use-chat";

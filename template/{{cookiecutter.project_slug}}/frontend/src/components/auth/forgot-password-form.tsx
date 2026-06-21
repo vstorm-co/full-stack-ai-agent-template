@@ -8,8 +8,7 @@ import { ArrowLeft, ArrowRight, Mail } from "lucide-react";
 import { Button, Input, Label } from "@/components/ui";
 import { apiClient, ApiError } from "@/lib/api-client";
 import { ROUTES } from "@/lib/constants";
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+import { EMAIL_RE } from "@/lib/utils";
 
 export function ForgotPasswordForm() {
   const t = useTranslations("auth");

@@ -1,10 +1,12 @@
 {%- if cookiecutter.enable_rag %}
+import asyncio
+import hashlib
 import logging
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any
 
-from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_text_splitters import MarkdownHeaderTextSplitter, RecursiveCharacterTextSplitter
 {%- if cookiecutter.use_all_pdf_parsers %}
 import pymupdf
 from docx import Document as DOCXDocument
@@ -18,49 +20,33 @@ import pymupdf
 from docx import Document as DOCXDocument
 {%- endif %}
 
+from app.core.config import settings as app_settings
 from app.services.rag.config import RAGSettings, DocumentExtensions
 from app.services.rag.models import Document, DocumentMetadata, DocumentPage, DocumentPageChunk
 {%- if cookiecutter.enable_rag_image_description %}
 from app.services.rag.models import DocumentImage
+{%- if cookiecutter.use_pydantic_ai %}
+from app.services.rag.image_describer import PydanticAIImageDescriber
+{%- elif cookiecutter.use_langchain or cookiecutter.use_langgraph %}
+from app.services.rag.image_describer import LangChainImageDescriber
+{%- elif cookiecutter.use_deepagents %}
+from app.services.rag.image_describer import DeepAgentsImageDescriber
+{%- endif %}
 {%- endif %}
 
 logger = logging.getLogger(__name__)
 
 
 class BaseDocumentParser(ABC):
-    """Abstract base class for document parsing strategies.
-    Defines the interface that all document parsers must implement.
-    Supports parsing of various document formats (PDF, DOCX, TXT, MD).
-    """
-
     allowed = [f"{ext.value}" for ext in DocumentExtensions]
 
     def is_file_existing(self, filepath: Path) -> bool:
-        """Check if file exists at the given path.
-        Args:
-            filepath: Path to the file to check.
-        Returns:
-            True if the file exists, False otherwise.
-        """
         return Path.exists(filepath)
 
     def is_extension_allowed(self, filepath: Path) -> bool:
-        """Check whether document extension is allowed for parsing.
-        Args:
-            filepath: Path to the file to check.
-        Returns:
-            True if the extension is supported and file exists.
-        """
         return filepath.suffix.lower() in self.allowed and self.is_file_existing(filepath)
 
     def get_document_metadata(self, filepath: Path) -> DocumentMetadata:
-        """Collect metadata about a given document.
-        Args:
-            filepath: Path to the document file.
-        Returns:
-            DocumentMetadata object containing file information.
-        """
-        import hashlib
         content_hash = hashlib.sha256(filepath.read_bytes()).hexdigest()
         return DocumentMetadata(
             filename=filepath.name,
@@ -241,7 +227,6 @@ class PyMuPDFParser(BaseDocumentParser):
         if not image_describer:
             return ""
         try:
-            import asyncio
             pix = page.get_pixmap(dpi=200)
             image_bytes = pix.tobytes("png")
             loop = asyncio.new_event_loop()
@@ -252,7 +237,7 @@ class PyMuPDFParser(BaseDocumentParser):
             finally:
                 loop.close()
         except Exception as e:
-            logger.warning(f"LLM OCR failed for page {page.number + 1}: {e}")
+            logger.warning("LLM OCR failed for page %d: %s", page.number + 1, e)
             return ""
 
 {%- if cookiecutter.enable_rag_image_description %}
@@ -280,32 +265,26 @@ class PyMuPDFParser(BaseDocumentParser):
         """Parse PDF with smart extraction pipeline."""
         doc: Any = pymupdf.open(filepath)  # type: ignore[no-untyped-call]
 
-        # Doc-level metadata
         meta = doc.metadata or {}
         toc = doc.get_toc()
 
-        # Detect repeated headers/footers
         repeated = self._detect_repeated_content(doc)
 
         pages = []
         for page in doc:
-            # 1. Text with layout (skip image blocks, filter headers/footers)
             text = self._extract_text(page, repeated)
 
-            # 2. Tables -> markdown
             tables_md = self._extract_tables(page)
             if tables_md:
                 text = text + "\n\n" + tables_md if text.strip() else tables_md
 
-            # 3. OCR fallback for scans/empty pages
             if self.enable_ocr and len(text.strip()) < self.MIN_TEXT_LENGTH:
                 ocr_text = self._ocr_page(page, self._image_describer)
                 if len(ocr_text.strip()) > len(text.strip()):
                     text = ocr_text
-                    logger.info(f"OCR fallback used for page {page.number + 1}")
+                    logger.info("OCR fallback used for page %d", page.number + 1)
 
 {%- if cookiecutter.enable_rag_image_description %}
-            # 4. Images
             images = self._extract_images(doc, page)
 {%- endif %}
 
@@ -319,7 +298,6 @@ class PyMuPDFParser(BaseDocumentParser):
 
         doc.close()
 
-        # Enrich metadata
         additional: dict[str, Any] = {}
         if meta.get("title"):
             additional["pdf_title"] = meta["title"]
@@ -364,7 +342,6 @@ class LlamaParseParser(BaseDocumentParser):
         from llama_cloud import AsyncLlamaCloud
         self.parser = AsyncLlamaCloud(api_key=api_key)
         self.tier = tier
-        # Extend allowed extensions with LlamaParse-supported formats
         self.allowed = [ext.value for ext in DocumentExtensions] + list(self.EXTRA_SUPPORTED)
 
     async def parse(self, filepath: Path) -> Document:
@@ -443,7 +420,6 @@ class LiteParseParser(BaseDocumentParser):
         can surface them as a structured ingestion failure instead of an
         opaque subprocess error.
         """
-        import asyncio
 
         from liteparse.types import ParseError  # type: ignore[import-not-found]
 
@@ -618,7 +594,6 @@ class PyMuPDFParser(BaseDocumentParser):
         if not image_describer:
             return ""
         try:
-            import asyncio
             pix = page.get_pixmap(dpi=200)
             image_bytes = pix.tobytes("png")
             loop = asyncio.new_event_loop()
@@ -629,7 +604,7 @@ class PyMuPDFParser(BaseDocumentParser):
             finally:
                 loop.close()
         except Exception as e:
-            logger.warning(f"LLM OCR failed for page {page.number + 1}: {e}")
+            logger.warning("LLM OCR failed for page %d: %s", page.number + 1, e)
             return ""
 
 {%- if cookiecutter.enable_rag_image_description %}
@@ -657,32 +632,26 @@ class PyMuPDFParser(BaseDocumentParser):
         """Parse PDF with smart extraction pipeline."""
         doc: Any = pymupdf.open(filepath)  # type: ignore[no-untyped-call]
 
-        # Doc-level metadata
         meta = doc.metadata or {}
         toc = doc.get_toc()
 
-        # Detect repeated headers/footers
         repeated = self._detect_repeated_content(doc)
 
         pages = []
         for page in doc:
-            # 1. Text with layout (skip image blocks, filter headers/footers)
             text = self._extract_text(page, repeated)
 
-            # 2. Tables → markdown
             tables_md = self._extract_tables(page)
             if tables_md:
                 text = text + "\n\n" + tables_md if text.strip() else tables_md
 
-            # 3. OCR fallback for scans/empty pages
             if self.enable_ocr and len(text.strip()) < self.MIN_TEXT_LENGTH:
                 ocr_text = self._ocr_page(page, self._image_describer)
                 if len(ocr_text.strip()) > len(text.strip()):
                     text = ocr_text
-                    logger.info(f"OCR fallback used for page {page.number + 1}")
+                    logger.info("OCR fallback used for page %d", page.number + 1)
 
 {%- if cookiecutter.enable_rag_image_description %}
-            # 4. Images
             images = self._extract_images(doc, page)
 {%- endif %}
 
@@ -696,7 +665,6 @@ class PyMuPDFParser(BaseDocumentParser):
 
         doc.close()
 
-        # Enrich metadata
         additional: dict[str, Any] = {}
         if meta.get("title"):
             additional["pdf_title"] = meta["title"]
@@ -740,7 +708,6 @@ class LlamaParseParser(BaseDocumentParser):
         """
         self.parser = AsyncLlamaCloud(api_key=api_key)
         self.tier = tier
-        # Extend allowed extensions with LlamaParse-supported formats
         self.allowed = [ext.value for ext in DocumentExtensions] + list(self.EXTRA_SUPPORTED)
 
     async def parse(self, filepath: Path) -> Document:
@@ -816,7 +783,6 @@ class LiteParseParser(BaseDocumentParser):
 
     async def parse(self, filepath: Path) -> Document:
         """Parse a document using LiteParse with OCR + timeout configured."""
-        import asyncio
 
         from liteparse.types import ParseError  # type: ignore[import-not-found]
 
@@ -913,7 +879,6 @@ class DocumentProcessor:
         {%- else %}
         self.docx_parser = DocxDocumentParser()
         {%- if cookiecutter.enable_rag_image_description %}
-        # Image describer for LLM-based image descriptions and OCR fallback
         self.image_describer = self._init_image_describer(settings) if settings.enable_image_description else None
         self.pdf_parser = PyMuPDFParser(
             enable_ocr=settings.enable_ocr,
@@ -927,11 +892,6 @@ class DocumentProcessor:
     @staticmethod
     def _create_splitter(settings: RAGSettings) -> Any:
         """Create text splitter based on chunking strategy."""
-        from langchain_text_splitters import (
-            MarkdownHeaderTextSplitter,
-            RecursiveCharacterTextSplitter,
-        )
-
         strategy = settings.chunking_strategy
 
         if strategy == "markdown":
@@ -964,21 +924,13 @@ class DocumentProcessor:
     @staticmethod
     def _init_image_describer(settings: RAGSettings) -> Any:
         """Initialize the image describer using the configured AI framework."""
-        from app.core.config import settings as app_settings
-
         model_name = getattr(app_settings, "RAG_IMAGE_DESCRIPTION_MODEL", None) or app_settings.AI_MODEL
 
 {%- if cookiecutter.use_pydantic_ai %}
-        from app.services.rag.image_describer import PydanticAIImageDescriber
         return PydanticAIImageDescriber(model_name=model_name)
 {%- elif cookiecutter.use_langchain or cookiecutter.use_langgraph %}
-        from app.services.rag.image_describer import LangChainImageDescriber
         return LangChainImageDescriber(model_name=model_name)
-{%- elif cookiecutter.use_crewai %}
-        from app.services.rag.image_describer import CrewAIImageDescriber
-        return CrewAIImageDescriber(model_name=model_name)
 {%- elif cookiecutter.use_deepagents %}
-        from app.services.rag.image_describer import DeepAgentsImageDescriber
         return DeepAgentsImageDescriber(model_name=model_name)
 {%- endif %}
 
@@ -1011,7 +963,6 @@ class DocumentProcessor:
         Raises:
             ValueError: If the file type is not supported.
         """
-        # Route to appropriate parser based on file extension
         if filepath.suffix in (".txt", ".md"):
             document = await self.text_parser.parse(filepath)
         {%- if cookiecutter.use_all_pdf_parsers %}

@@ -30,7 +30,10 @@ export function LoadingState({
     return (
       <div className={cn("space-y-3", className)}>
         {Array.from({ length: rows }).map((_, i) => (
-          <div key={i} className="border-border bg-card flex items-center gap-3 rounded-xl border p-4">
+          <div
+            key={i}
+            className="border-border bg-card flex items-center gap-3 rounded-xl border p-4"
+          >
             <div className="bg-foreground/10 h-9 w-9 animate-pulse rounded-full" />
             <div className="flex-1 space-y-2">
               <div className="bg-foreground/10 h-3 w-1/3 animate-pulse rounded-full" />
@@ -46,7 +49,7 @@ export function LoadingState({
     return (
       <div
         className={cn(
-          "border-border bg-card animate-pulse space-y-3 rounded-2xl border p-6",
+          "border-border bg-card animate-pulse space-y-3 rounded-xl border p-6",
           className,
         )}
       >
@@ -74,7 +77,7 @@ export function LoadingState({
         {Array.from({ length: rows }).map((_, i) => (
           <div
             key={i}
-            className="border-border bg-card animate-pulse space-y-3 rounded-2xl border p-5"
+            className="border-border bg-card animate-pulse space-y-3 rounded-xl border p-5"
           >
             <div className="bg-foreground/10 h-3 w-2/5 rounded-full" />
             <div className="bg-foreground/15 h-8 w-1/2 rounded-md" />

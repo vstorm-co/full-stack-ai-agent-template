@@ -1,5 +1,4 @@
 """Database module."""
-{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
 {%- if cookiecutter.use_sqlalchemy %}
 
 from app.db.base import Base
@@ -10,5 +9,4 @@ __all__ = ["Base"]
 from app.db.base import TimestampMixin
 
 __all__ = ["TimestampMixin"]
-{%- endif %}
 {%- endif %}

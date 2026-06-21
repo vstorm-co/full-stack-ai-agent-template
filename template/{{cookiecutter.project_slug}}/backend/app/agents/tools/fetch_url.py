@@ -1,7 +1,7 @@
 {%- if cookiecutter.web_fetch_tool %}
 """Fetch-a-URL tool.
 
-LangChain / LangGraph / CrewAI / DeepAgents don't have a model-native web-fetch
+LangChain / LangGraph / DeepAgents don't have a model-native web-fetch
 capability (only PydanticAI/PydanticDeep do), so this gives them a portable,
 SSRF-safe "read this web page" tool.
 
@@ -10,6 +10,8 @@ userinfo + DNS-resolves-to-public-IP checks). Redirects are followed manually
 so every hop is re-validated — ``httpx``'s built-in redirect following would
 bypass the per-hop check.
 """
+
+import asyncio
 
 import httpx
 from bs4 import BeautifulSoup
@@ -94,13 +96,4 @@ async def fetch_url(url: str, max_chars: int = DEFAULT_MAX_CHARS) -> str:
     return f"Fetched {url} ({content_type or 'unknown type'}); content is not text and was not returned."
 
 
-def fetch_url_sync(url: str, max_chars: int = DEFAULT_MAX_CHARS) -> str:
-    """Synchronous wrapper for fetch_url (CrewAI sync tools)."""
-    import asyncio
-
-    loop = asyncio.new_event_loop()
-    try:
-        return loop.run_until_complete(fetch_url(url, max_chars))
-    finally:
-        loop.close()
 {%- endif %}

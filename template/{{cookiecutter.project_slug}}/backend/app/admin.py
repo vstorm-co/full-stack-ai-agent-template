@@ -1,15 +1,17 @@
-{%- if cookiecutter.enable_admin_panel and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) and cookiecutter.use_sqlalchemy %}
+{%- if cookiecutter.enable_admin_panel and cookiecutter.use_sqlalchemy %}
 """SQLAdmin configuration with automatic model discovery."""
 
+import types
 from typing import Any, ClassVar
 
 from fastapi import FastAPI
-from sqlalchemy import String, inspect
+from sqlalchemy import String, create_engine, inspect
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase
 from sqladmin import Admin, ModelView
 {%- if cookiecutter.admin_require_auth %}
 from sqladmin.authentication import AuthenticationBackend
+from sqlalchemy.orm import Session as DBSession
 from starlette.requests import Request
 {%- endif %}
 
@@ -30,7 +32,6 @@ from app.db.models.webhook import Webhook, WebhookDelivery
 {%- endif %}
 
 
-# Columns that should be excluded from forms (sensitive data)
 SENSITIVE_COLUMN_PATTERNS: list[str] = [
     "password",
     "hashed_password",
@@ -40,16 +41,13 @@ SENSITIVE_COLUMN_PATTERNS: list[str] = [
     "refresh_token",
 ]
 
-# Columns that should be searchable by default (string columns)
 SEARCHABLE_COLUMN_TYPES: tuple[type, ...] = (String,)
 
-# Columns that are auto-generated and should be excluded from create/edit forms
 AUTO_GENERATED_COLUMNS: list[str] = [
     "created_at",
     "updated_at",
 ]
 
-# Model icons mapping (model name -> Font Awesome icon)
 MODEL_ICONS: dict[str, str] = {
     "User": "fa-solid fa-user",
     "Session": "fa-solid fa-key",
@@ -98,7 +96,6 @@ def get_searchable_columns(model: type) -> list[str]:
     mapper: Any = inspect(model)
     searchable = []
     for column in mapper.columns:
-        # Include String columns that are not sensitive
         is_searchable_type = isinstance(column.type, SEARCHABLE_COLUMN_TYPES)
         is_sensitive = any(pattern in column.key.lower() for pattern in SENSITIVE_COLUMN_PATTERNS)
         if is_searchable_type and not is_sensitive:
@@ -132,10 +129,8 @@ def get_form_excluded_columns(model: type) -> list[str]:
     """
     excluded = []
     for column_name in get_model_columns(model):
-        # Exclude sensitive columns
         if any(pattern in column_name.lower() for pattern in SENSITIVE_COLUMN_PATTERNS):
             excluded.append(column_name)
-        # Exclude auto-generated columns
         elif column_name in AUTO_GENERATED_COLUMNS:
             excluded.append(column_name)
     return excluded
@@ -191,16 +186,12 @@ def create_model_admin(
     Returns:
         A dynamically created ModelView subclass.
     """
-    import types
-
     model_name = model.__name__
 
-    # Use provided values or generate defaults
     _name = name or model_name
     _name_plural = name_plural or pluralize(_name)
     _icon = icon or MODEL_ICONS.get(model_name, "fa-solid fa-database")
 
-    # Get column attributes from the model
     _column_list = column_list
     if _column_list is None:
         columns = get_model_columns(model)
@@ -221,7 +212,6 @@ def create_model_admin(
         excluded = get_form_excluded_columns(model)
         _form_excluded_columns = [getattr(model, col) for col in excluded if hasattr(model, col)]
 
-    # Create class attributes in the exec_body callback
     def exec_body(ns: dict[str, Any]) -> None:
         ns["name"] = _name
         ns["name_plural"] = _name_plural
@@ -286,10 +276,7 @@ def register_models_auto(
         if model in exclude_models:
             continue
 
-        # Get custom config for this model if provided
         config = custom_configs.get(model, {})
-
-        # Create and register the admin view
         admin_class = create_model_admin(model, **config)
         admin.add_view(admin_class)
         registered_views.append(admin_class)
@@ -297,7 +284,6 @@ def register_models_auto(
     return registered_views
 
 
-# SQLAdmin requires a synchronous engine
 _sync_engine: Engine | None = None
 
 
@@ -305,8 +291,6 @@ def get_sync_engine() -> Engine:
     """Get or create the synchronous engine for SQLAdmin."""
     global _sync_engine
     if _sync_engine is None:
-        from sqlalchemy import create_engine
-
         _sync_engine = create_engine(settings.DATABASE_URL_SYNC, echo=settings.DEBUG)
     return _sync_engine
 
@@ -332,9 +316,6 @@ class AdminAuth(AuthenticationBackend):
         assert isinstance(email, str)
         assert isinstance(password, str)
 
-        # Get user from database
-        from sqlalchemy.orm import Session as DBSession
-
         with DBSession(get_sync_engine()) as session:
             user = session.query(User).filter(User.email == email).first()
 
@@ -344,7 +325,6 @@ class AdminAuth(AuthenticationBackend):
                 and verify_password(password, user.hashed_password)
                 and user.has_role(UserRole.ADMIN)
             ):
-                # Store user info in session
                 request.session["admin_user_id"] = str(user.id)
                 request.session["admin_email"] = user.email
                 return True
@@ -362,15 +342,11 @@ class AdminAuth(AuthenticationBackend):
         if not admin_user_id:
             return False
 
-        # Verify user still exists and is superuser
-        from sqlalchemy.orm import Session as DBSession
-
         with DBSession(get_sync_engine()) as session:
             user = session.query(User).filter(User.id == admin_user_id).first()
             if user and user.has_role(UserRole.ADMIN) and user.is_active:
                 return True
 
-        # User no longer valid, clear session
         request.session.clear()
         return False
 {%- endif %}
@@ -435,7 +411,6 @@ def setup_admin(app: FastAPI) -> Admin:
     )
     {%- endif %}
 
-    # Auto-register all models from Base with custom configs
     register_models_auto(
         admin,
         Base,

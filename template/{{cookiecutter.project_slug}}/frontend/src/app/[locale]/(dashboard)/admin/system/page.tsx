@@ -18,7 +18,7 @@ import type { LucideIcon } from "lucide-react";
 import { LoadingState } from "@/components/states";
 import { Button } from "@/components/ui";
 import { apiClient } from "@/lib/api-client";
-import { cn } from "@/lib/utils";
+import { cn, getErrorMessage } from "@/lib/utils";
 
 type ServiceStatus = "operational" | "degraded" | "outage" | "unknown";
 
@@ -119,18 +119,11 @@ function buildServices(resp: BackendHealthResp | null): ServiceHealth[] {
   ];
 }
 
-const STATUS_TONE: Record<ServiceStatus, string> = {
-  operational: "border-brand/30 text-brand",
-  degraded: "border-yellow-500/30 text-yellow-500",
-  outage: "border-destructive/30 text-destructive",
-  unknown: "border-foreground/15 text-foreground/55",
-};
-
 const STATUS_DOT: Record<ServiceStatus, string> = {
-  operational: "bg-brand",
-  degraded: "bg-yellow-500",
+  operational: "bg-chart",
+  degraded: "bg-muted-foreground",
   outage: "bg-destructive",
-  unknown: "bg-foreground/30",
+  unknown: "bg-muted-foreground",
 };
 
 const STATUS_LABEL: Record<ServiceStatus, string> = {
@@ -138,6 +131,13 @@ const STATUS_LABEL: Record<ServiceStatus, string> = {
   degraded: "Degraded",
   outage: "Outage",
   unknown: "Unknown",
+};
+
+const STATUS_TEXT: Record<ServiceStatus, string> = {
+  operational: "text-foreground",
+  degraded: "text-foreground",
+  outage: "text-destructive",
+  unknown: "text-muted-foreground",
 };
 
 export default function SystemHealthPage() {
@@ -152,14 +152,12 @@ export default function SystemHealthPage() {
     setError(null);
     try {
       // Try the detailed readiness endpoint first; fall back to /health.
-      const ready = await apiClient
-        .get<BackendHealthResp>("/health/ready")
-        .catch(() => null);
+      const ready = await apiClient.get<BackendHealthResp>("/health/ready").catch(() => null);
       const data = ready ?? (await apiClient.get<BackendHealthResp>("/health"));
       setResp(data);
       setLastChecked(new Date());
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to fetch health");
+      setError(getErrorMessage(err, "Failed to fetch health"));
     } finally {
       setLoading(false);
     }
@@ -184,60 +182,43 @@ export default function SystemHealthPage() {
     return "unknown";
   }, [services]);
 
+  const overallLabel =
+    overall === "operational"
+      ? "All systems operational"
+      : overall === "outage"
+        ? "Active outage"
+        : overall === "degraded"
+          ? "Degraded performance"
+          : "Status unknown";
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 className="font-display text-foreground text-xl font-semibold tracking-tight">
-            System health
-          </h2>
-          <p className="text-foreground/55 text-xs">
-            Live readiness for each backing service. Auto-refreshes every 30s.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setAuto((a) => !a)}
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => setAuto((a) => !a)}
+          className={cn(auto && "bg-muted")}
+        >
+          <span
+            aria-hidden
             className={cn(
-              "border-foreground/15 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 font-mono text-[11px] uppercase tracking-wider transition-colors",
-              auto
-                ? "bg-foreground text-background border-foreground"
-                : "text-foreground/65 hover:text-foreground hover:border-foreground/40",
+              "h-1.5 w-1.5 rounded-full",
+              auto ? "bg-chart" : "bg-muted-foreground",
             )}
-          >
-            <span
-              aria-hidden
-              className={cn("h-1.5 w-1.5 rounded-full", auto ? "bg-brand animate-pulse" : "bg-foreground/40")}
-            />
-            Auto-refresh {auto ? "on" : "off"}
-          </button>
-          <Button size="sm" variant="outline" onClick={load} className="rounded-full">
-            <RefreshCw className={cn("mr-2 h-3.5 w-3.5", loading && "animate-spin")} />
-            Refresh
-          </Button>
-        </div>
+          />
+          Auto-refresh {auto ? "on" : "off"}
+        </Button>
+        <Button size="sm" variant="outline" onClick={load}>
+          <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
+          Refresh
+        </Button>
       </div>
 
-      {/* Overall banner */}
-      <section
-        className={cn(
-          "border-foreground/10 bg-card relative overflow-hidden rounded-3xl border p-6 sm:p-8",
-        )}
-      >
-        <div className="bg-brand/[0.06] pointer-events-none absolute -right-32 -top-32 h-72 w-72 rounded-full blur-[120px]" />
-        <div className="relative flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <span
-              className={cn(
-                "flex h-12 w-12 items-center justify-center rounded-full",
-                overall === "operational"
-                  ? "bg-brand/15 text-foreground"
-                  : overall === "outage"
-                    ? "bg-destructive/15 text-destructive"
-                    : "bg-yellow-500/15 text-yellow-500",
-              )}
-            >
+      <section className="border-border bg-card rounded-xl border p-5">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <span className="bg-muted text-foreground inline-flex h-10 w-10 items-center justify-center rounded-lg">
               {overall === "outage" ? (
                 <AlertCircle className="h-5 w-5" />
               ) : (
@@ -245,81 +226,79 @@ export default function SystemHealthPage() {
               )}
             </span>
             <div>
-              <p className="text-foreground/55 font-mono text-[11px] uppercase tracking-wider">
-                Overall
-              </p>
-              <p className="font-display text-foreground mt-0.5 text-2xl font-bold tracking-tight">
-                {overall === "operational"
-                  ? "All systems operational"
-                  : overall === "outage"
-                    ? "Active outage"
-                    : overall === "degraded"
-                      ? "Degraded performance"
-                      : "Status unknown"}
-              </p>
+              <p className="text-muted-foreground text-xs">Overall status</p>
+              <div className="mt-1 flex items-center gap-2">
+                <span
+                  aria-hidden
+                  className={cn("h-2 w-2 rounded-full", STATUS_DOT[overall])}
+                />
+                <p className="text-foreground text-base font-semibold">{overallLabel}</p>
+              </div>
             </div>
           </div>
           {lastChecked && (
-            <span className="text-foreground/55 font-mono text-[11px] uppercase tracking-wider">
+            <span className="text-muted-foreground text-xs">
               Checked {lastChecked.toLocaleTimeString()}
             </span>
           )}
         </div>
       </section>
 
-      {/* Per-service grid */}
       {loading && !resp ? (
         <LoadingState variant="stats" rows={6} />
       ) : error ? (
-        <div className="border-destructive/30 bg-destructive/[0.04] rounded-2xl border p-6 text-center">
+        <div className="border-border bg-card rounded-xl border p-8 text-center">
           <AlertCircle className="text-destructive mx-auto h-6 w-6" />
           <p className="text-foreground mt-3 text-sm font-medium">Couldn&apos;t fetch health</p>
-          <p className="text-foreground/65 mt-1 text-xs">{error}</p>
+          <p className="text-muted-foreground mt-1 text-xs">{error}</p>
         </div>
       ) : (
-        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {services.map((s) => (
-            <li
-              key={s.key}
-              className="border-foreground/10 bg-card flex flex-col gap-3 rounded-2xl border p-5"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <span className="bg-foreground/8 text-foreground inline-flex h-9 w-9 items-center justify-center rounded-full">
-                    <s.icon className="h-4 w-4" />
-                  </span>
-                  <div>
-                    <p className="text-foreground font-display text-sm font-semibold">{s.name}</p>
-                    <p className="text-foreground/55 text-xs">{s.description}</p>
-                  </div>
+        <section className="border-border bg-card rounded-xl border">
+          <div className="border-border border-b px-5 py-4">
+            <h2 className="text-foreground text-sm font-semibold">Services</h2>
+            <p className="text-muted-foreground text-xs">
+              Live readiness for each backing service. Auto-refreshes every 30s.
+            </p>
+          </div>
+          <ul className="divide-border divide-y">
+            {services.map((s) => (
+              <li key={s.key} className="flex items-center gap-3 px-5 py-4">
+                <span className="bg-muted text-muted-foreground inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg">
+                  <s.icon className="h-4 w-4" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-foreground truncate text-sm font-medium">{s.name}</p>
+                  <p className="text-muted-foreground truncate text-xs">{s.description}</p>
                 </div>
-                <span
-                  className={cn(
-                    "inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider",
-                    STATUS_TONE[s.status],
-                  )}
-                >
+                <div className="hidden text-right sm:block">
+                  <p className="text-foreground text-xs tabular-nums">
+                    {s.uptime90d.toFixed(2)}%
+                  </p>
+                  <p className="text-muted-foreground text-[11px]">
+                    90d{typeof s.latencyMs === "number" ? ` · p50 ${s.latencyMs}ms` : ""}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-2 pl-1">
                   <span
                     aria-hidden
-                    className={cn(
-                      "h-1 w-1 rounded-full",
-                      STATUS_DOT[s.status],
-                      s.status === "operational" && "animate-pulse",
-                    )}
+                    className={cn("h-2 w-2 rounded-full", STATUS_DOT[s.status])}
                   />
-                  {STATUS_LABEL[s.status]}
-                </span>
-              </div>
-              <div className="border-foreground/8 mt-1 flex items-center justify-between gap-3 border-t pt-3 font-mono text-[10px] uppercase tracking-wider text-foreground/55">
-                <span>{s.uptime90d.toFixed(2)}% · 90d</span>
-                {typeof s.latencyMs === "number" && <span>p50 {s.latencyMs}ms</span>}
-              </div>
-            </li>
-          ))}
-        </ul>
+                  <span
+                    className={cn(
+                      "text-xs font-medium whitespace-nowrap",
+                      STATUS_TEXT[s.status],
+                    )}
+                  >
+                    {STATUS_LABEL[s.status]}
+                  </span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
-      <p className="text-foreground/45 inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider">
+      <p className="text-muted-foreground text-xs">
         Backend wishlist: <code className="font-mono">/health/ready</code> with per-service detail.
         90d uptime is currently illustrative.
       </p>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { useChat } from "@/hooks";
 import { ChatControls } from "./chat-controls";
 import { ChatEmptyState } from "./chat-empty-state";
@@ -20,11 +21,9 @@ import { useConversations } from "@/hooks";
 import { useSlashCommands } from "@/hooks";
 {%- endif %}
 
-export function ChatContainer() {
-  return <AuthenticatedChatContainer />;
-}
+const SCROLL_NEAR_BOTTOM_THRESHOLD_PX = 150;
 
-function AuthenticatedChatContainer() {
+export function ChatContainer() {
   const {
     currentConversationId,
     currentMessages,
@@ -42,8 +41,6 @@ function AuthenticatedChatContainer() {
     messages,
     isConnected,
     isProcessing,
-    connect,
-    disconnect,
     sendMessage,
     stopGeneration,
     clearMessages,
@@ -99,7 +96,6 @@ function AuthenticatedChatContainer() {
     prevConversationIdRef.current = currId;
   }, [currentConversationId, clearMessages, clearQueued]);
 
-  // Load messages from conversation store when switching to a saved conversation
   useEffect(() => {
     if (currentMessages.length > 0) {
       clearMessages();
@@ -147,40 +143,19 @@ function AuthenticatedChatContainer() {
           parts,
           user_rating: msg.user_rating ?? undefined,
           rating_count: msg.rating_count ?? undefined,
-          files:
-            "files" in msg &&
-            Array.isArray((msg as unknown as { files?: { id: string; filename: string }[] }).files)
-              ? (
-                  msg as unknown as {
-                    files: {
-                      id: string;
-                      filename: string;
-                      mime_type: string;
-                      file_type: string;
-                    }[];
-                  }
-                ).files
-              : undefined,
-          fileIds:
-            "files" in msg && Array.isArray((msg as unknown as { files?: unknown[] }).files)
-              ? (msg as unknown as { files: { id: string }[] }).files.map((f) => f.id)
-              : undefined,
+          files: msg.files,
+          fileIds: msg.files?.map((f) => f.id),
         });
       });
     }
   }, [currentMessages, addChatMessage, clearMessages]);
 
   useEffect(() => {
-    connect();
-    return () => disconnect();
-  }, [connect, disconnect]);
-
-  useEffect(() => {
     const container = scrollContainerRef.current;
     if (!container) return;
     // Only auto-scroll if user is already near the bottom
     const isNearBottom =
-      container.scrollHeight - container.scrollTop - container.clientHeight < 150;
+      container.scrollHeight - container.scrollTop - container.clientHeight < SCROLL_NEAR_BOTTOM_THRESHOLD_PX;
     if (isNearBottom) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
@@ -193,7 +168,6 @@ function AuthenticatedChatContainer() {
     (assistantMessageId: string) => {
       const idx = messages.findIndex((m) => m.id === assistantMessageId);
       if (idx < 0) return;
-      // Walk backwards to find the user message that prompted this turn.
       for (let i = idx - 1; i >= 0; i--) {
         const m = messages[i];
         if (m?.role === "user") {
@@ -210,7 +184,6 @@ function AuthenticatedChatContainer() {
   const slashContext = {
     clearChat: clearMessages,
     regenerateLast: () => {
-      // Find the last assistant message and trigger regenerate.
       for (let i = messages.length - 1; i >= 0; i--) {
         const m = messages[i];
         if (m && m.role === "assistant") {
@@ -220,7 +193,6 @@ function AuthenticatedChatContainer() {
       }
     },
     openSettings: () => {
-      // Best-effort: focus the settings popover trigger if it's mounted.
       document.querySelector<HTMLButtonElement>("[data-chat-settings-trigger]")?.click();
     },
   };
@@ -305,9 +277,10 @@ function ChatUI({
   onAnswerQuestions,
   onStop,
 }: ChatUIProps) {
+  const tc = useTranslations("common");
   return (
     <div className="flex h-full w-full">
-      <div className="mx-auto flex h-full max-w-4xl min-w-0 flex-1 flex-col">
+      <div className="mx-auto flex h-full max-w-5xl min-w-0 flex-1 flex-col">
         <div
           ref={scrollContainerRef}
           className="flex-1 scrollbar-thin overflow-y-auto px-2 py-4 sm:px-4 sm:py-6"
@@ -322,10 +295,7 @@ function ChatUI({
             <MessageList messages={messages} onRegenerate={onRegenerate} />
           )}
           <div ref={messagesEndRef} />
-        </div>
-
-        {/* Human-in-the-Loop: Tool Approval Dialog */}
-        {pendingApproval && onResumeDecisions && (
+        </div>        {pendingApproval && onResumeDecisions && (
           <div className="px-2 pb-2 sm:px-4 sm:pb-2">
             <ToolApprovalDialog
               actionRequests={pendingApproval.actionRequests}
@@ -336,7 +306,6 @@ function ChatUI({
           </div>
         )}
 
-        {/* ask_user: interactive question card while the run is paused */}
         {pendingQuestions && pendingQuestions.length > 0 && onAnswerQuestions && (
           <div className="px-2 pb-2 sm:px-4 sm:pb-2">
             <QuestionPrompt
@@ -351,7 +320,7 @@ function ChatUI({
           {queuedMessages && queuedMessages.length > 0 && onCancelQueued && (
             <PendingMessages messages={queuedMessages} onCancel={onCancelQueued} />
           )}
-          <div className="bg-card border-foreground/10 focus-within:border-foreground/30 rounded-2xl border shadow-sm transition-colors">
+          <div className="bg-card border-border focus-within:border-foreground/30 rounded-2xl border transition-colors">
             <div className="px-3 pt-3 sm:px-4 sm:pt-4">
               <ChatInput
                 onSend={sendMessage}
@@ -369,14 +338,14 @@ function ChatUI({
             <div className="border-foreground/8 flex items-center justify-between border-t px-3 py-2 sm:px-4">
               <div className="flex items-center gap-2">
                 <span
-                  className={`inline-flex items-center gap-1.5 font-mono text-[10px] tracking-wider uppercase ${isConnected ? "text-foreground/55" : "text-destructive"}`}
+                  className={`inline-flex items-center gap-1.5 font-mono text-[10px] tracking-wider uppercase ${isConnected ? "text-muted-foreground" : "text-destructive"}`}
                 >
                   <span
                     className={`inline-block h-1.5 w-1.5 rounded-full ${
-                      isConnected ? "bg-brand" : "bg-destructive"
-                    } ${isConnected ? "animate-pulse" : ""}`}
+                      isConnected ? "bg-emerald-500" : "bg-destructive"
+                    }`}
                   />
-                  {isConnected ? "Live" : "Offline"}
+                  {isConnected ? tc("live") : tc("offline")}
                 </span>
               </div>
               <div className="flex items-center gap-1">

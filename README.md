@@ -32,7 +32,7 @@
 </p>
 
 <p align="center">
-  <b>🤖 6 AI Agent Frameworks</b> <i>(PydanticAI, PydanticDeep, LangChain, LangGraph, CrewAI, DeepAgents)</i>
+  <b>🤖 5 AI Agent Frameworks</b> <i>(PydanticAI, PydanticDeep, LangChain, LangGraph, DeepAgents)</i>
   <br>
   <b>📄 RAG Pipeline</b> <i>(Milvus, Qdrant, pgvector, ChromaDB)</i>
   <br>
@@ -428,7 +428,6 @@ Generated projects include **CLAUDE.md** and **AGENTS.md** files optimized for A
   <a href="https://ai.pydantic.dev"><img src="https://img.shields.io/badge/PydanticAI-E92063?logo=pydantic&logoColor=white" alt="PydanticAI"></a>
   <a href="https://python.langchain.com"><img src="https://img.shields.io/badge/LangChain-1C3C3C?logo=langchain&logoColor=white" alt="LangChain"></a>
   <a href="https://langchain-ai.github.io/langgraph/"><img src="https://img.shields.io/badge/LangGraph-005A9C?logo=langchain&logoColor=white" alt="LangGraph"></a>
-  <a href="https://www.crewai.com"><img src="https://img.shields.io/badge/CrewAI-FF6B35?logoColor=white" alt="CrewAI"></a>
   <a href="https://milvus.io"><img src="https://img.shields.io/badge/Milvus-FF6B35?logoColor=white" alt="Milvus"></a>
   <a href="https://openai.com"><img src="https://img.shields.io/badge/OpenAI-412991?logo=openai&logoColor=white" alt="OpenAI"></a>
   <a href="https://anthropic.com"><img src="https://img.shields.io/badge/Anthropic-D4A373?logo=anthropic&logoColor=white" alt="Anthropic"></a>
@@ -467,7 +466,7 @@ Generated projects include **CLAUDE.md** and **AGENTS.md** files optimized for A
 
 ### 🤖 AI/LLM First
 
-- **6 AI Frameworks** - [PydanticAI](https://ai.pydantic.dev), [PydanticDeep](https://github.com/vstorm-co/pydantic-deep), [LangChain](https://python.langchain.com), [LangGraph](https://langchain-ai.github.io/langgraph/), [CrewAI](https://www.crewai.com), [DeepAgents](https://github.com/vstorm-co/pydantic-deepagents)
+- **5 AI Frameworks** - [PydanticAI](https://ai.pydantic.dev), [PydanticDeep](https://github.com/vstorm-co/pydantic-deep), [LangChain](https://python.langchain.com), [LangGraph](https://langchain-ai.github.io/langgraph/), [DeepAgents](https://github.com/vstorm-co/pydantic-deepagents)
 - **4 LLM Providers** - OpenAI, Anthropic, Google Gemini, OpenRouter
 - **RAG** - Document ingestion, vector search, reranking (Milvus, Qdrant, ChromaDB, pgvector)
 - **WebSocket Streaming** - Real-time responses with full event access
@@ -504,7 +503,7 @@ Generated projects include **CLAUDE.md** and **AGENTS.md** files optimized for A
 
 | Category | Integrations |
 |----------|-------------|
-| **AI Frameworks** | PydanticAI, PydanticDeep, LangChain, LangGraph, CrewAI, DeepAgents |
+| **AI Frameworks** | PydanticAI, PydanticDeep, LangChain, LangGraph, DeepAgents |
 | **LLM Providers** | OpenAI, Anthropic, Google Gemini, OpenRouter |
 | **RAG / Vector Stores** | Milvus, Qdrant, ChromaDB, pgvector |
 | **RAG Sources** | Local files, API upload, Google Drive, S3/MinIO, Sync Sources (configurable, scheduled) |
@@ -532,7 +531,7 @@ Generated projects include **CLAUDE.md** and **AGENTS.md** files optimized for A
 │                                                                          │
 │  ┌─────────────────────────────────────────────────────────────────┐     │
 │  │                     AI AGENTS                                   │     │
-│  │  PydanticAI · LangChain · LangGraph · CrewAI · DeepAgents       │     │
+│  │  PydanticAI · LangChain · LangGraph · DeepAgents                │     │
 │  │  ────────────────────────────────────────────────────────────   │     │
 │  │  Tools: datetime · web_search (Tavily) · search_knowledge_base  │     │
 │  │  Providers: OpenAI · Anthropic · Gemini · OpenRouter            │     │
@@ -647,9 +646,6 @@ fastapi-fullstack create my_app --ai-framework pydantic_ai
 # LangGraph with Anthropic
 fastapi-fullstack create my_app --ai-framework langgraph --llm-provider anthropic
 
-# CrewAI with Google Gemini
-fastapi-fullstack create my_app --ai-framework crewai --llm-provider google
-
 # DeepAgents with OpenAI
 fastapi-fullstack create my_app --ai-framework deepagents
 
@@ -665,7 +661,6 @@ fastapi-fullstack create my_app --rag --database postgresql --task-queue celery
 | **PydanticDeep** | ✓ | ✓ | ✓ | - |
 | **LangChain** | ✓ | ✓ | ✓ | - |
 | **LangGraph** | ✓ | ✓ | ✓ | - |
-| **CrewAI** | ✓ | ✓ | ✓ | - |
 | **DeepAgents** | ✓ | ✓ | ✓ | - |
 
 ### PydanticAI Integration
@@ -996,7 +991,7 @@ generated_at = "2024-12-21T10:30:00+00:00"
 | **ORM** | `sqlalchemy`, `sqlmodel` | SQLModel for simplified syntax |
 | **Auth** | `jwt`, `api_key`, `both`, `none` | JWT includes user management |
 | **OAuth** | `none`, `google` | Social login |
-| **AI Framework** | `pydantic_ai`, `langchain`, `langgraph`, `crewai`, `deepagents` | Choose your AI agent framework |
+| **AI Framework** | `pydantic_ai`, `langchain`, `langgraph`, `deepagents` | Choose your AI agent framework |
 | **LLM Provider** | `openai`, `anthropic`, `google`, `openrouter` | OpenRouter only with PydanticAI |
 | **RAG** | `--rag` | Enable RAG with vector database |
 | **Vector Store** | `milvus`, `qdrant`, `chromadb`, `pgvector` | pgvector uses existing PostgreSQL |

@@ -3,10 +3,10 @@
 
 from typing import Literal
 
-from pydantic import BaseModel
+from app.schemas.base import BaseSchema
 
 
-class Token(BaseModel):
+class Token(BaseSchema):
     """OAuth2 token response with refresh token."""
 
     access_token: str
@@ -14,7 +14,7 @@ class Token(BaseModel):
     token_type: str = "bearer"
 
 
-class TokenPayload(BaseModel):
+class TokenPayload(BaseSchema):
     """JWT token payload."""
 
     sub: str | None = None
@@ -22,7 +22,7 @@ class TokenPayload(BaseModel):
     type: Literal["access", "refresh"] | None = None
 
 
-class RefreshTokenRequest(BaseModel):
+class RefreshTokenRequest(BaseSchema):
     """Request body for token refresh."""
 
     refresh_token: str

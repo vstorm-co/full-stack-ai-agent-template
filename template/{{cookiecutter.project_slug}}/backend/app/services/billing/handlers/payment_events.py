@@ -1,8 +1,5 @@
 {%- if cookiecutter.enable_billing %}
-"""Handlers for checkout.session.* and payment_intent.* events."""
-
 import logging
-{%- if cookiecutter.use_postgresql %}
 import uuid
 import stripe
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -55,49 +52,6 @@ async def handle_payment_intent_succeeded(db: AsyncSession, event: stripe.Event)
 async def handle_payment_intent_failed(db: AsyncSession, event: stripe.Event) -> None:
     logger.warning("payment_intent_failed", extra={"pi_id": event.data.object.id})
 
-{%- elif cookiecutter.use_sqlite %}
-import stripe
-from sqlalchemy.orm import Session
-
-logger = logging.getLogger(__name__)
-
-
-def handle_checkout_completed(db: Session, event: stripe.Event) -> None:
-    session = event.data.object
-    if session.mode != "payment":
-        return
-    logger.info("checkout_completed_payment", extra={"session_id": session.id})
-
-
-def handle_payment_intent_succeeded(db: Session, event: stripe.Event) -> None:
-    logger.info("payment_intent_succeeded", extra={"pi_id": event.data.object.id})
-
-
-def handle_payment_intent_failed(db: Session, event: stripe.Event) -> None:
-    logger.warning("payment_intent_failed", extra={"pi_id": event.data.object.id})
-
-{%- elif cookiecutter.use_mongodb %}
-import stripe
-from motor.motor_asyncio import AsyncIOMotorDatabase
-
-logger = logging.getLogger(__name__)
-
-
-async def handle_checkout_completed(db: AsyncIOMotorDatabase, event: stripe.Event) -> None:
-    session = event.data.object
-    if session.mode != "payment":
-        return
-    logger.info("checkout_completed_payment", extra={"session_id": session.id})
-
-
-async def handle_payment_intent_succeeded(db: AsyncIOMotorDatabase, event: stripe.Event) -> None:
-    logger.info("payment_intent_succeeded", extra={"pi_id": event.data.object.id})
-
-
-async def handle_payment_intent_failed(db: AsyncIOMotorDatabase, event: stripe.Event) -> None:
-    logger.warning("payment_intent_failed", extra={"pi_id": event.data.object.id})
-
-{%- endif %}
 {%- else %}
 """payment_events — not enabled (enable_billing=false)."""
 {%- endif %}

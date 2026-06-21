@@ -7,13 +7,13 @@ from typing import NoReturn
 
 import stripe
 
+from app.core.config import settings
 from app.services.billing.exceptions import StripeCardError, StripeError, InvalidWebhookError
 
 logger = logging.getLogger(__name__)
 
 
 def _init_stripe() -> None:
-    from app.core.config import settings
     stripe.api_key = settings.STRIPE_SECRET_KEY
     stripe.api_version = settings.STRIPE_API_VERSION
 
@@ -32,12 +32,7 @@ class StripeClient:
             raise StripeCardError(message=str(exc), details={"stripe_code": exc.code}) from exc
         raise StripeError(message=str(exc)) from exc
 
-    # ------------------------------------------------------------------
-    # Customers
-    # ------------------------------------------------------------------
-
     @staticmethod
-{%- if cookiecutter.use_postgresql or cookiecutter.use_mongodb %}
     async def create_customer(*, email: str, name: str | None, org_id: uuid.UUID) -> stripe.Customer:
         try:
             return await stripe.Customer.create_async(
@@ -48,25 +43,8 @@ class StripeClient:
             )
         except Exception as exc:
             StripeClient._handle_error(exc, {"org_id": str(org_id)})
-{%- elif cookiecutter.use_sqlite %}
-    def create_customer(*, email: str, name: str | None, org_id: str) -> stripe.Customer:
-        try:
-            return stripe.Customer.create(
-                email=email,
-                name=name,  # ty: ignore[invalid-argument-type]
-                metadata={"org_id": org_id},
-                idempotency_key=f"customer_create_{org_id}",
-            )
-        except Exception as exc:
-            StripeClient._handle_error(exc, {"org_id": org_id})
-{%- endif %}
-
-    # ------------------------------------------------------------------
-    # Checkout / Portal
-    # ------------------------------------------------------------------
 
     @staticmethod
-{%- if cookiecutter.use_postgresql or cookiecutter.use_mongodb %}
     async def create_checkout_session(**params) -> stripe.checkout.Session:
         try:
             return await stripe.checkout.Session.create_async(**params)
@@ -82,30 +60,8 @@ class StripeClient:
             )
         except Exception as exc:
             StripeClient._handle_error(exc, {"customer_id": customer_id})
-{%- elif cookiecutter.use_sqlite %}
-    def create_checkout_session(**params) -> stripe.checkout.Session:
-        try:
-            return stripe.checkout.Session.create(**params)
-        except Exception as exc:
-            StripeClient._handle_error(exc)
 
     @staticmethod
-    def create_portal_session(*, customer_id: str, return_url: str) -> stripe.billing_portal.Session:
-        try:
-            return stripe.billing_portal.Session.create(
-                customer=customer_id,
-                return_url=return_url,
-            )
-        except Exception as exc:
-            StripeClient._handle_error(exc, {"customer_id": customer_id})
-{%- endif %}
-
-    # ------------------------------------------------------------------
-    # Subscriptions
-    # ------------------------------------------------------------------
-
-    @staticmethod
-{%- if cookiecutter.use_postgresql or cookiecutter.use_mongodb %}
     async def cancel_subscription(*, subscription_id: str, at_period_end: bool = True) -> stripe.Subscription:
         try:
             if at_period_end:
@@ -139,38 +95,9 @@ class StripeClient:
             )
         except Exception as exc:
             StripeClient._handle_error(exc, {"subscription_id": subscription_id})
-{%- elif cookiecutter.use_sqlite %}
-    def cancel_subscription(*, subscription_id: str, at_period_end: bool = True) -> stripe.Subscription:
-        try:
-            if at_period_end:
-                return stripe.Subscription.modify(subscription_id, cancel_at_period_end=True)
-            return stripe.Subscription.cancel(subscription_id)
-        except Exception as exc:
-            StripeClient._handle_error(exc, {"subscription_id": subscription_id})
-
-    @staticmethod
-    def update_subscription(
-        *, subscription_id: str, new_stripe_price_id: str, proration_behavior: str = "create_prorations"
-    ) -> stripe.Subscription:
-        try:
-            sub = stripe.Subscription.retrieve(subscription_id)
-            item_id = sub["items"]["data"][0]["id"]
-            return stripe.Subscription.modify(
-                subscription_id,
-                items=[{"id": item_id, "price": new_stripe_price_id}],
-                proration_behavior=proration_behavior,  # ty: ignore[invalid-argument-type]
-            )
-        except Exception as exc:
-            StripeClient._handle_error(exc, {"subscription_id": subscription_id})
-{%- endif %}
-
-    # ------------------------------------------------------------------
-    # Webhook verification
-    # ------------------------------------------------------------------
 
     @staticmethod
     def construct_event(*, payload: bytes, signature: str) -> stripe.Event:
-        from app.core.config import settings
         try:
             return stripe.Webhook.construct_event(
                 payload, signature, settings.STRIPE_WEBHOOK_SECRET

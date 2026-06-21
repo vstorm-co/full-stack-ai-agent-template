@@ -93,9 +93,7 @@ export const BUILTIN_COMMANDS: SlashCommand[] = [
  * Pass an empty array for `userRecords` (e.g. before the API responds) to
  * get plain BUILTIN_COMMANDS.
  */
-export function mergeWithUserCommands(
-  userRecords: UserSlashCommandRecord[],
-): SlashCommand[] {
+export function mergeWithUserCommands(userRecords: UserSlashCommandRecord[]): SlashCommand[] {
   const overridesByName = new Map<string, UserSlashCommandRecord>();
   const customs: SlashCommand[] = [];
 

@@ -1,12 +1,12 @@
-{%- if cookiecutter.enable_rag and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
+{%- if cookiecutter.enable_rag %}
 """Sync source configuration schemas."""
 
 from typing import Any
 
-from pydantic import BaseModel
+from app.schemas.base import BaseSchema
 
 
-class ConnectorConfigField(BaseModel):
+class ConnectorConfigField(BaseSchema):
     """Describes a single configuration field for a connector."""
 
     type: str
@@ -17,7 +17,7 @@ class ConnectorConfigField(BaseModel):
     secret: bool = False
 
 
-class ConnectorInfo(BaseModel):
+class ConnectorInfo(BaseSchema):
     """Metadata about an available connector type."""
 
     type: str
@@ -26,7 +26,7 @@ class ConnectorInfo(BaseModel):
     enabled: bool
 
 
-class SyncSourceCreate(BaseModel):
+class SyncSourceCreate(BaseSchema):
     """Schema for creating a new sync source."""
 
     name: str
@@ -37,7 +37,7 @@ class SyncSourceCreate(BaseModel):
     schedule_minutes: int | None = None
 
 
-class SyncSourceUpdate(BaseModel):
+class SyncSourceUpdate(BaseSchema):
     """Schema for updating an existing sync source."""
 
     name: str | None = None
@@ -48,7 +48,7 @@ class SyncSourceUpdate(BaseModel):
     collection_name: str | None = None
 
 
-class SyncSourceRead(BaseModel):
+class SyncSourceRead(BaseSchema):
     """Schema for reading a sync source."""
 
     id: str
@@ -65,14 +65,14 @@ class SyncSourceRead(BaseModel):
     created_at: str | None
 
 
-class SyncSourceList(BaseModel):
+class SyncSourceList(BaseSchema):
     """Paginated list of sync sources."""
 
     items: list[SyncSourceRead]
     total: int
 
 
-class ConnectorList(BaseModel):
+class ConnectorList(BaseSchema):
     """List of available connectors."""
 
     items: list[ConnectorInfo]

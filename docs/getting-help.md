@@ -23,7 +23,6 @@
 | Type-safe agents with Pydantic | **PydanticAI** |
 | Complex workflows and chains | **LangChain** |
 | Stateful agent workflows | **LangGraph** |
-| Multi-agent collaboration | **CrewAI** |
 
 ### Which database should I use?
 

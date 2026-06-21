@@ -7,9 +7,9 @@ This file provides guidance for AI coding agents (Codex, Copilot, Cursor, Zed, O
 **{{ cookiecutter.project_name }}** - FastAPI application generated with [Full-Stack AI Agent Template](https://github.com/vstorm-co/full-stack-ai-agent-template).
 
 **Stack:** FastAPI + Pydantic v2
-{%- if cookiecutter.use_postgresql %}, PostgreSQL{%- endif %}
-{%- if cookiecutter.use_mongodb %}, MongoDB{%- endif %}
-{%- if cookiecutter.use_sqlite %}, SQLite{%- endif %}
+{%- if True %}, PostgreSQL{%- endif %}
+{%- if False %}, MongoDB{%- endif %}
+{%- if False %}, SQLite{%- endif %}
 , JWT + API Key auth
 {%- if cookiecutter.enable_redis %}, Redis{%- endif %}
 , {{ cookiecutter.ai_framework }} ({{ cookiecutter.llm_provider }})
@@ -25,12 +25,10 @@ cd backend && uv run uvicorn app.main:app --reload
 # Tests & lint
 pytest
 ruff check . --fix && ruff format .
-{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
 
 # Migrations
 uv run alembic upgrade head
 uv run alembic revision --autogenerate -m "Description"
-{%- endif %}
 {%- if cookiecutter.enable_rag %}
 
 # RAG

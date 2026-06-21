@@ -1,11 +1,6 @@
 {%- if cookiecutter.use_pydantic_ai %}
-"""Assistant agent with PydanticAI.
-
-The main conversational agent that can be extended with custom tools.
-"""
-
 import logging
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -25,6 +20,8 @@ from pydantic_ai.messages import (
     ModelResponse,
     SystemPromptPart,
     TextPart,
+    ToolCallPart,
+    ToolReturnPart,
     UserPromptPart,
 )
 {%- if cookiecutter.use_openai %}
@@ -51,20 +48,15 @@ from app.agents.prompts import get_system_prompt_with_rag
 {%- if cookiecutter.enable_deep_research %}
 from app.agents.prompts import get_research_prompt
 {%- endif %}
-from app.agents.tools import get_current_datetime
 from app.agents.tools.ask_user_tool import MAX_QUESTIONS, QuestionItem, format_answers
+from app.agents.utils import get_current_datetime
 {%- if cookiecutter.enable_rag %}
 from app.agents.tools.rag_tool import search_knowledge_base
 {%- endif %}
 {%- if cookiecutter.enable_charts %}
-from app.agents.tools.chart_tool import create_chart
-{%- endif %}
-{%- if cookiecutter.enable_antv_charts %}
-from app.agents.tools.antv_chart import get_antv_toolset
-from app.agents.tools.map_tool import MapMarker, create_map
+from app.agents.tools.chart_tool import ChartType, create_chart
 {%- endif %}
 {%- if cookiecutter.enable_code_execution %}
-from app.agents.tools.code_execution import EmitToolEvent
 from app.agents.tools.code_execution import run_python as run_python_code
 {%- endif %}
 {%- if cookiecutter.enable_skills %}
@@ -79,7 +71,7 @@ logger = logging.getLogger(__name__)
 {%- if cookiecutter.use_all_providers %}
 
 
-def _build_model(model_name: str):
+def _build_model(model_name: str) -> "OpenAIResponsesModel | AnthropicModel | GoogleModel | OpenRouterModel":
     """Dispatch to the right pydantic-ai Model for ``model_name``.
 
     Multi-provider deployments accept any model name from any installed SDK.
@@ -119,7 +111,7 @@ def _build_model(model_name: str):
 {%- elif cookiecutter.use_openai %}
 
 
-def _build_model(model_name: str):
+def _build_model(model_name: str) -> OpenAIResponsesModel:
     """OpenAI-only deployment."""
     return OpenAIResponsesModel(
         model_name or settings.AI_MODEL,
@@ -128,12 +120,12 @@ def _build_model(model_name: str):
 {%- elif cookiecutter.use_anthropic %}
 
 
-def _build_model(model_name: str):
+def _build_model(model_name: str) -> AnthropicModel:
     return AnthropicModel(model_name or settings.AI_MODEL)
 {%- elif cookiecutter.use_google %}
 
 
-def _build_model(model_name: str):
+def _build_model(model_name: str) -> GoogleModel:
     return GoogleModel(
         model_name or settings.AI_MODEL,
         provider=GoogleProvider(api_key=settings.GOOGLE_API_KEY),
@@ -141,7 +133,7 @@ def _build_model(model_name: str):
 {%- elif cookiecutter.use_openrouter %}
 
 
-def _build_model(model_name: str):
+def _build_model(model_name: str) -> OpenRouterModel:
     return OpenRouterModel(
         model_name or settings.AI_MODEL,
         provider=OpenRouterProvider(api_key=settings.OPENROUTER_API_KEY),
@@ -154,10 +146,7 @@ AskUserCallback = Callable[[list[dict[str, Any]]], Awaitable[list[dict[str, Any]
 
 @dataclass
 class Deps:
-    """Dependencies for the assistant agent.
-
-    These are passed to tools via RunContext.
-    """
+    """Dependencies passed to tools via RunContext."""
 
     user_id: str | None = None
     user_name: str | None = None
@@ -167,21 +156,12 @@ class Deps:
 {%- endif %}
     metadata: dict[str, Any] = field(default_factory=dict)
     ask_user: AskUserCallback | None = None
-{%- if cookiecutter.enable_code_execution %}
-    emit_tool_event: EmitToolEvent | None = None
-{%- endif %}
 {%- if cookiecutter.enable_deep_research %}
     # Required by SubAgentDepsProtocol; kept empty (capabilities carry the agents).
     subagents: dict[str, Any] = field(default_factory=dict)
 
     def clone_for_subagent(self, max_depth: int = 0) -> "Deps":
-        """Create isolated deps for a delegated subagent.
-
-        Required by ``subagents-pydantic-ai`` (``SubAgentDepsProtocol``). Shares
-        the lightweight context but drops the interactive hooks and hands over an
-        empty ``subagents`` dict when ``max_depth <= 0`` so a subagent cannot
-        recurse.
-        """
+        """Create isolated deps for a delegated subagent (required by SubAgentDepsProtocol)."""
         return Deps(
             user_id=self.user_id,
             user_name=self.user_name,
@@ -190,20 +170,12 @@ class Deps:
 {%- endif %}
             metadata=self.metadata,
             ask_user=None,
-{%- if cookiecutter.enable_code_execution %}
-            emit_tool_event=None,
-{%- endif %}
             subagents={} if max_depth <= 0 else self.subagents,
         )
 {%- endif %}
 
 
 class AssistantAgent:
-    """Assistant agent wrapper for conversational AI.
-
-    Encapsulates agent creation and execution with tool support.
-    """
-
     def __init__(
         self,
         model_name: str | None = None,
@@ -225,30 +197,23 @@ class AssistantAgent:
         # (gpt-5.5, o1, …) reject the parameter entirely, so we only forward
         # it to the model when explicitly requested.
         self.temperature = temperature
-        self.thinking_effort = thinking_effort if thinking_effort is not None else (
-            settings.AI_THINKING_EFFORT if settings.AI_THINKING_ENABLED else None
+        self.thinking_effort = (
+            thinking_effort
+            if thinking_effort is not None
+            else (settings.AI_THINKING_EFFORT if settings.AI_THINKING_ENABLED else None)
         )
-{%- if cookiecutter.enable_deep_research %}
-        if deep_research:
-            self.system_prompt = system_prompt or get_research_prompt()
-{%- if cookiecutter.enable_rag %}
-        else:
-            self.system_prompt = system_prompt or get_system_prompt_with_rag()
-{%- else %}
-        else:
-            self.system_prompt = system_prompt or DEFAULT_SYSTEM_PROMPT
-{%- endif %}
-{%- else %}
 {%- if cookiecutter.enable_rag %}
         self.system_prompt = system_prompt or get_system_prompt_with_rag()
 {%- else %}
         self.system_prompt = system_prompt or DEFAULT_SYSTEM_PROMPT
 {%- endif %}
+{%- if cookiecutter.enable_deep_research %}
+        if deep_research:
+            self.system_prompt = system_prompt or get_research_prompt()
 {%- endif %}
         self._agent: Agent[Deps, str] | None = None
 
     def _create_agent(self) -> Agent[Deps, str]:
-        """Create and configure the PydanticAI agent."""
         model = _build_model(self.model_name)
 
         capabilities: list[Any] = [ReinjectSystemPrompt()]
@@ -288,15 +253,8 @@ class AssistantAgent:
         if self.thinking_effort:
             model_settings["openai_reasoning_summary"] = "auto"  # type: ignore[typeddict-unknown-key]  # ty: ignore[invalid-key]
 
-{%- if cookiecutter.enable_antv_charts %}
-
-        # None when AntV is disabled or the sidecar is unavailable.
-        antv_toolset = get_antv_toolset()
-        toolsets = [antv_toolset] if antv_toolset is not None else []
-{%- else %}
 {%- if cookiecutter.enable_skills %}
-        toolsets: list = []
-{%- endif %}
+        toolsets: list[Any] = []
 {%- endif %}
 {%- if cookiecutter.enable_skills %}
 
@@ -314,7 +272,7 @@ class AssistantAgent:
             model_settings=model_settings,
             system_prompt=self.system_prompt,
             capabilities=capabilities,
-{%- if cookiecutter.enable_antv_charts or cookiecutter.enable_skills %}
+{%- if cookiecutter.enable_skills %}
             toolsets=toolsets,
 {%- endif %}
         )
@@ -324,8 +282,6 @@ class AssistantAgent:
         return agent
 
     def _register_tools(self, agent: Agent[Deps, str]) -> None:
-        """Register all tools on the agent."""
-
         @agent.tool_plain
         def current_datetime() -> dict[str, str]:
             """Get the current date and time.
@@ -351,27 +307,24 @@ class AssistantAgent:
             Returns:
                 Formatted string with search results including content and scores.
             """
-{%- if cookiecutter.enable_teams %}
             try:
+{%- if cookiecutter.enable_teams %}
                 return await search_knowledge_base(
                     query=query,
                     kb_collection_names=ctx.deps.kb_collection_names,
                     top_k=top_k,
                 )
-            except Exception as e:
-                raise ModelRetry("Knowledge base temporarily unavailable, please try again.") from e
 {%- else %}
-            try:
                 return await search_knowledge_base(query=query, top_k=top_k)
+{%- endif %}
             except Exception as e:
                 raise ModelRetry("Knowledge base temporarily unavailable, please try again.") from e
-{%- endif %}
 {%- endif %}
 
 {%- if cookiecutter.enable_charts %}
         @agent.tool_plain
         def create_chart_tool(
-            chart_type: str,
+            chart_type: ChartType,
             title: str,
             data: list[dict[str, Any]],
             series: list[dict[str, Any]] | None = None,
@@ -394,41 +347,12 @@ class AssistantAgent:
                 style: Optional {"palette", "grid", "legend", "x_label", "y_label", "stacked"}.
             """
             return create_chart(
-                chart_type=chart_type,  # type: ignore[arg-type]
+                chart_type=chart_type,
                 title=title,
                 data=data,
                 series=series,
                 x_key=x_key,
                 style=style,
-            )
-{%- endif %}
-{%- if cookiecutter.enable_antv_charts %}
-        @agent.tool_plain
-        def create_map_tool(
-            title: str,
-            markers: list[MapMarker],
-            center: list[float] | None = None,
-            zoom: int | None = None,
-        ) -> str:
-            """Create an interactive map to show places geographically for the user.
-
-            Use whenever the user asks to show, map, or locate places. Provide
-            latitude/longitude for each marker from your own knowledge (e.g.
-            Warsaw ≈ 52.23, 21.01). Do not repeat the returned JSON — just briefly
-            describe the map you created.
-
-            Args:
-                title: Short map title.
-                markers: One entry per place, each with lat, lng and a short label
-                    (plus optional description and color). Must not be empty.
-                center: Optional [lat, lng] center (auto-fit to markers if omitted).
-                zoom: Optional zoom level 1-18 (mainly useful for a single marker).
-            """
-            return create_map(
-                title=title,
-                markers=[m.model_dump() for m in markers],
-                center=center,
-                zoom=zoom,
             )
 {%- endif %}
 
@@ -464,49 +388,30 @@ class AssistantAgent:
 
 {%- if cookiecutter.enable_code_execution %}
 
-        if settings.ENABLE_CODE_EXECUTION:
+        @agent.tool
+        async def run_python(ctx: RunContext[Deps], code: str) -> str:
+            """Run Python in a sandbox and return its output.
 
-            @agent.tool
-            async def run_python(ctx: RunContext[Deps], code: str) -> str:
-                """Run Python in a sandbox to compute and to build visualizations.
+            Use for multi-step number-crunching (projections, aggregations, simulations).
+            SANDBOX LIMITATIONS — violating these causes "Execution failed" errors:
+              - NO comma thousands separator in f-strings: ``{x:,}`` or ``{x:,.2f}``
+                CRASHES. Use ``f"${int(x)}"`` or ``f"{x:.2f}"`` instead.
+              - NO ``statistics``, ``random``, ``itertools``, ``collections``,
+                numpy, pandas — compute stats manually with loops/math.
+              - NO file I/O, network calls, or OS access.
+              - NO ``import`` of any module not in: math, asyncio, json, datetime, re.
+              - Walrus operator ``:=`` is unsupported.
+              - f-string expressions must be simple: no ``!r``, no ``=`` suffix
+                (``{x=}`` debug format crashes). Use ``print(f"x = {x}")``.
 
-                Use this for multi-step number-crunching (projections, aggregations,
-                simulations) and whenever you want to produce several charts at once.
-{%- if cookiecutter.enable_charts or cookiecutter.enable_antv_charts %}
-                Inside the code you can call:
-                  - ``create_chart(chart_type, title, data, series=None, x_key="x", style=None)``
-{%- if cookiecutter.enable_antv_charts %}
-                  - ``create_map(title, markers, center=None, zoom=None)``
-{%- endif %}
-                  - ``current_datetime()``
-                ``create_chart``{%- if cookiecutter.enable_antv_charts %}/``create_map``{%- endif %} are async — call them with ``await``,
-                and run several in parallel with ``await asyncio.gather(...)``. Each one
-                renders to the user immediately as an interactive chart/map.
-{%- else %}
-                Inside the code you can call ``current_datetime()``.
-{%- endif %}
-                SANDBOX LIMITATIONS — violating these causes "Execution failed" errors:
-                  - NO comma thousands separator in f-strings: ``{x:,}`` or ``{x:,.2f}``
-                    CRASHES. Use ``f"${int(x)}"`` or ``f"{x:.2f}"`` instead.
-                  - NO ``statistics``, ``random``, ``itertools``, ``collections``,
-                    numpy, pandas — compute stats manually with loops/math.
-                  - NO file I/O, network calls, or OS access.
-                  - NO ``import`` of any module not in: math, asyncio, json, datetime, re.
-                  - Walrus operator ``:=`` is unsupported.
-                  - f-string expressions must be simple: no ``!r``, no ``=`` suffix
-                    (``{x=}`` debug format crashes). Use ``print(f"x = {x}")``.
+            Args:
+                code: The Python source to execute.
 
-                Print intermediate values you want to keep; don't paste the returned
-                chart JSON back to the user.
-
-                Args:
-                    code: The Python source to execute.
-
-                Returns:
-                    The captured stdout plus the final expression value, or an error
-                    message you can read and fix.
-                """
-                return await run_python_code(code, emit=ctx.deps.emit_tool_event)
+            Returns:
+                The captured stdout plus the final expression value, or an error
+                message you can read and fix.
+            """
+            return await run_python_code(code)
 {%- endif %}
 
     @staticmethod
@@ -525,7 +430,6 @@ class AssistantAgent:
 
     @property
     def agent(self) -> Agent[Deps, str]:
-        """Get or create the agent instance."""
         if self._agent is None:
             self._agent = self._create_agent()
         return self._agent
@@ -535,34 +439,24 @@ class AssistantAgent:
         user_input: str,
         history: list[dict[str, str]] | None = None,
         deps: Deps | None = None,
-    ) -> tuple[str, list[Any], Deps]:
-        """Run agent and return the output along with tool call events.
-
-        Args:
-            user_input: User's message.
-            history: Conversation history as list of {"role": "...", "content": "..."}.
-            deps: Optional dependencies. If not provided, a new Deps will be created.
-
-        Returns:
-            Tuple of (output_text, tool_events, deps).
-        """
+    ) -> tuple[str, list[ToolCallPart | ToolReturnPart], Deps]:
         agent_deps = deps if deps is not None else Deps()
 
-        logger.info(f"Running agent with user input: {user_input[:100]}...")
+        logger.info("Running agent with user input: %s...", user_input[:100])
         result = await self.agent.run(
             user_input,
             deps=agent_deps,
             message_history=self._build_model_history(history),
         )
 
-        tool_events: list[Any] = []
+        tool_events: list[ToolCallPart | ToolReturnPart] = []
         for message in result.all_messages():
             if hasattr(message, "parts"):
                 for part in message.parts:
-                    if hasattr(part, "tool_name"):
+                    if isinstance(part, (ToolCallPart, ToolReturnPart)):
                         tool_events.append(part)
 
-        logger.info(f"Agent run complete. Output length: {len(result.output)} chars")
+        logger.info("Agent run complete. Output length: %s chars", len(result.output))
 
         return result.output, tool_events, agent_deps
 
@@ -571,17 +465,7 @@ class AssistantAgent:
         user_input: str,
         history: list[dict[str, str]] | None = None,
         deps: Deps | None = None,
-    ) -> Any:
-        """Stream agent execution with full event access.
-
-        Args:
-            user_input: User's message.
-            history: Conversation history.
-            deps: Optional dependencies.
-
-        Yields:
-            Agent events for streaming responses.
-        """
+    ) -> AsyncGenerator[Any, None]:
         agent_deps = deps if deps is not None else Deps()
 
         async with self.agent.iter(
@@ -602,23 +486,6 @@ def get_agent(
     research_capabilities: list[Any] | None = None,
 {%- endif %}
 ) -> AssistantAgent:
-    """Factory function to create an AssistantAgent.
-
-    Args:
-        model_name: Override the default AI model.
-        thinking_effort: Override thinking effort ("low", "medium", "high", or None to disable).
-        temperature: Sampling temperature (typically 0.0-2.0). ``None`` falls back to
-            ``settings.AI_TEMPERATURE``.
-{%- if cookiecutter.enable_deep_research %}
-        deep_research: Build the planner persona and drop the planner's own web
-            tools so it delegates to subagents.
-        research_capabilities: Pre-built deep-research capabilities (
-            subagents, context manager), already ordered with the context manager last.
-{%- endif %}
-
-    Returns:
-        Configured AssistantAgent instance.
-    """
     return AssistantAgent(
         model_name=model_name,
         thinking_effort=thinking_effort,
@@ -634,19 +501,7 @@ async def run_agent(
     user_input: str,
     history: list[dict[str, str]],
     deps: Deps | None = None,
-) -> tuple[str, list[Any], Deps]:
-    """Run agent and return the output along with tool call events.
-
-    This is a convenience function for backwards compatibility.
-
-    Args:
-        user_input: User's message.
-        history: Conversation history.
-        deps: Optional dependencies.
-
-    Returns:
-        Tuple of (output_text, tool_events, deps).
-    """
+) -> tuple[str, list[ToolCallPart | ToolReturnPart], Deps]:
     agent = get_agent()
     return await agent.run(user_input, history, deps)
 {%- else %}

@@ -4,10 +4,10 @@
 Structures used to interface with the RAG feature."""
 
 import uuid
-from pydantic import BaseModel, Field, model_validator, computed_field
-from typing import Optional, Any
-
 from enum import StrEnum
+from typing import Any
+
+from pydantic import BaseModel, Field, computed_field, model_validator
 
 
 {%- if cookiecutter.enable_rag_image_description %}
@@ -28,7 +28,7 @@ class DocumentPage(BaseModel):
     page_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     page_num: int
     content: str
-    parent_doc_id: Optional[str] = None
+    parent_doc_id: str | None = None
 {%- if cookiecutter.enable_rag_image_description %}
     images: list[DocumentImage] = Field(default_factory=list)
 {%- endif %}
@@ -49,7 +49,7 @@ class DocumentMetadata(BaseModel):
     filetype: str
     source_path: str = ""  # original path: local path, s3://bucket/key, gdrive://file_id
     content_hash: str = ""  # SHA256 hash for deduplication
-    additional_info: Optional[dict[str, Any]] = None
+    additional_info: dict[str, Any] | None = None
 
 
 class Document(BaseModel):
@@ -57,7 +57,7 @@ class Document(BaseModel):
     
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     pages: list[DocumentPage]
-    chunked_pages: Optional[list[DocumentPageChunk]] = None
+    chunked_pages: list[DocumentPageChunk] | None = None
     metadata: DocumentMetadata
     
     @computed_field  # type: ignore[prop-decorator]
@@ -78,7 +78,7 @@ class SearchResult(BaseModel):
     content: str
     score: float
     metadata: dict[str, Any] = Field(default_factory=dict)
-    parent_doc_id: Optional[str] = None
+    parent_doc_id: str | None = None
 
 
 class IngestionStatus(StrEnum):
@@ -95,9 +95,9 @@ class IngestionResult(BaseModel):
     """A schema to handle document ingestion results."""
     
     status: IngestionStatus = IngestionStatus.NEW
-    message: Optional[str] = None
-    error_message: Optional[str] = None
-    document_id: Optional[str] = None
+    message: str | None = None
+    error_message: str | None = None
+    document_id: str | None = None
     
     
 class CollectionInfo(BaseModel):
@@ -113,9 +113,9 @@ class DocumentInfo(BaseModel):
     """Information about a document stored in a collection."""
     
     document_id: str
-    filename: Optional[str] = None
-    filesize: Optional[int] = None
-    filetype: Optional[str] = None
+    filename: str | None = None
+    filesize: int | None = None
+    filetype: str | None = None
     chunk_count: int = 0
-    additional_info: Optional[dict[str, Any]] = None
+    additional_info: dict[str, Any] | None = None
 {%- endif %}

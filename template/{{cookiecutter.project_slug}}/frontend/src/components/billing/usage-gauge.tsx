@@ -41,15 +41,16 @@ export function UsageGauge({
   const ratio = hasLimit ? Math.min(1, Math.max(0, used / limit)) : 0;
   const pct = ratio * 100;
 
-  const tone =
-    !hasLimit ? "neutral" : ratio >= dangerAt ? "danger" : ratio >= warnAt ? "warn" : "ok";
+  const tone = !hasLimit
+    ? "neutral"
+    : ratio >= dangerAt
+      ? "danger"
+      : ratio >= warnAt
+        ? "warn"
+        : "ok";
 
   const fillClass =
-    tone === "danger"
-      ? "bg-destructive"
-      : tone === "warn"
-        ? "bg-yellow-500"
-        : "bg-brand";
+    tone === "danger" ? "bg-destructive" : tone === "warn" ? "bg-yellow-500" : "bg-brand";
 
   const labelClass =
     tone === "danger"
@@ -59,15 +60,10 @@ export function UsageGauge({
         : "text-foreground/55";
 
   return (
-    <div
-      className={cn(
-        "border-foreground/10 bg-card rounded-2xl border p-5",
-        className,
-      )}
-    >
+    <div className={cn("border-foreground/10 bg-card rounded-2xl border p-5", className)}>
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-foreground/55 font-mono text-[11px] uppercase tracking-wider">
+          <p className="text-foreground/55 font-mono text-[11px] tracking-wider uppercase">
             {label}
           </p>
           <div className="mt-2 flex items-baseline gap-1.5">
@@ -99,13 +95,9 @@ export function UsageGauge({
               style={{ width: `${pct}%` }}
             />
           </div>
-          <div className="mt-2 flex items-center justify-between font-mono text-[10px] uppercase tracking-wider">
-            <span className={labelClass}>
-              {pct.toFixed(pct >= 10 ? 0 : 1)}% used
-            </span>
-            <span className="text-foreground/45">
-              {fmt(Math.max(0, limit! - used))} left
-            </span>
+          <div className="mt-2 flex items-center justify-between font-mono text-[10px] tracking-wider uppercase">
+            <span className={labelClass}>{pct.toFixed(pct >= 10 ? 0 : 1)}% used</span>
+            <span className="text-foreground/45">{fmt(Math.max(0, limit! - used))} left</span>
           </div>
         </>
       )}

@@ -18,6 +18,7 @@ import type {
   WSEvent,
 } from "@/types";
 import { WS_URL } from "@/lib/constants";
+import { setUrlParam } from "@/lib/utils";
 import { useConversationStore } from "@/stores";
 {%- if cookiecutter.enable_deep_research %}
 import { useResearchStore, useChatModeStore } from "@/stores";
@@ -45,7 +46,6 @@ export function useChat(options: UseChatOptions = {}) {
     messages,
     addMessage,
     updateMessage,
-    addToolCall,
     appendTextDelta,
     appendThinkingDelta,
     addToolCallPart,
@@ -73,7 +73,6 @@ export function useChat(options: UseChatOptions = {}) {
   const modelRef = useRef<string | null>(null);
   const temperatureRef = useRef<number | null>(null);
   const thinkingEffortRef = useRef<"low" | "medium" | "high" | null>(null);
-  // Human-in-the-Loop: pending tool approval state
   const [pendingApproval, setPendingApproval] = useState<PendingApproval | null>(null);
   const [pendingQuestions, setPendingQuestions] = useState<AskUserQuestion[] | null>(null);
 
@@ -81,9 +80,7 @@ export function useChat(options: UseChatOptions = {}) {
     (event: MessageEvent) => {
       const wsEvent: WSEvent = JSON.parse(event.data);
 
-      // Helper to create a new message
       const createNewMessage = (content: string): string => {
-        // Mark previous message as not streaming before creating new one
         if (currentMessageIdRef.current) {
           updateMessage(currentMessageIdRef.current, (msg) => ({
             ...msg,
@@ -102,9 +99,6 @@ export function useChat(options: UseChatOptions = {}) {
           timestamp: new Date(),
           isStreaming: true,
           toolCalls: [],
-          // Streamed turns (empty seed) use the ordered parts timeline.
-          // CrewAI seeds content directly → keep parts undefined so it
-          // falls back to the legacy layout (it's already multi-message).
           parts: content === "" ? [] : undefined,
           groupId: currentGroupIdRef.current || undefined,
           conversationId: effectiveConversationId,
@@ -120,13 +114,7 @@ export function useChat(options: UseChatOptions = {}) {
           const { conversation_id } = wsEvent.data as { conversation_id: string };
           setCurrentConversationId(conversation_id);
           // Reflect the new ID in the URL so the page is refreshable + shareable.
-          if (typeof window !== "undefined") {
-            const url = new URL(window.location.href);
-            if (url.searchParams.get("id") !== conversation_id) {
-              url.searchParams.set("id", conversation_id);
-              window.history.replaceState({}, "", url.toString());
-            }
-          }
+          setUrlParam("id", conversation_id);
           // Update all messages that don't have a conversationId yet
           const { updateMessagesWhere } = useChatStore.getState();
           updateMessagesWhere(
@@ -171,13 +159,6 @@ export function useChat(options: UseChatOptions = {}) {
           break;
         }
 
-        case "crew_start":
-        case "crew_started": {
-          // CrewAI - generate groupId for this execution, wait for agent events
-          currentGroupIdRef.current = nanoid();
-          break;
-        }
-
         case "text_delta": {
           // Append to the ordered parts timeline (extends the trailing
           // text part or starts a new one after a thinking/tool part).
@@ -201,112 +182,6 @@ export function useChat(options: UseChatOptions = {}) {
           break;
         }
 
-        // CrewAI agent events - each agent gets its own message container
-        case "agent_started": {
-          const { agent } = wsEvent.data as {
-            agent: string;
-            task: string;
-          };
-          // Create NEW message for this agent (groupId read from ref)
-          createNewMessage(`🤖 **${agent}** is starting...`);
-          break;
-        }
-
-        case "agent_completed": {
-          // Finalize current agent's message with output
-          if (currentMessageIdRef.current) {
-            const { agent, output } = wsEvent.data as {
-              agent: string;
-              output: string;
-            };
-            updateMessage(currentMessageIdRef.current, (msg) => ({
-              ...msg,
-              content: `✅ **${agent}**\n\n${output}`,
-              isStreaming: false,
-            }));
-          }
-          break;
-        }
-
-        // CrewAI task events - create separate message for each task
-        case "task_started": {
-          const { description, agent } = wsEvent.data as {
-            task_id: string;
-            description: string;
-            agent: string;
-          };
-          // Create NEW message for this task (groupId read from ref)
-          createNewMessage(`📋 **Task** (${agent})\n\n${description}`);
-          break;
-        }
-
-        case "task_completed": {
-          // Finalize the task message
-          if (currentMessageIdRef.current) {
-            const { output, agent } = wsEvent.data as {
-              task_id: string;
-              output: string;
-              agent: string;
-            };
-            updateMessage(currentMessageIdRef.current, (msg) => ({
-              ...msg,
-              content: `✅ **Task completed** (${agent})\n\n${output}`,
-              isStreaming: false,
-            }));
-          }
-          break;
-        }
-
-        // CrewAI tool events
-        case "tool_started": {
-          if (currentMessageIdRef.current) {
-            const { tool_name, tool_args, agent } = wsEvent.data as {
-              tool_name: string;
-              tool_args: string;
-              agent: string;
-            };
-            const toolCall: ToolCall = {
-              id: nanoid(),
-              name: tool_name,
-              args: { input: tool_args, agent },
-              status: "running",
-            };
-            addToolCall(currentMessageIdRef.current, toolCall);
-          }
-          break;
-        }
-
-        case "tool_finished": {
-          // Tool finished - update last tool call status
-          if (currentMessageIdRef.current) {
-            const { tool_name, tool_result } = wsEvent.data as {
-              tool_name: string;
-              tool_result: string;
-              agent: string;
-            };
-            // Find and update the matching tool call
-            updateMessage(currentMessageIdRef.current, (msg) => {
-              const toolCalls = msg.toolCalls || [];
-              const lastToolCall = toolCalls.find(
-                (tc) => tc.name === tool_name && tc.status === "running",
-              );
-              if (lastToolCall) {
-                return {
-                  ...msg,
-                  toolCalls: toolCalls.map((tc) =>
-                    tc.id === lastToolCall.id
-                      ? { ...tc, result: tool_result, status: "completed" as const }
-                      : tc,
-                  ),
-                };
-              }
-              return msg;
-            });
-          }
-          break;
-        }
-
-        // LLM events (can be used for showing thinking status)
         case "llm_started":
         case "llm_completed": {
           // LLM lifecycle events - optionally show status
@@ -479,7 +354,6 @@ export function useChat(options: UseChatOptions = {}) {
       // so we deliberately omit it here — that's the whole point of the ref.
       addMessage,
       updateMessage,
-      addToolCall,
       appendTextDelta,
       appendThinkingDelta,
       addToolCallPart,
@@ -503,11 +377,47 @@ export function useChat(options: UseChatOptions = {}) {
     [accessToken],
   );
 
+  // Guards against firing a token refresh on every backoff attempt — one
+  // in-flight /me at a time is enough to recover a stale access token.
+  const refreshingRef = useRef(false);
+
   const { isConnected, connect, disconnect, sendMessage } = useWebSocket({
     url: wsUrl,
     protocols: wsProtocols,
     onMessage: handleWebSocketMessage,
+    // A dropped socket is often a stale access token. Refresh it so the
+    // auto-reconnect (and the token-gated connect effect) uses a fresh one.
+    // The hook only calls this on genuine drops (not deliberate disconnects),
+    // and the ref keeps concurrent reconnect attempts from stampeding /me.
+    onClose: () => {
+      if (refreshingRef.current) return;
+      refreshingRef.current = true;
+      void (async () => {
+        try {
+          const res = await fetch("/api/auth/me");
+          if (res.ok) {
+            const data = (await res.json()) as { access_token?: string };
+            if (data.access_token) useAuthStore.getState().setAccessToken(data.access_token);
+          }
+        } catch {
+          // ignore — backoff reconnect will retry
+        } finally {
+          refreshingRef.current = false;
+        }
+      })();
+    },
   });
+
+  // Own the socket lifecycle here: only open once the in-memory access token is
+  // available (the WS authenticates via Sec-WebSocket-Protocol). Connecting
+  // before the token loads used to open a token-less socket that the server
+  // rejects, triggering a reconnect storm + console errors on every page load.
+  // When the token refreshes, `connect` changes identity → reconnect with it.
+  useEffect(() => {
+    if (!accessToken) return;
+    connect();
+    return () => disconnect();
+  }, [accessToken, connect, disconnect]);
 
   const doSend = useCallback(
     (content: string, fileIds?: string[], files?: ChatMessageFile[]) => {
@@ -571,10 +481,8 @@ export function useChat(options: UseChatOptions = {}) {
     setQueuedMessages([]);
   }, []);
 
-  // Human-in-the-Loop: send resume message with user decisions
   const sendResumeDecisions = useCallback(
     (decisions: Decision[]) => {
-      // Clear pending approval state
       setPendingApproval(null);
 
       // Update message to show decisions were made

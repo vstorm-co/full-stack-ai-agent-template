@@ -1,4 +1,4 @@
-{%- if cookiecutter.enable_billing and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
+{%- if cookiecutter.enable_billing %}
 """create stripe_event table
 
 Revision ID: 0013_create_stripe_event_table
@@ -10,9 +10,7 @@ Creates:
 """
 
 import sqlalchemy as sa
-{%- if cookiecutter.use_postgresql %}
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID, JSONB
-{%- endif %}
 from alembic import op
 
 revision = "0013_create_stripe_event_table"
@@ -24,13 +22,8 @@ depends_on = None
 def upgrade() -> None:
     op.create_table(
         "stripe_event",
-{%- if cookiecutter.use_postgresql %}
         sa.Column("id", PG_UUID(as_uuid=True), primary_key=True),
         sa.Column("payload", JSONB(), nullable=False),
-{%- else %}
-        sa.Column("id", sa.String(36), primary_key=True),
-        sa.Column("payload", sa.Text(), nullable=False),
-{%- endif %}
         sa.Column("stripe_event_id", sa.String(64), unique=True, nullable=False),
         sa.Column("event_type", sa.String(64), nullable=False),
         sa.Column("status", sa.String(16), nullable=False, server_default="pending"),

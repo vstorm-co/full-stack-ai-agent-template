@@ -16,12 +16,10 @@ data:
   API_V1_STR: "/api/v1"
   TIMEZONE: "{{ cookiecutter.timezone }}"
 
-{%- if cookiecutter.use_postgresql %}
   # PostgreSQL settings
   POSTGRES_HOST: "postgres-service"
   POSTGRES_PORT: "5432"
   POSTGRES_DB: "{{ cookiecutter.project_slug }}"
-{%- endif %}
 
 {%- if cookiecutter.enable_redis %}
   # Redis settings

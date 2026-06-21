@@ -67,7 +67,6 @@ class VersionDeprecationMiddleware(BaseHTTPMiddleware):
         """Process the request and add deprecation headers if needed."""
         response = await call_next(request)
 
-        # Check if request path matches a deprecated version
         path = request.url.path
         for version, info in self.deprecated_versions.items():
             if f"/api/{version}/" in path or path.endswith(f"/api/{version}"):
@@ -81,16 +80,13 @@ class VersionDeprecationMiddleware(BaseHTTPMiddleware):
         self, response: Response, version: str, info: dict[str, str]
     ) -> None:
         """Add RFC 8594 deprecation headers to the response."""
-        # Deprecation header - indicates the API is deprecated
         response.headers["Deprecation"] = "true"
 
-        # Sunset header - when the API will be removed
         if sunset := info.get("sunset"):
             # Convert to HTTP date format
             sunset_date = datetime.fromisoformat(sunset)
             response.headers["Sunset"] = sunset_date.strftime("%a, %d %b %Y %H:%M:%S GMT")
 
-        # Link header - documentation for migration
         if link := info.get("link"):
             response.headers["Link"] = f'<{link}>; rel="deprecation"'
 
@@ -137,7 +133,6 @@ def deprecated(
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(func)
         async def wrapper(*args: Any, **kwargs: Any) -> Any:
-            # Get the response from the endpoint
             result = await func(*args, **kwargs)
 
             # Find Response object in args (FastAPI injects it)
@@ -151,7 +146,6 @@ def deprecated(
                     response = value
                     break
 
-            # If we have a Response object, add headers
             if response:
                 response.headers["Deprecation"] = "true"
                 if sunset:
@@ -177,47 +171,3 @@ def deprecated(
         return wrapper
 
     return decorator
-
-
-# Example usage documentation
-"""
-## Adding a New API Version
-
-1. Create a new version folder:
-   ```
-   app/api/routes/v2/
-   ├── __init__.py
-   ├── health.py
-   ├── auth.py
-   └── ...
-   ```
-
-2. Create the v2 router in `v2/__init__.py`:
-   ```python
-   from fastapi import APIRouter
-   v2_router = APIRouter()
-   # Include routes...
-   ```
-
-3. Add the v2 router in `app/api/router.py`:
-   ```python
-   from app.api.routes.v2 import v2_router
-
-   api_router.include_router(v1_router, prefix="/v1")
-   api_router.include_router(v2_router, prefix="/v2")
-   ```
-
-4. Mark v1 as deprecated in `main.py`:
-   ```python
-   app.add_middleware(
-       VersionDeprecationMiddleware,
-       deprecated_versions={
-           "v1": {
-               "sunset": "2025-12-31",
-               "link": "/docs/migration/v2",
-               "message": "Please migrate to API v2",
-           }
-       },
-   )
-   ```
-"""

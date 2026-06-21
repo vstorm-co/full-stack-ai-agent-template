@@ -1,8 +1,5 @@
 """Database models."""
-{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
 # ruff: noqa: I001, RUF022 - Imports structured for Jinja2 template conditionals
-{%- endif %}
-{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
 {%- set models = [] %}
 {%- if cookiecutter.use_jwt %}
 {%- set _ = models.append("User") %}
@@ -57,12 +54,11 @@ from app.db.models.audit_log import AppAdminAuditLog
 {%- set _ = models.append("KnowledgeBase") %}
 from app.db.models.knowledge_base import KnowledgeBase
 {%- endif %}
-{%- if cookiecutter.use_auth and cookiecutter.use_ai and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
+{%- if cookiecutter.use_auth and cookiecutter.use_ai %}
 {%- set _ = models.append("UserSlashCommand") %}
 from app.db.models.user_slash_command import UserSlashCommand
 {%- endif %}
 {%- if models %}
 
 __all__ = {{ models }}
-{%- endif %}
 {%- endif %}

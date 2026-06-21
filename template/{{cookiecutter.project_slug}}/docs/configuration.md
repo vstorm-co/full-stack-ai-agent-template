@@ -81,7 +81,6 @@ Production validation: `API_KEY` cannot use the default value in
 | `FRONTEND_URL` | `http://localhost:{{ cookiecutter.frontend_port }}` | Frontend URL for OAuth2 redirects |
 {%- endif %}
 
-{%- if cookiecutter.use_postgresql %}
 
 ## Database (PostgreSQL)
 
@@ -99,29 +98,8 @@ Production validation: `API_KEY` cannot use the default value in
 Computed properties:
 - `DATABASE_URL` -- async connection string (`postgresql+asyncpg://...`)
 - `DATABASE_URL_SYNC` -- sync connection string for Alembic
-{%- endif %}
 
-{%- if cookiecutter.use_mongodb %}
 
-## Database (MongoDB)
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `MONGO_HOST` | `localhost` | MongoDB host |
-| `MONGO_PORT` | `27017` | MongoDB port |
-| `MONGO_DB` | `{{ cookiecutter.project_slug }}` | Database name |
-| `MONGO_USER` | (none) | MongoDB user (optional) |
-| `MONGO_PASSWORD` | (none) | MongoDB password (optional) |
-{%- endif %}
-
-{%- if cookiecutter.use_sqlite %}
-
-## Database (SQLite)
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `SQLITE_PATH` | `./data/{{ cookiecutter.project_slug }}.db` | Path to SQLite database file |
-{%- endif %}
 
 {%- if cookiecutter.enable_redis %}
 
@@ -492,9 +470,7 @@ Before deploying to production, ensure these variables are properly set:
 {%- endif %}
 3. `ENVIRONMENT` -- Set to `production`
 4. `DEBUG` -- Set to `false`
-{%- if cookiecutter.use_postgresql %}
 5. `POSTGRES_PASSWORD` -- Use a strong, unique password
-{%- endif %}
 {%- if cookiecutter.enable_cors %}
 6. `CORS_ORIGINS` -- List only your actual frontend domain(s)
 {%- endif %}

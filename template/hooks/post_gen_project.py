@@ -6,21 +6,16 @@ import shutil
 import subprocess
 import sys
 
-# Get cookiecutter variables
 use_frontend = "{{ cookiecutter.use_frontend }}" == "True"
 generate_env = "{{ cookiecutter.generate_env }}" == "True"
 
-# Feature flags
 use_database = "{{ cookiecutter.use_database }}" == "True"
 use_postgresql = "{{ cookiecutter.use_postgresql }}" == "True"
-use_sqlite = "{{ cookiecutter.use_sqlite }}" == "True"
-use_mongodb = "{{ cookiecutter.use_mongodb }}" == "True"
 use_sqlalchemy = "{{ cookiecutter.use_sqlalchemy }}" == "True"
 use_sqlmodel = "{{ cookiecutter.use_sqlmodel }}" == "True"
 use_pydantic_ai = "{{ cookiecutter.use_pydantic_ai }}" == "True"
 use_langchain = "{{ cookiecutter.use_langchain }}" == "True"
 use_langgraph = "{{ cookiecutter.use_langgraph }}" == "True"
-use_crewai = "{{ cookiecutter.use_crewai }}" == "True"
 use_deepagents = "{{ cookiecutter.use_deepagents }}" == "True"
 enable_admin_panel = "{{ cookiecutter.enable_admin_panel }}" == "True"
 enable_websockets = "{{ cookiecutter.enable_websockets }}" == "True"
@@ -34,6 +29,7 @@ use_auth = "{{ cookiecutter.use_auth }}" == "True"
 use_celery = "{{ cookiecutter.use_celery }}" == "True"
 use_taskiq = "{{ cookiecutter.use_taskiq }}" == "True"
 use_arq = "{{ cookiecutter.use_arq }}" == "True"
+use_prefect = "{{ cookiecutter.use_prefect }}" == "True"
 use_github_actions = "{{ cookiecutter.use_github_actions }}" == "True"
 use_gitlab_ci = "{{ cookiecutter.use_gitlab_ci }}" == "True"
 enable_kubernetes = "{{ cookiecutter.enable_kubernetes }}" == "True"
@@ -48,7 +44,6 @@ enable_web_search = "{{ cookiecutter.enable_web_search }}" == "True"
 web_fetch_tool = "{{ cookiecutter.web_fetch_tool }}" == "True"
 enable_charts = "{{ cookiecutter.enable_charts }}" == "True"
 charts_channel_png = "{{ cookiecutter.charts_channel_png }}" == "True"
-enable_antv_charts = "{{ cookiecutter.enable_antv_charts }}" == "True"
 enable_code_execution = "{{ cookiecutter.enable_code_execution }}" == "True"
 enable_deep_research = "{{ cookiecutter.enable_deep_research }}" == "True"
 use_pydantic_deep = "{{ cookiecutter.use_pydantic_deep }}" == "True"
@@ -111,13 +106,10 @@ def remove_dir(path: str) -> None:
         print(f"  Removed: {os.path.relpath(path)}/")
 
 
-# Base directories
 backend_app = os.path.join(os.getcwd(), "backend", "app")
 
-# Cleanup stub files based on disabled features
 print("Cleaning up unused files...")
 
-# --- AI Agent files (remove unused framework-specific files) ---
 if not use_pydantic_ai:
     remove_file(os.path.join(backend_app, "agents", "assistant.py"))
     remove_file(os.path.join(backend_app, "agents", "tools", "ask_user_tool.py"))
@@ -125,8 +117,6 @@ if not use_langchain:
     remove_file(os.path.join(backend_app, "agents", "langchain_assistant.py"))
 if not use_langgraph:
     remove_file(os.path.join(backend_app, "agents", "langgraph_assistant.py"))
-if not use_crewai:
-    remove_file(os.path.join(backend_app, "agents", "crewai_assistant.py"))
 if not use_deepagents:
     remove_file(os.path.join(backend_app, "agents", "deepagents_assistant.py"))
 if not use_pydantic_deep:
@@ -139,22 +129,14 @@ if not web_fetch_tool:
     remove_file(os.path.join(os.getcwd(), "backend", "tests", "test_fetch_url.py"))
 if not enable_charts:
     remove_file(os.path.join(backend_app, "agents", "tools", "chart_tool.py"))
-    remove_file(os.path.join(backend_app, "agents", "tools", "chart_render.py"))
+    remove_file(os.path.join(backend_app, "services", "channels", "chart_render.py"))
     remove_file(os.path.join(os.getcwd(), "backend", "tests", "test_chart_tool.py"))
     if use_frontend:
         frontend_src = os.path.join(os.getcwd(), "frontend", "src")
         remove_file(os.path.join(frontend_src, "components", "chat", "chart-message.tsx"))
 elif not charts_channel_png:
     # Chart tool enabled but no Slack/Telegram — PNG renderer not needed.
-    remove_file(os.path.join(backend_app, "agents", "tools", "chart_render.py"))
-if not enable_antv_charts:
-    # AntV diagram MCP client + the create_map tool + its Leaflet renderer.
-    remove_file(os.path.join(backend_app, "agents", "tools", "antv_chart.py"))
-    remove_file(os.path.join(backend_app, "agents", "tools", "map_tool.py"))
-    if use_frontend:
-        frontend_src = os.path.join(os.getcwd(), "frontend", "src")
-        remove_file(os.path.join(frontend_src, "components", "chat", "map-leaflet.tsx"))
-        remove_file(os.path.join(frontend_src, "components", "chat", "map-message.tsx"))
+    remove_file(os.path.join(backend_app, "services", "channels", "chart_render.py"))
 if not enable_code_execution:
     remove_file(os.path.join(backend_app, "agents", "tools", "code_execution.py"))
 if not enable_deep_research:
@@ -166,16 +148,12 @@ if not enable_deep_research:
         remove_file(os.path.join(frontend_src, "stores", "research-store.ts"))
         remove_file(os.path.join(frontend_src, "stores", "chat-mode-store.ts"))
 
-# --- No-AI mode: remove all AI/chat/conversation files ---
 if not use_ai:
-    # Entire agents folder
     remove_dir(os.path.join(backend_app, "agents"))
-    # Agent & conversation services
     remove_file(os.path.join(backend_app, "services", "agent.py"))
     remove_file(os.path.join(backend_app, "services", "agent_session.py"))
     remove_file(os.path.join(backend_app, "services", "agent_invocation.py"))
     remove_file(os.path.join(backend_app, "services", "conversation.py"))
-    # Conversation model / repo / schema
     remove_file(os.path.join(backend_app, "db", "models", "conversation.py"))
     remove_file(os.path.join(backend_app, "repositories", "conversation.py"))
     remove_file(os.path.join(backend_app, "schemas", "conversation.py"))
@@ -187,11 +165,9 @@ if not use_ai:
     remove_file(os.path.join(backend_app, "db", "models", "conversation_share.py"))
     remove_file(os.path.join(backend_app, "repositories", "conversation_share.py"))
     remove_file(os.path.join(backend_app, "services", "conversation_share.py"))
-    # Message ratings — model + repo + service (AI-only)
     remove_file(os.path.join(backend_app, "db", "models", "message_rating.py"))
     remove_file(os.path.join(backend_app, "repositories", "message_rating.py"))
     remove_file(os.path.join(backend_app, "services", "message_rating.py"))
-    # Chat & conversation routes
     remove_file(os.path.join(backend_app, "api", "routes", "v1", "chat.py"))
     remove_file(os.path.join(backend_app, "api", "routes", "v1", "conversations.py"))
     remove_file(os.path.join(backend_app, "api", "routes", "v1", "message_ratings.py"))
@@ -201,14 +177,12 @@ if not use_ai:
     remove_file(os.path.join(backend_app, "api", "routes", "v1", "agent.py"))
     remove_file(os.path.join(backend_app, "api", "routes", "v1", "admin_conversations.py"))
     remove_file(os.path.join(backend_app, "api", "routes", "v1", "admin_ratings.py"))
-    # Slash commands model / repo / schema / service
     remove_file(os.path.join(backend_app, "db", "models", "user_slash_command.py"))
     remove_file(os.path.join(backend_app, "repositories", "user_slash_command.py"))
     remove_file(os.path.join(backend_app, "schemas", "user_slash_command.py"))
     remove_file(os.path.join(backend_app, "services", "user_slash_command.py"))
     # Logfire (AI observability) — only remove if no other use
     # Keep logfire_setup.py if logfire is enabled for non-AI tracing (FastAPI/DB)
-    # Frontend chat UI + AI-only admin pages / API proxies / data hooks
     if use_frontend:
         frontend_src = os.path.join(os.getcwd(), "frontend", "src")
         remove_dir(os.path.join(frontend_src, "app", "[locale]", "(dashboard)", "chat"))
@@ -223,10 +197,8 @@ if not use_ai:
         remove_dir(
             os.path.join(frontend_src, "app", "[locale]", "(dashboard)", "admin", "ratings")
         )
-        # Next.js API proxies for the removed admin endpoints
         remove_dir(os.path.join(frontend_src, "app", "api", "admin", "conversations"))
         remove_dir(os.path.join(frontend_src, "app", "api", "admin", "ratings"))
-        # Conversation / rating data hooks
         remove_file(os.path.join(frontend_src, "hooks", "use-conversations.ts"))
         remove_file(os.path.join(frontend_src, "hooks", "use-conversation-shares.ts"))
         remove_file(os.path.join(frontend_src, "hooks", "use-admin-conversations.ts"))
@@ -250,7 +222,6 @@ if not use_ai:
             )
         )
 
-# --- Webhook files ---
 if not enable_webhooks or not use_database:
     remove_file(os.path.join(backend_app, "api", "routes", "v1", "webhooks.py"))
     remove_file(os.path.join(backend_app, "db", "models", "webhook.py"))
@@ -258,7 +229,6 @@ if not enable_webhooks or not use_database:
     remove_file(os.path.join(backend_app, "services", "webhook.py"))
     remove_file(os.path.join(backend_app, "schemas", "webhook.py"))
 
-# --- Session management files ---
 if not enable_session_management:
     remove_file(os.path.join(backend_app, "api", "routes", "v1", "sessions.py"))
     remove_file(os.path.join(backend_app, "db", "models", "session.py"))
@@ -271,14 +241,13 @@ if not enable_session_management:
         remove_file(os.path.join(frontend_src, "components", "dashboard", "active-sessions.tsx"))
 
 
-# --- Admin panel: SQLAdmin UI (requires SQLAlchemy, not SQLModel) ---
 # This gates ONLY the SQLAdmin integration (`admin.py`). The core admin REST
 # routes (`admin_users.py`, `admin_stats.py`) and their dashboard pages stay
 # regardless — they're always useful for the workspace admin role. The AI
 # admin routes (`admin_conversations.py`, `admin_ratings.py`) are removed in
 # the no-AI block above; `admin_stats.py` keeps working because its
 # conversation/message metrics are Jinja-guarded by use_ai.
-if not enable_admin_panel or (not use_postgresql and not use_sqlite) or not use_sqlalchemy:
+if not enable_admin_panel or not use_postgresql or not use_sqlalchemy:
     remove_file(os.path.join(backend_app, "admin.py"))
 
 # Stripe events listing requires the StripeEvent model — drop it (and the
@@ -288,43 +257,31 @@ if not enable_billing and use_frontend:
     frontend_src_for_admin = os.path.join(os.getcwd(), "frontend", "src")
     remove_dir(os.path.join(frontend_src_for_admin, "app", "api", "admin", "stripe-events"))
 
-# --- Redis/Cache files ---
 if not enable_redis:
     remove_file(os.path.join(backend_app, "clients", "redis.py"))
 
 if not enable_caching:
     remove_file(os.path.join(backend_app, "core", "cache.py"))
 
-# --- Rate limiting ---
 if not enable_rate_limiting:
     remove_file(os.path.join(backend_app, "core", "rate_limit.py"))
     remove_dir(os.path.join(backend_app, "services", "rate_limit"))
 
-# --- OAuth ---
 if not enable_oauth:
     remove_file(os.path.join(backend_app, "api", "routes", "v1", "oauth.py"))
     remove_file(os.path.join(backend_app, "core", "oauth.py"))
 
 
-# --- Logfire setup file (when logfire is disabled) ---
 if not enable_logfire:
     remove_file(os.path.join(backend_app, "core", "logfire_setup.py"))
 
-# --- RAG files ---
 if not enable_rag:
-    # Remove entire rag directory when RAG is disabled
     remove_dir(os.path.join(backend_app, "services", "rag"))
-    # Remove RAG-related API route
     remove_file(os.path.join(backend_app, "api", "routes", "v1", "rag.py"))
-    # Remove RAG schema
     remove_file(os.path.join(backend_app, "schemas", "rag.py"))
-    # Remove RAG commands
     remove_file(os.path.join(backend_app, "commands", "rag.py"))
-    # Remove RAG worker tasks
     remove_file(os.path.join(backend_app, "worker", "tasks", "rag_ingestion.py"))
-    # Remove RAG agent tool
     remove_file(os.path.join(backend_app, "agents", "tools", "rag_tool.py"))
-    # Remove RAG document repository/service/model stubs
     remove_file(os.path.join(backend_app, "repositories", "rag_document.py"))
     remove_file(os.path.join(backend_app, "services", "rag_document.py"))
     remove_file(os.path.join(backend_app, "services", "rag_sync.py"))
@@ -336,12 +293,10 @@ if not enable_rag:
     remove_file(os.path.join(backend_app, "repositories", "sync_source.py"))
     remove_file(os.path.join(backend_app, "repositories", "sync_log.py"))
     remove_file(os.path.join(backend_app, "services", "sync_source.py"))
-    # Remove frontend RAG files
     if use_frontend:
         frontend_src = os.path.join(os.getcwd(), "frontend", "src")
         remove_file(os.path.join(frontend_src, "lib", "rag-api.ts"))
         remove_dir(os.path.join(frontend_src, "app", "api", "v1", "rag"))
-        # Remove RAG management page (both paths - i18n variant may be moved later)
         remove_dir(os.path.join(frontend_src, "app", "[locale]", "(dashboard)", "rag"))
         remove_dir(os.path.join(frontend_src, "app", "(dashboard)", "rag"))
         # RAG-only chat / KB / sync components — no fallback when rag-api.ts
@@ -374,8 +329,6 @@ else:
         # Keep rag/connectors/ — its __init__.py defines CONNECTOR_REGISTRY which
         # sync_source.py imports unconditionally even when no connectors are configured.
 
-# --- Messaging channels (Slack / Telegram) ---
-# Per-channel adapters & webhook routes
 if not use_telegram:
     remove_file(os.path.join(backend_app, "services", "channels", "telegram.py"))
     remove_file(os.path.join(backend_app, "api", "routes", "v1", "telegram_webhook.py"))
@@ -383,7 +336,6 @@ if not use_slack:
     remove_file(os.path.join(backend_app, "services", "channels", "slack.py"))
     remove_file(os.path.join(backend_app, "api", "routes", "v1", "slack_webhook.py"))
 
-# Shared channel infrastructure — only present when at least one channel is enabled
 if not use_telegram and not use_slack:
     remove_dir(os.path.join(backend_app, "services", "channels"))
     remove_file(os.path.join(backend_app, "api", "routes", "v1", "channels.py"))
@@ -399,7 +351,6 @@ if not use_telegram and not use_slack:
     remove_file(os.path.join(backend_app, "db", "models", "channel_identity.py"))
     remove_file(os.path.join(backend_app, "db", "models", "channel_session.py"))
 
-# --- DeepAgents project files (only when use_pydantic_deep is enabled) ---
 if not use_pydantic_deep:
     remove_file(os.path.join(backend_app, "api", "routes", "v1", "projects.py"))
     remove_file(os.path.join(backend_app, "db", "models", "project.py"))
@@ -407,7 +358,6 @@ if not use_pydantic_deep:
     remove_file(os.path.join(backend_app, "services", "project.py"))
     remove_file(os.path.join(backend_app, "repositories", "project.py"))
 
-# --- Test stubs that depend on disabled features ---
 backend_tests = os.path.join(os.getcwd(), "backend", "tests")
 if not enable_redis:
     remove_file(os.path.join(backend_tests, "test_clients.py"))
@@ -416,7 +366,6 @@ if not (use_postgresql and use_sqlalchemy):
 if not (enable_admin_panel and use_postgresql):
     remove_file(os.path.join(backend_tests, "test_admin.py"))
 
-# --- Empty docker-compose placeholders ---
 if not enable_docker:
     project_root = os.getcwd()
     for compose_file in (
@@ -427,7 +376,6 @@ if not enable_docker:
     ):
         remove_file(os.path.join(project_root, compose_file))
 
-# --- Cleanup stub files (files with only docstring, no code) ---
 # Scan all .py files under backend/app — catches any template that rendered to
 # a stub docstring because its feature gate was disabled.
 for root, _dirs, files in os.walk(backend_app):
@@ -441,13 +389,14 @@ for root, _dirs, files in os.walk(backend_app):
 # --- Worker/Background tasks ---
 # worker/background/ holds in-process handlers (FastAPI BackgroundTasks fallback)
 # and stays regardless of distributed queue selection. worker/tasks/ holds
-# distributed Celery/Taskiq/ARQ tasks and is only kept when one is selected.
-use_any_background_tasks = use_celery or use_taskiq or use_arq
+# distributed Celery/Taskiq/ARQ/Prefect tasks and is only kept when one is selected.
+use_any_background_tasks = use_celery or use_taskiq or use_arq or use_prefect
 worker_dir = os.path.join(backend_app, "worker")
 if not use_any_background_tasks:
     remove_file(os.path.join(worker_dir, "celery_app.py"))
     remove_file(os.path.join(worker_dir, "taskiq_app.py"))
     remove_file(os.path.join(worker_dir, "arq_app.py"))
+    remove_file(os.path.join(worker_dir, "prefect_app.py"))
     remove_dir(os.path.join(worker_dir, "tasks"))
     remove_file(os.path.join(backend_tests, "test_worker_taskiq.py"))
 else:
@@ -459,9 +408,10 @@ else:
         remove_file(os.path.join(backend_tests, "test_worker_taskiq.py"))
     if not use_arq:
         remove_file(os.path.join(worker_dir, "arq_app.py"))
+    if not use_prefect:
+        remove_file(os.path.join(worker_dir, "prefect_app.py"))
 
 
-# --- Cleanup empty directories ---
 def remove_empty_dirs(path: str) -> None:
     """Recursively remove empty directories.
 
@@ -494,7 +444,6 @@ def remove_empty_dirs(path: str) -> None:
             print(f"  Removed empty: {os.path.relpath(path)}/")
 
 
-# Clean up empty directories in key locations
 for subdir in [
     "clients",
     "agents",
@@ -519,7 +468,6 @@ for subdir in [
 
 print("File cleanup complete.")
 
-# --- CI/CD files cleanup ---
 if not use_github_actions:
     github_dir = os.path.join(os.getcwd(), ".github")
     if os.path.exists(github_dir):
@@ -544,17 +492,14 @@ if not use_nginx:
         shutil.rmtree(nginx_dir)
         print("Removed nginx/ directory (Nginx not enabled)")
 
-# Remove frontend folder if not using frontend
 if not use_frontend:
     frontend_dir = os.path.join(os.getcwd(), "frontend")
     if os.path.exists(frontend_dir):
         shutil.rmtree(frontend_dir)
         print("Removed frontend/ directory (frontend not enabled)")
-    # Remove frontend-specific Claude rule
     remove_file(os.path.join(os.getcwd(), ".claude", "rules", "frontend.md"))
 
 
-# Remove .env files if generate_env is false
 if not generate_env:
     backend_env = os.path.join(os.getcwd(), "backend", ".env")
     if os.path.exists(backend_env):
@@ -566,7 +511,6 @@ if not generate_env:
         os.remove(frontend_env)
         print("Removed frontend/.env.local (generate_env disabled)")
 else:
-    # Generate frontend/.env.local with necessary Next.js public variables
     if use_frontend:
         frontend_env_local = os.path.join(os.getcwd(), "frontend", ".env.local")
         if not os.path.exists(frontend_env_local):
@@ -650,21 +594,15 @@ if os.path.exists(backend_dir):
     else:
         print("Warning: uv not found. Run 'uv lock' in backend/ to generate lock file.")
 
-# Run ruff to auto-fix import sorting and other linting issues
 if os.path.exists(backend_dir):
     ruff_cmd = None
 
-    # Try multiple methods to find/run ruff
-    # 1. Check if ruff is in PATH
     ruff_path = shutil.which("ruff")
     if ruff_path:
         ruff_cmd = [ruff_path]
-    # 2. Try uvx ruff (if uv is installed)
     elif shutil.which("uvx"):
         ruff_cmd = ["uvx", "ruff"]
-    # 3. Try python -m ruff
     else:
-        # Test if ruff is available as a module
         result = subprocess.run(
             [sys.executable, "-m", "ruff", "--version"],
             capture_output=True,
@@ -675,13 +613,11 @@ if os.path.exists(backend_dir):
 
     if ruff_cmd:
         print(f"Running ruff to format code (using: {' '.join(ruff_cmd)})...")
-        # Run ruff check --fix to auto-fix issues (suppress output)
         subprocess.run(
             [*ruff_cmd, "check", "--fix", "--quiet", backend_dir],
             check=False,
             capture_output=True,
         )
-        # Run ruff format for consistent formatting (suppress output)
         subprocess.run(
             [*ruff_cmd, "format", "--quiet", backend_dir],
             check=False,
@@ -691,16 +627,13 @@ if os.path.exists(backend_dir):
     else:
         print("Warning: ruff not found. Run 'ruff format .' in backend/ to format code.")
 
-# Format frontend with prettier if it exists
 frontend_dir = os.path.join(os.getcwd(), "frontend")
 if use_frontend and os.path.exists(frontend_dir):
-    # Try to find bun or npx for running prettier
     bun_cmd = shutil.which("bun")
     npx_cmd = shutil.which("npx")
 
     if bun_cmd:
         print("Installing frontend dependencies and formatting with Prettier...")
-        # Install dependencies first (prettier is a devDependency)
         result = subprocess.run(
             [bun_cmd, "install"],
             cwd=frontend_dir,
@@ -708,7 +641,6 @@ if use_frontend and os.path.exists(frontend_dir):
             check=False,
         )
         if result.returncode == 0:
-            # Format with prettier
             subprocess.run(
                 [bun_cmd, "run", "format"],
                 cwd=frontend_dir,
@@ -730,7 +662,6 @@ if use_frontend and os.path.exists(frontend_dir):
     else:
         print("Warning: bun/npx not found. Run 'bun run format' in frontend/ to format code.")
 
-# --- Teams: remove teams-specific files if enable_teams is false ---
 if not enable_teams:
     remove_file(os.path.join(backend_app, "db", "models", "organization.py"))
     remove_file(os.path.join(backend_app, "db", "models", "audit_log.py"))
@@ -760,7 +691,6 @@ if not enable_teams:
     remove_file(os.path.join(backend_app, "schemas", "billing.py"))
     remove_file(os.path.join(backend_app, "api", "routes", "v1", "billing.py"))
     remove_file(os.path.join(backend_tests, "test_stripe_seats.py"))
-    # Frontend teams files
     if use_frontend:
         frontend_src = os.path.join(os.getcwd(), "frontend", "src")
         remove_dir(os.path.join(frontend_src, "components", "teams"))
@@ -791,10 +721,8 @@ if not enable_teams:
         remove_dir(
             os.path.join(frontend_src, "app", "[locale]", "(dashboard)", "admin", "stripe-events"),
         )
-        # Dashboard widgets that depend on teams/orgs.
         remove_file(os.path.join(frontend_src, "components", "dashboard", "team-summary.tsx"))
 
-# --- Billing: remove billing-specific files if enable_billing is false ---
 if not enable_billing:
     remove_file(os.path.join(backend_app, "schemas", "billing.py"))
     remove_file(os.path.join(backend_app, "api", "routes", "v1", "billing.py"))
@@ -821,11 +749,9 @@ if not enable_billing:
         remove_file(os.path.join(frontend_src, "types", "billing.ts"))
         # teaser-plans.ts stays — it's the fallback data for /pricing when
         # there is no live billing backend. /pricing imports it directly.
-        # Admin Stripe events page is billing-specific
         remove_dir(
             os.path.join(frontend_src, "app", "[locale]", "(dashboard)", "admin", "stripe-events"),
         )
-        # Dashboard widgets that depend on billing data.
         remove_file(os.path.join(frontend_src, "components", "dashboard", "subscription-chip.tsx"))
         remove_file(os.path.join(frontend_src, "components", "dashboard", "tool-usage.tsx"))
         remove_file(os.path.join(frontend_src, "components", "dashboard", "top-models.tsx"))
@@ -840,7 +766,6 @@ if not enable_billing:
             ),
         )
 
-# --- Credits system: per-org balance, usage events, top-up purchases ---
 # Backend-only cleanup. Frontend usage UI (usage-gauge, usage-timeline,
 # /billing/usage page) STAYS regardless — these are imported by the dashboard
 # and pricing flows and gracefully degrade when the API returns no data.
@@ -849,21 +774,18 @@ if not enable_credits_system:
     remove_file(os.path.join(backend_app, "repositories", "usage_event.py"))
     remove_file(os.path.join(backend_app, "db", "models", "credit_transaction.py"))
 
-# --- Usage spike detection: cron job that compares hourly usage vs rolling avg ---
 if not enable_usage_anomaly_detection:
     remove_file(os.path.join(backend_app, "services", "anomaly_detection.py"))
     # Worker task imports the service — remove together to avoid an import error
     # at app boot. Schedule entries in celery_app are already feature-gated.
     remove_file(os.path.join(backend_app, "worker", "tasks", "anomaly_tasks.py"))
 
-# --- Email: lifecycle + notification emails (welcome, invitation, billing) ---
 if not enable_email:
     remove_dir(os.path.join(backend_app, "services", "email"))
     # Newsletter is gated by enable_email AND enable_newsletter_signup —
     # if the email service is gone, the newsletter route can't function either.
     remove_file(os.path.join(backend_app, "services", "newsletter.py"))
 
-# --- Newsletter signup: POST /newsletter/signup endpoint + landing form ---
 if not enable_newsletter_signup:
     remove_file(os.path.join(backend_app, "api", "routes", "v1", "marketing.py"))
     remove_file(os.path.join(backend_app, "schemas", "marketing.py"))
@@ -874,18 +796,14 @@ if not enable_newsletter_signup:
             os.path.join(frontend_src, "components", "marketing", "newsletter-signup.tsx"),
         )
 
-# --- Marketing site: remove blog / about / contact / help / security / community / legal ---
 # Onboarding, settings, dashboard chrome stay regardless — they're core product UI.
 # Landing (/) and pricing stay — they're entry points even for non-marketing setups.
 if not enable_marketing_site:
-    # Backend: contact endpoint is part of marketing surface
     remove_file(os.path.join(backend_app, "schemas", "contact.py"))
     remove_file(os.path.join(backend_app, "services", "contact.py"))
     remove_file(os.path.join(backend_app, "api", "routes", "v1", "contact.py"))
 
-# --- API keys + password reset + magic link: all require auth ---
 if not use_auth:
-    # API keys
     remove_file(os.path.join(backend_app, "db", "models", "api_key.py"))
     remove_file(os.path.join(backend_app, "schemas", "api_key.py"))
     remove_file(os.path.join(backend_app, "repositories", "api_key.py"))
@@ -897,7 +815,6 @@ if not use_auth:
     remove_file(os.path.join(backend_app, "repositories", "user_slash_command.py"))
     remove_file(os.path.join(backend_app, "services", "user_slash_command.py"))
     remove_file(os.path.join(backend_app, "api", "routes", "v1", "me_slash_commands.py"))
-    # Password reset + magic link schemas (auth-only flows)
     remove_file(os.path.join(backend_app, "schemas", "password_reset.py"))
     if use_frontend:
         frontend_src_for_api_keys = os.path.join(os.getcwd(), "frontend", "src")
@@ -907,7 +824,6 @@ if not use_auth:
                 frontend_src_for_api_keys, "components", "settings", "api-key-manager.tsx"
             ),
         )
-        # User slash commands frontend (BFF proxies, hook, manager, settings page)
         remove_dir(
             os.path.join(frontend_src_for_api_keys, "app", "api", "me", "slash-commands")
         )
@@ -935,14 +851,12 @@ if not use_auth:
                 "slash-commands",
             )
         )
-        # Frontend proxies for password reset + magic link
         remove_dir(
             os.path.join(frontend_src_for_api_keys, "app", "api", "auth", "password-reset")
         )
         remove_dir(
             os.path.join(frontend_src_for_api_keys, "app", "api", "auth", "magic-link")
         )
-        # Frontend pages
         remove_dir(
             os.path.join(
                 frontend_src_for_api_keys,
@@ -968,10 +882,8 @@ if not enable_marketing_site and use_frontend:
     frontend_src = os.path.join(frontend_root, "src")
     locale_app = os.path.join(frontend_src, "app", "[locale]")
 
-    # Frontend proxy for backend /contact
     remove_dir(os.path.join(frontend_src, "app", "api", "contact"))
 
-    # Marketing route pages
     for d in ("about", "blog", "community", "contact", "help", "legal", "security"):
         remove_dir(os.path.join(locale_app, d))
 
@@ -1008,7 +920,6 @@ if not enable_marketing_site and use_frontend:
     remove_file(os.path.join(frontend_src, "lib", "blog.ts"))
     remove_file(os.path.join(frontend_src, "lib", "contact-info.ts"))
 
-    # MDX content directory
     remove_dir(os.path.join(frontend_root, "content"))
 
 # Changelog: page + its data file ride together. The page is not in the
@@ -1045,7 +956,6 @@ else:
         os.path.join(backend_root, "alembic", "versions", "0019_user_external_id.py")
     )
 
-# Example Item CRUD scaffold — remove all 6 files when not requested.
 if not include_example_crud:
     backend_root = os.path.join(os.getcwd(), "backend")
     remove_file(os.path.join(backend_app, "db", "models", "item.py"))
@@ -1093,7 +1003,6 @@ if not enable_i18n and use_frontend:
                 elif os.path.isdir(target):
                     remove_dir(target)
 
-# Storybook: remove .storybook/ when not requested
 if not enable_storybook and use_frontend:
     frontend_root = os.path.join(os.getcwd(), "frontend")
     storybook_dir = os.path.join(frontend_root, ".storybook")

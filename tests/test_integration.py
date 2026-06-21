@@ -22,7 +22,7 @@ class TestMinimalProjectGeneration:
         """Generate a minimal project."""
         config = ProjectConfig(
             project_name="minimal_project",
-            database=DatabaseType.SQLITE,
+            database=DatabaseType.POSTGRESQL,
             enable_logfire=False,
             enable_docker=False,
             enable_precommit=False,
@@ -99,33 +99,6 @@ class TestPostgresqlProjectGeneration:
     def test_auth_files_exist(self, postgresql_project: Path) -> None:
         """Test auth-related files exist."""
         assert (postgresql_project / "backend" / "app" / "core" / "security.py").is_file()
-
-
-class TestMongoDBProjectGeneration:
-    """Integration tests for MongoDB project generation."""
-
-    @pytest.fixture
-    def mongodb_project(self, tmp_path: Path) -> Path:
-        """Generate a MongoDB project."""
-        config = ProjectConfig(
-            project_name="mongo_project",
-            database=DatabaseType.MONGODB,
-            background_tasks=BackgroundTaskType.NONE,
-        )
-        return generate_project(config, tmp_path)
-
-    def test_project_created(self, mongodb_project: Path) -> None:
-        """Test MongoDB project is created."""
-        assert mongodb_project.exists()
-        assert mongodb_project.is_dir()
-
-    def test_mongodb_session_exists(self, mongodb_project: Path) -> None:
-        """Test MongoDB connection module exists."""
-        assert (mongodb_project / "backend" / "app" / "db").is_dir()
-
-    def test_api_key_auth_exists(self, mongodb_project: Path) -> None:
-        """Test API key auth dependencies exist."""
-        assert (mongodb_project / "backend" / "app" / "api" / "deps.py").is_file()
 
 
 class TestFullFeaturedProjectGeneration:
@@ -263,7 +236,7 @@ class TestGeneratedAppSmokeTest:
         """Generate a minimal project for import testing."""
         config = ProjectConfig(
             project_name="smoke_test_project",
-            database=DatabaseType.SQLITE,
+            database=DatabaseType.POSTGRESQL,
             enable_logfire=False,
             enable_docker=False,
             enable_precommit=False,

@@ -1,4 +1,4 @@
-{%- if cookiecutter.enable_billing and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
+{%- if cookiecutter.enable_billing %}
 """create subscription table
 
 Revision ID: 0012_create_subscription_table
@@ -10,9 +10,7 @@ Creates:
 """
 
 import sqlalchemy as sa
-{%- if cookiecutter.use_postgresql %}
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
-{%- endif %}
 from alembic import op
 
 revision = "0012_create_subscription_table"
@@ -24,7 +22,6 @@ depends_on = None
 def upgrade() -> None:
     op.create_table(
         "subscription",
-{%- if cookiecutter.use_postgresql %}
         sa.Column("id", PG_UUID(as_uuid=True), primary_key=True),
         sa.Column(
             "organization_id",
@@ -35,18 +32,6 @@ def upgrade() -> None:
         ),
         sa.Column("price_id", PG_UUID(as_uuid=True), sa.ForeignKey("price.id"), nullable=False),
         sa.Column("status", sa.String(32), nullable=False, index=True),
-{%- else %}
-        sa.Column("id", sa.String(36), primary_key=True),
-        sa.Column(
-            "organization_id",
-            sa.String(36),
-            sa.ForeignKey("organizations.id", ondelete="CASCADE"),
-            unique=True,
-            nullable=False,
-        ),
-        sa.Column("price_id", sa.String(36), sa.ForeignKey("price.id"), nullable=False),
-        sa.Column("status", sa.String(32), nullable=False, index=True),
-{%- endif %}
         sa.Column("stripe_subscription_id", sa.String(64), unique=True, nullable=False),
         sa.Column("stripe_customer_id", sa.String(64), nullable=False),
         sa.Column("stripe_item_id", sa.String(64), nullable=False),

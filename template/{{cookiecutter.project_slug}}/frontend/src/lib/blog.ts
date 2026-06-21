@@ -111,9 +111,7 @@ export async function getAllBlogPosts(locale: Locale = defaultLocale): Promise<B
   } catch {
     return [];
   }
-  const slugs = Array.from(
-    new Set(files.filter((f) => f.endsWith(".mdx")).map(slugFromFilename)),
-  );
+  const slugs = Array.from(new Set(files.filter((f) => f.endsWith(".mdx")).map(slugFromFilename)));
 
   const posts = await Promise.all(
     slugs.map(async (slug) => {

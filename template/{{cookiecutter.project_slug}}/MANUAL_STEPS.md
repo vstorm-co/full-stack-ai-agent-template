@@ -21,24 +21,11 @@ Then in `backend/.env`:
 
 These are used to sign JWTs and authenticate service-to-service calls. Rotate at every environment promotion (dev → staging → prod each get their own).
 
-{% if cookiecutter.use_postgresql %}
 ## PostgreSQL
 
 - [ ] Provision a PostgreSQL ≥ 14 instance (local: `docker compose up -d db`; managed: Neon / Supabase / RDS / Cloud SQL).
 - [ ] Set `DATABASE_URL` in `.env` to the **async** connection string: `postgresql+asyncpg://user:pass@host:5432/dbname`.
 - [ ] Run migrations: `cd backend && uv run alembic upgrade head`.
-{%- elif cookiecutter.use_mongodb %}
-## MongoDB
-
-- [ ] Provision MongoDB ≥ 6 (local: `docker compose up -d mongo`; managed: Atlas).
-- [ ] Set `MONGODB_URL` in `.env`.
-- [ ] First request will create collections; no migrations needed.
-{%- elif cookiecutter.use_sqlite %}
-## SQLite
-
-- [ ] Nothing to provision — file `{{ cookiecutter.project_slug }}.db` will be created on first run.
-- [ ] Run migrations: `cd backend && uv run alembic upgrade head`.
-{%- endif %}
 
 {%- if cookiecutter.use_openai %}
 

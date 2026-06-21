@@ -23,6 +23,8 @@ import {
 } from "@/components/ui";
 import type { AdminUserRead } from "@/hooks/use-admin-users";
 import { apiClient } from "@/lib/api-client";
+import { ROUTES } from "@/lib/constants";
+import { formatDateTime } from "@/lib/utils";
 
 interface UserDetailDrawerProps {
   user: AdminUserRead | null;
@@ -40,17 +42,7 @@ interface ConversationStub {
   message_count?: number;
 }
 
-function formatDateTime(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
+
 
 export function UserDetailDrawer({
   user,
@@ -112,7 +104,6 @@ export function UserDetailDrawer({
         side="right"
         className="border-foreground/10 bg-card flex w-full max-w-md flex-col overflow-hidden p-0 sm:max-w-lg"
       >
-        {/* Header */}
         <header className="border-foreground/10 flex items-center gap-4 border-b px-6 py-5">
           <Avatar className="h-12 w-12 shrink-0">
             <AvatarImage src={`/api/users/avatar/${user.id}`} alt={user.email} />
@@ -126,9 +117,7 @@ export function UserDetailDrawer({
           </div>
         </header>
 
-        {/* Body */}
         <div className="flex-1 scrollbar-thin overflow-y-auto px-6 py-5">
-          {/* Status pills */}
           <div className="flex flex-wrap gap-1.5">
             <Badge variant={user.is_active ? "default" : "secondary"} className="text-[10px]">
               {user.is_active ? "Active" : "Suspended"}
@@ -144,7 +133,6 @@ export function UserDetailDrawer({
             )}
           </div>
 
-          {/* Profile fields */}
           <dl className="border-foreground/10 divide-foreground/10 mt-5 divide-y rounded-xl border">
             <KV label="User ID" value={user.id} mono onCopy={handleCopyId} />
             <KV label="Email" value={user.email} mono />
@@ -153,7 +141,6 @@ export function UserDetailDrawer({
             <KV label="Role" value={user.role} mono />
           </dl>
 
-          {/* Recent conversations */}
           <section className="mt-7">
             <h3 className="text-foreground/55 mb-3 font-mono text-[11px] tracking-wider uppercase">
               Recent conversations
@@ -179,7 +166,7 @@ export function UserDetailDrawer({
                       </p>
                     </div>
                     <a
-                      href={`/admin/conversations?id=${c.id}`}
+                      href={`${ROUTES.ADMIN_CONVERSATIONS}?id=${c.id}`}
                       className="text-foreground/55 hover:text-foreground inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md transition-colors"
                       title="Open conversation"
                     >
@@ -192,7 +179,6 @@ export function UserDetailDrawer({
           </section>
         </div>
 
-        {/* Footer actions */}
         <footer className="border-foreground/10 flex flex-wrap items-center gap-2 border-t px-6 py-4">
           <Button
             variant="outline"

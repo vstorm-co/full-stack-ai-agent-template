@@ -1,4 +1,4 @@
-{%- if cookiecutter.enable_email and (cookiecutter.enable_billing or cookiecutter.enable_credits_system) and cookiecutter.use_postgresql and (cookiecutter.use_celery or cookiecutter.use_taskiq or cookiecutter.use_arq) %}
+{%- if cookiecutter.enable_email and (cookiecutter.enable_billing or cookiecutter.enable_credits_system) and (cookiecutter.use_celery or cookiecutter.use_taskiq or cookiecutter.use_arq or cookiecutter.use_prefect) %}
 """Lifecycle email tasks — trial reminders and low-credits alerts."""
 
 import asyncio
@@ -9,6 +9,8 @@ from typing import Any
 from celery import shared_task
 {%- elif cookiecutter.use_taskiq %}
 from app.worker.taskiq_app import broker
+{%- elif cookiecutter.use_prefect %}
+from prefect import flow
 {%- endif %}
 
 from app.db.session import get_worker_db_context
@@ -98,6 +100,29 @@ async def send_trial_reminders_task(ctx: dict[str, Any]) -> dict[str, int]:
 
 
 async def send_low_credits_alerts_task(ctx: dict[str, Any]) -> dict[str, int]:
+    """Cron: send low-credits alert emails to orgs below threshold."""
+    count = await _send_low_credits_alerts()
+    logger.info("low_credits_alerts_sent", extra={"count": count})
+    return {"sent": count}
+{%- endif %}
+
+{%- elif cookiecutter.use_prefect %}
+
+{%- if cookiecutter.enable_billing %}
+
+
+@flow(name="send-trial-reminders", log_prints=True)
+async def send_trial_reminders_flow() -> dict[str, int]:
+    """Cron: send trial-ending reminder emails."""
+    count = await _send_trial_reminders()
+    logger.info("trial_reminders_sent", extra={"count": count})
+    return {"sent": count}
+{%- endif %}
+{%- if cookiecutter.enable_credits_system %}
+
+
+@flow(name="send-low-credits-alerts", log_prints=True)
+async def send_low_credits_alerts_flow() -> dict[str, int]:
     """Cron: send low-credits alert emails to orgs below threshold."""
     count = await _send_low_credits_alerts()
     logger.info("low_credits_alerts_sent", extra={"count": count})

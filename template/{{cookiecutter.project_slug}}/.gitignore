@@ -101,6 +101,3 @@ logs/
 Thumbs.db
 
 # Project specific
-{%- if cookiecutter.use_sqlite %}
-data/
-{%- endif %}

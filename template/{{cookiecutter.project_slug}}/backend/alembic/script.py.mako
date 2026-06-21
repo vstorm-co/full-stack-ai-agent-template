@@ -1,4 +1,3 @@
-{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
 """${message}
 
 Revision ID: ${up_revision}
@@ -28,6 +27,3 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     ${downgrades if downgrades else "pass"}
-{%- else %}
-# Alembic - not configured
-{%- endif %}

@@ -7,28 +7,24 @@ mapped to HTTP responses by the global exception handlers in
 ``app.api.exception_handlers``; routes do not catch and re-wrap them.
 """
 
+import contextlib
 {%- if cookiecutter.enable_redis %}
 from collections.abc import AsyncIterable
 {%- endif %}
 from typing import Any
 
 from fastapi import APIRouter, File, Query, UploadFile, status
-{%- if (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
 from fastapi.responses import FileResponse
-{%- endif %}
 {%- if cookiecutter.enable_redis %}
 from fastapi.sse import EventSourceResponse, ServerSentEvent
 {%- endif %}
 
-from app.api.deps import IngestionSvc, RetrievalSvc, VectorStoreSvc
+from app.api.deps import IngestionSvc, RAGDocumentSvc, RAGSyncSvc, RetrievalSvc, SyncSourceSvc, VectorStoreSvc
 {%- if cookiecutter.use_jwt %}
 from app.api.deps import CurrentAdmin, CurrentUser
 {%- endif %}
 {%- if cookiecutter.enable_teams and cookiecutter.use_jwt %}
-from app.api.deps import ActiveOrg
-{%- endif %}
-{%- if (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
-from app.api.deps import RAGDocumentSvc, RAGSyncSvc, SyncSourceSvc
+from app.api.deps import ActiveOrg, KnowledgeBaseSvc
 {%- endif %}
 {%- if cookiecutter.enable_redis %}
 from app.api.deps import RAGStatusSvc
@@ -40,24 +36,17 @@ from app.schemas.rag import (
     RAGCollectionInfo,
     RAGCollectionList,
     RAGDocumentList,
-{%- if (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
     RAGIngestResponse,
-{%- endif %}
     RAGMessageResponse,
-{%- if (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
     RAGRetryResponse,
-{%- endif %}
     RAGSearchRequest,
     RAGSearchResponse,
     RAGSearchResult,
-{%- if (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
     RAGSyncLogList,
     RAGSyncRequest,
     RAGSyncResponse,
     RAGTrackedDocumentList,
-{%- endif %}
 )
-{%- if (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
 from app.schemas.sync_source import (
     ConnectorList,
     SyncSourceCreate,
@@ -65,7 +54,6 @@ from app.schemas.sync_source import (
     SyncSourceRead,
     SyncSourceUpdate,
 )
-{%- endif %}
 
 router = APIRouter()
 
@@ -79,14 +67,33 @@ async def get_supported_formats_endpoint() -> Any:
 
 @router.get("/collections", response_model=RAGCollectionList)
 async def list_collections(
+{%- if cookiecutter.enable_teams and cookiecutter.use_jwt %}
+    kb_svc: KnowledgeBaseSvc,
+    admin: CurrentAdmin,
+    active_org: ActiveOrg,
+{%- else %}
     vector_store: VectorStoreSvc,
 {%- if cookiecutter.use_jwt %}
     _: CurrentAdmin,
 {%- endif %}
+{%- endif %}
 ) -> Any:
-    """List all available collections in the vector store."""
+    """List collections derived from Knowledge Base records.
+
+    Single source of truth = KnowledgeBase rows, so /rag and /kb stay
+    consistent: a freshly-created KB (whose Milvus collection only materializes
+    after the first document is ingested) still appears here, and dropping a
+    collection here removes the KB too.
+    """
+{%- if cookiecutter.enable_teams and cookiecutter.use_jwt %}
+    names = await kb_svc.list_accessible_collection_names(
+        user_id=admin.id, organization_id=active_org.id
+    )
+    return RAGCollectionList(items=names)
+{%- else %}
     names = await vector_store.list_collections()
     return RAGCollectionList(items=names)
+{%- endif %}
 
 
 @router.post(
@@ -100,9 +107,23 @@ async def create_collection(
 {%- if cookiecutter.use_jwt %}
     _: CurrentAdmin,
 {%- endif %}
+{%- if cookiecutter.enable_teams and cookiecutter.use_jwt %}
+    kb_svc: KnowledgeBaseSvc,
+    admin: CurrentAdmin,
+    active_org: ActiveOrg,
+{%- endif %}
 ) -> Any:
-    """Create and initialize a new collection."""
+    """Create and initialize a new collection.
+
+    Also creates a matching KnowledgeBase row (idempotent) so the collection
+    shows up on /kb as well as /rag.
+    """
     await vector_store.create_collection(name)
+{%- if cookiecutter.enable_teams and cookiecutter.use_jwt %}
+    await kb_svc.create_for_rag_collection(
+        name, user_id=admin.id, organization_id=active_org.id
+    )
+{%- endif %}
     return RAGMessageResponse(message=f"Collection '{name}' created successfully.")
 
 
@@ -114,17 +135,24 @@ async def create_collection(
 async def drop_collection(
     name: str,
     vector_store: VectorStoreSvc,
-{%- if (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
     rag_doc_svc: RAGDocumentSvc,
-{%- endif %}
 {%- if cookiecutter.use_jwt %}
     _: CurrentAdmin,
 {%- endif %}
+{%- if cookiecutter.enable_teams and cookiecutter.use_jwt %}
+    kb_svc: KnowledgeBaseSvc,
+{%- endif %}
 ) -> None:
-    """Drop an entire collection — vectors and all SQL document records."""
-    await vector_store.delete_collection(name)
-{%- if (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
+    """Drop a collection — vectors, SQL document records, and the KB row.
+
+    The Milvus collection may not exist yet for a zero-document KB, so the
+    vector-store drop is best-effort; the KB + SQL cleanup still runs.
+    """
+    with contextlib.suppress(Exception):
+        await vector_store.delete_collection(name)
     await rag_doc_svc.delete_by_collection(name)
+{%- if cookiecutter.enable_teams and cookiecutter.use_jwt %}
+    await kb_svc.delete_by_collection_name(name)
 {%- endif %}
 
 
@@ -207,8 +235,6 @@ async def delete_document(
             details={"collection": name, "document_id": document_id},
         )
 
-{%- if (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
-
 
 @router.post(
     "/collections/{name}/ingest",
@@ -263,7 +289,6 @@ async def download_rag_document(
     _: CurrentAdmin,
 {%- endif %}
 ) -> Any:
-    """Download the original file."""
     file_path, filename, mime_type = await rag_doc_svc.get_download_info(doc_id)
     return FileResponse(path=file_path, filename=filename, media_type=mime_type)
 
@@ -427,7 +452,6 @@ async def list_connectors(
 ) -> Any:
     """List available sync connector types with their config schemas."""
     return sync_source_svc.list_connectors()
-{%- endif %}
 
 {%- if cookiecutter.enable_redis %}
 
@@ -440,8 +464,13 @@ async def rag_status_stream(
 
     Subscribes to the ``rag_status`` Redis pub/sub channel; the browser auto-reconnects
     via the EventSource API.
+
+    The endpoint is itself an async generator: FastAPI's native SSE producer
+    streams what it yields. Returning the generator object instead (with
+    ``response_class``) makes the producer mis-iterate it → HTTP 500.
     """
-    return rag_status_svc.stream_events()
+    async for event in rag_status_svc.stream_events():
+        yield event
 {%- endif %}
 {%- else %}
 """RAG routes — not enabled."""

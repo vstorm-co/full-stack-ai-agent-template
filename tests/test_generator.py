@@ -68,28 +68,6 @@ class TestGetDatabaseSetupCommands:
         assert "db-migrate" in commands[1][0]
         assert "db-upgrade" in commands[2][0]
 
-    def test_sqlite_commands(self) -> None:
-        """Test SQLite returns auto-create message and migration commands."""
-        commands = _get_database_setup_commands(DatabaseType.SQLITE)
-
-        assert len(commands) == 3
-        # Commands are now tuples of (command, description)
-        assert "automatically" in commands[0][0]
-        assert "db-migrate" in commands[1][0]
-        assert "db-upgrade" in commands[2][0]
-        # Should not mention docker
-        assert "docker" not in commands[0][0].lower()
-
-    def test_mongodb_commands(self) -> None:
-        """Test MongoDB returns docker-mongo command."""
-        commands = _get_database_setup_commands(DatabaseType.MONGODB)
-
-        assert len(commands) == 2
-        # Commands are now tuples of (command, description)
-        assert "docker-mongo" in commands[0][0]
-        assert "MongoDB" in commands[0][1]
-        # Should not mention migrations (MongoDB doesn't use them)
-        assert not any("migrate" in cmd[0] for cmd in commands)
 
 
 class TestGetTemplatePath:
@@ -263,22 +241,6 @@ class TestPostGenerationTasks:
         # Should not raise
         post_generation_tasks(project_path, config)
 
-    def test_displays_fullstack_steps_with_frontend_no_database(
-        self, temp_output_dir: Path
-    ) -> None:
-        """Test fullstack steps are displayed without database steps."""
-        config = ProjectConfig(
-            project_name="test",
-            frontend=FrontendType.NEXTJS,
-            database=DatabaseType.SQLITE,
-            background_tasks=BackgroundTaskType.NONE,
-        )
-        project_path = temp_output_dir / "test"
-        project_path.mkdir()
-
-        # Should not raise
-        post_generation_tasks(project_path, config)
-
     def test_displays_env_copy_steps_when_generate_env_false_with_frontend(
         self, temp_output_dir: Path
     ) -> None:
@@ -325,26 +287,6 @@ class TestPostGenerationTasks:
         project_path.mkdir()
 
         # Should not raise - tests lines 172-174
-        post_generation_tasks(project_path, config)
-
-    def test_displays_db_command_without_description(
-        self, temp_output_dir: Path, capsys: pytest.CaptureFixture[str]
-    ) -> None:
-        """Test database command without description prints correctly (line 202).
-
-        MongoDB has a command with empty description: '# Or configure MongoDB Atlas...'
-        The backend-only path (frontend=NONE) exercises line 202.
-        """
-        config = ProjectConfig(
-            project_name="test",
-            database=DatabaseType.MONGODB,
-            frontend=FrontendType.NONE,
-            background_tasks=BackgroundTaskType.NONE,
-        )
-        project_path = temp_output_dir / "test"
-        project_path.mkdir()
-
-        # Should not raise - exercises line 202 (cmd without description)
         post_generation_tasks(project_path, config)
 
     def test_displays_rag_messages_when_rag_enabled(

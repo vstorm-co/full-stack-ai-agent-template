@@ -291,7 +291,7 @@ class TestRatingFeatureCodeQuality:
         """Generate a project with ratings for quality tests."""
         config = ProjectConfig(
             project_name="test_ratings_quality",
-            database=DatabaseType.SQLITE,  # Faster for testing
+            database=DatabaseType.POSTGRESQL,
             oauth_provider=OAuthProvider.NONE,  # No OAuth, but JWT is always enabled
             enable_admin_panel=True,
             enable_pytest=True,
@@ -407,21 +407,19 @@ class TestRatingFeatureCodeQuality:
 
 
 class TestRatingFeatureAllDatabases:
-    """Tests that rating feature works with all database types."""
+    """Tests that rating feature works with PostgreSQL database."""
 
     @pytest.mark.slow
     @pytest.mark.parametrize(
         "database, enable_admin",
         [
             (DatabaseType.POSTGRESQL, True),
-            (DatabaseType.SQLITE, True),
-            (DatabaseType.MONGODB, False),  # Admin panel not supported with MongoDB
         ],
     )
     def test_rating_model_generated_for_all_databases(
         self, tmp_path: Path, database: DatabaseType, enable_admin: bool
     ) -> None:
-        """Test that rating model is generated for all database types."""
+        """Test that rating model is generated for PostgreSQL."""
         config = ProjectConfig(
             project_name=f"test_ratings_{database.value}",
             database=database,
@@ -442,14 +440,7 @@ class TestRatingFeatureAllDatabases:
 
         content = model_path.read_text()
         assert "class MessageRating" in content
-
-        # Check for database-specific implementations
-        if database == DatabaseType.MONGODB:
-            assert "beanie" in content.lower() or "Document" in content
-        elif database == DatabaseType.SQLITE:
-            assert "SQLModel" in content or "Base" in content
-        elif database == DatabaseType.POSTGRESQL:
-            assert "SQLModel" in content or "Base" in content
+        assert "SQLModel" in content or "Base" in content
 
 
 class TestRatingFeatureSecurity:
@@ -566,22 +557,6 @@ class TestRatingFeatureSecurity:
             "LIKE queries should declare an explicit ESCAPE character"
         )
 
-    def test_search_input_sanitized_against_regex_injection_mongodb(self, tmp_path: Path) -> None:
-        """Test that regex input is escaped in MongoDB admin search (R4-4.2)."""
-        config = ProjectConfig(
-            project_name="test_mongodb_regex",
-            database=DatabaseType.MONGODB,
-            oauth_provider=OAuthProvider.NONE,
-            enable_pytest=True,
-            enable_docker=False,
-            enable_logfire=False,
-            background_tasks=BackgroundTaskType.NONE,
-            ci_type=CIType.NONE,
-        )
-        project = generate_project(config, tmp_path)
-        repo_path = project / "backend" / "app" / "repositories" / "conversation.py"
-        content = repo_path.read_text()
-        assert "re.escape" in content, "MongoDB search should escape regex input"
 
 
 class TestRatingFeatureAccessibility:

@@ -15,7 +15,6 @@ class DocumentExtensions(StrEnum):
     TXT = ".txt"
 
 
-# Supported file formats per parser
 PYMUPDF_FORMATS: set[str] = {".pdf", ".docx", ".txt", ".md"}
 
 LITEPARSE_FORMATS: set[str] = {
@@ -24,15 +23,10 @@ LITEPARSE_FORMATS: set[str] = {
 }
 
 LLAMAPARSE_FORMATS: set[str] = {
-    # Documents
     ".pdf", ".docx", ".doc", ".pptx", ".ppt", ".rtf", ".txt", ".md", ".epub",
-    # Images
     ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".webp",
-    # Spreadsheets
     ".xlsx", ".xls", ".csv", ".tsv", ".ods",
-    # Audio
     ".mp3", ".mp4", ".wav", ".m4a", ".webm",
-    # Web
     ".html", ".htm", ".xml",
 }
 
@@ -51,17 +45,13 @@ def get_supported_formats(parser_name: str = "pymupdf") -> set[str]:
 # Known embedding models and their output dimensions.
 # Used to auto-set vector store dimension from model name.
 EMBEDDING_DIMENSIONS: dict[str, int] = {
-    # OpenAI
     "text-embedding-3-small": 1536,
     "text-embedding-3-large": 3072,
     "text-embedding-ada-002": 1536,
-    # Voyage AI
     "voyage-3": 1024,
     "voyage-3-lite": 512,
     "voyage-code-3": 1024,
-    # Google Gemini
     "gemini-embedding-exp-03-07": 3072,
-    # SentenceTransformers (local)
     "all-MiniLM-L6-v2": 384,
     "all-mpnet-base-v2": 768,
     "bge-small-en-v1.5": 384,
@@ -74,8 +64,8 @@ class EmbeddingsConfig(BaseModel):
     """Embeddings configuration. Dimension is auto-derived from model name."""
 
 {%- if cookiecutter.use_openai_embeddings %}
-    model: str = "text-embedding-3-small"
-    dim: int = 1536
+    model: str = "text-embedding-3-large"
+    dim: int = 3072
 {%- elif cookiecutter.use_voyage_embeddings %}
     model: str = "voyage-3"
     dim: int = 1024
@@ -147,32 +137,26 @@ class RAGSettings(BaseModel):
         default_factory=lambda: list(DocumentExtensions)
     )
 
-    # Chunking
     chunk_size: int = 512
     chunk_overlap: int = 50
     chunking_strategy: str = "recursive"
     enable_hybrid_search: bool = False
     enable_ocr: bool = False
 
-    # Embeddings
     embeddings_config: EmbeddingsConfig = Field(default_factory=EmbeddingsConfig)
 
 {%- if cookiecutter.enable_reranker %}
-    # Reranker
     reranker_config: RerankerConfig = Field(default_factory=RerankerConfig)
 {%- endif %}
 
-    # Parsers
     document_parser: DocumentParser = Field(default_factory=DocumentParser)
     pdf_parser: PdfParser = Field(default_factory=PdfParser)
 
 {%- if cookiecutter.enable_rag_image_description %}
-    # Image description
     enable_image_description: bool = True
     image_description_model: str = ""
 {%- endif %}
 
-    # Sources
 {%- if cookiecutter.enable_google_drive_ingestion %}
     gdrive_ingestion: bool = True
 {%- else %}

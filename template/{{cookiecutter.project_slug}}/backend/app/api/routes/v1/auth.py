@@ -50,11 +50,7 @@ async def login(
     session_service: SessionSvc,
 {%- endif %}
 ) -> Any:
-    """OAuth2 compatible token login.
-
-    Returns access token and refresh token.
-    Raises domain exceptions handled by exception handlers.
-    """
+    """OAuth2 password login, returns access and refresh tokens."""
     user = await user_service.authenticate(form_data.username, form_data.password)
     access_token = create_access_token(subject=str(user.id))
     refresh_token = create_refresh_token(subject=str(user.id))
@@ -76,10 +72,7 @@ async def register(
     user_in: UserCreate,
     user_service: UserSvc,
 ) -> Any:
-    """Register a new user.
-
-    Raises AlreadyExistsError if email is already registered.
-    """
+    """Register a new user."""
     user = await user_service.register(user_in)
     return user
 
@@ -93,13 +86,9 @@ async def refresh_token(
     session_service: SessionSvc,
 {%- endif %}
 ) -> Any:
-    """Get new access token using refresh token.
-
-    Raises AuthenticationError if refresh token is invalid or expired.
-    """
+    """Exchange a refresh token for a new access token."""
 {%- if cookiecutter.enable_session_management %}
 
-    # Validate refresh token against stored session
     session = await session_service.validate_refresh_token(body.refresh_token)
     if not session:
         raise AuthenticationError(message="Invalid or expired refresh token")
@@ -123,7 +112,6 @@ async def refresh_token(
     new_refresh_token = create_refresh_token(subject=str(user.id))
 {%- if cookiecutter.enable_session_management %}
 
-    # Invalidate old session and create new one (token rotation)
     await session_service.logout_by_refresh_token(body.refresh_token)
     await session_service.create_session(
         user_id=user.id,
@@ -162,8 +150,6 @@ async def get_current_user_info(current_user: CurrentUser) -> Any:
 {%- if cookiecutter.enable_email %}
 
 
-# --- Password reset (forgot password) ----------------------------------
-
 
 @router.post("/password-reset/request", response_model=PasswordResetResponse)
 async def request_password_reset(
@@ -199,8 +185,6 @@ async def confirm_password_reset(
     await user_service.confirm_password_reset(body.token, body.new_password)
     return PasswordResetConfirmResponse()
 
-
-# --- Magic-link sign-in ------------------------------------------------
 
 
 @router.post("/magic-link/request", response_model=PasswordResetResponse)

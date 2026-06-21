@@ -9,13 +9,7 @@ import logging
 from typing import Any
 
 from app.services.channels.router import ChannelMessageRouter
-{%- if cookiecutter.use_postgresql %}
 from app.db.session import get_db_context
-{%- elif cookiecutter.use_sqlite %}
-from contextlib import contextmanager
-
-from app.db.session import get_db_session
-{%- endif %}
 
 logger = logging.getLogger(__name__)
 
@@ -28,15 +22,8 @@ async def process_channel_event(incoming: Any) -> None:
     a noisy stack trace in the API process logs.
     """
     try:
-{%- if cookiecutter.use_postgresql %}
         async with get_db_context() as db:
             await ChannelMessageRouter().route(incoming, db)
-{%- elif cookiecutter.use_sqlite %}
-        with contextmanager(get_db_session)() as db:
-            await ChannelMessageRouter().route(incoming, db)
-{%- elif cookiecutter.use_mongodb %}
-        await ChannelMessageRouter().route(incoming, None)
-{%- endif %}
     except Exception:
         logger.exception("channel_event_processing_failed")
 {%- else %}

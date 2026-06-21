@@ -22,8 +22,6 @@ class DatabaseType(StrEnum):
     """Supported database types."""
 
     POSTGRESQL = "postgresql"
-    MONGODB = "mongodb"
-    SQLITE = "sqlite"
     NONE = "none"
 
 
@@ -34,6 +32,7 @@ class BackgroundTaskType(StrEnum):
     CELERY = "celery"
     TASKIQ = "taskiq"
     ARQ = "arq"
+    PREFECT = "prefect"
 
 
 class CIType(StrEnum):
@@ -49,16 +48,6 @@ class FrontendType(StrEnum):
 
     NONE = "none"
     NEXTJS = "nextjs"
-
-
-class BrandColorType(StrEnum):
-    """Brand color presets for the frontend theme."""
-
-    BLUE = "blue"
-    GREEN = "green"
-    RED = "red"
-    VIOLET = "violet"
-    ORANGE = "orange"
 
 
 class OAuthProvider(StrEnum):
@@ -91,7 +80,6 @@ class AIFrameworkType(StrEnum):
     PYDANTIC_AI = "pydantic_ai"
     LANGCHAIN = "langchain"
     LANGGRAPH = "langgraph"
-    CREWAI = "crewai"
     DEEPAGENTS = "deepagents"
     PYDANTIC_DEEP = "pydantic_deep"
 
@@ -148,10 +136,10 @@ class LogfireFeatures(BaseModel):
 class EmbeddingProviderType(StrEnum):
     """Define the embedding provider for LLM models."""
 
-    OPENAI = "openai"  # text-embedding-3-small
-    VOYAGE = "voyage"  # voyage-3 (Anthropic users)
-    GEMINI = "gemini"  # gemini-embedding-2-preview (multimodal)
-    SENTENCE_TRANSFORMERS = "sentence_transformers"  # all-MiniLM-L6-v2 (local, for OpenRouter)
+    OPENAI = "openai"
+    VOYAGE = "voyage"
+    GEMINI = "gemini"
+    SENTENCE_TRANSFORMERS = "sentence_transformers"
 
 
 class RerankerType(StrEnum):
@@ -238,6 +226,16 @@ class BillingModelType(StrEnum):
     ONE_TIME = "one_time"  # Single purchase / lifetime deal
 
 
+class BrandColorType(StrEnum):
+    """Brand color presets for the generated frontend."""
+
+    BLUE = "blue"
+    GREEN = "green"
+    RED = "red"
+    VIOLET = "violet"
+    ORANGE = "orange"
+
+
 class RAGFeatures(BaseModel):
     """RAG features."""
 
@@ -257,7 +255,7 @@ class ProjectConfig(BaseModel):
     Interactive prompt order: basic info → database → orm → oauth → session →
     background tasks → logfire → integrations → dev tools → reverse proxy →
     frontend → python version → ports → AI framework → LLM provider → RAG →
-    langsmith → rate limit config → brand color
+    langsmith → rate limit config
     """
 
     # Basic info
@@ -325,7 +323,6 @@ class ProjectConfig(BaseModel):
     enable_web_search: bool = False
     enable_web_fetch: bool = False
     enable_charts: bool = False
-    enable_antv_charts: bool = False
     enable_code_execution: bool = False
     enable_skills: bool = False
     enable_deep_research: bool = False
@@ -443,13 +440,8 @@ class ProjectConfig(BaseModel):
         """
         if self.database == DatabaseType.NONE:
             raise ValueError("A database is required (JWT auth needs user storage)")
-        if self.enable_admin_panel and self.database == DatabaseType.MONGODB:
-            raise ValueError("Admin panel (SQLAdmin) requires PostgreSQL or SQLite")
-        if self.orm_type == OrmType.SQLMODEL and self.database not in (
-            DatabaseType.POSTGRESQL,
-            DatabaseType.SQLITE,
-        ):
-            raise ValueError("SQLModel requires PostgreSQL or SQLite database")
+        if self.orm_type == OrmType.SQLMODEL and self.database != DatabaseType.POSTGRESQL:
+            raise ValueError("SQLModel requires PostgreSQL database")
         if self.enable_caching and not self.enable_redis:
             raise ValueError("Caching requires Redis to be enabled")
         if (
@@ -497,16 +489,6 @@ class ProjectConfig(BaseModel):
                 "Quick fix: set --ai-framework pydantic_ai, or drop --deep-research."
             )
 
-        # CrewAI 1.13.x pins opentelemetry-sdk<1.35 which conflicts with
-        # logfire>=4.30 (needs opentelemetry-sdk>=1.39). Disable logfire when
-        # using CrewAI to keep dependencies resolvable.
-        if self.ai_framework == AIFrameworkType.CREWAI and self.enable_logfire:
-            raise ValueError(
-                "CrewAI is incompatible with Logfire — CrewAI pins an older "
-                "opentelemetry-sdk that conflicts with current logfire. "
-                "Disable Logfire (enable_logfire=False) when using CrewAI."
-            )
-
         # --no-ai: RAG and websockets require an AI framework
         if not self.use_ai and self.rag_features.enable_rag:
             raise ValueError(
@@ -543,7 +525,7 @@ class ProjectConfig(BaseModel):
                 "SQLModel is not fully supported. Use orm_type=sqlalchemy or disable admin panel."
             )
 
-        # Background task queues require Redis
+        # Background task queues require Redis (Prefect uses its own storage)
         if (
             self.background_tasks
             in (
@@ -591,11 +573,7 @@ class ProjectConfig(BaseModel):
             raise ValueError("Newsletter signup requires Email to be enabled (enable_email=true)")
 
         # Teams requires SQL database with JWT
-        if self.enable_teams and self.database not in (
-            DatabaseType.POSTGRESQL,
-            DatabaseType.SQLITE,
-            DatabaseType.MONGODB,
-        ):
+        if self.enable_teams and self.database != DatabaseType.POSTGRESQL:
             raise ValueError("Teams requires a database")
 
         # RAG-oriented checks
@@ -670,13 +648,10 @@ class ProjectConfig(BaseModel):
                     "session table is unused. Quick fix: drop --session-management."
                 )
 
-        # Example CRUD scaffold needs the SQL stack — Items belong to a User
-        if self.include_example_crud and self.database not in (
-            DatabaseType.POSTGRESQL,
-            DatabaseType.SQLITE,
-        ):
+        # Example CRUD scaffold needs PostgreSQL
+        if self.include_example_crud and self.database != DatabaseType.POSTGRESQL:
             raise ValueError(
-                "--example-resource scaffold supports PostgreSQL/SQLite only today. "
+                "--example-resource scaffold requires PostgreSQL. "
                 "Quick fix: switch to --database postgresql or drop --example-resource."
             )
 
@@ -712,8 +687,6 @@ class ProjectConfig(BaseModel):
             # Database
             "database": self.database.value,
             "use_postgresql": self.database == DatabaseType.POSTGRESQL,
-            "use_mongodb": self.database == DatabaseType.MONGODB,
-            "use_sqlite": self.database == DatabaseType.SQLITE,
             "use_database": self.database != DatabaseType.NONE,
             "db_pool_size": self.db_pool_size,
             "db_max_overflow": self.db_max_overflow,
@@ -764,6 +737,8 @@ class ProjectConfig(BaseModel):
             "use_celery": self.background_tasks == BackgroundTaskType.CELERY,
             "use_taskiq": self.background_tasks == BackgroundTaskType.TASKIQ,
             "use_arq": self.background_tasks == BackgroundTaskType.ARQ,
+            "use_prefect": self.background_tasks == BackgroundTaskType.PREFECT,
+            "prefect_cloud": False,
             # Integrations
             "enable_redis": self.enable_redis,
             "enable_caching": self.enable_caching,
@@ -790,7 +765,6 @@ class ProjectConfig(BaseModel):
             "use_pydantic_ai": self.ai_framework == AIFrameworkType.PYDANTIC_AI,
             "use_langchain": self.ai_framework == AIFrameworkType.LANGCHAIN,
             "use_langgraph": self.ai_framework == AIFrameworkType.LANGGRAPH,
-            "use_crewai": self.ai_framework == AIFrameworkType.CREWAI,
             "use_deepagents": self.ai_framework == AIFrameworkType.DEEPAGENTS,
             "use_pydantic_deep": self.ai_framework == AIFrameworkType.PYDANTIC_DEEP,
             "sandbox_backend": self.sandbox_backend,
@@ -816,12 +790,10 @@ class ProjectConfig(BaseModel):
             in (
                 AIFrameworkType.LANGCHAIN,
                 AIFrameworkType.LANGGRAPH,
-                AIFrameworkType.CREWAI,
                 AIFrameworkType.DEEPAGENTS,
             ),
             "enable_charts": self.enable_charts,
             "charts_channel_png": self.enable_charts and (self.use_slack or self.use_telegram),
-            "enable_antv_charts": self.enable_antv_charts,
             "enable_code_execution": self.enable_code_execution,
             "enable_skills": self.enable_skills,
             "enable_deep_research": self.enable_deep_research,
@@ -870,13 +842,6 @@ class ProjectConfig(BaseModel):
             "use_nextjs": self.frontend == FrontendType.NEXTJS,
             "frontend_port": self.frontend_port,
             "brand_color": self.brand_color.value,
-            "brand_color_hue": {
-                BrandColorType.BLUE: "250",
-                BrandColorType.GREEN: "155",
-                BrandColorType.RED: "25",
-                BrandColorType.VIOLET: "295",
-                BrandColorType.ORANGE: "55",
-            }[self.brand_color],
             # Backend
             "backend_port": self.backend_port,
             # RAG
@@ -898,8 +863,6 @@ class ProjectConfig(BaseModel):
                 if self.llm_provider == LLMProviderType.ANTHROPIC
                 else EmbeddingProviderType.GEMINI.value
                 if self.llm_provider == LLMProviderType.GOOGLE
-                else EmbeddingProviderType.SENTENCE_TRANSFORMERS.value
-                if self.llm_provider == LLMProviderType.OPENROUTER
                 else EmbeddingProviderType.OPENAI.value
             ),
             "use_openai_embeddings": self.rag_features.enable_rag
@@ -907,14 +870,12 @@ class ProjectConfig(BaseModel):
             not in (
                 LLMProviderType.ANTHROPIC,
                 LLMProviderType.GOOGLE,
-                LLMProviderType.OPENROUTER,
             ),
             "use_voyage_embeddings": self.rag_features.enable_rag
             and self.llm_provider == LLMProviderType.ANTHROPIC,
             "use_gemini_embeddings": self.rag_features.enable_rag
             and self.llm_provider == LLMProviderType.GOOGLE,
-            "use_sentence_transformers": self.rag_features.enable_rag
-            and self.llm_provider == LLMProviderType.OPENROUTER,
+            "use_sentence_transformers": False,
             "enable_reranker": self.rag_features.enable_rag
             and self.rag_features.reranker_type != RerankerType.NONE,
             "use_cohere_reranker": self.rag_features.enable_rag

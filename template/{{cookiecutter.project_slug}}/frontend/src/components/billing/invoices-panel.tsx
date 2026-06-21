@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useInvoices } from "@/hooks";
+import { formatCurrency } from "@/lib/utils";
 import type { InvoiceStatus } from "@/types";
 
 const statusVariant: Record<InvoiceStatus, "default" | "secondary" | "destructive" | "outline"> = {
@@ -25,12 +26,6 @@ const statusLabel: Record<InvoiceStatus, string> = {
   uncollectible: "Uncollectible",
 };
 
-function formatMoney(amount: number, currency: string) {
-  return (amount / 100).toLocaleString("en-US", {
-    style: "currency",
-    currency: currency.toUpperCase(),
-  });
-}
 
 export function InvoicesPanel() {
   const { invoices, isLoading } = useInvoices();
@@ -80,7 +75,7 @@ export function InvoicesPanel() {
                 </div>
                 <div className="shrink-0 text-right">
                   <p className="font-medium tabular-nums">
-                    {formatMoney(inv.amount_due, inv.currency)}
+                    {formatCurrency(inv.amount_due, inv.currency)}
                   </p>
                   <div className="mt-1 flex items-center justify-end gap-1">
                     {inv.invoice_pdf && (

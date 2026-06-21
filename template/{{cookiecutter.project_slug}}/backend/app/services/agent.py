@@ -15,12 +15,7 @@ from typing import Any
 {%- if cookiecutter.use_database %}
 import json
 from datetime import UTC, datetime
-{%- if cookiecutter.use_postgresql %}
 from uuid import UUID
-{%- endif %}
-{%- if cookiecutter.use_sqlite %}
-from contextlib import contextmanager
-{%- endif %}
 {%- endif %}
 
 from fastapi import WebSocket, WebSocketDisconnect
@@ -45,14 +40,12 @@ from app.schemas.conversation import (
     ToolCallComplete,
     ToolCallCreate,
 )
-{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
-from app.db.session import get_db_context{% if cookiecutter.use_sqlite %}, get_db_session{% endif %}
-{%- endif %}
+from app.db.session import get_db_context
 {%- endif %}
 {%- if cookiecutter.enable_teams and cookiecutter.enable_rag %}
 from app.services.knowledge_base import KnowledgeBaseService
 {%- endif %}
-{%- if cookiecutter.enable_teams and cookiecutter.use_postgresql %}
+{%- if cookiecutter.enable_teams %}
 from app.repositories import organization_repo
 {%- endif %}
 
@@ -83,13 +76,13 @@ class AgentConnectionManager:
         subprotocol = getattr(websocket.state, "accept_subprotocol", None)
         await websocket.accept(subprotocol=subprotocol)
         self.active_connections.append(websocket)
-        logger.info(f"Agent WebSocket connected. Total connections: {len(self.active_connections)}")
+        logger.info("Agent WebSocket connected. Total connections: %d", len(self.active_connections))
 
     def disconnect(self, websocket: WebSocket) -> None:
         """Remove a WebSocket connection."""
         if websocket in self.active_connections:
             self.active_connections.remove(websocket)
-        logger.info(f"Agent WebSocket disconnected. Total connections: {len(self.active_connections)}")
+        logger.info("Agent WebSocket disconnected. Total connections: %d", len(self.active_connections))
 
     async def send_event(self, websocket: WebSocket, event_type: str, data: Any) -> bool:
         """Forward to the module-level :func:`send_event`."""
@@ -160,7 +153,6 @@ async def persist_user_turn(
     newly_created = False
     organization_id: str | None = None
     try:
-{%- if cookiecutter.use_postgresql %}
         async with get_db_context() as db:
             conv_service = get_conversation_service(db)
 
@@ -210,76 +202,9 @@ async def persist_user_turn(
                 try:
                     await conv_service.link_files_to_message(user_msg.id, file_ids)
                 except Exception as e:
-                    logger.warning(f"Failed to link files: {e}")
-{%- elif cookiecutter.use_sqlite %}
-        with contextmanager(get_db_session)() as db:
-            conv_service = get_conversation_service(db)
-
-            if requested_conversation_id:
-                current_conversation_id = requested_conversation_id
-                conv = conv_service.get_conversation(requested_conversation_id{% if cookiecutter.websocket_auth_jwt %}, user_id=str(user.id){% endif %})
-                if not conv.title and user_message:
-                    conv_service.update_conversation(
-                        requested_conversation_id,
-                        ConversationUpdate(title=truncate_title(user_message)),
-{%- if cookiecutter.websocket_auth_jwt %}
-                        user_id=str(user.id),
-{%- endif %}
-                    )
-            elif not current_conversation_id:
-                conversation = conv_service.create_conversation(
-                    ConversationCreate(
-{%- if cookiecutter.websocket_auth_jwt %}
-                        user_id=str(user.id),
-{%- endif %}
-                        title=truncate_title(user_message),
-                    )
-                )
-                current_conversation_id = str(conversation.id)
-                newly_created = True
-
-            user_msg = conv_service.add_message(
-                current_conversation_id,
-                MessageCreate(role="user", content=user_message),
-            )
-            if file_ids:
-                try:
-                    conv_service.link_files_to_message(user_msg.id, file_ids)
-                except Exception as e:
-                    logger.warning(f"Failed to link files: {e}")
-{%- elif cookiecutter.use_mongodb %}
-        conv_service = get_conversation_service()
-
-        if requested_conversation_id:
-            current_conversation_id = requested_conversation_id
-            conv = await conv_service.get_conversation(requested_conversation_id{% if cookiecutter.websocket_auth_jwt %}, user_id=str(user.id){% endif %})
-            if not conv.title and user_message:
-                await conv_service.update_conversation(
-                    requested_conversation_id,
-                    ConversationUpdate(title=truncate_title(user_message)),
-{%- if cookiecutter.websocket_auth_jwt %}
-                    user_id=str(user.id),
-{%- endif %}
-                )
-        elif not current_conversation_id:
-            conversation = await conv_service.create_conversation(
-                ConversationCreate(
-{%- if cookiecutter.websocket_auth_jwt %}
-                    user_id=str(user.id),
-{%- endif %}
-                    title=truncate_title(user_message),
-                )
-            )
-            current_conversation_id = str(conversation.id)
-            newly_created = True
-
-        await conv_service.add_message(
-            current_conversation_id,
-            MessageCreate(role="user", content=user_message),
-        )
-{%- endif %}
+                    logger.warning("Failed to link files: %s", e)
     except Exception as e:
-        logger.warning(f"Failed to persist conversation: {e}")
+        logger.warning("Failed to persist conversation: %s", e)
 
     return current_conversation_id, newly_created, organization_id
 
@@ -301,7 +226,6 @@ async def persist_assistant_turn(
 ) -> str | None:
     """Persist the assistant message and any tool calls. Returns the saved message id."""
     try:
-{%- if cookiecutter.use_postgresql %}
         async with get_db_context() as db:
             conv_service = get_conversation_service(db)
             assistant_msg = await conv_service.add_message(
@@ -329,48 +253,10 @@ async def persist_assistant_turn(
                             ),
                         )
                 except Exception as e:
-                    logger.warning(f"Failed to persist tool call: {e}")
+                    logger.warning("Failed to persist tool call: %s", e)
             return str(assistant_msg.id)
-{%- elif cookiecutter.use_sqlite %}
-        with contextmanager(get_db_session)() as db:
-            conv_service = get_conversation_service(db)
-            assistant_msg = conv_service.add_message(
-                conversation_id,
-                MessageCreate(role="assistant", content=output, model_name=model_name),
-            )
-            for tc in collected_tool_calls:
-                try:
-                    tc_obj = conv_service.start_tool_call(
-                        assistant_msg.id,
-                        ToolCallCreate(
-                            tool_call_id=tc["tool_call_id"],
-                            tool_name=tc["tool_name"],
-                            args=normalize_tool_args(tc.get("args")),
-                            started_at=datetime.now(UTC),
-                        ),
-                    )
-                    if tc.get("result"):
-                        conv_service.complete_tool_call(
-                            tc_obj.id,
-                            ToolCallComplete(
-                                result=tc["result"],
-                                completed_at=datetime.now(UTC),
-                                success=True,
-                            ),
-                        )
-                except Exception as e:
-                    logger.warning(f"Failed to persist tool call: {e}")
-            return str(assistant_msg.id)
-{%- elif cookiecutter.use_mongodb %}
-        conv_service = get_conversation_service()
-        assistant_msg = await conv_service.add_message(
-            conversation_id,
-            MessageCreate(role="assistant", content=output, model_name=model_name),
-        )
-        return str(assistant_msg.id) if assistant_msg else None
-{%- endif %}
     except Exception as e:
-        logger.warning(f"Failed to persist assistant response: {e}")
+        logger.warning("Failed to persist assistant response: %s", e)
         return None
 {%- endif %}
 
@@ -393,7 +279,6 @@ async def resolve_kb_collections(
     IDs come from the client — collection names are always resolved against
     the user's accessible KBs server-side.
     """
-{%- if cookiecutter.use_postgresql %}
     if override_kb_ids is not None:
         async with get_db_context() as db:
             kb_service = KnowledgeBaseService(db)
@@ -407,10 +292,8 @@ async def resolve_kb_collections(
 {%- endif %}
                 organization_id=org_uuid,
             )
-{%- endif %}
     if not conversation_id:
         return []
-{%- if cookiecutter.use_postgresql %}
     async with get_db_context() as db:
         kb_service = KnowledgeBaseService(db)
         return await kb_service.resolve_active_collection_names(
@@ -421,26 +304,4 @@ async def resolve_kb_collections(
             None,
 {%- endif %}
         )
-{%- elif cookiecutter.use_sqlite %}
-    with contextmanager(get_db_session)() as db:
-        kb_service = KnowledgeBaseService(db)
-        return kb_service.resolve_active_collection_names(
-            conversation_id,
-{%- if cookiecutter.websocket_auth_jwt %}
-            user_id,
-{%- else %}
-            None,
-{%- endif %}
-        )
-{%- elif cookiecutter.use_mongodb %}
-    kb_service = KnowledgeBaseService()
-    return await kb_service.resolve_active_collection_names(
-        conversation_id,
-{%- if cookiecutter.websocket_auth_jwt %}
-        user_id,
-{%- else %}
-        None,
-{%- endif %}
-    )
-{%- endif %}
 {%- endif %}

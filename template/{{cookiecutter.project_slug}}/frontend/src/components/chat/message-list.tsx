@@ -25,8 +25,7 @@ function messageHasResearch(m: ChatMessage): boolean {
 {%- endif %}
 
 export function MessageList({ messages, onRegenerate }: MessageListProps) {
-  // Calculate group positions for timeline connector
-  const getGroupPosition = (
+    const getGroupPosition = (
     message: ChatMessage,
   ): "first" | "middle" | "last" | "single" | undefined => {
     if (!message.groupId) return undefined;

@@ -92,12 +92,10 @@ export function PageHero({
           <p className="text-foreground/55 font-mono text-[11px] tracking-wider uppercase">
             {eyebrow}
           </p>
-          <h1 className="font-display text-foreground mt-2 text-3xl leading-[1.05] font-bold tracking-tight sm:text-4xl [&_em]:font-accent [&_em]:font-normal [&_em]:italic">
+          <h1 className="font-display text-foreground [&_em]:font-accent mt-2 text-3xl leading-[1.05] font-bold tracking-tight sm:text-4xl [&_em]:font-normal [&_em]:italic">
             {title}
           </h1>
-          {description && (
-            <p className="text-foreground/65 mt-4 max-w-xl text-sm">{description}</p>
-          )}
+          {description && <p className="text-foreground/65 mt-4 max-w-xl text-sm">{description}</p>}
         </div>
         {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
       </div>

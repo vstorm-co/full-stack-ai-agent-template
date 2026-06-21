@@ -76,9 +76,7 @@ export function Hero({
       padding="pt-28 pb-20 md:pt-32 md:pb-28"
       className="spotlight-bg grain relative overflow-hidden"
     >
-      {/* Subtle background grid — sits under everything */}
       <div aria-hidden className="bg-grid pointer-events-none absolute inset-0 -z-10" />
-      {/* Centered text block */}
       <div className="flex flex-col items-center text-center">
         {eyebrow && (
           <div className="eyebrow text-foreground/65 mb-8">
@@ -148,9 +146,7 @@ export function Hero({
         )}
       </div>
 
-      {/* Demo block with floating accent pills */}
       <div className="relative mt-16 md:mt-20">
-        {/* Soft glow under demo */}
         <div
           aria-hidden
           className="absolute inset-x-12 top-1/4 -z-10 h-1/2 rounded-full blur-3xl"
@@ -177,7 +173,6 @@ export function Hero({
         ))}
       </div>
 
-      {/* Stats horizontal band — credibility footer for hero */}
       {stats && stats.length > 0 && (
         <dl className="border-foreground/10 mx-auto mt-20 grid max-w-4xl grid-cols-3 divide-x divide-[color-mix(in_oklab,var(--color-foreground)_12%,transparent)] border-t border-b py-8 md:mt-24">
           {stats.map((stat) => (

@@ -4,9 +4,7 @@
 from datetime import datetime
 from typing import Literal
 
-{%- if cookiecutter.use_postgresql %}
 from uuid import UUID
-{%- endif %}
 
 from pydantic import Field
 
@@ -36,13 +34,8 @@ class ProjectUpdate(BaseSchema):
 class ProjectRead(BaseSchema, TimestampSchema):
     """Schema for reading a project (API response)."""
 
-{%- if cookiecutter.use_postgresql %}
     id: UUID
     owner_id: UUID
-{%- else %}
-    id: str
-    owner_id: str
-{%- endif %}
     name: str
     description: str | None = None
     image: str
@@ -61,11 +54,7 @@ class ProjectList(BaseSchema):
 class ProjectMemberCreate(BaseSchema):
     """Schema for adding a member to a project."""
 
-{%- if cookiecutter.use_postgresql %}
     user_id: UUID = Field(..., description="ID of the user to add")
-{%- else %}
-    user_id: str = Field(..., description="ID of the user to add")
-{%- endif %}
     role: Literal["viewer", "editor", "admin"] = Field(
         default="viewer", description="Member role"
     )
@@ -80,15 +69,9 @@ class ProjectMemberUpdate(BaseSchema):
 class ProjectMemberRead(BaseSchema):
     """Schema for reading a project member."""
 
-{%- if cookiecutter.use_postgresql %}
     project_id: UUID
     user_id: UUID
     invited_by: UUID | None = None
-{%- else %}
-    project_id: str
-    user_id: str
-    invited_by: str | None = None
-{%- endif %}
     role: str
     created_at: datetime
 

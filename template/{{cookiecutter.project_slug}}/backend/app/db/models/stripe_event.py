@@ -2,10 +2,9 @@
 """StripeEvent model — idempotency log for incoming webhook events."""
 
 import uuid
-{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
 from datetime import UTC, datetime
 
-{%- if cookiecutter.use_postgresql and cookiecutter.use_sqlmodel %}
+{%- if cookiecutter.use_sqlmodel %}
 from sqlalchemy import Column, String, Text
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID, JSONB
 from sqlmodel import Field, SQLModel
@@ -28,7 +27,7 @@ class StripeEvent(TimestampMixin, SQLModel, table=True):
         return f"<StripeEvent(type={self.event_type}, id={self.stripe_event_id})>"
 
 
-{%- elif cookiecutter.use_postgresql and cookiecutter.use_sqlalchemy %}
+{%- elif cookiecutter.use_sqlalchemy %}
 from sqlalchemy import Column, String, Text, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column
@@ -48,52 +47,6 @@ class StripeEvent(Base, TimestampMixin):
     def __repr__(self) -> str:
         return f"<StripeEvent(type={self.event_type}, id={self.stripe_event_id})>"
 
-
-{%- elif cookiecutter.use_sqlite %}
-import json
-from sqlalchemy import Column, String, Text
-from sqlalchemy.orm import Mapped, mapped_column
-from app.db.base import Base, TimestampMixin
-
-
-class StripeEvent(Base, TimestampMixin):
-    __tablename__ = "stripe_event"
-
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    stripe_event_id: Mapped[str] = mapped_column(String(64), unique=True, index=True)
-    event_type: Mapped[str] = mapped_column(String(64), index=True)
-    _payload: Mapped[str] = mapped_column("payload", Text, nullable=False, default="{}")
-    status: Mapped[str] = mapped_column(String(16), default="pending")
-    error: Mapped[str | None] = mapped_column(Text, nullable=True)
-
-    @property
-    def payload(self) -> dict:
-        return json.loads(self._payload)
-
-    @payload.setter
-    def payload(self, value: dict) -> None:
-        self._payload = json.dumps(value)
-
-    def __repr__(self) -> str:
-        return f"<StripeEvent(type={self.event_type}, id={self.stripe_event_id})>"
-
-{%- endif %}
-{%- elif cookiecutter.use_mongodb %}
-from datetime import datetime
-from typing import Any, Optional
-from beanie import Document
-
-
-class StripeEvent(Document):
-    stripe_event_id: str
-    event_type: str
-    payload: dict
-    status: str = "pending"
-    error: Optional[str] = None
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-
-    class Settings:
-        name = "stripe_events"
 
 {%- endif %}
 {%- else %}

@@ -45,10 +45,8 @@ const COMPLIANCE = ["SOC 2 Type II", "GDPR", "ISO 27001", "HIPAA"];
 
 export function EnterpriseSecurity({ cta }: EnterpriseSecurityProps) {
   return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-4 md:auto-rows-[200px]">
-      {/* Featured card */}
+    <div className="grid grid-cols-1 gap-4 md:auto-rows-[200px] md:grid-cols-4">
       <div className={cn(CARD, "md:col-span-2 md:row-span-2", "flex flex-col p-8")}>
-        {/* Brand glow */}
         <div
           aria-hidden
           className="pointer-events-none absolute -top-24 -right-24 -z-0 h-72 w-72 rounded-full blur-3xl"
@@ -60,8 +58,8 @@ export function EnterpriseSecurity({ cta }: EnterpriseSecurityProps) {
             Security and control, <em>built in.</em>
           </h2>
           <p className="text-foreground/70 mt-4 max-w-md text-base leading-relaxed">
-            From day one your data is encrypted, access-controlled and audited. Enterprise teams
-            get SSO, data residency and a dedicated success manager.
+            From day one your data is encrypted, access-controlled and audited. Enterprise teams get
+            SSO, data residency and a dedicated success manager.
           </p>
 
           <div className="mt-auto pt-8">
@@ -89,7 +87,6 @@ export function EnterpriseSecurity({ cta }: EnterpriseSecurityProps) {
         </div>
       </div>
 
-      {/* Security capability cards */}
       {FEATURES.map((f) => (
         <div key={f.title} className={cn(CARD, "flex flex-col justify-center p-6")}>
           <span

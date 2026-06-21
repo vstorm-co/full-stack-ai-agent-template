@@ -1,11 +1,8 @@
-{%- if cookiecutter.use_jwt and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
+{%- if cookiecutter.use_jwt %}
 """File upload and download endpoints for chat attachments."""
 
-import logging
 from typing import Any
-{%- if cookiecutter.use_postgresql %}
 from uuid import UUID
-{%- endif %}
 
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
@@ -13,9 +10,6 @@ from fastapi.responses import FileResponse
 from app.api.deps import CurrentUser, FileUploadSvc
 from app.core.exceptions import NotFoundError
 from app.schemas.file import FileInfo, FileUploadResponse
-from app.services.file_storage import get_file_storage
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/files", tags=["files"])
 
@@ -28,34 +22,12 @@ async def upload_file(
 ) -> Any:
     """Upload a file for use in chat."""
     data = await file.read()
-    is_valid, error = file_upload_svc.validate_upload(file.content_type, len(data))
-    if not is_valid:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error)
-
-    file_type = file_upload_svc.classify_file(file.content_type or "", file.filename or "unknown")
-{%- if cookiecutter.use_postgresql %}
-    parsed_content = await file_upload_svc.parse_content(data, file_type, file.content_type or "")
-{%- else %}
-    parsed_content = file_upload_svc.parse_content(data, file_type, file.content_type or "")
-{%- endif %}
-
-    storage = get_file_storage()
-    storage_path = await storage.save(str(current_user.id), file.filename or "unknown", data)
-
-{%- if cookiecutter.use_postgresql %}
-    chat_file = await file_upload_svc.create_chat_file(
-{%- else %}
-    chat_file = file_upload_svc.create_chat_file(
-{%- endif %}
+    chat_file = await file_upload_svc.upload(
         user_id=current_user.id,
+        file_data=data,
         filename=file.filename or "unknown",
-        mime_type=file.content_type or "application/octet-stream",
-        size=len(data),
-        storage_path=storage_path,
-        file_type=file_type,
-        parsed_content=parsed_content,
+        content_type=file.content_type,
     )
-
     return FileUploadResponse(
         id=chat_file.id,
         filename=chat_file.filename,
@@ -66,19 +38,11 @@ async def upload_file(
 
 
 @router.get("/{file_id}")
-{%- if cookiecutter.use_postgresql %}
 async def download_file(
     file_id: UUID,
     file_upload_svc: FileUploadSvc,
     current_user: CurrentUser,
     disposition: str = "inline",
-{%- else %}
-def download_file(
-    file_id: str,
-    file_upload_svc: FileUploadSvc,
-    current_user: CurrentUser,
-    disposition: str = "inline",
-{%- endif %}
 ) -> Any:
     """Serve a file. Only the owner can access their files.
 
@@ -88,16 +52,11 @@ def download_file(
     the browser's download dialog (used by the explicit "Download" button).
     """
     try:
-{%- if cookiecutter.use_postgresql %}
         chat_file = await file_upload_svc.get_user_file(file_id, current_user.id)
-{%- else %}
-        chat_file = file_upload_svc.get_user_file(file_id, current_user.id)
-{%- endif %}
     except NotFoundError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found") from None
 
-    storage = get_file_storage()
-    file_path = storage.get_full_path(chat_file.storage_path)
+    file_path = file_upload_svc.get_file_path(chat_file.storage_path)
     if not file_path:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found on disk")
 
@@ -119,25 +78,14 @@ def download_file(
 
 
 @router.get("/{file_id}/info", response_model=FileInfo)
-{%- if cookiecutter.use_postgresql %}
 async def get_file_info(
     file_id: UUID,
     file_upload_svc: FileUploadSvc,
     current_user: CurrentUser,
-{%- else %}
-def get_file_info(
-    file_id: str,
-    file_upload_svc: FileUploadSvc,
-    current_user: CurrentUser,
-{%- endif %}
 ) -> Any:
     """Get file metadata. Only the owner can access."""
     try:
-{%- if cookiecutter.use_postgresql %}
         chat_file = await file_upload_svc.get_user_file(file_id, current_user.id)
-{%- else %}
-        chat_file = file_upload_svc.get_user_file(file_id, current_user.id)
-{%- endif %}
     except NotFoundError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found") from None
 

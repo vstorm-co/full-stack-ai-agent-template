@@ -1,11 +1,13 @@
 {%- if cookiecutter.enable_teams and cookiecutter.use_jwt %}
 """Tests for RBAC dependencies and org-role permission matrix."""
 
+import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-{%- if cookiecutter.use_postgresql %}
+from app.api.deps import RequireOrgRole, _require_app_admin
+from app.core.exceptions import AuthorizationError
 
 
 class TestRequireOrgRole:
@@ -20,14 +22,12 @@ class TestRequireOrgRole:
 
     @pytest.fixture
     def mock_org(self):
-        import uuid
         org = MagicMock()
         org.id = uuid.uuid4()
         return org
 
     @pytest.fixture
     def mock_user(self):
-        import uuid
         user = MagicMock()
         user.id = uuid.uuid4()
         user.is_app_admin = False
@@ -35,8 +35,6 @@ class TestRequireOrgRole:
 
     @pytest.mark.anyio
     async def test_owner_passes_require_owner(self, mock_db, mock_org, mock_user):
-        from app.api.deps import RequireOrgRole
-
         mock_membership = MagicMock()
         mock_membership.role = "owner"
 
@@ -47,9 +45,6 @@ class TestRequireOrgRole:
 
     @pytest.mark.anyio
     async def test_admin_fails_require_owner(self, mock_db, mock_org, mock_user):
-        from app.api.deps import RequireOrgRole
-        from app.core.exceptions import AuthorizationError
-
         mock_membership = MagicMock()
         mock_membership.role = "admin"
 
@@ -62,8 +57,6 @@ class TestRequireOrgRole:
 
     @pytest.mark.anyio
     async def test_owner_passes_require_admin_plus(self, mock_db, mock_org, mock_user):
-        from app.api.deps import RequireOrgRole
-
         mock_membership = MagicMock()
         mock_membership.role = "owner"
 
@@ -74,9 +67,6 @@ class TestRequireOrgRole:
 
     @pytest.mark.anyio
     async def test_member_fails_require_admin_plus(self, mock_db, mock_org, mock_user):
-        from app.api.deps import RequireOrgRole
-        from app.core.exceptions import AuthorizationError
-
         mock_membership = MagicMock()
         mock_membership.role = "member"
 
@@ -89,9 +79,6 @@ class TestRequireOrgRole:
 
     @pytest.mark.anyio
     async def test_non_member_fails(self, mock_db, mock_org, mock_user):
-        from app.api.deps import RequireOrgRole
-        from app.core.exceptions import AuthorizationError
-
         checker = RequireOrgRole("owner", "admin", "member")
         with (
             patch("app.api.deps._member_repo.get", new=AsyncMock(return_value=None)),
@@ -101,8 +88,6 @@ class TestRequireOrgRole:
 
     @pytest.mark.anyio
     async def test_viewer_passes_require_any_role(self, mock_db, mock_org, mock_user):
-        from app.api.deps import RequireOrgRole
-
         mock_membership = MagicMock()
         mock_membership.role = "viewer"
 
@@ -117,8 +102,6 @@ class TestCurrentAppAdmin:
 
     @pytest.mark.anyio
     async def test_app_admin_passes(self):
-        from app.api.deps import _require_app_admin
-
         mock_user = MagicMock()
         mock_user.is_app_admin = True
 
@@ -127,9 +110,6 @@ class TestCurrentAppAdmin:
 
     @pytest.mark.anyio
     async def test_non_app_admin_fails(self):
-        from app.api.deps import _require_app_admin
-        from app.core.exceptions import AuthorizationError
-
         mock_user = MagicMock()
         mock_user.is_app_admin = False
 
@@ -150,10 +130,6 @@ class TestOrgRolePermissionMatrix:
     ])
     @pytest.mark.anyio
     async def test_require_owner(self, role: str, should_pass: bool):
-        import uuid
-        from app.api.deps import RequireOrgRole
-        from app.core.exceptions import AuthorizationError
-
         mock_db = MagicMock()
         mock_org = MagicMock()
         mock_org.id = uuid.uuid4()
@@ -178,10 +154,6 @@ class TestOrgRolePermissionMatrix:
     ])
     @pytest.mark.anyio
     async def test_require_admin_plus(self, role: str, should_pass: bool):
-        import uuid
-        from app.api.deps import RequireOrgRole
-        from app.core.exceptions import AuthorizationError
-
         mock_db = MagicMock()
         mock_org = MagicMock()
         mock_org.id = uuid.uuid4()
@@ -206,10 +178,6 @@ class TestOrgRolePermissionMatrix:
     ])
     @pytest.mark.anyio
     async def test_require_member_plus(self, role: str, should_pass: bool):
-        import uuid
-        from app.api.deps import RequireOrgRole
-        from app.core.exceptions import AuthorizationError
-
         mock_db = MagicMock()
         mock_org = MagicMock()
         mock_org.id = uuid.uuid4()
@@ -227,90 +195,6 @@ class TestOrgRolePermissionMatrix:
                     await checker(org=mock_org, user=mock_user, db=mock_db)
 
 
-{%- elif cookiecutter.use_sqlite %}
-
-
-class TestRequireOrgRole:
-    """Tests for RequireOrgRole dependency (SQLite sync)."""
-
-    @pytest.fixture
-    def mock_db(self):
-        return MagicMock()
-
-    @pytest.fixture
-    def mock_org(self):
-        org = MagicMock()
-        org.id = "org-1"
-        return org
-
-    @pytest.fixture
-    def mock_user(self):
-        user = MagicMock()
-        user.id = "user-1"
-        user.is_app_admin = False
-        return user
-
-    def test_owner_passes_require_owner(self, mock_db, mock_org, mock_user):
-        from app.api.deps import RequireOrgRole
-
-        mock_membership = MagicMock()
-        mock_membership.role = "owner"
-
-        checker = RequireOrgRole("owner")
-        with patch("app.api.deps._member_repo.get", return_value=mock_membership):
-            result = checker(org=mock_org, user=mock_user, db=mock_db)
-        assert result is mock_org
-
-    def test_admin_fails_require_owner(self, mock_db, mock_org, mock_user):
-        from app.api.deps import RequireOrgRole
-        from app.core.exceptions import AuthorizationError
-
-        mock_membership = MagicMock()
-        mock_membership.role = "admin"
-
-        checker = RequireOrgRole("owner")
-        with (
-            patch("app.api.deps._member_repo.get", return_value=mock_membership),
-            pytest.raises(AuthorizationError),
-        ):
-            checker(org=mock_org, user=mock_user, db=mock_db)
-
-    def test_non_member_fails(self, mock_db, mock_org, mock_user):
-        from app.api.deps import RequireOrgRole
-        from app.core.exceptions import AuthorizationError
-
-        checker = RequireOrgRole("owner", "admin")
-        with (
-            patch("app.api.deps._member_repo.get", return_value=None),
-            pytest.raises(AuthorizationError),
-        ):
-            checker(org=mock_org, user=mock_user, db=mock_db)
-
-    @pytest.mark.parametrize("role,should_pass", [
-        ("owner", True),
-        ("admin", True),
-        ("member", False),
-        ("viewer", False),
-    ])
-    def test_require_admin_plus_matrix(self, mock_db, mock_org, mock_user, role: str, should_pass: bool):
-        from app.api.deps import RequireOrgRole
-        from app.core.exceptions import AuthorizationError
-
-        mock_membership = MagicMock()
-        mock_membership.role = role
-
-        checker = RequireOrgRole("owner", "admin")
-        with patch("app.api.deps._member_repo.get", return_value=mock_membership):
-            if should_pass:
-                checker(org=mock_org, user=mock_user, db=mock_db)
-            else:
-                with pytest.raises(AuthorizationError):
-                    checker(org=mock_org, user=mock_user, db=mock_db)
-
-
-{%- else %}
-# RBAC tests not applicable for this DB configuration.
-{%- endif %}
 {%- else %}
 """RBAC tests — not configured (enable_teams=false or no JWT)."""
 {%- endif %}

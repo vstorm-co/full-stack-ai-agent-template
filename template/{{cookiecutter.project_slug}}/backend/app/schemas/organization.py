@@ -1,48 +1,35 @@
 {%- if cookiecutter.enable_teams %}
 """Organization, OrganizationMember and Invitation schemas."""
 
+import re
 from datetime import datetime
-from typing import Optional
-
-{%- if cookiecutter.use_postgresql %}
 from uuid import UUID
-{%- endif %}
 
 from pydantic import EmailStr, Field, field_validator
 
 from app.schemas.base import BaseSchema, TimestampSchema
 from app.schemas.user import UserRead
 
-{%- if cookiecutter.use_postgresql %}
 _ID = UUID
-{%- else %}
-_ID = str
-{%- endif %}
-
-
-# ---------------------------------------------------------------------------
-# Organization
-# ---------------------------------------------------------------------------
 
 
 class OrganizationCreate(BaseSchema):
     name: str = Field(min_length=2, max_length=128)
-    slug: Optional[str] = Field(default=None, min_length=2, max_length=64)
+    slug: str | None = Field(default=None, min_length=2, max_length=64)
 
     @field_validator("slug")
     @classmethod
-    def slug_format(cls, v: Optional[str]) -> Optional[str]:
+    def slug_format(cls, v: str | None) -> str | None:
         if v is None:
             return v
-        import re
         if not re.match(r"^[a-z0-9][a-z0-9\-]*[a-z0-9]$", v):
             raise ValueError("Slug must be lowercase alphanumeric with hyphens, no leading/trailing hyphens")
         return v
 
 
 class OrganizationUpdate(BaseSchema):
-    name: Optional[str] = Field(default=None, min_length=2, max_length=128)
-    avatar_url: Optional[str] = Field(default=None, max_length=500)
+    name: str | None = Field(default=None, min_length=2, max_length=128)
+    avatar_url: str | None = Field(default=None, max_length=500)
 
 
 class OrganizationRead(BaseSchema, TimestampSchema):
@@ -50,12 +37,12 @@ class OrganizationRead(BaseSchema, TimestampSchema):
     name: str
     slug: str
     is_personal: bool
-    avatar_url: Optional[str] = None
+    avatar_url: str | None = None
     member_count: int = 0
     role: str  # current user's role in this org
 {%- if cookiecutter.enable_billing %}
     subscription_tier: str = "free"
-    seats_limit: Optional[int] = None
+    seats_limit: int | None = None
     credits_balance: int = 0
 {%- endif %}
 
@@ -65,19 +52,14 @@ class OrganizationList(BaseSchema):
     total: int
 
 
-# ---------------------------------------------------------------------------
-# OrganizationMember
-# ---------------------------------------------------------------------------
-
-
 class OrganizationMemberRead(BaseSchema):
     id: _ID
     organization_id: _ID
     user_id: _ID
     role: str
     email: str
-    full_name: Optional[str] = None
-    avatar_url: Optional[str] = None
+    full_name: str | None = None
+    avatar_url: str | None = None
     joined_at: datetime
 
 
@@ -96,11 +78,6 @@ class OrganizationMemberUpdate(BaseSchema):
 class OrganizationMemberList(BaseSchema):
     items: list[OrganizationMemberRead]
     total: int
-
-
-# ---------------------------------------------------------------------------
-# Invitation
-# ---------------------------------------------------------------------------
 
 
 class InvitationCreate(BaseSchema):
@@ -125,7 +102,7 @@ class InvitationRead(BaseSchema):
     token: str
     expires_at: datetime
     created_at: datetime
-    invited_by: Optional[UserRead] = None
+    invited_by: UserRead | None = None
 
 
 class InvitationList(BaseSchema):
@@ -135,11 +112,6 @@ class InvitationList(BaseSchema):
 
 class InvitationAccept(BaseSchema):
     token: str
-
-
-# ---------------------------------------------------------------------------
-# Transfer ownership
-# ---------------------------------------------------------------------------
 
 
 class TransferOwnershipRequest(BaseSchema):

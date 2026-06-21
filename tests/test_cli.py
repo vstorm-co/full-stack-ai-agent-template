@@ -262,24 +262,6 @@ class TestCreateCommand:
 
     @patch("fastapi_gen.cli.generate_project")
     @patch("fastapi_gen.cli.post_generation_tasks")
-    def test_create_with_mongodb(
-        self,
-        mock_post_gen: MagicMock,
-        mock_generate: MagicMock,
-        runner: CliRunner,
-        tmp_path: Path,
-    ) -> None:
-        """Test create with MongoDB."""
-        mock_generate.return_value = tmp_path / "myproject"
-
-        result = runner.invoke(create, ["myproject", "--database", "mongodb"])
-
-        assert result.exit_code == 0
-        config = mock_generate.call_args[0][0]
-        assert config.database == DatabaseType.MONGODB
-
-    @patch("fastapi_gen.cli.generate_project")
-    @patch("fastapi_gen.cli.post_generation_tasks")
     def test_create_with_no_logfire(
         self,
         mock_post_gen: MagicMock,
@@ -330,7 +312,7 @@ class TestCreateCommand:
 
         assert result.exit_code == 0
         config = mock_generate.call_args[0][0]
-        assert config.database == DatabaseType.SQLITE
+        assert config.database == DatabaseType.POSTGRESQL
         assert config.enable_logfire is False
         assert config.enable_docker is False
         assert config.ci_type == CIType.NONE
@@ -784,10 +766,9 @@ class TestTemplatesCommand:
         assert "--preset production" in result.output
         assert "--preset ai-agent" in result.output
         assert "--minimal" in result.output
-        # Databases
-        assert "Databases" in result.output
+        # Database
+        assert "Database" in result.output
         assert "postgresql" in result.output
-        assert "mongodb" in result.output
         # Authentication
         assert "Authentication" in result.output
         assert "JWT" in result.output

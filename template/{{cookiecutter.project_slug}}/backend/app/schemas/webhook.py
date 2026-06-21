@@ -2,14 +2,14 @@
 """Webhook schemas."""
 
 from datetime import datetime
-{%- if cookiecutter.use_postgresql %}
 from uuid import UUID
-{%- endif %}
 
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import Field, HttpUrl
+
+from app.schemas.base import BaseSchema
 
 
-class WebhookCreate(BaseModel):
+class WebhookCreate(BaseSchema):
     """Schema for creating a webhook."""
 
     name: str = Field(..., min_length=1, max_length=255)
@@ -18,7 +18,7 @@ class WebhookCreate(BaseModel):
     description: str | None = None
 
 
-class WebhookUpdate(BaseModel):
+class WebhookUpdate(BaseSchema):
     """Schema for updating a webhook."""
 
     name: str | None = Field(None, min_length=1, max_length=255)
@@ -28,14 +28,10 @@ class WebhookUpdate(BaseModel):
     description: str | None = None
 
 
-class WebhookRead(BaseModel):
+class WebhookRead(BaseSchema):
     """Schema for reading a webhook."""
 
-{%- if cookiecutter.use_postgresql %}
     id: UUID
-{%- else %}
-    id: str
-{%- endif %}
     name: str
     url: str
     events: list[str]
@@ -45,16 +41,11 @@ class WebhookRead(BaseModel):
     updated_at: datetime
 
 
-class WebhookDeliveryRead(BaseModel):
+class WebhookDeliveryRead(BaseSchema):
     """Schema for reading a webhook delivery."""
 
-{%- if cookiecutter.use_postgresql %}
     id: UUID
     webhook_id: UUID
-{%- else %}
-    id: str
-    webhook_id: str
-{%- endif %}
     event_type: str
     response_status: int | None
     error_message: str | None
@@ -64,21 +55,21 @@ class WebhookDeliveryRead(BaseModel):
     delivered_at: datetime | None
 
 
-class WebhookListResponse(BaseModel):
+class WebhookListResponse(BaseSchema):
     """Response for list of webhooks."""
 
     items: list[WebhookRead]
     total: int
 
 
-class WebhookDeliveryListResponse(BaseModel):
+class WebhookDeliveryListResponse(BaseSchema):
     """Response for list of webhook deliveries."""
 
     items: list[WebhookDeliveryRead]
     total: int
 
 
-class WebhookTestResponse(BaseModel):
+class WebhookTestResponse(BaseSchema):
     """Response for webhook test."""
 
     success: bool
@@ -86,7 +77,7 @@ class WebhookTestResponse(BaseModel):
     message: str
 
 
-class WebhookSecretResponse(BaseModel):
+class WebhookSecretResponse(BaseSchema):
     """Response for secret regeneration."""
 
     secret: str

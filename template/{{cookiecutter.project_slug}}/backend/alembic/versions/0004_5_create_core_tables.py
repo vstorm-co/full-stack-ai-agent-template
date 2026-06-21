@@ -1,4 +1,3 @@
-{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
 """create core tables (conversations, messages, chat_files, sessions, rag, channels)
 
 Revision ID: 0004_5_core_tables
@@ -12,10 +11,8 @@ groups so the schema only contains what was selected at generation time.
 
 import sqlalchemy as sa
 from alembic import op
-{%- if cookiecutter.use_postgresql %}
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
-{%- endif %}
 
 revision = "0004_5_core_tables"
 down_revision = "0004_audit_log"
@@ -23,7 +20,6 @@ branch_labels = None
 depends_on = None
 
 
-{%- if cookiecutter.use_postgresql %}
 def _id_col() -> sa.Column:
     return sa.Column(
         "id",
@@ -44,23 +40,6 @@ def _user_fk(*, nullable: bool, ondelete: str = "CASCADE") -> sa.Column:
 
 _UUID = PG_UUID(as_uuid=True)
 _JSONB = postgresql.JSONB(astext_type=sa.Text())
-{%- else %}
-def _id_col() -> sa.Column:
-    return sa.Column("id", sa.String(36), primary_key=True)
-
-
-def _user_fk(*, nullable: bool, ondelete: str = "CASCADE") -> sa.Column:
-    return sa.Column(
-        "user_id",
-        sa.String(36),
-        sa.ForeignKey("users.id", ondelete=ondelete),
-        nullable=nullable,
-    )
-
-
-_UUID = sa.String(36)
-_JSONB = sa.JSON()
-{%- endif %}
 
 
 def upgrade() -> None:
@@ -312,22 +291,3 @@ def downgrade() -> None:
     op.drop_table("conversations")
 
 
-{%- else %}
-"""create core tables — skipped (no SQL DB)
-
-Revision ID: 0004_5_core_tables
-"""
-
-revision = "0004_5_core_tables"
-down_revision = "0004_audit_log"
-branch_labels = None
-depends_on = None
-
-
-def upgrade() -> None:
-    pass
-
-
-def downgrade() -> None:
-    pass
-{%- endif %}

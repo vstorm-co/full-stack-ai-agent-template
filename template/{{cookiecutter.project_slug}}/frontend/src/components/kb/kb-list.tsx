@@ -5,6 +5,7 @@ import { ArrowUpRight, Lock, Sparkles, Trash2, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { ROUTES } from "@/lib/constants";
 import type { KBScope, KnowledgeBase } from "@/types";
 
 interface KBListProps {
@@ -28,7 +29,6 @@ const SCOPE_META: Record<KBScope, { label: string; icon: LucideIcon }> = {
 export function KBList({ kbs, onDelete, canDelete = true }: KBListProps) {
   if (!kbs.length) return null;
 
-  // Default KB first, then newest first.
   const sorted = [...kbs].sort((a, b) => {
     if (a.is_default !== b.is_default) return a.is_default ? -1 : 1;
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
@@ -89,7 +89,7 @@ function KBCard({ kb, canDelete, onDelete, featured }: KBCardProps) {
         pointer-events: none so clicks fall through; only the delete button
         re-enables them. */}
       <Link
-        href={`/kb/${kb.id}`}
+        href={ROUTES.KB_DETAIL(kb.id)}
         className="focus-visible:ring-foreground/20 absolute inset-0 z-10 rounded-[inherit] focus-visible:ring-2 focus-visible:outline-none"
         aria-label={`Open ${kb.name}`}
       />
@@ -104,7 +104,9 @@ function KBCard({ kb, canDelete, onDelete, featured }: KBCardProps) {
                 : "bg-foreground/8 text-foreground/65 group-hover:bg-foreground/12",
             )}
             style={
-              featured ? { boxShadow: "0 0 18px oklch(from var(--color-brand) l c h / 0.45)" } : undefined
+              featured
+                ? { boxShadow: "0 0 18px oklch(from var(--color-brand) l c h / 0.45)" }
+                : undefined
             }
           >
             <meta.icon className="h-4 w-4" />

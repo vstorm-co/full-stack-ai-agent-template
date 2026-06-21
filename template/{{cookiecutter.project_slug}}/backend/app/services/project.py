@@ -1,5 +1,4 @@
 {%- if cookiecutter.use_pydantic_deep and cookiecutter.use_jwt %}
-{%- if cookiecutter.use_postgresql %}
 """Project service (PostgreSQL async).
 
 Business logic for project management, member access control, and Docker
@@ -36,8 +35,6 @@ class ProjectService:
 
     def __init__(self, db: AsyncSession):
         self.db = db
-
-    # Docker lifecycle helpers
 
     def _make_names(self, project_id: str) -> tuple[str, str]:
         """Generate stable container and volume names for a project."""
@@ -81,8 +78,6 @@ class ProjectService:
                 pass
         except Exception as exc:  # pragma: no cover
             logger.warning("Could not remove Docker resources for %s: %s", container_name, exc)
-
-    # Project CRUD
 
     async def create(self, data: ProjectCreate, *, owner_id: UUID) -> Project:
         """Create a project and provision its Docker volume."""
@@ -168,8 +163,6 @@ class ProjectService:
         await project_repo.delete_project(self.db, project_id)
         self._remove_docker_resources(container_name, volume_name)
 
-    # Member Management
-
     async def list_members(
         self, project_id: UUID, *, user_id: UUID
     ) -> list[ProjectMember]:
@@ -189,7 +182,6 @@ class ProjectService:
         project = await self.get(project_id)
         await self._assert_access(project, inviter_id, min_role="admin")
 
-        # Check if already a member
         existing = await project_repo.get_project_member(
             self.db, project_id, data.user_id
         )
@@ -248,7 +240,6 @@ class ProjectService:
         """
         project = await self.get(project_id)
 
-        # Allow self-removal
         if target_user_id == requester_id:
             if project.owner_id == requester_id:
                 raise AuthorizationError(message="Owner cannot leave the project")
@@ -264,8 +255,6 @@ class ProjectService:
                 details={"user_id": str(target_user_id)},
             )
 
-    # Access Control
-
     async def _assert_access(
         self,
         project: Project,
@@ -278,7 +267,7 @@ class ProjectService:
         Owner always passes. Members are checked against their role.
         """
         if project.owner_id == user_id:
-            return  # Owner has full access
+            return
 
         member = await project_repo.get_project_member(self.db, project.id, user_id)
         if not member or not _role_gte(member.role, min_role):
@@ -298,381 +287,6 @@ class ProjectService:
         return member.role if member else None
 
 
-{%- elif cookiecutter.use_sqlite %}
-"""Project service (SQLite sync)."""
-
-import logging
-import uuid as _uuid
-
-from sqlalchemy.orm import Session
-
-from app.core.config import settings
-from app.core.exceptions import AlreadyExistsError, AuthorizationError, NotFoundError
-from app.db.models.project import Project, ProjectMember
-from app.repositories import project_repo
-from app.schemas.project import ProjectCreate, ProjectMemberCreate, ProjectMemberUpdate, ProjectUpdate
-
-logger = logging.getLogger(__name__)
-
-_ROLE_ORDER = ["viewer", "editor", "admin"]
-
-
-def _role_gte(role: str, min_role: str) -> bool:
-    try:
-        return _ROLE_ORDER.index(role) >= _ROLE_ORDER.index(min_role)
-    except ValueError:
-        return False
-
-
-class ProjectService:
-    """Service for project management business logic (SQLite sync)."""
-
-    def __init__(self, db: Session):
-        self.db = db
-
-    def _make_names(self, project_id: str) -> tuple[str, str]:
-        return f"pd-{project_id}", f"pd-vol-{project_id}"
-
-    def _create_docker_volume(self, volume_name: str) -> None:
-        if settings.PYDANTIC_DEEP_BACKEND_TYPE != "docker":
-            return
-        try:
-            import docker  # type: ignore[import]
-
-            client = docker.from_env()
-            existing = [v.name for v in client.volumes.list()]
-            if volume_name not in existing:
-                client.volumes.create(name=volume_name)
-        except Exception as exc:
-            logger.warning("Could not create Docker volume %s: %s", volume_name, exc)
-
-    def _remove_docker_resources(self, container_name: str, volume_name: str) -> None:
-        if settings.PYDANTIC_DEEP_BACKEND_TYPE != "docker":
-            return
-        try:
-            import docker  # type: ignore[import]
-
-            client = docker.from_env()
-            try:
-                container = client.containers.get(container_name)
-                container.stop(timeout=5)
-                container.remove(force=True)
-            except docker.errors.NotFound:
-                pass
-            try:
-                volume = client.volumes.get(volume_name)
-                volume.remove(force=True)
-            except docker.errors.NotFound:
-                pass
-        except Exception as exc:
-            logger.warning("Could not remove Docker resources: %s", exc)
-
-    def create(self, data: ProjectCreate, *, owner_id: str) -> Project:
-        project_id = str(_uuid.uuid4())
-        container_name, volume_name = self._make_names(project_id)
-        project = project_repo.create_project(
-            self.db,
-            project_id=project_id,
-            owner_id=owner_id,
-            name=data.name,
-            description=data.description,
-            image=data.image,
-            container_name=container_name,
-            volume_name=volume_name,
-        )
-        self._create_docker_volume(volume_name)
-        return project
-
-    def get(self, project_id: str, *, user_id: str | None = None) -> Project:
-        project = project_repo.get_project_by_id(self.db, project_id)
-        if not project:
-            raise NotFoundError(message="Project not found", details={"project_id": project_id})
-        if user_id is not None:
-            self._assert_access(project, user_id, min_role="viewer")
-        return project
-
-    def list_for_user(
-        self, user_id: str, *, skip: int = 0, limit: int = 50, include_archived: bool = False
-    ) -> tuple[list[Project], int]:
-        items = project_repo.get_projects_for_user(
-            self.db, user_id, skip=skip, limit=limit, include_archived=include_archived
-        )
-        total = project_repo.count_projects_for_user(self.db, user_id, include_archived=include_archived)
-        return items, total
-
-    def update(self, project_id: str, data: ProjectUpdate, *, user_id: str) -> Project:
-        project = self.get(project_id)
-        self._assert_access(project, user_id, min_role="admin")
-        update_data = data.model_dump(exclude_unset=True)
-        if not update_data:
-            return project
-        return project_repo.update_project(self.db, db_project=project, update_data=update_data)
-
-    def archive(self, project_id: str, *, user_id: str) -> Project:
-        project = self.get(project_id)
-        if project.owner_id != user_id:
-            raise AuthorizationError(message="Only the project owner can archive it")
-        result = project_repo.archive_project(self.db, project_id)
-        if not result:
-            raise NotFoundError(message="Project not found", details={"project_id": project_id})
-        return result
-
-    def delete(self, project_id: str, *, user_id: str) -> None:
-        project = self.get(project_id)
-        if project.owner_id != user_id:
-            raise AuthorizationError(message="Only the project owner can delete it")
-        container_name = project.container_name
-        volume_name = project.volume_name
-        project_repo.delete_project(self.db, project_id)
-        self._remove_docker_resources(container_name, volume_name)
-
-    def list_members(self, project_id: str, *, user_id: str) -> list[ProjectMember]:
-        project = self.get(project_id)
-        self._assert_access(project, user_id, min_role="viewer")
-        return project_repo.get_project_members(self.db, project_id)
-
-    def add_member(
-        self, project_id: str, data: ProjectMemberCreate, *, inviter_id: str
-    ) -> ProjectMember:
-        project = self.get(project_id)
-        self._assert_access(project, inviter_id, min_role="admin")
-        existing = project_repo.get_project_member(self.db, project_id, data.user_id)
-        if existing:
-            raise AlreadyExistsError(message="User is already a member", details={"user_id": data.user_id})
-        if data.user_id == project.owner_id:
-            raise AlreadyExistsError(message="Owner already has full access", details={"user_id": data.user_id})
-        return project_repo.add_project_member(
-            self.db, project_id=project_id, user_id=data.user_id, role=data.role, invited_by=inviter_id
-        )
-
-    def update_member(
-        self, project_id: str, target_user_id: str, data: ProjectMemberUpdate, *, requester_id: str
-    ) -> ProjectMember:
-        project = self.get(project_id)
-        self._assert_access(project, requester_id, min_role="admin")
-        member = project_repo.get_project_member(self.db, project_id, target_user_id)
-        if not member:
-            raise NotFoundError(message="Member not found", details={"user_id": target_user_id})
-        return project_repo.update_member_role(self.db, db_member=member, role=data.role)
-
-    def remove_member(self, project_id: str, target_user_id: str, *, requester_id: str) -> None:
-        project = self.get(project_id)
-        if target_user_id == requester_id:
-            if project.owner_id == requester_id:
-                raise AuthorizationError(message="Owner cannot leave the project")
-        else:
-            self._assert_access(project, requester_id, min_role="admin")
-        removed = project_repo.remove_project_member(self.db, project_id, target_user_id)
-        if not removed:
-            raise NotFoundError(message="Member not found", details={"user_id": target_user_id})
-
-    def _assert_access(self, project: Project, user_id: str, *, min_role: str = "viewer") -> None:
-        if project.owner_id == user_id:
-            return
-        member = project_repo.get_project_member(self.db, project.id, user_id)
-        if not member or not _role_gte(member.role, min_role):
-            raise AuthorizationError(
-                message=f"Project access requires '{min_role}' role",
-                details={"project_id": str(project.id)},
-            )
-
-    def get_user_role(self, project_id: str, user_id: str) -> str | None:
-        project = project_repo.get_project_by_id(self.db, project_id)
-        if not project:
-            return None
-        if project.owner_id == user_id:
-            return "owner"
-        member = project_repo.get_project_member(self.db, project_id, user_id)
-        return member.role if member else None
-
-
-{%- elif cookiecutter.use_mongodb %}
-"""Project service (MongoDB async)."""
-
-import logging
-
-from app.core.config import settings
-from app.core.exceptions import AlreadyExistsError, AuthorizationError, NotFoundError
-from app.db.models.project import Project, ProjectMember
-from app.repositories import project_repo
-from app.schemas.project import ProjectCreate, ProjectMemberCreate, ProjectMemberUpdate, ProjectUpdate
-
-logger = logging.getLogger(__name__)
-
-_ROLE_ORDER = ["viewer", "editor", "admin"]
-
-
-def _role_gte(role: str, min_role: str) -> bool:
-    try:
-        return _ROLE_ORDER.index(role) >= _ROLE_ORDER.index(min_role)
-    except ValueError:
-        return False
-
-
-class ProjectService:
-    """Service for project management (MongoDB)."""
-
-    def _make_names(self, project_id: str) -> tuple[str, str]:
-        return f"pd-{project_id}", f"pd-vol-{project_id}"
-
-    def _create_docker_volume(self, volume_name: str) -> None:
-        if settings.PYDANTIC_DEEP_BACKEND_TYPE != "docker":
-            return
-        try:
-            import docker  # type: ignore[import]
-
-            client = docker.from_env()
-            existing = [v.name for v in client.volumes.list()]
-            if volume_name not in existing:
-                client.volumes.create(name=volume_name)
-        except Exception as exc:
-            logger.warning("Could not create Docker volume %s: %s", volume_name, exc)
-
-    def _remove_docker_resources(self, container_name: str, volume_name: str) -> None:
-        if settings.PYDANTIC_DEEP_BACKEND_TYPE != "docker":
-            return
-        try:
-            import docker  # type: ignore[import]
-
-            client = docker.from_env()
-            try:
-                container = client.containers.get(container_name)
-                container.stop(timeout=5)
-                container.remove(force=True)
-            except docker.errors.NotFound:
-                pass
-            try:
-                volume = client.volumes.get(volume_name)
-                volume.remove(force=True)
-            except docker.errors.NotFound:
-                pass
-        except Exception as exc:
-            logger.warning("Could not remove Docker resources: %s", exc)
-
-    async def create(self, data: ProjectCreate, *, owner_id: str) -> Project:
-        project = await project_repo.create_project(
-            owner_id=owner_id,
-            name=data.name,
-            description=data.description,
-            image=data.image,
-            container_name="placeholder",
-            volume_name="placeholder",
-        )
-        project_id = str(project.id)
-        container_name, volume_name = self._make_names(project_id)
-        project = await project_repo.update_project(
-            db_project=project,
-            update_data={"container_name": container_name, "volume_name": volume_name},
-        )
-        self._create_docker_volume(volume_name)
-        return project
-
-    async def get(self, project_id: str, *, user_id: str | None = None) -> Project:
-        project = await project_repo.get_project_by_id(project_id)
-        if not project:
-            raise NotFoundError(message="Project not found", details={"project_id": project_id})
-        if user_id is not None:
-            await self._assert_access(project, user_id, min_role="viewer")
-        return project
-
-    async def list_for_user(
-        self, user_id: str, *, skip: int = 0, limit: int = 50, include_archived: bool = False
-    ) -> tuple[list[Project], int]:
-        items = await project_repo.get_projects_for_user(
-            user_id, skip=skip, limit=limit, include_archived=include_archived
-        )
-        total = await project_repo.count_projects_for_user(user_id, include_archived=include_archived)
-        return items, total
-
-    async def update(self, project_id: str, data: ProjectUpdate, *, user_id: str) -> Project:
-        project = await self.get(project_id)
-        await self._assert_access(project, user_id, min_role="admin")
-        update_data = data.model_dump(exclude_unset=True)
-        if not update_data:
-            return project
-        return await project_repo.update_project(db_project=project, update_data=update_data)
-
-    async def archive(self, project_id: str, *, user_id: str) -> Project:
-        project = await self.get(project_id)
-        if project.owner_id != user_id:
-            raise AuthorizationError(message="Only the project owner can archive it")
-        result = await project_repo.archive_project(project_id)
-        if not result:
-            raise NotFoundError(message="Project not found", details={"project_id": project_id})
-        return result
-
-    async def delete(self, project_id: str, *, user_id: str) -> None:
-        project = await self.get(project_id)
-        if project.owner_id != user_id:
-            raise AuthorizationError(message="Only the project owner can delete it")
-        container_name = project.container_name
-        volume_name = project.volume_name
-        await project_repo.delete_project(project_id)
-        self._remove_docker_resources(container_name, volume_name)
-
-    async def list_members(self, project_id: str, *, user_id: str) -> list[ProjectMember]:
-        project = await self.get(project_id)
-        await self._assert_access(project, user_id, min_role="viewer")
-        return await project_repo.get_project_members(project_id)
-
-    async def add_member(
-        self, project_id: str, data: ProjectMemberCreate, *, inviter_id: str
-    ) -> ProjectMember:
-        project = await self.get(project_id)
-        await self._assert_access(project, inviter_id, min_role="admin")
-        existing = await project_repo.get_project_member(project_id, data.user_id)
-        if existing:
-            raise AlreadyExistsError(message="User is already a member", details={"user_id": data.user_id})
-        if data.user_id == project.owner_id:
-            raise AlreadyExistsError(message="Owner already has full access", details={"user_id": data.user_id})
-        return await project_repo.add_project_member(
-            project_id=project_id, user_id=data.user_id, role=data.role, invited_by=inviter_id
-        )
-
-    async def update_member(
-        self, project_id: str, target_user_id: str, data: ProjectMemberUpdate, *, requester_id: str
-    ) -> ProjectMember:
-        project = await self.get(project_id)
-        await self._assert_access(project, requester_id, min_role="admin")
-        member = await project_repo.get_project_member(project_id, target_user_id)
-        if not member:
-            raise NotFoundError(message="Member not found", details={"user_id": target_user_id})
-        return await project_repo.update_member_role(db_member=member, role=data.role)
-
-    async def remove_member(self, project_id: str, target_user_id: str, *, requester_id: str) -> None:
-        project = await self.get(project_id)
-        if target_user_id == requester_id:
-            if project.owner_id == requester_id:
-                raise AuthorizationError(message="Owner cannot leave the project")
-        else:
-            await self._assert_access(project, requester_id, min_role="admin")
-        removed = await project_repo.remove_project_member(project_id, target_user_id)
-        if not removed:
-            raise NotFoundError(message="Member not found", details={"user_id": target_user_id})
-
-    async def _assert_access(self, project: Project, user_id: str, *, min_role: str = "viewer") -> None:
-        if project.owner_id == user_id:
-            return
-        member = await project_repo.get_project_member(str(project.id), user_id)
-        if not member or not _role_gte(member.role, min_role):
-            raise AuthorizationError(
-                message=f"Project access requires '{min_role}' role",
-                details={"project_id": str(project.id)},
-            )
-
-    async def get_user_role(self, project_id: str, user_id: str) -> str | None:
-        project = await project_repo.get_project_by_id(project_id)
-        if not project:
-            return None
-        if project.owner_id == user_id:
-            return "owner"
-        member = await project_repo.get_project_member(str(project.id), user_id)
-        return member.role if member else None
-
-
-{%- else %}
-"""Project service - no database configured."""
-{%- endif %}
 {%- else %}
 """Project service - requires use_pydantic_deep and use_jwt."""
 {%- endif %}

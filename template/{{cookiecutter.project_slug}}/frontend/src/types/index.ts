@@ -1,7 +1,3 @@
-/**
- * Re-export all types.
- */
-
 export * from "./api";
 export * from "./auth";
 export * from "./chat";
@@ -14,7 +10,4 @@ export * from "./billing";
 {%- endif %}
 {%- if cookiecutter.enable_teams and cookiecutter.enable_rag %}
 export * from "./knowledge-base";
-{%- endif %}
-{%- if cookiecutter.use_pydantic_deep %}
-export * from "./project";
 {%- endif %}

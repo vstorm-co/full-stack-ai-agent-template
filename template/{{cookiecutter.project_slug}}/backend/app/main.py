@@ -1,28 +1,56 @@
+# ruff: noqa: I001 - Imports structured for Jinja2 template conditionals
 """FastAPI application entry point."""
 
 import logging
+import secrets
 from collections.abc import AsyncGenerator
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 {%- if cookiecutter.enable_redis or cookiecutter.enable_rag or cookiecutter.use_telegram or cookiecutter.use_slack %}
-from typing import TypedDict
+from typing import {% if cookiecutter.use_telegram or cookiecutter.use_slack %}Any, {% endif %}TypedDict
 {%- endif %}
 
-logger = logging.getLogger(__name__)
-
 from fastapi import FastAPI
+{%- if cookiecutter.enable_prometheus %}
+from fastapi import Depends, Header, HTTPException, status as http_status
+{%- endif %}
 {%- if cookiecutter.enable_pagination %}
 from fastapi_pagination import add_pagination
+{%- endif %}
+{%- if cookiecutter.enable_cors %}
+from starlette.middleware.cors import CORSMiddleware
+{%- endif %}
+{%- if (cookiecutter.enable_admin_panel and cookiecutter.admin_require_auth and not cookiecutter.admin_env_disabled) or cookiecutter.enable_oauth %}
+from starlette.middleware.sessions import SessionMiddleware
 {%- endif %}
 
 from app.api.exception_handlers import register_exception_handlers
 from app.api.router import api_router
 from app.core.config import settings
+from app.db.session import close_db, get_db_context
 {%- if cookiecutter.enable_logfire %}
 from app.core.logfire_setup import instrument_app, setup_logfire
+{%- if cookiecutter.logfire_database %}
+from app.core.logfire_setup import instrument_asyncpg
+{%- endif %}
+{%- if cookiecutter.enable_redis and cookiecutter.logfire_redis %}
+from app.core.logfire_setup import instrument_redis
+{%- endif %}
+{%- if cookiecutter.logfire_httpx %}
+from app.core.logfire_setup import instrument_httpx
+{%- endif %}
+{%- if cookiecutter.use_pydantic_ai %}
+from app.core.logfire_setup import instrument_pydantic_ai
+{%- endif %}
 {%- endif %}
 from app.core.logging import setup_logging
 from app.core.middleware import RequestIDMiddleware
 
+{%- if cookiecutter.enable_deep_research %}
+from app.db.todo_pool import close_todo_pool, init_todo_pool
+{%- endif %}
+{%- if cookiecutter.enable_caching and cookiecutter.enable_redis %}
+from app.core.cache import setup_cache
+{%- endif %}
 {%- if cookiecutter.enable_redis or cookiecutter.enable_rag %}
 {%- if cookiecutter.enable_redis %}
 from app.clients.redis import RedisClient
@@ -39,8 +67,35 @@ from app.services.rag.vectorstore import ChromaVectorStore
 from app.services.rag.vectorstore import PgVectorStore
 {%- endif %}
 from app.services.rag.vectorstore import BaseVectorStore
+{%- if cookiecutter.enable_reranker %}
+from app.services.rag.reranker import RerankService
 {%- endif %}
 {%- endif %}
+{%- endif %}
+{%- if cookiecutter.use_telegram or cookiecutter.use_slack %}
+from app.repositories.channel_bot import get_active_polling_bots
+{%- endif %}
+{%- if cookiecutter.use_telegram %}
+from app.core.channel_crypto import decrypt_token
+from app.services.channels import register_adapter
+from app.services.channels.telegram import TelegramAdapter
+{%- endif %}
+{%- if cookiecutter.use_slack %}
+from app.core.channel_crypto import decrypt_token as _slack_decrypt
+from app.services.channels import register_adapter as _slack_register
+from app.services.channels.slack import SlackAdapter
+{%- endif %}
+{%- if cookiecutter.enable_seed_admin %}
+from app.repositories import user_repo
+{%- endif %}
+{%- if cookiecutter.enable_admin_panel and not cookiecutter.admin_env_disabled %}
+from app.admin import setup_admin
+{%- endif %}
+{%- if cookiecutter.enable_rate_limiting %}
+from app.core.rate_limit import limiter
+{%- endif %}
+
+logger = logging.getLogger(__name__)
 
 {%- if cookiecutter.enable_redis or cookiecutter.enable_rag or cookiecutter.use_telegram or cookiecutter.use_slack %}
 
@@ -58,6 +113,18 @@ class LifespanState(TypedDict, total=False):
 {%- endif %}
 
 
+{%- if cookiecutter.use_telegram or cookiecutter.use_slack %}
+async def _start_channel_polling(adapter: Any, channel: str, decrypt_fn: Any) -> None:
+    """Start polling for all active bots of the given channel type."""
+    async with get_db_context() as _db:
+        _bots = await get_active_polling_bots(_db, channel)
+    for _bot in _bots:
+        _token = decrypt_fn(_bot.token_encrypted)
+        await adapter.start_polling(str(_bot.id), _token)
+    logger.info("%s: polling started for %d bot(s)", channel.capitalize(), len(_bots))
+{%- endif %}
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[{% if cookiecutter.enable_redis or cookiecutter.enable_rag or cookiecutter.use_telegram or cookiecutter.use_slack %}LifespanState{% else %}None{% endif %}, None]:
     """Application lifespan - startup and shutdown events.
@@ -65,7 +132,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[{% if cookiecutter.enable_red
     Resources yielded here are available via request.state in route handlers.
     See: https://asgi.readthedocs.io/en/latest/specs/lifespan.html#lifespan-state
     """
-    # === Startup ===
 {%- if cookiecutter.enable_redis or cookiecutter.enable_rag or cookiecutter.use_telegram or cookiecutter.use_slack %}
     state: LifespanState = {}
 {%- endif %}
@@ -73,28 +139,19 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[{% if cookiecutter.enable_red
     setup_logfire()
 {%- endif %}
 
-{%- if cookiecutter.use_postgresql and cookiecutter.enable_logfire and cookiecutter.logfire_database %}
-    from app.core.logfire_setup import instrument_asyncpg
+{%- if cookiecutter.enable_logfire and cookiecutter.logfire_database %}
     instrument_asyncpg()
 {%- endif %}
 
-{%- if cookiecutter.use_mongodb and cookiecutter.enable_logfire and cookiecutter.logfire_database %}
-    from app.core.logfire_setup import instrument_pymongo
-    instrument_pymongo()
-{%- endif %}
-
 {%- if cookiecutter.enable_redis and cookiecutter.enable_logfire and cookiecutter.logfire_redis %}
-    from app.core.logfire_setup import instrument_redis
     instrument_redis()
 {%- endif %}
 
 {%- if cookiecutter.enable_logfire and cookiecutter.logfire_httpx %}
-    from app.core.logfire_setup import instrument_httpx
     instrument_httpx()
 {%- endif %}
 
 {%- if cookiecutter.enable_logfire and cookiecutter.use_pydantic_ai %}
-    from app.core.logfire_setup import instrument_pydantic_ai
     instrument_pydantic_ai()
 {%- endif %}
 
@@ -106,177 +163,99 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[{% if cookiecutter.enable_red
 {%- if cookiecutter.enable_deep_research %}
 
     if settings.ENABLE_DEEP_RESEARCH:
-        from app.db.todo_pool import init_todo_pool
-
         await init_todo_pool()
 {%- endif %}
 
 {%- if cookiecutter.enable_caching and cookiecutter.enable_redis %}
-    from app.core.cache import setup_cache
     setup_cache(redis_client)
 {%- endif %}
 
 {%- if cookiecutter.enable_rag %}
+    embedder: EmbeddingService | None = None
     try:
         embedder = EmbeddingService(settings=settings.rag)
         embedder.warmup()
         state["embedding_service"] = embedder
     except Exception as e:
-        logger.error(f"Embedding service warmup failed: {e}. RAG will not be available.")
+        logger.error("Embedding service warmup failed: %s. RAG will not be available.", e)
 
 {%- if cookiecutter.enable_reranker %}
     # Initialize and warmup reranker (downloads model or validates API key)
     try:
-        from app.services.rag.reranker import RerankService
         rerank_service = RerankService(settings=settings.rag)
         rerank_service.warmup()
         state["rerank_service"] = rerank_service
     except Exception as e:
-        logger.warning(f"Reranker warmup failed: {e}. Reranking will be disabled.")
+        logger.warning("Reranker warmup failed: %s. Reranking will be disabled.", e)
 {%- endif %}
 
 {%- if cookiecutter.use_milvus %}
-    # Warmup Milvus and verify health
-    if "embedding_service" in state:
+    if embedder is not None:
         try:
             vector_store = MilvusVectorStore(settings=settings.rag, embedding_service=embedder)
             await vector_store.client.list_collections()
             state["vector_store"] = vector_store
         except Exception as e:
-            logger.error(f"Milvus connection failed: {e}. Vector store will not be available.")
+            logger.error("Milvus connection failed: %s. Vector store will not be available.", e)
 {%- endif %}
 {%- if cookiecutter.use_qdrant %}
-    if "embedding_service" in state:
+    if embedder is not None:
         try:
             vector_store = QdrantVectorStore(settings=settings.rag, embedding_service=embedder)
             state["vector_store"] = vector_store
         except Exception as e:
-            logger.error(f"Qdrant connection failed: {e}. Vector store will not be available.")
+            logger.error("Qdrant connection failed: %s. Vector store will not be available.", e)
 {%- endif %}
 {%- if cookiecutter.use_chromadb %}
-    if "embedding_service" in state:
+    if embedder is not None:
         try:
             vector_store = ChromaVectorStore(settings=settings.rag, embedding_service=embedder)
             state["vector_store"] = vector_store
         except Exception as e:
-            logger.error(f"ChromaDB init failed: {e}. Vector store will not be available.")
+            logger.error("ChromaDB init failed: %s. Vector store will not be available.", e)
 {%- endif %}
 {%- if cookiecutter.use_pgvector %}
-    if "embedding_service" in state:
+    if embedder is not None:
         try:
             vector_store = PgVectorStore(settings=settings.rag, embedding_service=embedder)
             state["vector_store"] = vector_store
         except Exception as e:
-            logger.error(f"pgvector connection failed: {e}. Vector store will not be available.")
+            logger.error("pgvector connection failed: %s. Vector store will not be available.", e)
 {%- endif %}
 {%- endif %}
 
 {%- if cookiecutter.use_telegram %}
 
-    # === Telegram Channel Polling ===
-    from app.services.channels import register_adapter
-    from app.services.channels.telegram import TelegramAdapter
-    from app.core.channel_crypto import decrypt_token
     _telegram_adapter = TelegramAdapter()
     register_adapter(_telegram_adapter)
     try:
-{%- if cookiecutter.use_postgresql %}
-        from app.db.session import get_db_context
-        async with get_db_context() as _db:
-            from app.repositories.channel_bot import get_active_polling_bots
-            _polling_bots = await get_active_polling_bots(_db, "telegram")
-{%- elif cookiecutter.use_sqlite %}
-        from contextlib import contextmanager as _cm
-        from app.db.session import get_db_session as _get_db
-        with _cm(_get_db)() as _db:
-            from app.repositories.channel_bot import get_active_polling_bots
-            _polling_bots = get_active_polling_bots(_db, "telegram")
-{%- elif cookiecutter.use_mongodb %}
-        from app.repositories.channel_bot import get_active_polling_bots
-        _polling_bots = await get_active_polling_bots("telegram")
-{%- endif %}
-        for _bot in _polling_bots:
-            _token = decrypt_token(_bot.token_encrypted)
-            await _telegram_adapter.start_polling(str(_bot.id), _token)
-        logger.info("Telegram: polling started for %d bot(s)", len(_polling_bots))
-    except Exception as _exc:
+        await _start_channel_polling(_telegram_adapter, "telegram", decrypt_token)
+    except (OSError, ValueError, RuntimeError) as _exc:
         logger.error("Telegram: failed to start polling: %s", _exc)
 {%- endif %}
 
 {%- if cookiecutter.use_slack %}
 
-    # === Slack Adapter (Socket Mode polling for dev, Events API for prod) ===
-    from app.services.channels import register_adapter as _slack_register
-    from app.services.channels.slack import SlackAdapter
-    from app.core.channel_crypto import decrypt_token as _slack_decrypt
     _slack_adapter = SlackAdapter()
     _slack_register(_slack_adapter)
     try:
-{%- if cookiecutter.use_postgresql %}
-        from app.db.session import get_db_context
-        async with get_db_context() as _slack_db:
-            from app.repositories.channel_bot import get_active_polling_bots
-            _slack_bots = await get_active_polling_bots(_slack_db, "slack")
-{%- elif cookiecutter.use_sqlite %}
-        from contextlib import contextmanager as _slack_cm
-        from app.db.session import get_db_session as _slack_get_db
-        with _slack_cm(_slack_get_db)() as _slack_db:
-            from app.repositories.channel_bot import get_active_polling_bots
-            _slack_bots = get_active_polling_bots(_slack_db, "slack")
-{%- elif cookiecutter.use_mongodb %}
-        from app.repositories.channel_bot import get_active_polling_bots
-        _slack_bots = await get_active_polling_bots("slack")
-{%- endif %}
-        for _sbot in _slack_bots:
-            _stoken = _slack_decrypt(_sbot.token_encrypted)
-            await _slack_adapter.start_polling(str(_sbot.id), _stoken)
-        logger.info("Slack: Socket Mode started for %d bot(s)", len(_slack_bots))
-    except Exception as _slack_exc:
+        await _start_channel_polling(_slack_adapter, "slack", _slack_decrypt)
+    except (OSError, ValueError, RuntimeError) as _slack_exc:
         logger.error("Slack: failed to start Socket Mode: %s", _slack_exc)
 {%- endif %}
 
-{%- if cookiecutter.enable_seed_admin and (cookiecutter.use_postgresql or cookiecutter.use_sqlite or cookiecutter.use_mongodb) %}
-    # === Auto-promote FIRST_ADMIN_EMAIL to app-admin ===
-    from app.core.config import settings as _settings
-    _first_admin = getattr(_settings, "FIRST_ADMIN_EMAIL", "")
+{%- if cookiecutter.enable_seed_admin %}
+    _first_admin = getattr(settings, "FIRST_ADMIN_EMAIL", "")
     if _first_admin:
-{%- if cookiecutter.use_postgresql %}
-        from app.db.session import get_db_context as _get_db_ctx
-        from app.repositories import user_repo as _user_repo
         try:
-            async with _get_db_ctx() as _db:
-                _u = await _user_repo.get_by_email(_db, _first_admin)
+            async with get_db_context() as _db:
+                _u = await user_repo.get_by_email(_db, _first_admin)
                 if _u and not getattr(_u, "is_app_admin", False):
                     _u.is_app_admin = True
                     await _db.flush()
                     logger.info("Auto-promoted %s to app-admin (FIRST_ADMIN_EMAIL)", _first_admin)
         except Exception as _e:
             logger.warning("FIRST_ADMIN_EMAIL promotion failed: %s", _e)
-{%- elif cookiecutter.use_sqlite %}
-        from app.db.session import get_db_session as _get_db_s
-        from app.repositories import user_repo as _user_repo
-        try:
-            with next(_get_db_s()) as _db:
-                _u = _user_repo.get_by_email(_db, _first_admin)
-                if _u and not getattr(_u, "is_app_admin", False):
-                    _u.is_app_admin = True
-                    _db.flush()
-                    logger.info("Auto-promoted %s to app-admin (FIRST_ADMIN_EMAIL)", _first_admin)
-        except Exception as _e:
-            logger.warning("FIRST_ADMIN_EMAIL promotion failed: %s", _e)
-{%- elif cookiecutter.use_mongodb %}
-        from app.db.session import init_db as _init_db
-        from app.repositories import user_repo as _user_repo
-        try:
-            await _init_db()
-            _u = await _user_repo.get_by_email(_first_admin)
-            if _u and not getattr(_u, "is_app_admin", False):
-                _u.is_app_admin = True
-                await _u.save()
-                logger.info("Auto-promoted %s to app-admin (FIRST_ADMIN_EMAIL)", _first_admin)
-        except Exception as _e:
-            logger.warning("FIRST_ADMIN_EMAIL promotion failed: %s", _e)
-{%- endif %}
 {%- endif %}
 
 {%- if cookiecutter.enable_redis or cookiecutter.enable_rag or cookiecutter.use_telegram or cookiecutter.use_slack %}
@@ -285,54 +264,16 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[{% if cookiecutter.enable_red
     yield
 {%- endif %}
 
-    # === Shutdown ===
-{%- if cookiecutter.enable_deep_research %}
-    if settings.ENABLE_DEEP_RESEARCH:
-        from app.db.todo_pool import close_todo_pool
-
-        await close_todo_pool()
-{%- endif %}
-{%- if cookiecutter.enable_redis %}
-    if "redis" in state:
-        await state["redis"].close()
-{%- endif %}
-
-{%- if cookiecutter.use_postgresql %}
-    from app.db.session import close_db
-    await close_db()
-{%- endif %}
-
-{%- if cookiecutter.use_mongodb %}
-    from app.db.session import close_db
-    await close_db()
-{%- endif %}
-
-{%- if cookiecutter.use_sqlite %}
-    from app.db.session import close_db
-    close_db()
-{%- endif %}
-
 {%- if cookiecutter.enable_rag %}
-{%- if cookiecutter.use_milvus %}
-    try:
-        if "vector_store" in state:
+{%- if cookiecutter.use_milvus or cookiecutter.use_qdrant %}
+    if "vector_store" in state:
+        with suppress(Exception):
             await state["vector_store"].client.close()  # type: ignore[attr-defined]
-    except Exception:
-        pass
-{%- endif %}
-{%- if cookiecutter.use_qdrant %}
-    try:
-        if "vector_store" in state:
-            await state["vector_store"].client.close()  # type: ignore[attr-defined]
-    except Exception:
-        pass
 {%- endif %}
 {%- if cookiecutter.use_pgvector %}
-    try:
-        if "vector_store" in state:
+    if "vector_store" in state:
+        with suppress(Exception):
             await state["vector_store"].engine.dispose()  # type: ignore[attr-defined]
-    except Exception:
-        pass
 {%- endif %}
 {%- endif %}
 
@@ -346,20 +287,28 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[{% if cookiecutter.enable_red
         await _slack_adapter.stop_polling(_sbid)
 {%- endif %}
 
+{%- if cookiecutter.enable_deep_research %}
+    if settings.ENABLE_DEEP_RESEARCH:
+        await close_todo_pool()
+{%- endif %}
+{%- if cookiecutter.enable_redis %}
+    if "redis" in state:
+        await state["redis"].close()
+{%- endif %}
 
-# Environments where API docs should be visible
+    await close_db()
+
+
 SHOW_DOCS_ENVIRONMENTS = ("local", "staging", "development")
 
 
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
-    # Only show docs in allowed environments (hide in production)
     show_docs = settings.ENVIRONMENT in SHOW_DOCS_ENVIRONMENTS
     openapi_url = f"{settings.API_V1_STR}/openapi.json" if show_docs else None
     docs_url = "/docs" if show_docs else None
     redoc_url = "/redoc" if show_docs else None
 
-    # OpenAPI tags for better documentation organization
     openapi_tags = [
         {
             "name": "health",
@@ -419,7 +368,6 @@ def create_app() -> FastAPI:
 {%- endif %}
     ]
 
-    # PII redaction in logs (GDPR/compliance)
     setup_logging()
 
     app = FastAPI(
@@ -480,23 +428,20 @@ def create_app() -> FastAPI:
     )
 
 {%- if cookiecutter.enable_logfire %}
-    # Logfire instrumentation. setup_logfire() is also called from the lifespan
-    # for the runtime app, but we call it here too so that import-time test
-    # clients (which never run lifespan) silence the "configure first" warning.
+    # setup_logfire() is also called from the lifespan for the runtime app, but
+    # we call it here too so that import-time test clients (which never run
+    # lifespan) silence the "configure first" warning. setup_logfire() is
+    # idempotent via a module-level guard in logfire_setup.py.
     setup_logfire()
     instrument_app(app)
 {%- endif %}
 
-    # Request ID middleware (for request correlation/debugging)
     app.add_middleware(RequestIDMiddleware)
 
-    # Exception handlers
     register_exception_handlers(app)
 
 {%- if cookiecutter.enable_cors %}
 
-    # CORS middleware
-    from starlette.middleware.cors import CORSMiddleware
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.CORS_ORIGINS,
@@ -508,7 +453,6 @@ def create_app() -> FastAPI:
 
 {%- if cookiecutter.enable_sentry %}
 
-    # Sentry
     if settings.SENTRY_DSN:
         import sentry_sdk
         sentry_sdk.init(dsn=settings.SENTRY_DSN, enable_tracing=True)
@@ -516,7 +460,6 @@ def create_app() -> FastAPI:
 
 {%- if cookiecutter.enable_prometheus %}
 
-    # Prometheus metrics
     from prometheus_fastapi_instrumentator import Instrumentator
 
     instrumentator = Instrumentator(
@@ -532,12 +475,9 @@ def create_app() -> FastAPI:
     # public ingress without leaking internals. When PROMETHEUS_AUTH_TOKEN is
     # empty the endpoint is unauthenticated (typical for private networks).
     if settings.PROMETHEUS_AUTH_TOKEN:
-        from fastapi import Depends, Header, HTTPException, status as http_status
-
         def _verify_metrics_token(authorization: str = Header(default="")) -> None:
             expected = f"Bearer {settings.PROMETHEUS_AUTH_TOKEN}"
-            import secrets as _secrets
-            if not _secrets.compare_digest(authorization, expected):
+            if not secrets.compare_digest(authorization, expected):
                 raise HTTPException(status_code=http_status.HTTP_401_UNAUTHORIZED)
 
         instrumentator.instrument(app).expose(
@@ -556,34 +496,24 @@ def create_app() -> FastAPI:
 
 {%- if cookiecutter.enable_rate_limiting %}
 
-    # Rate limiting
-    # Note: slowapi requires app.state.limiter - this is a library requirement,
-    # not suitable for lifespan state pattern which is for request-scoped access
-    from app.core.rate_limit import limiter
+    # slowapi requires app.state.limiter, not lifespan state (library constraint)
     from slowapi import _rate_limit_exceeded_handler
     from slowapi.errors import RateLimitExceeded
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 {%- endif %}
 
-{%- if (cookiecutter.enable_admin_panel and cookiecutter.use_postgresql and cookiecutter.admin_require_auth and not cookiecutter.admin_env_disabled) or cookiecutter.enable_oauth %}
+{%- if (cookiecutter.enable_admin_panel and cookiecutter.admin_require_auth and not cookiecutter.admin_env_disabled) or cookiecutter.enable_oauth %}
 
-    # Session middleware (for admin authentication and/or OAuth)
-    from starlette.middleware.sessions import SessionMiddleware
     app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
 {%- endif %}
 
-{%- if cookiecutter.enable_admin_panel and cookiecutter.use_postgresql %}
+{%- if cookiecutter.enable_admin_panel %}
 {%- if cookiecutter.admin_env_disabled %}
-    # Admin panel - disabled
 {%- elif cookiecutter.admin_env_all %}
-
-    # Admin panel (all environments)
-    from app.admin import setup_admin
     setup_admin(app)
 {%- else %}
 
-    # Admin panel (environment restricted)
     {%- if cookiecutter.admin_env_dev_only %}
     ADMIN_ALLOWED_ENVIRONMENTS = ["development", "local"]
     {%- elif cookiecutter.admin_env_dev_staging %}
@@ -591,31 +521,14 @@ def create_app() -> FastAPI:
     {%- endif %}
 
     if settings.ENVIRONMENT in ADMIN_ALLOWED_ENVIRONMENTS:
-        from app.admin import setup_admin
         setup_admin(app)
 {%- endif %}
 {%- endif %}
 
-    # API Version Deprecation (uncomment when deprecating old versions)
-    # Example: Mark v1 as deprecated when v2 is ready
-    # from app.api.versioning import VersionDeprecationMiddleware
-    # app.add_middleware(
-    #     VersionDeprecationMiddleware,
-    #     deprecated_versions={
-    #         "v1": {
-    #             "sunset": "2025-12-31",
-    #             "link": "/docs/migration/v2",
-    #             "message": "Please migrate to API v2",
-    #         }
-    #     },
-    # )
-
-    # Include API router
     app.include_router(api_router, prefix=settings.API_V1_STR)
 
 {%- if cookiecutter.enable_pagination %}
 
-    # Pagination
     add_pagination(app)
 {%- endif %}
 

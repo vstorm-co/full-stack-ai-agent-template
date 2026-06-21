@@ -1,4 +1,4 @@
-{%- if cookiecutter.enable_billing and cookiecutter.enable_credits_system and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
+{%- if cookiecutter.enable_billing and cookiecutter.enable_credits_system %}
 """create credit_transaction and usage_event tables
 
 Revision ID: 0014_credits_usage_events
@@ -11,9 +11,7 @@ Creates:
 """
 
 import sqlalchemy as sa
-{%- if cookiecutter.use_postgresql %}
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
-{%- endif %}
 from alembic import op
 
 revision = "0014_credits_usage_events"
@@ -25,7 +23,6 @@ depends_on = None
 def upgrade() -> None:
     op.create_table(
         "credit_transaction",
-{%- if cookiecutter.use_postgresql %}
         sa.Column("id", PG_UUID(as_uuid=True), primary_key=True),
         sa.Column(
             "organization_id",
@@ -39,31 +36,12 @@ def upgrade() -> None:
             sa.ForeignKey("users.id", ondelete="SET NULL"),
             nullable=True,
         ),
-{%- else %}
-        sa.Column("id", sa.String(36), primary_key=True),
-        sa.Column(
-            "organization_id",
-            sa.String(36),
-            sa.ForeignKey("organizations.id", ondelete="CASCADE"),
-            nullable=False,
-        ),
-        sa.Column(
-            "actor_user_id",
-            sa.String(36),
-            sa.ForeignKey("users.id", ondelete="SET NULL"),
-            nullable=True,
-        ),
-{%- endif %}
         sa.Column("delta", sa.Integer(), nullable=False),
         sa.Column("balance_after", sa.Integer(), nullable=False),
         sa.Column("type", sa.String(32), nullable=False),
         sa.Column("description", sa.Text(), nullable=False),
         sa.Column("stripe_reference", sa.String(128), nullable=True),
-{%- if cookiecutter.use_postgresql %}
         sa.Column("usage_event_id", PG_UUID(as_uuid=True), nullable=True),
-{%- else %}
-        sa.Column("usage_event_id", sa.String(36), nullable=True),
-{%- endif %}
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=True),
     )
@@ -74,7 +52,6 @@ def upgrade() -> None:
 
     op.create_table(
         "usage_event",
-{%- if cookiecutter.use_postgresql %}
         sa.Column("id", PG_UUID(as_uuid=True), primary_key=True),
         sa.Column(
             "organization_id",
@@ -89,17 +66,6 @@ def upgrade() -> None:
             nullable=True,
         ),
         sa.Column("conversation_id", PG_UUID(as_uuid=True), nullable=True),
-{%- else %}
-        sa.Column("id", sa.String(36), primary_key=True),
-        sa.Column(
-            "organization_id",
-            sa.String(36),
-            sa.ForeignKey("organizations.id", ondelete="CASCADE"),
-            nullable=False,
-        ),
-        sa.Column("actor_user_id", sa.String(36), nullable=True),
-        sa.Column("conversation_id", sa.String(36), nullable=True),
-{%- endif %}
         sa.Column("model", sa.String(128), nullable=False),
         sa.Column("provider", sa.String(64), nullable=False),
         sa.Column("input_tokens", sa.Integer(), nullable=False, server_default="0"),

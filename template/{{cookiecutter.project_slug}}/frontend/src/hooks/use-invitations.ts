@@ -1,32 +1,46 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { apiClient } from "@/lib/api-client";
+import { qk } from "@/lib/query-keys";
 import type { Invitation, InvitationList, InviteMemberInput } from "@/types";
 
 export function useInvitations(orgId: string) {
-  const [invitations, setInvitations] = useState<Invitation[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const queryClient = useQueryClient();
 
-  const fetchInvitations = useCallback(async () => {
+  // React Query owns the list: cached per-org, deduped, no refetch storms.
+  // Mutations patch the cache directly to keep the UI instant. The query stays
+  // disabled until an orgId is provided (some consumers mount with "" to only
+  // use acceptInvitation).
+  const { data: invitations = [], isLoading } = useQuery({
+    queryKey: qk.invitations.list(orgId),
+    queryFn: async () =>
+      (await apiClient.get<InvitationList>(`/orgs/${orgId}/invitations`)).items,
+    enabled: !!orgId,
+  });
+
+  const writeCache = useCallback(
+    (updater: (prev: Invitation[]) => Invitation[]) =>
+      queryClient.setQueryData<Invitation[]>(qk.invitations.list(orgId), (prev = []) =>
+        updater(prev),
+      ),
+    [queryClient, orgId],
+  );
+
+  // Kept for API compatibility: the list auto-fetches on mount; this forces a
+  // background refresh.
+  const fetchInvitations = useCallback(() => {
     if (!orgId) return;
-    setIsLoading(true);
-    try {
-      const data = await apiClient.get<InvitationList>(`/orgs/${orgId}/invitations`);
-      setInvitations(data.items);
-    } catch {
-      toast.error("Failed to load invitations");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [orgId]);
+    queryClient.invalidateQueries({ queryKey: qk.invitations.list(orgId) });
+  }, [queryClient, orgId]);
 
   const invite = useCallback(
     async (input: InviteMemberInput): Promise<Invitation | null> => {
       try {
         const inv = await apiClient.post<Invitation>(`/orgs/${orgId}/invitations`, input);
-        setInvitations((prev) => [inv, ...prev]);
+        writeCache((prev) => [inv, ...prev]);
         toast.success(`Invitation sent to ${input.email}`);
         return inv;
       } catch {
@@ -34,18 +48,21 @@ export function useInvitations(orgId: string) {
         return null;
       }
     },
-    [orgId],
+    [orgId, writeCache],
   );
 
-  const revokeInvitation = useCallback(async (token: string) => {
-    try {
-      await apiClient.delete(`/invitations/${token}`);
-      setInvitations((prev) => prev.filter((i) => i.token !== token));
-      toast.success("Invitation revoked");
-    } catch {
-      toast.error("Failed to revoke invitation");
-    }
-  }, []);
+  const revokeInvitation = useCallback(
+    async (token: string) => {
+      try {
+        await apiClient.delete(`/invitations/${token}`);
+        writeCache((prev) => prev.filter((i) => i.token !== token));
+        toast.success("Invitation revoked");
+      } catch {
+        toast.error("Failed to revoke invitation");
+      }
+    },
+    [writeCache],
+  );
 
   const acceptInvitation = useCallback(async (token: string) => {
     try {
@@ -58,3 +75,4 @@ export function useInvitations(orgId: string) {
 
   return { invitations, isLoading, fetchInvitations, invite, revokeInvitation, acceptInvitation };
 }
+

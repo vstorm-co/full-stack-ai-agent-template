@@ -68,7 +68,7 @@ const PRESETS: Preset[] = [
 ];
 
 // Default preset chosen at template-generation time via `--brand-color`.
-const DEFAULT_PRESET_KEY = "{% endraw %}{{ cookiecutter.brand_color }}{% raw %}";
+const DEFAULT_PRESET_KEY = "blue";
 
 const STORAGE_KEY = "settings.brand_color_preset";
 
@@ -98,8 +98,7 @@ function applyPreset(p: Preset) {
 }
 
 export function BrandColorPicker() {
-  const defaultPreset =
-    PRESETS.find((p) => p.key === DEFAULT_PRESET_KEY) ?? PRESETS[0]!;
+  const defaultPreset = PRESETS.find((p) => p.key === DEFAULT_PRESET_KEY) ?? PRESETS[0]!;
   const [active, setActive] = useState<string>(defaultPreset.key);
 
   useEffect(() => {
@@ -155,5 +154,4 @@ export function BrandColorPicker() {
     </div>
   );
 }
-
 {% endraw %}

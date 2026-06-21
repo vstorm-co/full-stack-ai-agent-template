@@ -32,22 +32,11 @@ group is for and which are required vs optional.
 {%- endif %}
 
 ## Database
-{% if cookiecutter.use_postgresql %}
 | Variable | Required | Default | Description |
 |---|---|---|---|
 | `DATABASE_URL` | **required** | `postgresql+asyncpg://...` | Full async connection string |
 | `DB_POOL_SIZE` | optional | `{{ cookiecutter.db_pool_size }}` | Number of long-lived connections |
 | `DB_MAX_OVERFLOW` | optional | `{{ cookiecutter.db_max_overflow }}` | Burst capacity above pool size |
-{%- elif cookiecutter.use_mongodb %}
-| Variable | Required | Default | Description |
-|---|---|---|---|
-| `MONGODB_URL` | **required** | `mongodb://...` | Connection string |
-| `MONGODB_DB_NAME` | optional | `{{ cookiecutter.project_slug }}` | Database name |
-{%- elif cookiecutter.use_sqlite %}
-| Variable | Required | Default | Description |
-|---|---|---|---|
-| `DATABASE_URL` | optional | `sqlite:///./{{ cookiecutter.project_slug }}.db` | Local file path |
-{%- endif %}
 
 ## LLM / AI
 {% if cookiecutter.use_openai %}

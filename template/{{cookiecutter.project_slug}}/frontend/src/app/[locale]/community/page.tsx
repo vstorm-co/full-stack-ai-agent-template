@@ -73,7 +73,7 @@ export default async function CommunityPage() {
               }`}
             >
               {c.eyebrow && (
-                <span className="bg-brand text-brand-foreground absolute -top-3 left-7 rounded-full px-3 py-1 font-mono text-[10px] font-semibold uppercase tracking-wider">
+                <span className="bg-brand text-brand-foreground absolute -top-3 left-7 rounded-full px-3 py-1 font-mono text-[10px] font-semibold tracking-wider uppercase">
                   {c.eyebrow}
                 </span>
               )}
@@ -90,7 +90,7 @@ export default async function CommunityPage() {
                 </h2>
                 <p className="text-foreground/65 mt-1.5 text-sm leading-relaxed">{c.description}</p>
               </div>
-              <span className="text-foreground/55 group-hover:text-foreground mt-auto inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-wider transition-colors">
+              <span className="text-foreground/55 group-hover:text-foreground mt-auto inline-flex items-center gap-1.5 font-mono text-[11px] tracking-wider uppercase transition-colors">
                 {c.cta}
                 <ArrowUpRight className="h-3.5 w-3.5" />
               </span>

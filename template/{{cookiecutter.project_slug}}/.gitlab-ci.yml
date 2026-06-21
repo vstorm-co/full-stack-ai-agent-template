@@ -70,29 +70,23 @@ ty:
 test:
   stage: test
   image: python:${PYTHON_VERSION}-slim
-{%- if cookiecutter.use_postgresql or cookiecutter.enable_redis %}
   services:
-{%- if cookiecutter.use_postgresql %}
     - name: postgres:16-alpine
       alias: postgres
       variables:
         POSTGRES_USER: postgres
         POSTGRES_PASSWORD: postgres
         POSTGRES_DB: test_db
-{%- endif %}
 {%- if cookiecutter.enable_redis %}
     - name: redis:7-alpine
       alias: redis
 {%- endif %}
-{%- endif %}
   variables:
-{%- if cookiecutter.use_postgresql %}
     POSTGRES_HOST: postgres
     POSTGRES_PORT: "5432"
     POSTGRES_USER: postgres
     POSTGRES_PASSWORD: postgres
     POSTGRES_DB: test_db
-{%- endif %}
 {%- if cookiecutter.enable_redis %}
     REDIS_HOST: redis
     REDIS_PORT: "6379"

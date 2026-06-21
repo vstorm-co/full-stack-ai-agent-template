@@ -8,8 +8,8 @@ cd backend
 uv sync                    # install all deps including dev extras
 cp .env.example .env       # then fill in required vars (see ENV_VARS.md)
 uv run uvicorn app.main:app --reload --port {{ cookiecutter.backend_port }}
-{% if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}uv run alembic upgrade head  # apply migrations
-{% endif %}
+uv run alembic upgrade head  # apply migrations
+
 {%- if cookiecutter.use_frontend %}
 # Frontend (bun-based)
 cd ../frontend
@@ -86,8 +86,6 @@ Will run ruff + (frontend lint if present) on every commit. Bypass with `--no-ve
 {%- if cookiecutter.enable_pytest %}
 - [ ] Tests added for new code paths; `uv run pytest` green
 {%- endif %}
-{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
 - [ ] If schema changed: alembic migration committed (`uv run alembic revision --autogenerate -m "..."`)
-{%- endif %}
 - [ ] Updated `ENV_VARS.md` if new env vars added
 - [ ] Updated `CHANGELOG.md` (if applicable)

@@ -3,10 +3,9 @@
 
 import enum
 import uuid
-{%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}
 from datetime import UTC, datetime
 
-{%- if cookiecutter.use_postgresql and cookiecutter.use_sqlmodel %}
+{%- if cookiecutter.use_sqlmodel %}
 from sqlalchemy import Column, String, Text, Integer, DateTime, Enum as SQLEnum
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlmodel import Field, SQLModel
@@ -76,7 +75,7 @@ class UsageEvent(TimestampMixin, SQLModel, table=True):
         return f"<UsageEvent(model={self.model}, credits={self.credits_charged})>"
 
 
-{%- elif cookiecutter.use_postgresql and cookiecutter.use_sqlalchemy %}
+{%- elif cookiecutter.use_sqlalchemy %}
 from sqlalchemy import Column, String, Text, Integer, DateTime, Enum as SQLEnum, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -131,108 +130,6 @@ class UsageEvent(Base, TimestampMixin):
     def __repr__(self) -> str:
         return f"<UsageEvent(model={self.model}, credits={self.credits_charged})>"
 
-
-{%- elif cookiecutter.use_sqlite %}
-from sqlalchemy import Column, String, Text, Integer, DateTime, ForeignKey
-from sqlalchemy.orm import Mapped, mapped_column
-from app.db.base import Base, TimestampMixin
-
-
-class CreditTransactionType(enum.StrEnum):
-    GRANT_SUBSCRIPTION = "grant_subscription"
-    GRANT_TRIAL = "grant_trial"
-    PURCHASE_TOPUP = "purchase_topup"
-    DEBIT_AGENT = "debit_agent"
-    DEBIT_RAG_INGEST = "debit_rag_ingest"
-    REFUND = "refund"
-    ADMIN_ADJUSTMENT = "admin_adjustment"
-    EXPIRATION = "expiration"
-
-
-class CreditTransaction(Base, TimestampMixin):
-    __tablename__ = "credit_transaction"
-
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id: Mapped[str] = mapped_column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
-    actor_user_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
-    delta: Mapped[int] = mapped_column(Integer)
-    balance_after: Mapped[int] = mapped_column(Integer)
-    type: Mapped[str] = mapped_column(String(32), index=True)
-    description: Mapped[str] = mapped_column(Text)
-    stripe_reference: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
-    usage_event_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
-
-    def __repr__(self) -> str:
-        return f"<CreditTransaction(delta={self.delta}, type={self.type})>"
-
-
-class UsageEvent(Base, TimestampMixin):
-    __tablename__ = "usage_event"
-
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id: Mapped[str] = mapped_column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
-    actor_user_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
-    conversation_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
-    model: Mapped[str] = mapped_column(String(128))
-    provider: Mapped[str] = mapped_column(String(64))
-    input_tokens: Mapped[int] = mapped_column(Integer, default=0)
-    output_tokens: Mapped[int] = mapped_column(Integer, default=0)
-    cached_tokens: Mapped[int] = mapped_column(Integer, default=0)
-    credits_charged: Mapped[int] = mapped_column(Integer, default=0)
-    ai_framework: Mapped[str] = mapped_column(String(32), default="")
-
-    def __repr__(self) -> str:
-        return f"<UsageEvent(model={self.model}, credits={self.credits_charged})>"
-
-{%- endif %}
-{%- elif cookiecutter.use_mongodb %}
-import enum
-from datetime import datetime
-from typing import Optional
-from beanie import Document
-
-
-class CreditTransactionType(enum.StrEnum):
-    GRANT_SUBSCRIPTION = "grant_subscription"
-    GRANT_TRIAL = "grant_trial"
-    PURCHASE_TOPUP = "purchase_topup"
-    DEBIT_AGENT = "debit_agent"
-    DEBIT_RAG_INGEST = "debit_rag_ingest"
-    REFUND = "refund"
-    ADMIN_ADJUSTMENT = "admin_adjustment"
-    EXPIRATION = "expiration"
-
-
-class CreditTransaction(Document):
-    organization_id: str
-    actor_user_id: Optional[str] = None
-    delta: int
-    balance_after: int
-    type: CreditTransactionType
-    description: str
-    stripe_reference: Optional[str] = None
-    usage_event_id: Optional[str] = None
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-
-    class Settings:
-        name = "credit_transactions"
-
-
-class UsageEvent(Document):
-    organization_id: str
-    actor_user_id: Optional[str] = None
-    conversation_id: Optional[str] = None
-    model: str
-    provider: str
-    input_tokens: int = 0
-    output_tokens: int = 0
-    cached_tokens: int = 0
-    credits_charged: int = 0
-    ai_framework: str = ""
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-
-    class Settings:
-        name = "usage_events"
 
 {%- endif %}
 {%- else %}

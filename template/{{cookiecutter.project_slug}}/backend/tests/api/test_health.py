@@ -1,8 +1,6 @@
 """Health endpoint tests."""
-{%- if cookiecutter.enable_redis or cookiecutter.use_postgresql or cookiecutter.use_mongodb %}
 
 from unittest.mock import AsyncMock
-{%- endif %}
 
 import pytest
 from httpx import AsyncClient
@@ -59,7 +57,6 @@ async def test_readiness_check_redis_unhealthy(client: AsyncClient, mock_redis):
 {%- endif %}
 
 
-{%- if cookiecutter.use_postgresql %}
 
 
 @pytest.mark.anyio
@@ -85,31 +82,5 @@ async def test_readiness_check_db_unhealthy(client: AsyncClient, mock_db_session
     data = response.json()
     assert data["status"] == "not_ready"
     assert data["checks"]["database"]["status"] == "unhealthy"
-{%- endif %}
 
 
-{%- if cookiecutter.use_mongodb %}
-
-
-@pytest.mark.anyio
-async def test_readiness_check_db_healthy(client: AsyncClient, mock_db_session):
-    """Test readiness when MongoDB is healthy."""
-    mock_db_session.command = AsyncMock(return_value={"ok": 1})
-
-    response = await client.get(f"{settings.API_V1_STR}/ready")
-    assert response.status_code == 200
-    data = response.json()
-    assert data["checks"]["database"]["status"] == "healthy"
-
-
-@pytest.mark.anyio
-async def test_readiness_check_db_unhealthy(client: AsyncClient, mock_db_session):
-    """Test readiness when MongoDB is unhealthy."""
-    mock_db_session.command = AsyncMock(side_effect=Exception("MongoDB connection failed"))
-
-    response = await client.get(f"{settings.API_V1_STR}/ready")
-    assert response.status_code == 503
-    data = response.json()
-    assert data["status"] == "not_ready"
-    assert data["checks"]["database"]["status"] == "unhealthy"
-{%- endif %}

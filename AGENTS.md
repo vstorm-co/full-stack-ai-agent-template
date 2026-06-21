@@ -56,7 +56,7 @@ Jinja2 conditionals: `{%- if cookiecutter.enable_rag %}...{%- endif %}`
 
 ## Key Features
 
-- **5 AI Frameworks**: PydanticAI, LangChain, LangGraph, CrewAI, DeepAgents
+- **5 AI Frameworks**: PydanticAI, PydanticDeep, LangChain, LangGraph, DeepAgents
 - **4 LLM Providers**: OpenAI, Anthropic, Google Gemini, OpenRouter
 - **RAG**: 4 vector stores (Milvus, Qdrant, ChromaDB, pgvector), 4 embedding providers, reranking, image description
 - **Document Sources**: Local files (CLI), API upload, Google Drive (service account), S3/MinIO

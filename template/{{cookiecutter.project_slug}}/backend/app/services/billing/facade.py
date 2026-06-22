@@ -87,7 +87,7 @@ class BillingService:
         except ValueError:
             raise BadRequestError(
                 message="Invalid price_id format", details={"price_id": price_id}
-            )
+            ) from None
         result = await self._checkout.create_checkout(
             user=user,
             org_id=org.id,

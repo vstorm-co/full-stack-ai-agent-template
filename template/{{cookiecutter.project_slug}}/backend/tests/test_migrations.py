@@ -12,6 +12,24 @@ import sys
 import pytest
 
 
+def _db_available() -> bool:
+    """Return True if the database backend is reachable via alembic current."""
+    result = subprocess.run(
+        [sys.executable, "-m", "alembic", "current"],
+        capture_output=True,
+        text=True,
+        cwd=".",
+        timeout=10,
+    )
+    return result.returncode == 0
+
+
+pytestmark = pytest.mark.skipif(
+    not _db_available(),
+    reason="No live database available — skipping migration tests",
+)
+
+
 class TestMigrations:
     """Test Alembic migration integrity."""
 

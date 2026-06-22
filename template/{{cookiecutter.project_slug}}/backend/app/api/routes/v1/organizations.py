@@ -10,6 +10,7 @@ from fastapi import APIRouter, File, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
 
 from app.api.deps import CurrentUser, OrganizationSvc
+from app.db.models.organization import OrgRole
 from app.schemas.organization import (
     OrganizationCreate,
     OrganizationList,

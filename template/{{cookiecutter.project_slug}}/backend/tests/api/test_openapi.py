@@ -9,13 +9,13 @@ These tests ensure that:
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from app.main import create_app
+from app.main import app as _app
 
 
 @pytest.fixture
 def app():
-    """Create test application."""
-    return create_app()
+    """Return the application singleton (already configured by create_app())."""
+    return _app
 
 
 @pytest.fixture

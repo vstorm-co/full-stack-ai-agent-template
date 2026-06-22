@@ -1407,6 +1407,7 @@ jobs:
             --database postgresql \
             --frontend nextjs \
             --marketing-site \
+            --email \
             --email-provider resend \
             --newsletter \
             -o /tmp/projects

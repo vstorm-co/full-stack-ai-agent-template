@@ -151,6 +151,9 @@ class UsageTimelineRead(BaseSchema):
     days: int
 
 
+{%- endif %}
+
+
 class InvoiceRead(BaseSchema):
     id: str
     number: str
@@ -169,7 +172,6 @@ class InvoiceList(BaseSchema):
     items: list[InvoiceRead]
     total: int
 
-{%- endif %}
 
 class StorageUsageRead(BaseSchema):
     chat_files_bytes: int

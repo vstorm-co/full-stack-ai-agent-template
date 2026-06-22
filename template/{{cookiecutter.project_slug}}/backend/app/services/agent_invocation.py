@@ -365,6 +365,7 @@ class AgentInvocationService:
         active_knowledge_base_ids with the KBs actually visible to the user,
         preventing any client-supplied KB IDs from leaking cross-org data.
         """
+{%- if cookiecutter.enable_teams and cookiecutter.enable_rag %}
         conv = await conversation_repo.get_conversation_by_id(self.db, conversation_id)
         if not conv:
             return []
@@ -388,6 +389,9 @@ class AgentInvocationService:
         )
         active_set = {str(i) for i in active_ids}
         return [kb.collection_name for kb in accessible if str(kb.id) in active_set]
+{%- else %}
+        return []
+{%- endif %}
 
     async def _persist_user_message(self, conversation_id: UUID, content: str) -> None:
         """Persist the user message directly via conversation repo."""

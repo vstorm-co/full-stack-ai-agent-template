@@ -125,7 +125,7 @@ jobs:
   # ============================================
   generate-minimal:
     name: Template - Minimal
-    needs: [lint, type-check, test, security]
+    needs: [lint, type-check]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -168,7 +168,7 @@ jobs:
 
   generate-postgresql:
     name: Template - PostgreSQL + Celery + RAG
-    needs: [lint, type-check, test, security]
+    needs: [lint, type-check]
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -252,7 +252,7 @@ jobs:
 
   generate-pg-billing:
     name: Template - PostgreSQL + Teams + Billing
-    needs: [lint, type-check, test, security]
+    needs: [lint, type-check]
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -334,7 +334,7 @@ jobs:
 
   generate-pg-billing-credits:
     name: Template - PostgreSQL + Teams + Billing + Credits
-    needs: [lint, type-check, test, security]
+    needs: [lint, type-check]
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -417,7 +417,7 @@ jobs:
 
   generate-pg-langchain:
     name: Template - PostgreSQL + LangChain
-    needs: [lint, type-check, test, security]
+    needs: [lint, type-check]
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -485,7 +485,7 @@ jobs:
 
   generate-pg-langgraph:
     name: Template - PostgreSQL + LangGraph
-    needs: [lint, type-check, test, security]
+    needs: [lint, type-check]
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -553,7 +553,7 @@ jobs:
 
   generate-pg-deep-research:
     name: Template - PostgreSQL + Deep Research
-    needs: [lint, type-check, test, security]
+    needs: [lint, type-check]
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -622,7 +622,7 @@ jobs:
 
   generate-pg-taskiq:
     name: Template - PostgreSQL + Taskiq
-    needs: [lint, type-check, test, security]
+    needs: [lint, type-check]
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -702,7 +702,7 @@ jobs:
 
   generate-pg-deepagents:
     name: Template - PostgreSQL + DeepAgents
-    needs: [lint, type-check, test, security]
+    needs: [lint, type-check]
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -770,7 +770,7 @@ jobs:
 
   generate-pg-pydantic-deep:
     name: Template - PostgreSQL + PydanticDeep
-    needs: [lint, type-check, test, security]
+    needs: [lint, type-check]
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -838,7 +838,7 @@ jobs:
 
   generate-pg-agent-tools:
     name: Template - PostgreSQL + Agent Tools (web-search, charts, code-execution, skills, websockets)
-    needs: [lint, type-check, test, security]
+    needs: [lint, type-check]
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -912,7 +912,7 @@ jobs:
 
   generate-pg-channels:
     name: Template - PostgreSQL + Slack + Telegram
-    needs: [lint, type-check, test, security]
+    needs: [lint, type-check]
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -981,7 +981,7 @@ jobs:
 
   generate-pg-rag-pgvector:
     name: Template - PostgreSQL + RAG (pgvector)
-    needs: [lint, type-check, test, security]
+    needs: [lint, type-check]
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -1050,7 +1050,7 @@ jobs:
 
   generate-pg-rag-connectors:
     name: Template - PostgreSQL + RAG + Google Drive + S3
-    needs: [lint, type-check, test, security]
+    needs: [lint, type-check]
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -1121,7 +1121,7 @@ jobs:
 
   generate-pg-email-oauth:
     name: Template - PostgreSQL + Email + OAuth Google
-    needs: [lint, type-check, test, security]
+    needs: [lint, type-check]
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -1191,7 +1191,7 @@ jobs:
 
   generate-pg-monitoring:
     name: Template - PostgreSQL + ARQ + Sentry + Prometheus + Caching
-    needs: [lint, type-check, test, security]
+    needs: [lint, type-check]
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -1276,7 +1276,7 @@ jobs:
 
   generate-pg-usage-chain:
     name: Template - PostgreSQL + Credits + Usage Dashboard + Anomaly Detection
-    needs: [lint, type-check, test, security]
+    needs: [lint, type-check]
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -1362,7 +1362,7 @@ jobs:
 
   generate-marketing:
     name: Template - Marketing Site + Newsletter
-    needs: [lint, type-check, test, security]
+    needs: [lint, type-check]
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -1457,7 +1457,7 @@ jobs:
   # ============================================
   generate-frontend:
     name: Template - Frontend (Next.js)
-    needs: [lint, type-check, test, security]
+    needs: [lint, type-check]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6

@@ -318,6 +318,11 @@ export function useChat(options: UseChatOptions = {}) {
           break;
         }
 
+        case "subagent_message": {
+          useResearchStore.getState().addSubagentMessage(wsEvent.data as import("@/types").SubagentMessage);
+          break;
+        }
+
         case "context_usage": {
           useResearchStore.getState().setContextUsage(wsEvent.data as ContextUsage);
           break;

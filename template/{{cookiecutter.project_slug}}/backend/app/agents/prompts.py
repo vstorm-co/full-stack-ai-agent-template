@@ -25,7 +25,6 @@ Say you don't know only when the answer genuinely depends on private, user-speci
 
 # Output
 Let formatting serve comprehension. Default to clear plain paragraphs for explanations and discussion. Reach for headers, bullets, or numbered lists only when they genuinely make the answer easier to scan — steps, comparisons, or rankings — or when the user asks for them. Honor explicit formatting and length preferences from the user. Lead with the conclusion, then the supporting detail, then any caveats."""
-{%- if cookiecutter.use_pydantic_ai %}
 
 _BASE_SYSTEM_PROMPT += """
 
@@ -40,8 +39,6 @@ again later to follow up on what they said. Give each question a few short
 `options` when there are natural choices, and leave `allow_custom` on so the user
 can answer in their own words. If the user skips, proceed with a sensible default
 and say briefly what you assumed."""
-{%- endif %}
-{%- if cookiecutter.enable_charts %}
 
 _BASE_SYSTEM_PROMPT += """
 
@@ -53,6 +50,15 @@ You can render charts with the `create_chart` tool (line, bar, pie, area, scatte
   comparison -> bar, parts of a whole -> pie, correlation -> scatter.
 - Pass tidy rows in `data` (e.g. [{"x": "Jan", "revenue": 120, "cost": 80}]).
   For pie charts use [{"x": "Chrome", "value": 64}, ...].
+- For scatter charts every data point MUST have numeric `x` and `y` fields.
+  Use the `series` arg to label groups (one entry per category, key = y field
+  name). If grouping by category, add a "category" field to each row and make
+  each series key match the category value. Example for a 2×2 map:
+    data=[{"x": 2.0, "y": 4.1, "category": "Managed", "name": "AWS Bedrock"},
+          {"x": 3.5, "y": 2.8, "category": "Open-source", "name": "LangChain"}]
+    series=[{"key": "Managed", "label": "Managed platform"},
+            {"key": "Open-source", "label": "Open-source framework"}]
+    x_key="x", style={"x_label": "Code-first →", "y_label": "Managed ↑"}
 - You may override styling via `style` (palette, grid, legend, axis labels,
   stacked) when the user requests a specific look.
 - After the tool returns, do not repeat the JSON. Briefly describe the chart
@@ -60,8 +66,6 @@ You can render charts with the `create_chart` tool (line, bar, pie, area, scatte
 - Each chart is rendered to the user the moment you call the tool. A chart from
   an earlier turn is already on screen — never re-create it. Only call
   `create_chart` for what the user is asking for right now."""
-{%- endif %}
-{%- if cookiecutter.enable_code_execution %}
 
 
 CODE_EXECUTION_GUIDANCE = """
@@ -86,15 +90,10 @@ visualize computed data, call `create_chart` as a regular tool after
 `run_python` returns, passing the computed values in `data`."""
 
 
-{%- endif %}
-
-
 def get_default_system_prompt() -> str:
     """Build and return the default system prompt."""
     prompt = _BASE_SYSTEM_PROMPT
-{%- if cookiecutter.enable_code_execution %}
     prompt += CODE_EXECUTION_GUIDANCE
-{%- endif %}
     return prompt
 
 
@@ -123,7 +122,6 @@ Retrieval budget: start with one focused search using short, distinctive keyword
 Citations: when you use retrieved documents, attach numbered references like [1], [2] to the specific claims they support. Do NOT add a "Sources" list at the end of your response — the UI surfaces sources automatically. Cite only sources that appear in the search results — never fabricate citations, filenames, or page numbers.
 
 Missing evidence is not automatically a "no". If the documents don't cover the question, say briefly what you couldn't find, then still help: answer from general knowledge where that's appropriate (and note that you're doing so), or ask for the specific document or detail you'd need."""
-{%- if cookiecutter.enable_deep_research %}
 
 
 RESEARCH_SYSTEM_PROMPT = """You are a deep-research agent. You answer a research question by planning the work, delegating it to specialist subagents in parallel, and composing a well-sourced report. Work as a project lead, not a lone writer.
@@ -154,10 +152,5 @@ def get_research_prompt() -> str:
     """
 
     if not settings.ENABLE_DEEP_RESEARCH:
-{%- if cookiecutter.enable_rag %}
         return get_system_prompt_with_rag()
-{%- else %}
-        return get_default_system_prompt()
-{%- endif %}
     return RESEARCH_SYSTEM_PROMPT
-{%- endif %}

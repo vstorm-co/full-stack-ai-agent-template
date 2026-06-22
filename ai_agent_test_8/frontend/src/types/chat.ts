@@ -116,6 +116,7 @@ export type WSEventType =
   | "ask_user"
   | "todo_event"
   | "subagent_status"
+  | "subagent_message"
   | "context_usage"
   | "context_compacted"
   | "llm_started"
@@ -257,6 +258,15 @@ export interface SubagentStatus {
   description: string;
   status: SubagentTaskStatus;
   error: string | null;
+}
+
+export type SubagentMessageType = "info" | "steering" | "question" | "result" | "error";
+
+export interface SubagentMessage {
+  task_id: string;
+  type: SubagentMessageType;
+  text: string;
+  timestamp: string;
 }
 
 export interface ContextUsage {

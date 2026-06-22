@@ -247,25 +247,110 @@ function ChartMessageInner({ spec }: { spec: ChartSpec }) {
           </PieChart>
         );
       }
-      case "scatter":
+      case "scatter": {
+        // Recharts ScatterChart needs type="number" on both axes and determines
+        // coordinates from axis dataKeys — not from Scatter's own dataKey.
+        const yKey = spec.series[0]?.key ?? "y";
+
+        const scatterXAxis = (
+          <XAxis
+            type="number"
+            dataKey={spec.x_key}
+            tick={AXIS_TICK}
+            tickLine={false}
+            axisLine={AXIS_LINE}
+            tickMargin={8}
+            domain={["dataMin - 0.5", "dataMax + 0.5"]}
+            label={
+              xLabel
+                ? { value: xLabel, position: "insideBottom", offset: -10, fill: "var(--color-muted-foreground)", fontSize: 11 }
+                : undefined
+            }
+          />
+        );
+
+        const scatterYAxis = (
+          <YAxis
+            type="number"
+            dataKey={yKey}
+            tick={AXIS_TICK}
+            tickLine={false}
+            axisLine={AXIS_LINE}
+            width={48}
+            domain={["dataMin - 0.5", "dataMax + 0.5"]}
+            label={
+              yLabel
+                ? { value: yLabel, angle: -90, position: "insideLeft", offset: 4, style: { textAnchor: "middle", fill: "var(--color-muted-foreground)", fontSize: 11 } }
+                : undefined
+            }
+          />
+        );
+
+        // Detect how the agent structured the data:
+        // A) series keys ARE y-field names in each row → filter rows per series
+        // B) series keys ARE category values in a string column → group by that column
+        const seriesAreYFields = spec.series.length > 0 &&
+          spec.series.every((s) => spec.data.some((row) => s.key in row && typeof row[s.key] === "number"));
+
+        if (seriesAreYFields) {
+          return (
+            <ScatterChart margin={margin}>
+              {showGrid && <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />}
+              {scatterXAxis}
+              {scatterYAxis}
+              {tooltip(LINE_CURSOR)}
+              {legend}
+              {spec.series.map((s, i) => {
+                const pts = spec.data
+                  .filter((row) => row[s.key] !== undefined && row[s.key] !== null)
+                  .map((row) => ({ ...row, [yKey]: row[s.key] }));
+                return (
+                  <Scatter key={s.key} data={pts} name={s.label ?? s.key} fill={colorFor(i, s.color)} />
+                );
+              })}
+            </ScatterChart>
+          );
+        }
+
+        // Category grouping: find a string column whose unique values match series keys
+        const firstRow = spec.data[0] ?? {};
+        const categoryField = Object.keys(firstRow).find(
+          (k) => k !== spec.x_key && typeof firstRow[k] === "string" &&
+            spec.series.some((s) => spec.data.some((row) => row[k] === s.key)),
+        );
+
+        if (categoryField && spec.series.length > 1) {
+          return (
+            <ScatterChart margin={margin}>
+              {showGrid && <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />}
+              {scatterXAxis}
+              {scatterYAxis}
+              {tooltip(LINE_CURSOR)}
+              {legend}
+              {spec.series.map((s, i) => (
+                <Scatter
+                  key={s.key}
+                  data={spec.data.filter((row) => row[categoryField] === s.key)}
+                  name={s.label ?? s.key}
+                  fill={colorFor(i, s.color)}
+                />
+              ))}
+            </ScatterChart>
+          );
+        }
+
+        // Fallback: single scatter with all points
         return (
           <ScatterChart margin={margin}>
             {showGrid && <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />}
-            {xAxis}
-            {yAxis}
+            {scatterXAxis}
+            {scatterYAxis}
             {tooltip(LINE_CURSOR)}
             {legend}
-            {spec.series.map((s, i) => (
-              <Scatter
-                key={s.key}
-                data={spec.data}
-                dataKey={s.key}
-                name={s.label ?? s.key}
-                fill={colorFor(i, s.color)}
-              />
-            ))}
+            <Scatter data={spec.data} name={spec.series[0]?.label ?? "Data"} fill={colorFor(0, spec.series[0]?.color)} />
           </ScatterChart>
         );
+      }
       case "line":
       default:
         return (

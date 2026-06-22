@@ -66,7 +66,6 @@ export interface MessagePart {
   /** Tool invocation for "tool" parts. */
   toolCall?: ToolCall;
 }
-{%- if cookiecutter.enable_charts %}
 
 export type ChartType = "line" | "bar" | "pie" | "area" | "scatter";
 
@@ -95,7 +94,6 @@ export interface ChartSpec {
   series: ChartSeries[];
   style: ChartStyle;
 }
-{%- endif %}
 
 export type WSEventType =
   | "user_prompt"
@@ -116,12 +114,11 @@ export type WSEventType =
   | "message_saved"
   | "tool_approval_required"
   | "ask_user"
-{%- if cookiecutter.enable_deep_research %}
   | "todo_event"
   | "subagent_status"
+  | "subagent_message"
   | "context_usage"
   | "context_compacted"
-{%- endif %}
   | "llm_started"
   | "llm_completed";
 
@@ -224,7 +221,6 @@ export interface AskUserEvent {
     questions: { question: string; options: string[]; allow_custom: boolean }[];
   };
 }
-{%- if cookiecutter.enable_deep_research %}
 
 export type ResearchTodoStatus = "pending" | "in_progress" | "completed" | "blocked";
 
@@ -264,9 +260,17 @@ export interface SubagentStatus {
   error: string | null;
 }
 
+export type SubagentMessageType = "info" | "steering" | "question" | "result" | "error";
+
+export interface SubagentMessage {
+  task_id: string;
+  type: SubagentMessageType;
+  text: string;
+  timestamp: string;
+}
+
 export interface ContextUsage {
   pct: number;
   current: number;
   max: number;
 }
-{%- endif %}

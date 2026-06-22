@@ -50,6 +50,15 @@ You can render charts with the `create_chart` tool (line, bar, pie, area, scatte
   comparison -> bar, parts of a whole -> pie, correlation -> scatter.
 - Pass tidy rows in `data` (e.g. [{"x": "Jan", "revenue": 120, "cost": 80}]).
   For pie charts use [{"x": "Chrome", "value": 64}, ...].
+- For scatter charts every data point MUST have numeric `x` and `y` fields.
+  Use the `series` arg to label groups (one entry per category, key = y field
+  name). If grouping by category, add a "category" field to each row and make
+  each series key match the category value. Example for a 2×2 map:
+    data=[{"x": 2.0, "y": 4.1, "category": "Managed", "name": "AWS Bedrock"},
+          {"x": 3.5, "y": 2.8, "category": "Open-source", "name": "LangChain"}]
+    series=[{"key": "Managed", "label": "Managed platform"},
+            {"key": "Open-source", "label": "Open-source framework"}]
+    x_key="x", style={"x_label": "Code-first →", "y_label": "Managed ↑"}
 - You may override styling via `style` (palette, grid, legend, axis labels,
   stacked) when the user requests a specific look.
 - After the tool returns, do not repeat the JSON. Briefly describe the chart

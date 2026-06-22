@@ -3,11 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useResearchStore } from "@/stores";
 import { useChatModeStore } from "@/stores";
-import type { ResearchTodo, SubagentStatus } from "@/types";
-import { Card, Badge, Progress } from "@/components/ui";
+import type { ResearchTodo } from "@/types";
+import { Card, Progress } from "@/components/ui";
 import {
   AlertTriangle,
-  Bot,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
@@ -16,7 +15,6 @@ import {
   Loader2,
   Sparkles,
   Telescope,
-  XCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -45,43 +43,23 @@ export const RESEARCH_TOOL_NAMES = new Set([
 ]);
 
 const EMPTY_TODOS: ResearchTodo[] = [];
-const EMPTY_SUBAGENTS: SubagentStatus[] = [];
-
-const TASK_DONE: ReadonlySet<SubagentStatus["status"]> = new Set([
-  "completed",
-  "failed",
-  "cancelled",
-]);
-const TASK_ACTIVE: ReadonlySet<SubagentStatus["status"]> = new Set([
-  "pending",
-  "running",
-  "retrying",
-  "waiting_for_answer",
-]);
 
 /**
- * One live, collapsible expander for a deep-research turn: a header with a
- * spinner and a done/total counter, and (when expanded) the planner's
- * checklist, the delegated subagents with their statuses, and a context-window
- * meter. Rendered inline as an assistant message (Bot avatar + indented content)
- * where the run was invoked. Renders nothing until research state arrives.
+ * Sticky plan panel rendered above the chat input. Shows the current turn's
+ * TODO checklist, subagent statuses, and context meter. Title reads
+ * "Deep research" only when that persona is active; otherwise "Plan".
  */
 export function ResearchPanel({ turnId }: { turnId: string }) {
   const turn = useResearchStore((s) => s.byTurn[turnId]);
-  const todos = turn?.todos ?? EMPTY_TODOS;
-  const subagents = turn?.subagents ?? EMPTY_SUBAGENTS;
   const deepResearch = useChatModeStore((s) => s.deepResearch);
+  const todos = turn?.todos ?? EMPTY_TODOS;
 
-  const taskTotal = subagents.length;
-  const taskDone = subagents.filter((s) => s.status === "completed").length;
   const todoTotal = todos.length;
   const todoDone = todos.filter((t) => t.status === "completed").length;
 
   const stopped = turn?.stopped ?? false;
-  const anyTaskActive = subagents.some((s) => TASK_ACTIVE.has(s.status));
   const anyTodoActive = todos.some((t) => t.status === "in_progress" || t.status === "pending");
-  const hasAnything = todoTotal > 0 || taskTotal > 0;
-  const done = stopped || (hasAnything && !anyTaskActive && !anyTodoActive);
+  const done = stopped || (todoTotal > 0 && !anyTodoActive);
   const busy = !done;
 
   const [expanded, setExpanded] = useState(true);
@@ -92,19 +70,13 @@ export function ResearchPanel({ turnId }: { turnId: string }) {
     wasDone.current = done;
   }, [done]);
 
-  if (todoTotal === 0 && taskTotal === 0) return null;
+  if (todoTotal === 0) return null;
+
+  const counter = todoTotal > 0 ? `${todoDone}/${todoTotal} steps` : "Planning…";
+  const pct = todoTotal > 0 ? Math.round((todoDone / todoTotal) * 100) : 0;
 
   const TitleIcon = deepResearch ? Telescope : Sparkles;
   const title = deepResearch ? "Deep research" : "Plan";
-
-  const [counterDone, counterTotal, counterLabel] =
-    todoTotal > 0
-      ? [todoDone, todoTotal, "steps"]
-      : taskTotal > 0
-        ? [taskDone, taskTotal, "tasks"]
-        : [0, 0, ""];
-  const counter = counterTotal > 0 ? `${counterDone}/${counterTotal} ${counterLabel}` : "Planning…";
-  const pct = counterTotal > 0 ? Math.round((counterDone / counterTotal) * 100) : 0;
 
   return (
     <Card className="overflow-hidden py-0">
@@ -129,7 +101,7 @@ export function ResearchPanel({ turnId }: { turnId: string }) {
         <span className="text-muted-foreground shrink-0 font-mono text-xs tabular-nums">
           {counter}
         </span>
-        {counterTotal > 0 && (
+        {todoTotal > 0 && (
           <Progress value={pct} className="mx-1 h-1.5 min-w-0 flex-1" />
         )}
         <span className="flex-1" />
@@ -141,9 +113,8 @@ export function ResearchPanel({ turnId }: { turnId: string }) {
       </button>
 
       {expanded && (
-        <div className="space-y-3 px-4 pb-4">
+        <div className="px-4 pb-4">
           <ResearchChecklist todos={todos} />
-          {subagents.length > 0 && <SubagentList subagents={subagents} />}
         </div>
       )}
     </Card>
@@ -232,66 +203,3 @@ function ResearchChecklist({ todos }: { todos: ResearchTodo[] }) {
   );
 }
 
-const SUBAGENT_STATUS_STYLES: Record<
-  SubagentStatus["status"],
-  { label: string; className: string }
-> = {
-  pending: { label: "Queued", className: "bg-muted text-muted-foreground" },
-  running: { label: "Running", className: "bg-primary/15 text-primary" },
-  waiting_for_answer: { label: "Waiting", className: "bg-amber-500/15 text-amber-600" },
-  completed: { label: "Done", className: "bg-emerald-500/15 text-emerald-600" },
-  failed: { label: "Failed", className: "bg-destructive/15 text-destructive" },
-  cancelled: { label: "Cancelled", className: "bg-muted text-muted-foreground" },
-  retrying: { label: "Retrying", className: "bg-amber-500/15 text-amber-600" },
-};
-
-function SubagentList({ subagents }: { subagents: SubagentStatus[] }) {
-  const done = subagents.filter((s) => TASK_DONE.has(s.status)).length;
-  return (
-    <div className="space-y-1.5">
-      <div className="text-muted-foreground flex items-center justify-between font-mono text-[10px] tracking-wider uppercase">
-        <span>Subagents</span>
-        <span className="tabular-nums">
-          {done}/{subagents.length} done
-        </span>
-      </div>
-      {subagents.map((s, i) => {
-        const style = SUBAGENT_STATUS_STYLES[s.status] ?? SUBAGENT_STATUS_STYLES.pending;
-        const isRunning = s.status === "running" || s.status === "retrying";
-        const isFailed = s.status === "failed";
-        return (
-          <div
-            key={s.task_id}
-            className={cn(
-              "rounded-md border px-3 py-2 transition-colors duration-300",
-              isRunning && "border-primary/20 bg-primary/[0.03]",
-              isFailed && "border-destructive/20 bg-destructive/[0.03]",
-              !isRunning && !isFailed && "border-transparent",
-            )}
-            style={{ animation: `todo-enter 0.22s ease-out ${i * 50}ms both` }}
-          >
-            <div className="flex items-center gap-2 text-sm">
-              {isRunning ? (
-                <Loader2 className="text-primary h-4 w-4 shrink-0 animate-spin" />
-              ) : s.status === "completed" ? (
-                <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />
-              ) : isFailed ? (
-                <XCircle className="text-destructive h-4 w-4 shrink-0" />
-              ) : (
-                <Bot className="text-muted-foreground h-4 w-4 shrink-0" />
-              )}
-              <span className="font-medium">{s.subagent_name}</span>
-              <span className="text-muted-foreground min-w-0 flex-1 truncate text-xs">
-                {s.description}
-              </span>
-              <Badge className={cn("shrink-0 text-[10px]", style.className)}>{style.label}</Badge>
-            </div>
-            {isFailed && s.error && (
-              <p className="text-destructive mt-1 pl-6 text-xs opacity-80">{s.error}</p>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}

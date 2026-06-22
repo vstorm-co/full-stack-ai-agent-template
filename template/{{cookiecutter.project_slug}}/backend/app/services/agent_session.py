@@ -3,6 +3,7 @@
 import asyncio
 import contextlib
 import logging
+from datetime import datetime
 from typing import Any
 from uuid import UUID
 
@@ -80,6 +81,9 @@ class AgentSession:
         self._ask_user_future: asyncio.Future[list[dict[str, Any]]] | None = None
 {%- if cookiecutter.enable_deep_research %}
         self._research: ResearchToolkit | None = None
+{%- endif %}
+{%- if cookiecutter.enable_subagents %}
+        self._subagent_task_manager: Any | None = None
 {%- endif %}
 
     async def handle_frame(self, data: dict[str, Any]) -> None:
@@ -250,6 +254,17 @@ class AgentSession:
 
             collected_tool_calls: list[dict[str, Any]] = []
 {%- if cookiecutter.enable_deep_research %}
+{%- if cookiecutter.enable_subagents %}
+            self._subagent_task_manager = (
+                self._research.subagent_capability.task_manager
+                if self._research and self._research.subagent_capability
+                else None
+            )
+            if self._subagent_task_manager is not None:
+                self._subagent_task_manager.message_bus.add_handler(
+                    self._on_subagent_message
+                )
+{%- endif %}
             poller = (
 {%- if cookiecutter.enable_subagents %}
                 asyncio.create_task(self._poll_subagent_status())
@@ -271,6 +286,13 @@ class AgentSession:
                     poller.cancel()
                     with contextlib.suppress(asyncio.CancelledError):
                         await poller
+{%- if cookiecutter.enable_subagents %}
+                if self._subagent_task_manager is not None:
+                    self._subagent_task_manager.message_bus.remove_handler(
+                        self._on_subagent_message
+                    )
+                    self._subagent_task_manager = None
+{%- endif %}
                 if self._research is not None:
                     await self._research.flush()
 {%- else %}
@@ -383,24 +405,109 @@ class AgentSession:
                                 "error": handle.error,
                             },
                         )
+                        ts = datetime.utcnow().isoformat()
+                        if status == "running":
+                            await self._send(
+                                "subagent_message",
+                                {
+                                    "task_id": task_id,
+                                    "type": "info",
+                                    "text": "Task started — running in background",
+                                    "timestamp": ts,
+                                },
+                            )
+                        elif status == "waiting_for_answer" and handle.pending_question:
+                            await self._send(
+                                "subagent_message",
+                                {
+                                    "task_id": task_id,
+                                    "type": "question",
+                                    "text": handle.pending_question,
+                                    "timestamp": ts,
+                                },
+                            )
+                        elif status == "completed" and handle.result:
+                            await self._send(
+                                "subagent_message",
+                                {
+                                    "task_id": task_id,
+                                    "type": "result",
+                                    "text": handle.result[:1500],
+                                    "timestamp": ts,
+                                },
+                            )
+                        elif status == "failed" and handle.error:
+                            await self._send(
+                                "subagent_message",
+                                {
+                                    "task_id": task_id,
+                                    "type": "error",
+                                    "text": handle.error,
+                                    "timestamp": ts,
+                                },
+                            )
                 await asyncio.sleep(1.0)
         except asyncio.CancelledError:
             task_manager = cap.task_manager
             if task_manager is not None:
                 for handle in task_manager.list_handles():
                     status = getattr(handle.status, "value", str(handle.status))
-                    if seen.get(handle.task_id) != status:
+                    if seen.get(handle.task_id) == status:
+                        continue
+                    await self._send(
+                        "subagent_status",
+                        {
+                            "task_id": handle.task_id,
+                            "subagent_name": handle.subagent_name,
+                            "description": handle.description,
+                            "status": status,
+                            "error": handle.error,
+                        },
+                    )
+                    ts = datetime.utcnow().isoformat()
+                    if status == "completed" and handle.result:
                         await self._send(
-                            "subagent_status",
+                            "subagent_message",
                             {
                                 "task_id": handle.task_id,
-                                "subagent_name": handle.subagent_name,
-                                "description": handle.description,
-                                "status": status,
-                                "error": handle.error,
+                                "type": "result",
+                                "text": handle.result[:1500],
+                                "timestamp": ts,
+                            },
+                        )
+                    elif status == "failed" and handle.error:
+                        await self._send(
+                            "subagent_message",
+                            {
+                                "task_id": handle.task_id,
+                                "type": "error",
+                                "text": handle.error,
+                                "timestamp": ts,
                             },
                         )
             raise
+
+    async def _on_subagent_message(self, msg: Any) -> None:
+        """Forward TASK_UPDATE (steering) messages from the message bus as SSE events."""
+        try:
+            from subagents_pydantic_ai.types import MessageType
+            if msg.type != MessageType.TASK_UPDATE:
+                return
+            payload = msg.payload
+            text = payload.get("message") if isinstance(payload, dict) else str(payload)
+            if not text:
+                return
+            await self._send(
+                "subagent_message",
+                {
+                    "task_id": msg.task_id,
+                    "type": "steering",
+                    "text": text,
+                    "timestamp": msg.timestamp.isoformat(),
+                },
+            )
+        except Exception:
+            pass
 {%- endif %}
 
 {%- if cookiecutter.enable_billing and cookiecutter.enable_teams and cookiecutter.enable_credits_system %}

@@ -1,7 +1,7 @@
 "use client";
 
 import { create } from "zustand";
-import type { ContextUsage, ResearchTodo, SubagentStatus } from "@/types";
+import type { ContextUsage, ResearchTodo, SubagentMessage, SubagentStatus } from "@/types";
 
 /**
  * Per-turn state of deep-research runs: the planner's
@@ -13,6 +13,7 @@ import type { ContextUsage, ResearchTodo, SubagentStatus } from "@/types";
 export interface TurnResearch {
   todos: ResearchTodo[];
   subagents: SubagentStatus[];
+  subagentMessages: Record<string, SubagentMessage[]>;
   contextUsage: ContextUsage | null;
   compactionCount: number;
   stopped: boolean;
@@ -21,10 +22,13 @@ export interface TurnResearch {
 interface ResearchState {
   byTurn: Record<string, TurnResearch>;
   currentTurnId: string | null;
+  selectedSubagentId: string | null;
 
   beginTurn: (turnId: string) => void;
   applyTodoEvent: (eventType: string, todo: ResearchTodo) => void;
   upsertSubagent: (status: SubagentStatus) => void;
+  addSubagentMessage: (msg: SubagentMessage) => void;
+  setSelectedSubagent: (id: string | null) => void;
   setContextUsage: (usage: ContextUsage) => void;
   incrementCompaction: () => void;
   markCurrentTurnStopped: () => void;
@@ -34,6 +38,7 @@ interface ResearchState {
 const EMPTY_TURN: TurnResearch = {
   todos: [],
   subagents: [],
+  subagentMessages: {},
   contextUsage: null,
   compactionCount: 0,
   stopped: false,
@@ -52,6 +57,7 @@ function updateCurrent(
 export const useResearchStore = create<ResearchState>((set) => ({
   byTurn: {},
   currentTurnId: null,
+  selectedSubagentId: null,
 
   beginTurn: (turnId) =>
     set((state) => ({
@@ -84,6 +90,22 @@ export const useResearchStore = create<ResearchState>((set) => ({
       }),
     ),
 
+  addSubagentMessage: (msg) =>
+    set((state) =>
+      updateCurrent(state, (turn) => {
+        const prev = turn.subagentMessages[msg.task_id] ?? [];
+        return {
+          ...turn,
+          subagentMessages: {
+            ...turn.subagentMessages,
+            [msg.task_id]: [...prev, msg],
+          },
+        };
+      }),
+    ),
+
+  setSelectedSubagent: (id) => set({ selectedSubagentId: id }),
+
   setContextUsage: (usage) =>
     set((state) => updateCurrent(state, (turn) => ({ ...turn, contextUsage: usage }))),
 
@@ -95,5 +117,5 @@ export const useResearchStore = create<ResearchState>((set) => ({
   markCurrentTurnStopped: () =>
     set((state) => updateCurrent(state, (turn) => ({ ...turn, stopped: true }))),
 
-  resetAll: () => set({ byTurn: {}, currentTurnId: null }),
+  resetAll: () => set({ byTurn: {}, currentTurnId: null, selectedSubagentId: null }),
 }));

@@ -10,18 +10,16 @@ import { FilePreviewPanel } from "./file-preview-panel";
 import { SourcesPanel } from "./sources-panel";
 import { MessageList } from "./message-list";
 import { PendingMessages } from "./pending-messages";
+import { ResearchPanel } from "./research-panel";
+import { SubagentFeed } from "./subagent-feed";
+import { SubagentPanel } from "./subagent-panel";
 import { ToolApprovalDialog } from "./tool-approval-dialog";
 import { QuestionPrompt } from "@/components/ui";
 import type { PendingApproval, AskUserQuestion, AskUserAnswer, Decision } from "@/types";
 import { useConversationStore, useChatStore } from "@/stores";
-{%- if cookiecutter.enable_deep_research %}
 import { useResearchStore } from "@/stores";
-import { ResearchPanel } from "./research-panel";
-{%- endif %}
 import { useConversations } from "@/hooks";
-{%- if cookiecutter.use_auth %}
 import { useSlashCommands } from "@/hooks";
-{%- endif %}
 
 const SCROLL_NEAR_BOTTOM_THRESHOLD_PX = 150;
 
@@ -63,6 +61,8 @@ export function ChatContainer() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  // true = user deliberately scrolled up; suppress auto-scroll until they return to bottom
+  const userScrolledUpRef = useRef(false);
 
   // Clear messages when conversation changes, but NOT when going from null to a new ID
   // (that happens when a new chat is saved - we want to keep the messages)
@@ -86,9 +86,7 @@ export function ChatContainer() {
 
     if (shouldClear) {
       clearMessages();
-{%- if cookiecutter.enable_deep_research %}
       useResearchStore.getState().resetAll();
-{%- endif %}
       // Drop any pending queue when switching threads — those messages were
       // typed in the previous conversation's context, sending them into a
       // different conversation would surprise the user.
@@ -152,19 +150,25 @@ export function ChatContainer() {
     }
   }, [currentMessages, addChatMessage, clearMessages]);
 
+  // Track whether the user has manually scrolled up so we don't hijack their position
   useEffect(() => {
     const container = scrollContainerRef.current;
     if (!container) return;
-    // Only auto-scroll if user is already near the bottom
-    const isNearBottom =
-      container.scrollHeight - container.scrollTop - container.clientHeight < SCROLL_NEAR_BOTTOM_THRESHOLD_PX;
-    if (isNearBottom) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }
+    const handleScroll = () => {
+      const distFromBottom =
+        container.scrollHeight - container.scrollTop - container.clientHeight;
+      userScrolledUpRef.current = distFromBottom > SCROLL_NEAR_BOTTOM_THRESHOLD_PX;
+    };
+    container.addEventListener("scroll", handleScroll, { passive: true });
+    return () => container.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // Auto-scroll on every messages update unless user has scrolled up
+  useEffect(() => {
+    if (userScrolledUpRef.current) return;
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
-  {%- if cookiecutter.use_auth %}
   const { commands: slashCommands } = useSlashCommands();
-  {%- endif %}
 
   const handleRegenerate = useCallback(
     (assistantMessageId: string) => {
@@ -213,9 +217,7 @@ export function ChatContainer() {
       onThinkingEffortChange={setThinkingEffort}
       onRegenerate={handleRegenerate}
       slashContext={slashContext}
-      {%- if cookiecutter.use_auth %}
       slashCommands={slashCommands}
-      {%- endif %}
       queuedMessages={queuedMessages}
       onCancelQueued={cancelQueued}
       messagesEndRef={messagesEndRef}
@@ -280,14 +282,17 @@ function ChatUI({
   onStop,
 }: ChatUIProps) {
   const tc = useTranslations("common");
-{%- if cookiecutter.enable_deep_research %}
   const currentTurnId = useResearchStore((s) => s.currentTurnId);
   const hasPlanData = useResearchStore((s) => {
     if (!s.currentTurnId) return false;
     const t = s.byTurn[s.currentTurnId];
-    return (t?.todos.length ?? 0) > 0 || (t?.subagents.length ?? 0) > 0;
+    return (t?.todos.length ?? 0) > 0;
   });
-{%- endif %}
+  const hasSubagents = useResearchStore((s) => {
+    if (!s.currentTurnId) return false;
+    const t = s.byTurn[s.currentTurnId];
+    return (t?.subagents.length ?? 0) > 0;
+  });
   return (
     <div className="flex h-full w-full">
       <div className="mx-auto flex h-full max-w-5xl min-w-0 flex-1 flex-col">
@@ -304,15 +309,14 @@ function ChatUI({
           ) : (
             <MessageList messages={messages} onRegenerate={onRegenerate} />
           )}
+          {hasSubagents && currentTurnId && <SubagentFeed turnId={currentTurnId} />}
           <div ref={messagesEndRef} />
-        </div>
-{%- if cookiecutter.enable_deep_research %}
+        </div>{" "}
         {hasPlanData && currentTurnId && (
           <div className="px-2 pb-2 sm:px-4 sm:pb-2">
             <ResearchPanel turnId={currentTurnId} />
           </div>
         )}
-{%- endif %}
         {pendingApproval && onResumeDecisions && (
           <div className="px-2 pb-2 sm:px-4 sm:pb-2">
             <ToolApprovalDialog
@@ -323,7 +327,6 @@ function ChatUI({
             />
           </div>
         )}
-
         {pendingQuestions && pendingQuestions.length > 0 && onAnswerQuestions && (
           <div className="px-2 pb-2 sm:px-4 sm:pb-2">
             <QuestionPrompt
@@ -333,7 +336,6 @@ function ChatUI({
             />
           </div>
         )}
-
         <div className="px-2 pb-2 sm:px-4 sm:pb-4">
           {queuedMessages && queuedMessages.length > 0 && onCancelQueued && (
             <PendingMessages messages={queuedMessages} onCancel={onCancelQueued} />
@@ -382,6 +384,7 @@ function ChatUI({
       </div>
       <FilePreviewPanel />
       <SourcesPanel />
+      <SubagentPanel />
     </div>
   );
 }

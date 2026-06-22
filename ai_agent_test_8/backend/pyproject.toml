@@ -214,9 +214,6 @@ exclude_lines = [
     "\\.\\.\\.",
 ]
 
-[tool.uv.sources]
-pydantic-ai-todo = { path = "../../../pydantic-ai-todo", editable = true }
-
 [tool.fastapi-fullstack]
 generator_version = "0.2.12"
 generated_at = "2026-06-21T15:41:05.040089+00:00"

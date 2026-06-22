@@ -169,6 +169,12 @@ def create_chart_tool(
         series: Optional [{"key", "label"?, "color"?}] selecting fields to plot.
         x_key: Row field for the x-axis / pie label (default "x").
         style: Optional {"palette", "grid", "legend", "x_label", "y_label", "stacked"}.
+
+    Scatter charts: every data point MUST have numeric "x" and "y" fields.
+    To show categories with different colors, add a "category" string field to
+    each row and define one series per category where series key == category value.
+    Example: data=[{"x": 2.0, "y": 4.1, "category": "A"}, {"x": 3.5, "y": 2.8, "category": "B"}],
+    series=[{"key": "A", "label": "Group A"}, {"key": "B", "label": "Group B"}], x_key="x".
     """
     return create_chart(
         chart_type=chart_type,

@@ -3,11 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { nanoid } from "nanoid";
 import { useWebSocket } from "./use-websocket";
-{%- if cookiecutter.enable_rag %}
 import { useChatStore, useAuthStore, useKBSelectionStore } from "@/stores";
-{%- else %}
-import { useChatStore, useAuthStore } from "@/stores";
-{%- endif %}
 import type {
   AskUserAnswer,
   AskUserQuestion,
@@ -20,10 +16,8 @@ import type {
 import { WS_URL } from "@/lib/constants";
 import { setUrlParam } from "@/lib/utils";
 import { useConversationStore } from "@/stores";
-{%- if cookiecutter.enable_deep_research %}
 import { useResearchStore, useChatModeStore } from "@/stores";
 import type { ContextUsage, ResearchTodo, SubagentStatus } from "@/types";
-{%- endif %}
 /** A message the user typed while the agent was busy / socket offline.
  *  Held outside the chat history until the drainer ships it. */
 export interface QueuedMessage {
@@ -309,7 +303,6 @@ export function useChat(options: UseChatOptions = {}) {
           );
           break;
         }
-{%- if cookiecutter.enable_deep_research %}
 
         case "todo_event": {
           const { event_type, todo } = wsEvent.data as {
@@ -325,6 +318,11 @@ export function useChat(options: UseChatOptions = {}) {
           break;
         }
 
+        case "subagent_message": {
+          useResearchStore.getState().addSubagentMessage(wsEvent.data as import("@/types").SubagentMessage);
+          break;
+        }
+
         case "context_usage": {
           useResearchStore.getState().setContextUsage(wsEvent.data as ContextUsage);
           break;
@@ -334,7 +332,6 @@ export function useChat(options: UseChatOptions = {}) {
           useResearchStore.getState().incrementCompaction();
           break;
         }
-{%- endif %}
 
         case "complete": {
           setIsProcessing(false);
@@ -431,9 +428,7 @@ export function useChat(options: UseChatOptions = {}) {
         fileIds,
         files,
       });
-{%- if cookiecutter.enable_deep_research %}
       useResearchStore.getState().beginTurn(userMessageId);
-{%- endif %}
       setIsProcessing(true);
       const payload: Record<string, unknown> = {
         message: content,
@@ -443,13 +438,9 @@ export function useChat(options: UseChatOptions = {}) {
       if (modelRef.current) payload.model = modelRef.current;
       if (temperatureRef.current !== null) payload.temperature = temperatureRef.current;
       if (thinkingEffortRef.current !== null) payload.thinking_effort = thinkingEffortRef.current;
-{%- if cookiecutter.enable_rag %}
       const activeKBIds = useKBSelectionStore.getState().activeKBIds;
       if (activeKBIds.length) payload.active_knowledge_base_ids = activeKBIds;
-{%- endif %}
-{%- if cookiecutter.enable_deep_research %}
       payload.deep_research = useChatModeStore.getState().deepResearch;
-{%- endif %}
       sendMessage(payload);
     },
     [addMessage, sendMessage, conversationId],
@@ -541,9 +532,7 @@ export function useChat(options: UseChatOptions = {}) {
     setIsProcessing(false);
     setPendingApproval(null);
     setPendingQuestions(null);
-{%- if cookiecutter.enable_deep_research %}
     useResearchStore.getState().markCurrentTurnStopped();
-{%- endif %}
   }, [sendMessage, updateMessage, setCurrentMessageId]);
 
   // Drain message queue when processing finishes AND we're back online.

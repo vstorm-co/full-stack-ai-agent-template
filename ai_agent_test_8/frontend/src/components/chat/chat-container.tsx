@@ -11,6 +11,8 @@ import { SourcesPanel } from "./sources-panel";
 import { MessageList } from "./message-list";
 import { PendingMessages } from "./pending-messages";
 import { ResearchPanel } from "./research-panel";
+import { SubagentFeed } from "./subagent-feed";
+import { SubagentPanel } from "./subagent-panel";
 import { ToolApprovalDialog } from "./tool-approval-dialog";
 import { QuestionPrompt } from "@/components/ui";
 import type { PendingApproval, AskUserQuestion, AskUserAnswer, Decision } from "@/types";
@@ -59,6 +61,8 @@ export function ChatContainer() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  // true = user deliberately scrolled up; suppress auto-scroll until they return to bottom
+  const userScrolledUpRef = useRef(false);
 
   // Clear messages when conversation changes, but NOT when going from null to a new ID
   // (that happens when a new chat is saved - we want to keep the messages)
@@ -146,16 +150,23 @@ export function ChatContainer() {
     }
   }, [currentMessages, addChatMessage, clearMessages]);
 
+  // Track whether the user has manually scrolled up so we don't hijack their position
   useEffect(() => {
     const container = scrollContainerRef.current;
     if (!container) return;
-    // Only auto-scroll if user is already near the bottom
-    const isNearBottom =
-      container.scrollHeight - container.scrollTop - container.clientHeight <
-      SCROLL_NEAR_BOTTOM_THRESHOLD_PX;
-    if (isNearBottom) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }
+    const handleScroll = () => {
+      const distFromBottom =
+        container.scrollHeight - container.scrollTop - container.clientHeight;
+      userScrolledUpRef.current = distFromBottom > SCROLL_NEAR_BOTTOM_THRESHOLD_PX;
+    };
+    container.addEventListener("scroll", handleScroll, { passive: true });
+    return () => container.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // Auto-scroll on every messages update unless user has scrolled up
+  useEffect(() => {
+    if (userScrolledUpRef.current) return;
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
   const { commands: slashCommands } = useSlashCommands();
 
@@ -275,7 +286,12 @@ function ChatUI({
   const hasPlanData = useResearchStore((s) => {
     if (!s.currentTurnId) return false;
     const t = s.byTurn[s.currentTurnId];
-    return (t?.todos.length ?? 0) > 0 || (t?.subagents.length ?? 0) > 0;
+    return (t?.todos.length ?? 0) > 0;
+  });
+  const hasSubagents = useResearchStore((s) => {
+    if (!s.currentTurnId) return false;
+    const t = s.byTurn[s.currentTurnId];
+    return (t?.subagents.length ?? 0) > 0;
   });
   return (
     <div className="flex h-full w-full">
@@ -293,6 +309,7 @@ function ChatUI({
           ) : (
             <MessageList messages={messages} onRegenerate={onRegenerate} />
           )}
+          {hasSubagents && currentTurnId && <SubagentFeed turnId={currentTurnId} />}
           <div ref={messagesEndRef} />
         </div>{" "}
         {hasPlanData && currentTurnId && (
@@ -367,6 +384,7 @@ function ChatUI({
       </div>
       <FilePreviewPanel />
       <SourcesPanel />
+      <SubagentPanel />
     </div>
   );
 }

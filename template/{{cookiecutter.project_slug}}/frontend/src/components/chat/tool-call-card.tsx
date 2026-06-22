@@ -16,11 +16,15 @@ import {
   ChevronUp,
   Code2,
   MessageCircleQuestion,
+  Loader2,
+  CheckCircle2,
+  XCircle,
 {%- if cookiecutter.enable_charts %}
   BarChart3,
 {%- endif %}
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toolCaption } from "@/lib/agent-step-captions";
 {%- if cookiecutter.enable_charts %}
 import { ChartMessage, parseChartResult } from "./chart-message";
 {%- endif %}
@@ -179,8 +183,19 @@ export function ToolCallCard({ toolCall }: ToolCallCardProps) {
     setExpanded(true);
   };
 
+  // While still running: narrate what the agent is doing instead of the finished label,
+  // and swap the chevron/raw toggle for a spinner — the header becomes a step caption.
+  const isRunning = toolCall.status === "running" || toolCall.status === "pending";
+  const isError = toolCall.status === "error";
+  const liveCaption = toolCaption(toolCall.name);
+
   return (
-    <Card className="bg-muted/50">
+    <Card
+      className={cn(
+        "bg-muted/50 step-card-in",
+        isRunning && "border-brand/50 relative overflow-hidden",
+      )}
+    >
       <div
         role="button"
         tabIndex={0}
@@ -198,37 +213,68 @@ export function ToolCallCard({ toolCall }: ToolCallCardProps) {
           <ToolIcon
             className={cn(
               "h-4 w-4 shrink-0",
-              hasSpecialRenderer ? "text-primary" : "text-muted-foreground",
+              isRunning
+                ? "text-brand animate-pulse"
+                : hasSpecialRenderer
+                  ? "text-primary"
+                  : "text-muted-foreground",
             )}
           />
-          <span className="truncate text-sm font-medium">{friendlyName}</span>
-          {inputHint ? (
+          {isRunning ? (
+            <span className="text-foreground/80 flex min-w-0 items-center gap-1.5 text-sm font-medium">
+              <span className="truncate">{liveCaption}</span>
+              <span className="flex shrink-0 gap-0.5" aria-hidden="true">
+                <span className="bg-brand/70 h-1 w-1 animate-bounce rounded-full [animation-delay:0ms]" />
+                <span className="bg-brand/70 h-1 w-1 animate-bounce rounded-full [animation-delay:150ms]" />
+                <span className="bg-brand/70 h-1 w-1 animate-bounce rounded-full [animation-delay:300ms]" />
+              </span>
+            </span>
+          ) : (
+            <span className="truncate text-sm font-medium">{friendlyName}</span>
+          )}
+          {inputHint && !isRunning ? (
             <span className="text-muted-foreground min-w-0 flex-1 truncate text-xs italic">
               {inputHint}
             </span>
           ) : null}
         </div>
         <div className="flex shrink-0 items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            className={cn(
-              "text-muted-foreground hover:bg-foreground/10 hover:text-foreground h-6 w-6 transition-colors",
-              showRaw && "text-primary",
-            )}
-            onClick={toggleRaw}
-            title={showRaw ? "Show formatted view" : "Show arguments + raw output"}
-            aria-label={showRaw ? "Show formatted view" : "Show arguments and raw output"}
-          >
-            <Code2 className="h-3.5 w-3.5" />
-          </Button>
-          {expanded ? (
-            <ChevronUp className="text-muted-foreground h-4 w-4" />
+          {isRunning ? (
+            <Loader2 className="text-brand h-4 w-4 animate-spin" aria-label="Running" />
           ) : (
-            <ChevronDown className="text-muted-foreground h-4 w-4" />
+            <>
+              {isError ? (
+                <XCircle className="text-destructive pop-in h-4 w-4 shrink-0" aria-label="Failed" />
+              ) : (
+                <CheckCircle2 className="text-brand pop-in h-4 w-4 shrink-0" aria-label="Done" />
+              )}
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn(
+                  "text-muted-foreground hover:bg-foreground/10 hover:text-foreground h-6 w-6 transition-colors",
+                  showRaw && "text-primary",
+                )}
+                onClick={toggleRaw}
+                title={showRaw ? "Show formatted view" : "Show arguments + raw output"}
+                aria-label={showRaw ? "Show formatted view" : "Show arguments and raw output"}
+              >
+                <Code2 className="h-3.5 w-3.5" />
+              </Button>
+              {expanded ? (
+                <ChevronUp className="text-muted-foreground h-4 w-4" />
+              ) : (
+                <ChevronDown className="text-muted-foreground h-4 w-4" />
+              )}
+            </>
           )}
         </div>
       </div>
+
+      {/* Live progress shimmer — only while the step is in flight. */}
+      {isRunning && (
+        <div className="step-progress pointer-events-none absolute inset-x-0 bottom-0 h-0.5" />
+      )}
 
       {expanded && (
         <CardContent className="px-3 pt-0 pb-3">

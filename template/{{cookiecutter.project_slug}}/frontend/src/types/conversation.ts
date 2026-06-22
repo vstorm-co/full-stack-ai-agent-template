@@ -7,6 +7,7 @@ export interface Conversation {
   created_at: string;
   updated_at: string;
   is_archived: boolean;
+  is_demo: boolean;
   active_knowledge_base_ids?: string[];
 }
 
@@ -103,6 +104,7 @@ export interface AdminConversation {
   user_id?: string;
   title?: string;
   is_archived: boolean;
+  is_demo: boolean;
   message_count: number;
   user_email?: string;
   created_at: string;

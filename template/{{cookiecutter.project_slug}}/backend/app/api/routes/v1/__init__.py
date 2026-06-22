@@ -19,7 +19,7 @@ from app.api.routes.v1 import oauth
 from app.api.routes.v1 import sessions
 {%- endif %}
 {%- if cookiecutter.use_ai %}
-from app.api.routes.v1 import conversations
+from app.api.routes.v1 import conversations, public_demos
 {%- endif %}
 {%- if cookiecutter.use_jwt and cookiecutter.use_ai %}
 from app.api.routes.v1 import admin_conversations
@@ -104,6 +104,7 @@ v1_router.include_router(sessions.router, prefix="/sessions", tags=["sessions"])
 {%- if cookiecutter.use_ai %}
 
 v1_router.include_router(conversations.router, prefix="/conversations", tags=["conversations"])
+v1_router.include_router(public_demos.router, prefix="/demos", tags=["demos"])
 {%- endif %}
 
 {%- if cookiecutter.use_pydantic_deep and cookiecutter.use_jwt %}

@@ -20,6 +20,7 @@ from app.repositories import chat_file_repo, conversation_share_repo, message_ra
 from app.schemas.conversation import (
     ConversationCreate,
     ConversationUpdate,
+    DemoConversationSummary,
     MessageCreate,
     MessageRead,
     ToolCallCreate,
@@ -317,6 +318,7 @@ class ConversationService:
 {%- endif %}
                 title=conv.title,
                 is_archived=conv.is_archived,
+                is_demo=conv.is_demo,
                 message_count=msg_count,
                 user_email=email,
                 created_at=conv.created_at,
@@ -423,6 +425,38 @@ class ConversationService:
         conversation_id: UUID,
     ) -> Conversation:
         return await self.get_conversation(conversation_id, include_messages=True)
+
+    async def list_demo_conversations(
+        self, *, skip: int = 0, limit: int = 50
+    ) -> tuple[list[DemoConversationSummary], int]:
+        """List admin-curated demo conversations for the public gallery."""
+        rows, total = await conversation_repo.get_demo_conversations_with_count(
+            self.db, skip=skip, limit=limit
+        )
+        items = [
+            DemoConversationSummary(
+                id=conv.id,
+                title=conv.title,
+                message_count=msg_count,
+                preview=preview[:200] if preview else None,
+                created_at=conv.created_at,
+                updated_at=conv.updated_at,
+            )
+            for conv, msg_count, preview in rows
+        ]
+        return items, total
+
+    async def get_demo_conversation(self, conversation_id: UUID) -> Conversation:
+        """Get a single demo conversation with messages (public, no auth required)."""
+        conversation = await conversation_repo.get_conversation_by_id(
+            self.db, conversation_id, include_messages=True
+        )
+        if not conversation or not conversation.is_demo:
+            raise NotFoundError(
+                message="Demo not found",
+                details={"conversation_id": str(conversation_id)},
+            )
+        return conversation
 
     async def get_message(self, message_id: UUID) -> Message:
         message = await conversation_repo.get_message_by_id(self.db, message_id)

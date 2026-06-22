@@ -143,6 +143,50 @@ async def export_chunk(
     return list(result.scalars().all())
 
 
+async def get_demo_conversations_with_count(
+    db: AsyncSession,
+    *,
+    skip: int = 0,
+    limit: int = 50,
+) -> tuple[list[tuple[Conversation, int, str | None]], int]:
+    """Get admin-curated demo conversations with message count + first user prompt preview."""
+    message_count_subq = (
+        select(func.count(Message.id))
+        .where(Message.conversation_id == Conversation.id)
+        .correlate(Conversation)
+        .scalar_subquery()
+    )
+    preview_subq = (
+        select(Message.content)
+        .where(Message.conversation_id == Conversation.id, Message.role == "user")
+        .correlate(Conversation)
+        .order_by(Message.created_at.asc())
+        .limit(1)
+        .scalar_subquery()
+    )
+    query = (
+        select(
+            Conversation,
+            message_count_subq.label("message_count"),
+            preview_subq.label("preview"),
+        )
+        .where(Conversation.is_demo.is_(True))
+        .order_by(func.coalesce(Conversation.updated_at, Conversation.created_at).desc())
+        .offset(skip)
+        .limit(limit)
+    )
+    result = await db.execute(query)
+    rows = result.all()
+
+    total: int = (
+        await db.execute(
+            select(func.count(Conversation.id)).where(Conversation.is_demo.is_(True))
+        )
+    ).scalar() or 0
+
+    return [tuple(row) for row in rows], total  # type: ignore[return-value]
+
+
 async def admin_list_with_users(
     db: AsyncSession,
     *,

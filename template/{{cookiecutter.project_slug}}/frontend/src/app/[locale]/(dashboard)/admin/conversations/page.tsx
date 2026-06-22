@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { toast } from "sonner";
 import {
   ArrowDown,
   ArrowUp,
@@ -10,6 +11,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ExternalLink,
+  Play,
   Search,
 } from "lucide-react";
 
@@ -93,10 +95,71 @@ function SortButton({
   );
 }
 
+function DemoToggle({ conv, onToggle }: { conv: Conversation; onToggle: (id: string, isDemo: boolean) => void }) {
+  const [busy, setBusy] = useState(false);
+  const toggle = async () => {
+    setBusy(true);
+    try {
+      const next = !conv.is_demo;
+      const res = await fetch(`/api/admin/conversations/${conv.id}/demo?is_demo=${next}`, {
+        method: "PATCH",
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        toast.error(body?.detail ?? `Failed (${res.status})`);
+        return;
+      }
+      onToggle(conv.id, next);
+      toast.success(next ? "Added to demos" : "Removed from demos");
+    } catch {
+      toast.error("Network error — could not update demo status");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <button
+        type="button"
+        disabled={busy}
+        onClick={toggle}
+        title={conv.is_demo ? "Remove from demos" : "Add to demos"}
+        className={cn(
+          "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium transition-colors",
+          conv.is_demo
+            ? "bg-brand/10 text-brand hover:bg-brand/20"
+            : "bg-muted text-muted-foreground hover:bg-muted/70",
+          busy && "cursor-not-allowed opacity-50",
+        )}
+      >
+        <Play className="h-2.5 w-2.5" />
+        {conv.is_demo ? "In demos" : "Add demo"}
+      </button>
+      {conv.is_demo && (
+        <Link
+          href={`/demo/${conv.id}`}
+          target="_blank"
+          title="Watch demo"
+          className="text-brand/70 hover:text-brand transition-colors"
+        >
+          <ExternalLink className="h-3 w-3" />
+        </Link>
+      )}
+    </span>
+  );
+}
+
 export default function AdminConversationsPage() {
   const t = useTranslations("admin");
-  const { conversations, conversationsTotal, users, isLoading, fetchConversations, fetchUsers } =
+  const { conversations: rawConversations, conversationsTotal, users, isLoading, fetchConversations, fetchUsers } =
     useAdminConversations();
+  const [localDemoState, setLocalDemoState] = useState<Record<string, boolean>>({});
+  const conversations = useMemo(
+    () => rawConversations.map((c) => ({ ...c, is_demo: localDemoState[c.id] ?? c.is_demo ?? false })),
+    [rawConversations, localDemoState],
+  );
+  const handleDemoToggle = (id: string, isDemo: boolean) =>
+    setLocalDemoState((prev) => ({ ...prev, [id]: isDemo }));
 
   const [search, setSearch] = useState("");
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
@@ -219,6 +282,13 @@ export default function AdminConversationsPage() {
           ),
       },
       {
+        key: "demo",
+        align: "right",
+        hideBelow: "sm",
+        header: "Demo",
+        cell: (conv) => <DemoToggle conv={conv} onToggle={handleDemoToggle} />,
+      },
+      {
         key: "actions",
         align: "right",
         header: "",
@@ -233,7 +303,7 @@ export default function AdminConversationsPage() {
         ),
       },
     ],
-    [sort.by, sort.dir, t],
+    [sort.by, sort.dir, t, handleDemoToggle],
   );
 
   return (

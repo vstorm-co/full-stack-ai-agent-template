@@ -62,6 +62,7 @@ class AdminConversationRead(BaseSchema):
 {%- endif %}
     title: str | None = None
     is_archived: bool = False
+    is_demo: bool = False
     message_count: int = 0
     user_email: str | None = None
     created_at: datetime

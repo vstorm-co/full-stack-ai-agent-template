@@ -5,7 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, Query
 
 from app.api.deps import ConversationSvc, CurrentAdmin
-from app.schemas.conversation import ConversationReadWithMessages
+from app.schemas.conversation import ConversationRead, ConversationReadWithMessages, ConversationUpdate
 from app.schemas.conversation_share import AdminConversationList
 
 router = APIRouter()
@@ -48,6 +48,24 @@ async def admin_get_conversation(
 ) -> Any:
     """Get any conversation with messages (admin read-only access)."""
     return await service.get_conversation_with_messages(conversation_id)
+
+
+@router.patch("/{conversation_id}/demo", response_model=ConversationRead)
+async def admin_set_demo_flag(
+    conversation_id: UUID,
+    service: ConversationSvc,
+    _: CurrentAdmin,
+    is_demo: bool = Query(..., description="Mark (true) or unmark (false) as a public demo"),
+) -> Any:
+    """Toggle a conversation's public-demo flag (admin only).
+
+    Demo conversations are served without auth on the public demo gallery for replay.
+    """
+    return await service.update_conversation(
+        conversation_id,
+        ConversationUpdate(is_demo=is_demo),
+        user_id=None,  # admin bypass — no ownership check
+    )
 
 
 {%- else %}

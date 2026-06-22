@@ -697,6 +697,49 @@
 }
 
 /* =========================================================================
+   Agent step animations — used by ToolCallCard and the demo replay player.
+   step-card-in  : card entrance (tool call appears in the timeline)
+   step-reveal   : item entrance (result rows drop in one by one)
+   step-progress : indeterminate shimmer bar on the card bottom while running
+   pop-in        : small icon pop (outcome marker ✓ / ✕)
+   ========================================================================= */
+
+  .step-card-in {
+    animation: step-card-in var(--duration-slow) var(--ease-spring) both;
+  }
+  @keyframes step-card-in {
+    0% { opacity: 0; transform: translateY(10px) scale(0.94); }
+    60% { opacity: 1; }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .step-reveal {
+    animation: step-reveal var(--duration-base) var(--ease-out) both;
+  }
+  @keyframes step-reveal {
+    from { opacity: 0; transform: translateY(6px) scale(0.985); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .step-progress {
+    background-image: linear-gradient(90deg, transparent, var(--color-brand) 50%, transparent);
+    background-size: 40% 100%;
+    animation: step-progress 1.1s var(--ease-out) infinite;
+  }
+  @keyframes step-progress {
+    0%   { background-position: -50% 0; }
+    100% { background-position: 150% 0; }
+  }
+
+  .pop-in {
+    animation: pop-in var(--duration-base) var(--ease-spring) both;
+  }
+  @keyframes pop-in {
+    from { opacity: 0; transform: scale(0.6); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+
+/* =========================================================================
    Reduced-motion — strip every long-running animation. Honors a11y opt-in.
    ========================================================================= */
 

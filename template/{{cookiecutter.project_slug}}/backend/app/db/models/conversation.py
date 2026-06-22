@@ -247,6 +247,7 @@ class Conversation(Base, TimestampMixin):
 {%- endif %}
     title: Mapped[str | None] = mapped_column(String(255), nullable=True)
     is_archived: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    is_demo: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, index=True)
 {%- if cookiecutter.enable_teams and cookiecutter.enable_rag and cookiecutter.use_jwt %}
     active_knowledge_base_ids: Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)
 {%- endif %}

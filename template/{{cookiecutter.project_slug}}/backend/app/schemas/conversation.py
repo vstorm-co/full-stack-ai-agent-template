@@ -154,6 +154,7 @@ class ConversationUpdate(BaseSchema):
 
     title: str | None = Field(default=None, max_length=255)
     is_archived: bool | None = None
+    is_demo: bool | None = None
 {%- if cookiecutter.enable_teams and cookiecutter.enable_rag and cookiecutter.use_jwt %}
     active_knowledge_base_ids: list[UUID] | None = Field(
         default=None,
@@ -193,6 +194,7 @@ class ConversationRead(ConversationBase, TimestampSchema):
     organization_id: UUID | None = None
 {%- endif %}
     is_archived: bool = False
+    is_demo: bool = False
 {%- if cookiecutter.enable_teams and cookiecutter.enable_rag and cookiecutter.use_jwt %}
     active_knowledge_base_ids: list[str] | None = None
 {%- endif %}
@@ -238,4 +240,22 @@ class ConversationAdminList(BaseSchema):
 
 class ConversationExport(BaseSchema):
     conversations: list[Any]
+    total: int
+
+
+class DemoConversationSummary(BaseSchema):
+    """Lightweight card for the public demo gallery."""
+
+    id: UUID
+    title: str | None = None
+    message_count: int = 0
+    preview: str | None = Field(default=None, description="First user prompt, truncated to 200 chars")
+    created_at: datetime
+    updated_at: datetime | None = None
+
+
+class DemoConversationList(BaseSchema):
+    """Paginated list of public demo conversations."""
+
+    items: list[DemoConversationSummary]
     total: int

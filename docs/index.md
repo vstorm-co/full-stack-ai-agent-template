@@ -1,4 +1,4 @@
-<h1 align="center">FastAPI Fullstack</h1>
+<h1 align="center">Full-Stack AI Agent Template</h1>
 <p align="center">
   <em>Production-Ready AI/LLM Applications — In Minutes, Not Weeks</em>
 </p>
@@ -12,11 +12,11 @@
 
 ---
 
-**FastAPI Fullstack** is a production-ready project generator for AI/LLM applications with 25+ enterprise integrations. Built with FastAPI, Next.js 15, and your choice of AI framework.
+**Full-Stack AI Agent Template** is a production-ready project generator for AI/LLM applications with 25+ enterprise integrations. Built with FastAPI, Next.js 15, and your choice of AI framework. Install it as the `fastapi-fullstack` CLI.
 
 Generate complete, type-safe applications with authentication, WebSocket streaming, observability, and deployment configs — all in minutes.
 
-## Why FastAPI Fullstack?
+## Why this template?
 
 1. **AI-First Design**: Native support for PydanticAI, LangChain, LangGraph, DeepAgents with WebSocket streaming and conversation persistence.
 

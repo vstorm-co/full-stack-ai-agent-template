@@ -256,9 +256,7 @@ Use `make help` to see all available Makefile shortcuts.
 
 **CLI generator** — configure and scaffold a project in seconds:
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/app_start.gif" alt="FastAPI Fullstack Generator Demo">
-</p>
+<video src="https://github.com/vstorm-co/full-stack-ai-agent-template/raw/main/assets/new3/cli_generator_demo_2.mp4" controls muted width="100%"></video>
 
 ---
 

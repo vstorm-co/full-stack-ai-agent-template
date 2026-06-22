@@ -1,4 +1,4 @@
-site_name: FastAPI Fullstack
+site_name: Full-Stack AI Agent Template
 site_description: Production-Ready AI/LLM Applications — In Minutes, Not Weeks
 site_url: https://vstorm-co.github.io/full-stack-ai-agent-template/
 repo_url: https://github.com/vstorm-co/full-stack-ai-agent-template
@@ -139,8 +139,9 @@ extra_css:
   - stylesheets/extra.css
 
 nav:
-  - FastAPI Fullstack: index.md
+  - Home: index.md
   - Installation: installation.md
+  - Screenshots: gallery.md
   - Getting Help: getting-help.md
   - Concepts:
     - Overview: concepts/index.md

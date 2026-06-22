@@ -340,7 +340,7 @@ is needed.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `CHANNEL_ENCRYPTION_KEY` | (empty) | Fernet key for encrypting bot tokens. Generate with: `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` |
+| `CHANNEL_ENCRYPTION_KEY` | (empty) | Fernet key for encrypting bot tokens and sync-source connector credentials at rest. Generate with: `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` |
 {%- if cookiecutter.use_telegram %}
 | `TELEGRAM_WEBHOOK_BASE_URL` | (empty) | Base URL for Telegram webhook (e.g. `https://yourdomain.com`). Required only in webhook mode |
 {%- endif %}

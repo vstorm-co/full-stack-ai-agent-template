@@ -185,7 +185,7 @@ Requires the `admin` role.
 
 ## Background Tasks & Orchestration
 
-With `--background-tasks prefect`, the project ships a self-hosted Prefect server and runner with scheduled flows for RAG sync, billing/email reminders, and credits maintenance.
+Choose Prefect as your task queue (in the interactive wizard) and the project ships a self-hosted Prefect server and runner with scheduled flows for RAG sync, billing/email reminders, and credits maintenance.
 
 ![Prefect dashboard](screenshots/prefect_dashboard.png){.shot}
 

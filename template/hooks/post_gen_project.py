@@ -162,6 +162,7 @@ if not enable_subagents and use_frontend:
 
 if not use_ai:
     remove_dir(os.path.join(backend_app, "agents"))
+    remove_dir(os.path.join(os.getcwd(), ".claude", "skills", "agent-tool"))
     remove_file(os.path.join(backend_app, "services", "agent.py"))
     remove_file(os.path.join(backend_app, "services", "agent_session.py"))
     remove_file(os.path.join(backend_app, "services", "agent_invocation.py"))
@@ -234,6 +235,9 @@ if not use_ai:
             )
         )
 
+if not use_database:
+    remove_dir(os.path.join(os.getcwd(), ".claude", "skills", "alembic-migration"))
+
 if not enable_webhooks or not use_database:
     remove_file(os.path.join(backend_app, "api", "routes", "v1", "webhooks.py"))
     remove_file(os.path.join(backend_app, "db", "models", "webhook.py"))
@@ -289,6 +293,7 @@ if not enable_logfire:
 
 if not enable_rag:
     remove_dir(os.path.join(backend_app, "services", "rag"))
+    remove_dir(os.path.join(os.getcwd(), ".claude", "skills", "rag-knowledge"))
     remove_file(os.path.join(backend_app, "api", "routes", "v1", "rag.py"))
     remove_file(os.path.join(backend_app, "schemas", "rag.py"))
     remove_file(os.path.join(backend_app, "commands", "rag.py"))
@@ -351,6 +356,7 @@ if not use_slack:
 
 if not use_telegram and not use_slack:
     remove_dir(os.path.join(backend_app, "services", "channels"))
+    remove_dir(os.path.join(os.getcwd(), ".claude", "skills", "channel-bot"))
     remove_file(os.path.join(backend_app, "api", "routes", "v1", "channels.py"))
     remove_file(os.path.join(backend_app, "core", "channel_crypto.py"))
     remove_file(os.path.join(backend_app, "commands", "channel.py"))
@@ -406,6 +412,7 @@ for root, _dirs, files in os.walk(backend_app):
 use_any_background_tasks = use_celery or use_taskiq or use_arq or use_prefect
 worker_dir = os.path.join(backend_app, "worker")
 if not use_any_background_tasks:
+    remove_dir(os.path.join(os.getcwd(), ".claude", "skills", "background-task"))
     remove_file(os.path.join(worker_dir, "celery_app.py"))
     remove_file(os.path.join(worker_dir, "taskiq_app.py"))
     remove_file(os.path.join(worker_dir, "arq_app.py"))
@@ -511,6 +518,7 @@ if not use_frontend:
         shutil.rmtree(frontend_dir)
         print("Removed frontend/ directory (frontend not enabled)")
     remove_file(os.path.join(os.getcwd(), ".claude", "rules", "frontend.md"))
+    remove_dir(os.path.join(os.getcwd(), ".claude", "skills", "frontend-feature"))
 
 
 if not generate_env:
@@ -738,6 +746,7 @@ if not enable_teams:
         remove_file(os.path.join(frontend_src, "components", "dashboard", "team-summary.tsx"))
 
 if not enable_billing:
+    remove_dir(os.path.join(os.getcwd(), ".claude", "skills", "billing-stripe"))
     remove_file(os.path.join(backend_app, "schemas", "billing.py"))
     remove_file(os.path.join(backend_app, "api", "routes", "v1", "billing.py"))
     remove_file(os.path.join(backend_tests, "test_stripe_seats.py"))

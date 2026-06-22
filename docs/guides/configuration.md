@@ -8,10 +8,10 @@ All available options when generating a project.
 |--------|--------|-------------|
 | `--database` | `postgresql`, `none` | Async PostgreSQL (SQLAlchemy 2.0 + Alembic) |
 | `--orm` | `sqlalchemy`, `sqlmodel` | ORM choice (SQLModel for simplified syntax) |
-| `--oauth` | `none`, `google` | OAuth2 social login |
+| `--oauth-google` | flag | Enable Google OAuth2 login |
 | `--ai-framework` | `pydantic_ai`, `pydantic_deep`, `langchain`, `langgraph`, `deepagents` | AI agent framework |
 | `--llm-provider` | `openai`, `anthropic`, `google`, `openrouter` | LLM provider |
-| `--background-tasks` | `none`, `celery`, `taskiq`, `arq`, `prefect` | Background task queue / orchestration |
+| `--task-queue` | `none`, `celery`, `taskiq`, `arq` | Background task queue (Redis-backed). **Prefect** is available via the interactive wizard. |
 | `--frontend` | `none`, `nextjs` | Frontend framework |
 
 ## Presets
@@ -68,7 +68,11 @@ fastapi-fullstack create my_app --database postgresql
 | `prefect` | Workflow orchestration — self-hosted server + runner, cron/interval scheduled flows, web UI on `:4200`. Set `PREFECT_API_KEY` to use Prefect Cloud |
 
 ```bash
-fastapi-fullstack create my_app --background-tasks prefect
+# celery / taskiq / arq via the create flag
+fastapi-fullstack create my_app --task-queue celery --redis
+
+# Prefect is selected through the interactive wizard
+fastapi-fullstack
 ```
 
 ## Messaging Channels

@@ -188,8 +188,15 @@ The generated project ships a Click CLI exposed as `{{ cookiecutter.project_slug
 {%- if cookiecutter.background_tasks == "celery" %}
 {{ cookiecutter.project_slug }} celery worker                # start worker
 {{ cookiecutter.project_slug }} celery beat                  # start scheduler
+{%- elif cookiecutter.background_tasks == "taskiq" %}
+{{ cookiecutter.project_slug }} taskiq worker                # start worker
+{{ cookiecutter.project_slug }} taskiq scheduler             # start scheduler
 {%- endif %}
 ```
+{%- if cookiecutter.background_tasks == "prefect" %}
+
+Background work runs on **Prefect** — the `prefect-server` (UI at <http://localhost:4200>) and `prefect-runner` containers start with `make dev`. Flows live in `app/worker/tasks/` and are registered in `app/worker/prefect_app.py`.
+{%- endif %}
 
 Run `make help` for a categorized list, or `{{ cookiecutter.project_slug }} --help` for full CLI docs.
 
@@ -264,6 +271,11 @@ For production, **never** commit secrets — `backend/.env` is gitignored. Fill 
 | `make celery-worker` | Run Celery worker locally |
 | `make celery-beat` | Run Celery beat |
 | `make celery-flower` | Open Flower UI at <http://localhost:5555> |
+{%- elif cookiecutter.background_tasks == "taskiq" %}
+| `make taskiq-worker` | Run Taskiq worker locally |
+| `make taskiq-scheduler` | Run Taskiq scheduler |
+{%- elif cookiecutter.background_tasks == "prefect" %}
+| `make dev` | Starts the Prefect server + runner (UI at <http://localhost:4200>) |
 {%- endif %}
 
 ---

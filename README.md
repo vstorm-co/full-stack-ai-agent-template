@@ -413,7 +413,7 @@ The chat UI streams responses over WebSocket and renders each tool call as a pur
 
 ### Background Tasks & Orchestration
 
-**Prefect** — With `--background-tasks prefect`, the project ships a self-hosted Prefect server and runner. Flows cover RAG ingestion/sync, billing & email reminders, and credits maintenance, each on a cron/interval schedule visible in the Prefect UI.
+**Prefect** — Choose Prefect as your task queue (in the interactive wizard) and the project ships a self-hosted Prefect server and runner. Flows cover RAG ingestion/sync, billing & email reminders, and credits maintenance, each on a cron/interval schedule visible in the Prefect UI.
 
 ![Prefect dashboard](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/prefect_dashboard.png)
 ![Prefect flow runs](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/prefect_runs.png)
@@ -469,6 +469,12 @@ This template gives you all of that out of the box, with **20+ configurable inte
 ### AI-Agent Friendly
 
 Generated projects include **CLAUDE.md** and **AGENTS.md** files optimized for AI coding assistants (Claude Code, Codex, Copilot, Cursor, Zed). Following [progressive disclosure](https://humanlayer.dev/blog/writing-a-good-claude-md) best practices - concise project overview with pointers to detailed docs when needed.
+
+They also ship a ready-to-use **`.claude/` toolkit** that adapts to the options you selected:
+
+- **Agent Skills** (`.claude/skills/`) — model-invoked playbooks that auto-trigger when relevant: `alembic-migration`, `pytest-suite`, `agent-tool` (framework-aware), `frontend-feature`, `rag-knowledge`, `background-task` (queue-aware), `billing-stripe`, and `channel-bot`. Feature-gated — only the skills that match your stack are generated.
+- **Slash commands** (`.claude/commands/`) — `/add-endpoint`, `/fix-issue`, `/review`.
+- **Convention rules** (`.claude/rules/`) — architecture, code style, schemas, exceptions/security, testing, and frontend conventions, loaded automatically.
 
 ---
 

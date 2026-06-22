@@ -29,15 +29,20 @@ Generate complete, type-safe applications with authentication, WebSocket streami
 ## Quick Start
 
 ```bash
-# Install
-pip install fastapi-fullstack
+# 1. Install the generator
+uv tool install fastapi-fullstack    # or: pipx install / pip install
 
-# Create project with interactive wizard
-fastapi-fullstack new
+# 2. Generate your project (interactive wizard)
+fastapi-fullstack
 
-# Or use presets
-fastapi-fullstack create my_app --preset ai-agent
+# 3. Backend + PostgreSQL up, migrations applied, admin seeded
+cd my_app && make bootstrap
+
+# 4. Frontend (second terminal)
+cd frontend && bun install && bun dev
 ```
+
+See the [Quick Start guide](guides/quick-start.md) for details and the [Installation page](installation.md) for presets and non-interactive flags.
 
 ## Supported AI Frameworks
 

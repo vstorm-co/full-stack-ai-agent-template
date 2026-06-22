@@ -10,7 +10,10 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.repositories import conversation_repo, knowledge_base_repo
+from app.repositories import conversation_repo
+{%- if cookiecutter.enable_teams and cookiecutter.enable_rag %}
+from app.repositories import knowledge_base_repo
+{%- endif %}
 {%- if cookiecutter.use_pydantic_ai %}
 from app.agents.assistant import Deps, get_agent
 from app.services.agent import build_message_history

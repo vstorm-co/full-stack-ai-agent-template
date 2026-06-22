@@ -3,8 +3,10 @@ import logging
 from typing import Any
 from uuid import UUID
 
+{%- if cookiecutter.enable_pagination %}
 from fastapi_pagination import Page
 from fastapi_pagination.ext.sqlalchemy import paginate
+{%- endif %}
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -66,8 +68,10 @@ class UserService:
     ) -> list[User]:
         return await user_repo.get_multi(self.db, skip=skip, limit=limit)
 
+{%- if cookiecutter.enable_pagination %}
     async def list_paginated(self) -> Page[UserRead]:
         return await paginate(self.db, user_repo.list_query())
+{%- endif %}
 
     async def delete_non_admins(self) -> int:
         return await user_repo.delete_non_admins(self.db)

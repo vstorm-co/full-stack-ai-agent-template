@@ -27,6 +27,7 @@ depends_on = None
 
 
 def upgrade() -> None:
+{%- if cookiecutter.enable_rag %}
     op.add_column(
         "sync_sources",
         sa.Column(
@@ -35,6 +36,7 @@ def upgrade() -> None:
             nullable=True,
         ),
     )
+{%- if cookiecutter.enable_teams %}
     op.create_foreign_key(
         "sync_sources_organization_id_fkey",
         "sync_sources",
@@ -43,16 +45,24 @@ def upgrade() -> None:
         ["id"],
         ondelete="CASCADE",
     )
+{%- endif %}
     op.create_index("ix_sync_sources_organization_id", "sync_sources", ["organization_id"])
-
     op.alter_column("sync_sources", "collection_name", nullable=True)
+{%- else %}
+    pass
+{%- endif %}
 
 
 def downgrade() -> None:
+{%- if cookiecutter.enable_rag %}
     # Restore NOT NULL (set empty string for any nulls first)
     op.execute("UPDATE sync_sources SET collection_name = '' WHERE collection_name IS NULL")
     op.alter_column("sync_sources", "collection_name", nullable=False)
-
     op.drop_index("ix_sync_sources_organization_id", table_name="sync_sources")
+{%- if cookiecutter.enable_teams %}
     op.drop_constraint("sync_sources_organization_id_fkey", "sync_sources", type_="foreignkey")
+{%- endif %}
     op.drop_column("sync_sources", "organization_id")
+{%- else %}
+    pass
+{%- endif %}

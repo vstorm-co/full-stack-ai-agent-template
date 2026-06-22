@@ -67,6 +67,22 @@ export interface MessagePart {
   toolCall?: ToolCall;
 }
 
+export interface MapMarker {
+  lat: number;
+  lng: number;
+  label: string;
+  description?: string | null;
+  color?: string | null;
+}
+
+export interface MapSpec {
+  kind: "map";
+  title: string;
+  markers: MapMarker[];
+  center?: [number, number] | null;
+  zoom?: number | null;
+}
+
 export type ChartType = "line" | "bar" | "pie" | "area" | "scatter";
 
 export interface ChartSeries {

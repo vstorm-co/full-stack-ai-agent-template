@@ -362,7 +362,7 @@ class TestConversationServiceArchive:
             result = await service.archive_conversation(conv_id)
 
             assert result.is_archived is True
-            mock_repo.archive_conversation.assert_called_once_with(service.db, conv_id)
+            mock_repo.archive_conversation.assert_called_once_with(service.db, db_conversation=mock_conv)
 
     @pytest.mark.anyio
     async def test_archive_nonexistent_conversation_raises(self, service: ConversationService):
@@ -372,19 +372,6 @@ class TestConversationServiceArchive:
 
             with pytest.raises(NotFoundError):
                 await service.archive_conversation(uuid4())
-
-    @pytest.mark.anyio
-    async def test_archive_repo_returns_none_raises(self, service: ConversationService):
-        """archive_conversation raises NotFoundError when repo returns None."""
-        conv_id = uuid4()
-        mock_conv = MockConversation(id=conv_id)
-
-        with patch("app.services.conversation.conversation_repo") as mock_repo:
-            mock_repo.get_conversation_by_id = AsyncMock(return_value=mock_conv)
-            mock_repo.archive_conversation = AsyncMock(return_value=None)
-
-            with pytest.raises(NotFoundError):
-                await service.archive_conversation(conv_id)
 
 {%- if cookiecutter.use_jwt %}
 
@@ -427,12 +414,12 @@ class TestConversationServiceDelete:
 
         with patch("app.services.conversation.conversation_repo") as mock_repo:
             mock_repo.get_conversation_by_id = AsyncMock(return_value=mock_conv)
-            mock_repo.delete_conversation = AsyncMock(return_value=True)
+            mock_repo.delete_conversation = AsyncMock(return_value=None)
 
             result = await service.delete_conversation(conv_id)
 
             assert result is True
-            mock_repo.delete_conversation.assert_called_once_with(service.db, conv_id)
+            mock_repo.delete_conversation.assert_called_once_with(service.db, db_conversation=mock_conv)
 
     @pytest.mark.anyio
     async def test_delete_nonexistent_conversation_raises(self, service: ConversationService):
@@ -442,19 +429,6 @@ class TestConversationServiceDelete:
 
             with pytest.raises(NotFoundError):
                 await service.delete_conversation(uuid4())
-
-    @pytest.mark.anyio
-    async def test_delete_repo_returns_false_raises(self, service: ConversationService):
-        """delete_conversation raises NotFoundError when repo returns False."""
-        conv_id = uuid4()
-        mock_conv = MockConversation(id=conv_id)
-
-        with patch("app.services.conversation.conversation_repo") as mock_repo:
-            mock_repo.get_conversation_by_id = AsyncMock(return_value=mock_conv)
-            mock_repo.delete_conversation = AsyncMock(return_value=False)
-
-            with pytest.raises(NotFoundError):
-                await service.delete_conversation(conv_id)
 
 {%- if cookiecutter.use_jwt %}
 

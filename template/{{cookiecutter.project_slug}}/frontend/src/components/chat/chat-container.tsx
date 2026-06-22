@@ -10,14 +10,20 @@ import { FilePreviewPanel } from "./file-preview-panel";
 import { SourcesPanel } from "./sources-panel";
 import { MessageList } from "./message-list";
 import { PendingMessages } from "./pending-messages";
+{%- if cookiecutter.enable_todo %}
 import { ResearchPanel } from "./research-panel";
+{%- endif %}
+{%- if cookiecutter.enable_subagents %}
 import { SubagentFeed } from "./subagent-feed";
 import { SubagentPanel } from "./subagent-panel";
+{%- endif %}
 import { ToolApprovalDialog } from "./tool-approval-dialog";
 import { QuestionPrompt } from "@/components/ui";
 import type { PendingApproval, AskUserQuestion, AskUserAnswer, Decision } from "@/types";
 import { useConversationStore, useChatStore } from "@/stores";
+{%- if cookiecutter.enable_deep_research %}
 import { useResearchStore } from "@/stores";
+{%- endif %}
 import { useConversations } from "@/hooks";
 import { useSlashCommands } from "@/hooks";
 
@@ -86,7 +92,9 @@ export function ChatContainer() {
 
     if (shouldClear) {
       clearMessages();
+{%- if cookiecutter.enable_deep_research %}
       useResearchStore.getState().resetAll();
+{%- endif %}
       // Drop any pending queue when switching threads — those messages were
       // typed in the previous conversation's context, sending them into a
       // different conversation would surprise the user.
@@ -282,17 +290,23 @@ function ChatUI({
   onStop,
 }: ChatUIProps) {
   const tc = useTranslations("common");
+{%- if cookiecutter.enable_deep_research %}
   const currentTurnId = useResearchStore((s) => s.currentTurnId);
+{%- endif %}
+{%- if cookiecutter.enable_todo and cookiecutter.enable_deep_research %}
   const hasPlanData = useResearchStore((s) => {
     if (!s.currentTurnId) return false;
     const t = s.byTurn[s.currentTurnId];
     return (t?.todos.length ?? 0) > 0;
   });
+{%- endif %}
+{%- if cookiecutter.enable_subagents and cookiecutter.enable_deep_research %}
   const hasSubagents = useResearchStore((s) => {
     if (!s.currentTurnId) return false;
     const t = s.byTurn[s.currentTurnId];
     return (t?.subagents.length ?? 0) > 0;
   });
+{%- endif %}
   return (
     <div className="flex h-full w-full">
       <div className="mx-auto flex h-full max-w-5xl min-w-0 flex-1 flex-col">
@@ -309,14 +323,18 @@ function ChatUI({
           ) : (
             <MessageList messages={messages} onRegenerate={onRegenerate} />
           )}
+{%- if cookiecutter.enable_subagents and cookiecutter.enable_deep_research %}
           {hasSubagents && currentTurnId && <SubagentFeed turnId={currentTurnId} />}
+{%- endif %}
           <div ref={messagesEndRef} />
         </div>{" "}
+{%- if cookiecutter.enable_todo and cookiecutter.enable_deep_research %}
         {hasPlanData && currentTurnId && (
           <div className="px-2 pb-2 sm:px-4 sm:pb-2">
             <ResearchPanel turnId={currentTurnId} />
           </div>
         )}
+{%- endif %}
         {pendingApproval && onResumeDecisions && (
           <div className="px-2 pb-2 sm:px-4 sm:pb-2">
             <ToolApprovalDialog
@@ -384,7 +402,9 @@ function ChatUI({
       </div>
       <FilePreviewPanel />
       <SourcesPanel />
+{%- if cookiecutter.enable_subagents %}
       <SubagentPanel />
+{%- endif %}
     </div>
   );
 }

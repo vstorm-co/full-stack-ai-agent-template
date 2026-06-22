@@ -13,9 +13,6 @@ from pathlib import Path
 from app.db.session import get_db_context
 from app.services.rag.connectors import CONNECTOR_REGISTRY
 from app.services.rag.ingestion import IngestionService
-from app.services.rag_document import RAGDocumentService
-from app.services.rag_sync import RAGSyncService
-from app.services.sync_source import SyncSourceService
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +26,8 @@ async def ingest_document_in_background(
     replace: bool,
 ) -> None:
     """Ingest a single document into the vector store and update its DB record."""
+    from app.services.rag_document import RAGDocumentService
+
     try:
         result = await IngestionService.from_settings().ingest_file(
             filepath=Path(filepath),
@@ -56,6 +55,8 @@ async def sync_local_in_background(
     path: str,
 ) -> None:
     """Sync a local directory into a collection and update the sync log."""
+    from app.services.rag_sync import RAGSyncService
+
     svc = IngestionService.from_settings()
     ingested = skipped = failed = total = 0
 
@@ -95,6 +96,9 @@ async def sync_local_in_background(
 
 async def sync_source_in_background(source_id: str, sync_log_id: str) -> None:
     """Execute a configured connector source and update the sync log."""
+    from app.services.rag_sync import RAGSyncService
+    from app.services.sync_source import SyncSourceService
+
     async with get_db_context() as db:
         source_svc = SyncSourceService(db)
         sync_svc = RAGSyncService(db)

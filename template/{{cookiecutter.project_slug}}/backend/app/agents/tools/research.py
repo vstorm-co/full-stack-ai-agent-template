@@ -20,11 +20,13 @@ capabilities are ordered with the context manager last, which
 import asyncio
 import logging
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 from typing import Any
 
 from pydantic_ai.capabilities import WebFetch, WebSearch
 from pydantic_ai.usage import UsageLimits
 from pydantic_ai_summarization import ContextManagerCapability
+{%- if cookiecutter.enable_todo %}
 from pydantic_ai_todo import (
     AsyncMemoryStorage,
     AsyncPostgresStorage,
@@ -32,11 +34,16 @@ from pydantic_ai_todo import (
     TodoEvent,
     TodoEventEmitter,
 )
+{%- endif %}
+{%- if cookiecutter.enable_subagents %}
 from subagents_pydantic_ai import SubAgentCapability, SubAgentConfig
+{%- endif %}
 
 from app.agents.assistant import _build_model
 from app.core.config import settings
+{%- if cookiecutter.enable_todo %}
 from app.db.todo_pool import get_todo_pool
+{%- endif %}
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +71,7 @@ RESEARCH_TOOL_NAMES = frozenset(
 )
 
 
+{%- if cookiecutter.enable_subagents %}
 def _subagent_configs() -> list[SubAgentConfig]:
     """Return the three research specialists.
 
@@ -125,8 +133,10 @@ def _subagent_configs() -> list[SubAgentConfig]:
             preferred_mode="async",
         ),
     ]
+{%- endif %}
 
 
+{%- if cookiecutter.enable_todo %}
 _TODO_DESCRIPTIONS = {
     "write_todos": (
         "(discouraged) Replaces the entire todo list at once and is NOT shown to "
@@ -134,9 +144,28 @@ _TODO_DESCRIPTIONS = {
         "update_todo_status to advance each step."
     ),
 }
+{%- endif %}
 
 EmitEvent = Callable[[str, Any], Awaitable[bool]]
 
+
+@dataclass
+class ResearchCapabilities:
+    """Typed capabilities built per-turn by ResearchToolkit.
+
+    Passed by name to ``get_agent()`` so ``assistant.py`` explicitly imports
+    and references each capability instead of accepting a raw ``list[Any]``.
+    The context manager must be last — ``summarization-pydantic-ai`` requires it.
+    """
+{%- if cookiecutter.enable_todo %}
+    todo: TodoCapability | None
+{%- endif %}
+{%- if cookiecutter.enable_subagents %}
+    subagents: SubAgentCapability
+{%- endif %}
+    context_manager: ContextManagerCapability
+
+{%- if cookiecutter.enable_todo %}
 
 def _todo_event_payload(event: TodoEvent) -> dict[str, Any]:
     """Serialize a ``TodoEvent`` to a JSON-safe ``todo_event`` frame payload."""
@@ -146,6 +175,7 @@ def _todo_event_payload(event: TodoEvent) -> dict[str, Any]:
         "previous": event.previous_state.model_dump(mode="json") if event.previous_state else None,
         "ts": event.timestamp.isoformat() if event.timestamp else None,
     }
+{%- endif %}
 
 
 class ResearchToolkit:
@@ -158,27 +188,31 @@ class ResearchToolkit:
     def __init__(self, emit: EmitEvent, model_name: str | None = None) -> None:
         self._emit = emit
         self._model_name = model_name or settings.AI_MODEL
+{%- if cookiecutter.enable_todo %}
         self._storage: Any = None
+{%- endif %}
+{%- if cookiecutter.enable_subagents %}
         self.subagent_capability: SubAgentCapability | None = None
+{%- endif %}
         self.context_manager: ContextManagerCapability | None = None
         self._bg_tasks: set[asyncio.Task[Any]] = set()
 
-    async def build(self, conversation_id: str) -> list[Any]:
-        """Build the ordered capability list for this turn.
+    async def build(self, conversation_id: str) -> ResearchCapabilities:
+        """Build typed capabilities for this turn.
 
-        ``conversation_id`` scopes the TODO storage. The context manager is kept
-        last, as ``summarization-pydantic-ai`` requires.
+        ``conversation_id`` scopes the TODO storage. Returned as a
+        :class:`ResearchCapabilities` dataclass so callers can pass each
+        capability by name to ``get_agent()``.
         """
-        capabilities: list[Any] = []
-
-        todo_cap = await self._build_todo_capability(conversation_id)
-        if todo_cap is not None:
-            capabilities.append(todo_cap)
-
-        capabilities.append(self._build_subagent_capability())
-        capabilities.append(self._build_context_manager())
-
-        return capabilities
+        return ResearchCapabilities(
+{%- if cookiecutter.enable_todo %}
+            todo=await self._build_todo_capability(conversation_id),
+{%- endif %}
+{%- if cookiecutter.enable_subagents %}
+            subagents=self._build_subagent_capability(),
+{%- endif %}
+            context_manager=self._build_context_manager(),
+        )
 
     def _emit_soon(self, event_type: str, payload: dict[str, Any]) -> None:
         """Schedule an emit from a synchronous callback as a tracked task."""
@@ -219,6 +253,7 @@ class ResearchToolkit:
         self.context_manager = cap
         return cap
 
+{%- if cookiecutter.enable_subagents %}
     def _build_subagent_capability(self) -> SubAgentCapability:
         """Build the researcher/analyst/writer delegation capability.
 
@@ -234,7 +269,9 @@ class ResearchToolkit:
         )
         self.subagent_capability = cap
         return cap
+{%- endif %}
 
+{%- if cookiecutter.enable_todo %}
     async def _build_todo_capability(self, conversation_id: str) -> TodoCapability | None:
         """Build the TODO planner capability and stream its events to the client.
 
@@ -273,3 +310,4 @@ class ResearchToolkit:
             enable_subtasks=True,
             descriptions=_TODO_DESCRIPTIONS,
         )
+{%- endif %}

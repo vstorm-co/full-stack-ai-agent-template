@@ -37,7 +37,7 @@ async def upload_file(
     )
 
 
-@router.get("/{file_id}")
+@router.get("/{file_id}", response_model=None)
 async def download_file(
     file_id: UUID,
     file_upload_svc: FileUploadSvc,

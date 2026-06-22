@@ -41,7 +41,7 @@ import { useAuth } from "@/hooks";
 import { useActiveRoute } from "@/lib/active-route";
 import { APP_NAME, ROUTES } from "@/lib/constants";
 import { cn, isAppAdmin } from "@/lib/utils";
-import { useSidebarStore } from "@/stores";
+import { useAuthStore, useSidebarStore } from "@/stores";
 
 type NavLeaf = { labelKey: string; href: string; icon: LucideIcon; descKey?: string };
 type NavEntry =
@@ -136,6 +136,7 @@ function NavMenu({ entry }: { entry: Extract<NavEntry, { kind: "menu" }> }) {
 
 export function Header() {
   const { user, isAuthenticated, logout } = useAuth();
+  const avatarVersion = useAuthStore((s) => s.avatarVersion);
   const { toggle } = useSidebarStore();
   const isActive = useActiveRoute();
   const t = useTranslations("nav");
@@ -214,7 +215,7 @@ export function Header() {
                 <button className="hover:bg-accent focus-visible:ring-ring ml-0.5 flex items-center gap-1.5 rounded-full p-0.5 pr-2 transition-colors outline-none focus-visible:ring-1">
                   <Avatar className="h-7 w-7">
                     {user?.avatar_url && (
-                      <AvatarImage src={`/api/users/avatar/${user.id}`} alt={user.email} />
+                      <AvatarImage src={`/api/users/avatar/${user.id}?v=${avatarVersion}`} alt={user.email} />
                     )}
                     <AvatarFallback className="bg-foreground text-background text-[10px] font-semibold">
                       {user?.email?.substring(0, 2).toUpperCase() || "U"}

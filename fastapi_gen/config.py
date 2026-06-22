@@ -326,6 +326,8 @@ class ProjectConfig(BaseModel):
     enable_code_execution: bool = False
     enable_skills: bool = False
     enable_deep_research: bool = False
+    enable_todo: bool = False
+    enable_subagents: bool = False
     use_telegram: bool = False
     use_slack: bool = False
     enable_cors: bool = True
@@ -670,6 +672,15 @@ class ProjectConfig(BaseModel):
 
         return self
 
+    @model_validator(mode='after')
+    def _derive_todo_subagent_flags(self) -> 'ProjectConfig':
+        if self.enable_deep_research:
+            if not self.enable_todo:
+                object.__setattr__(self, 'enable_todo', True)
+            if not self.enable_subagents:
+                object.__setattr__(self, 'enable_subagents', True)
+        return self
+
     def to_cookiecutter_context(self) -> dict[str, Any]:
         """Convert config to cookiecutter context."""
         return {
@@ -797,6 +808,8 @@ class ProjectConfig(BaseModel):
             "enable_code_execution": self.enable_code_execution,
             "enable_skills": self.enable_skills,
             "enable_deep_research": self.enable_deep_research,
+            "enable_todo": self.enable_todo,
+            "enable_subagents": self.enable_subagents,
             "enable_webhooks": self.enable_webhooks,
             # Legacy fixed values (WebSocket always uses JWT)
             "websocket_auth": "jwt",

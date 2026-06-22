@@ -9,12 +9,14 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   accessToken: string | null;
+  avatarVersion: number;
 
   setUser: (user: User | null) => void;
   setLoading: (loading: boolean) => void;
   setAccessToken: (token: string | null) => void;
   checkAuth: () => Promise<void>;
   logout: () => void;
+  bumpAvatarVersion: () => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -24,6 +26,7 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       isLoading: true,
       accessToken: null,
+      avatarVersion: 0,
 
       setUser: (user) =>
         set({
@@ -35,6 +38,8 @@ export const useAuthStore = create<AuthState>()(
       setLoading: (loading) => set({ isLoading: loading }),
 
       setAccessToken: (token) => set({ accessToken: token }),
+
+      bumpAvatarVersion: () => set((s) => ({ avatarVersion: s.avatarVersion + 1 })),
 
       checkAuth: async () => {
         try {

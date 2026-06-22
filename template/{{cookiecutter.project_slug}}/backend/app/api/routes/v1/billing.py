@@ -19,6 +19,7 @@ from app.schemas.billing import (
     PlanList,
     PlanRead,
     PortalSessionRead,
+    StorageUsageRead,
     SubscriptionChangePlan,
     SubscriptionRead,
 {%- if cookiecutter.enable_credits_system %}
@@ -120,7 +121,7 @@ async def reactivate_subscription(
 {%- if cookiecutter.enable_rag %}
 
 
-@router.get("/me/storage")
+@router.get("/me/storage", response_model=StorageUsageRead)
 async def get_storage_usage(
     current_user: CurrentUser,
     active_org: ActiveOrg,
@@ -196,7 +197,7 @@ async def get_usage_timeline(
 {%- endif %}
 
 
-@router.post("/webhook", status_code=status.HTTP_200_OK)
+@router.post("/webhook", status_code=status.HTTP_200_OK, response_model=None)
 async def stripe_webhook(
     request: Request,
     billing_service: BillingSvc,

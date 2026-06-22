@@ -16,6 +16,7 @@ import type { PendingApproval, AskUserQuestion, AskUserAnswer, Decision } from "
 import { useConversationStore, useChatStore } from "@/stores";
 {%- if cookiecutter.enable_deep_research %}
 import { useResearchStore } from "@/stores";
+import { ResearchPanel } from "./research-panel";
 {%- endif %}
 import { useConversations } from "@/hooks";
 {%- if cookiecutter.use_auth %}
@@ -279,6 +280,14 @@ function ChatUI({
   onStop,
 }: ChatUIProps) {
   const tc = useTranslations("common");
+{%- if cookiecutter.enable_deep_research %}
+  const currentTurnId = useResearchStore((s) => s.currentTurnId);
+  const hasPlanData = useResearchStore((s) => {
+    if (!s.currentTurnId) return false;
+    const t = s.byTurn[s.currentTurnId];
+    return (t?.todos.length ?? 0) > 0 || (t?.subagents.length ?? 0) > 0;
+  });
+{%- endif %}
   return (
     <div className="flex h-full w-full">
       <div className="mx-auto flex h-full max-w-5xl min-w-0 flex-1 flex-col">
@@ -296,7 +305,15 @@ function ChatUI({
             <MessageList messages={messages} onRegenerate={onRegenerate} />
           )}
           <div ref={messagesEndRef} />
-        </div>        {pendingApproval && onResumeDecisions && (
+        </div>
+{%- if cookiecutter.enable_deep_research %}
+        {hasPlanData && currentTurnId && (
+          <div className="px-2 pb-2 sm:px-4 sm:pb-2">
+            <ResearchPanel turnId={currentTurnId} />
+          </div>
+        )}
+{%- endif %}
+        {pendingApproval && onResumeDecisions && (
           <div className="px-2 pb-2 sm:px-4 sm:pb-2">
             <ToolApprovalDialog
               actionRequests={pendingApproval.actionRequests}

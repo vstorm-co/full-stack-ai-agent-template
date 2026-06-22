@@ -11,6 +11,9 @@ from pydantic_ai.capabilities import (
     WebFetch,
     WebSearch,
 )
+from pydantic_ai_summarization import ContextManagerCapability
+from pydantic_ai_todo import TodoCapability
+from subagents_pydantic_ai import SubAgentCapability
 from pydantic_ai.messages import (
     ModelRequest,
     ModelResponse,
@@ -82,10 +85,14 @@ class AssistantAgent:
         system_prompt: str | None = None,
         thinking_effort: str | None = None,
         deep_research: bool = False,
-        research_capabilities: list[Any] | None = None,
+        todo_capability: TodoCapability | None = None,
+        subagent_capability: SubAgentCapability | None = None,
+        context_manager_capability: ContextManagerCapability | None = None,
     ):
         self.deep_research = deep_research
-        self.research_capabilities = research_capabilities or []
+        self.todo_capability = todo_capability
+        self.subagent_capability = subagent_capability
+        self.context_manager_capability = context_manager_capability
         self.model_name = model_name or settings.AI_MODEL
         # ``temperature`` stays ``None`` when caller didn't set it — don't fall
         # back to settings.AI_TEMPERATURE here. Reasoning/o-series models
@@ -132,7 +139,13 @@ class AssistantAgent:
         if skills_dir.exists():
             toolsets.append(SkillsToolset(directories=[str(skills_dir)]))
 
-        capabilities.extend(self.research_capabilities)
+        if self.todo_capability is not None:
+            capabilities.append(self.todo_capability)
+        if self.subagent_capability is not None:
+            capabilities.append(self.subagent_capability)
+        # Context manager must be last — summarization-pydantic-ai requires it.
+        if self.context_manager_capability is not None:
+            capabilities.append(self.context_manager_capability)
 
         agent = Agent[Deps, str](
             model=model,
@@ -334,14 +347,18 @@ def get_agent(
     thinking_effort: str | None = None,
     temperature: float | None = None,
     deep_research: bool = False,
-    research_capabilities: list[Any] | None = None,
+    todo_capability: TodoCapability | None = None,
+    subagent_capability: SubAgentCapability | None = None,
+    context_manager_capability: ContextManagerCapability | None = None,
 ) -> AssistantAgent:
     return AssistantAgent(
         model_name=model_name,
         thinking_effort=thinking_effort,
         temperature=temperature,
         deep_research=deep_research,
-        research_capabilities=research_capabilities,
+        todo_capability=todo_capability,
+        subagent_capability=subagent_capability,
+        context_manager_capability=context_manager_capability,
     )
 
 

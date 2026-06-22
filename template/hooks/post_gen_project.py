@@ -46,6 +46,8 @@ enable_charts = "{{ cookiecutter.enable_charts }}" == "True"
 charts_channel_png = "{{ cookiecutter.charts_channel_png }}" == "True"
 enable_code_execution = "{{ cookiecutter.enable_code_execution }}" == "True"
 enable_deep_research = "{{ cookiecutter.enable_deep_research }}" == "True"
+enable_todo = "{{ cookiecutter.enable_todo }}" == "True"
+enable_subagents = "{{ cookiecutter.enable_subagents }}" == "True"
 use_pydantic_deep = "{{ cookiecutter.use_pydantic_deep }}" == "True"
 use_telegram = "{{ cookiecutter.use_telegram }}" == "True"
 use_slack = "{{ cookiecutter.use_slack }}" == "True"
@@ -140,7 +142,8 @@ elif not charts_channel_png:
 if not enable_code_execution:
     remove_file(os.path.join(backend_app, "agents", "tools", "code_execution.py"))
 if not enable_deep_research:
-    remove_file(os.path.join(backend_app, "services", "research.py"))
+    remove_file(os.path.join(backend_app, "agents", "tools", "research.py"))
+if not enable_todo:
     remove_file(os.path.join(backend_app, "db", "todo_pool.py"))
     if use_frontend:
         frontend_src = os.path.join(os.getcwd(), "frontend", "src")

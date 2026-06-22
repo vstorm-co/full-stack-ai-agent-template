@@ -50,7 +50,7 @@ from app.services.usage import UsageService
 {%- endif %}
 {%- if cookiecutter.enable_deep_research %}
 from app.core.config import settings
-from app.services.research import RESEARCH_TOOL_NAMES, ResearchToolkit
+from app.agents.tools.research import RESEARCH_TOOL_NAMES, ResearchToolkit
 {%- endif %}
 
 logger = logging.getLogger(__name__)
@@ -184,23 +184,45 @@ class AgentSession:
 
         try:
 {%- if cookiecutter.enable_deep_research %}
-            deep_research = settings.ENABLE_DEEP_RESEARCH and bool(data.get("deep_research", True))
-            research_capabilities: list[Any] = []
+            # Capabilities are a compile-time decision (CLI flag) — always build
+            # them when the project includes the feature and we have a scoped
+            # conversation_id. The deep_research toggle only switches the persona.
             self._research = None
-            if deep_research and self.current_conversation_id:
+{%- if cookiecutter.enable_todo %}
+            todo_cap = None
+{%- endif %}
+{%- if cookiecutter.enable_subagents %}
+            subagent_cap = None
+{%- endif %}
+            ctx_manager_cap = None
+            if self.current_conversation_id:
                 self._research = ResearchToolkit(self._send, model_name=data.get("model"))
-                research_capabilities = await self._research.build(self.current_conversation_id)
-            else:
-                # No conversation_id to scope the capabilities → run the normal
-                # assistant, not the research persona without its tools.
-                deep_research = False
+                caps = await self._research.build(self.current_conversation_id)
+{%- if cookiecutter.enable_todo %}
+                todo_cap = caps.todo
+{%- endif %}
+{%- if cookiecutter.enable_subagents %}
+                subagent_cap = caps.subagents
+{%- endif %}
+                ctx_manager_cap = caps.context_manager
+
+            # deep_research only controls the system prompt (research persona).
+            deep_research = settings.ENABLE_DEEP_RESEARCH and bool(data.get("deep_research", False))
 {%- endif %}
             assistant = get_agent(
                 model_name=data.get("model"),
                 thinking_effort=data.get("thinking_effort"),
 {%- if cookiecutter.enable_deep_research %}
                 deep_research=deep_research,
-                research_capabilities=research_capabilities,
+{%- endif %}
+{%- if cookiecutter.enable_todo %}
+                todo_capability=todo_cap,
+{%- endif %}
+{%- if cookiecutter.enable_subagents %}
+                subagent_capability=subagent_cap,
+{%- endif %}
+{%- if cookiecutter.enable_deep_research %}
+                context_manager_capability=ctx_manager_cap,
 {%- endif %}
             )
             model_history = build_message_history(self.conversation_history)
@@ -229,9 +251,13 @@ class AgentSession:
             collected_tool_calls: list[dict[str, Any]] = []
 {%- if cookiecutter.enable_deep_research %}
             poller = (
+{%- if cookiecutter.enable_subagents %}
                 asyncio.create_task(self._poll_subagent_status())
                 if self._research is not None
                 else None
+{%- else %}
+                None
+{%- endif %}
             )
 {%- endif %}
 {%- if cookiecutter.enable_deep_research %}
@@ -320,7 +346,7 @@ class AgentSession:
             return await fut
         finally:
             self._ask_user_future = None
-{%- if cookiecutter.enable_deep_research %}
+{%- if cookiecutter.enable_subagents %}
 
     async def _send(self, event_type: str, data: Any) -> bool:
         """Emit a WebSocket event on this session's socket (bound for callbacks)."""

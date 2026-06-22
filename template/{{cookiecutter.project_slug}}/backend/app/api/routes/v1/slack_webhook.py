@@ -21,7 +21,7 @@ router = APIRouter()
 _background_tasks: set[asyncio.Task[None]] = set()
 
 
-@router.post("/{bot_id}/events", status_code=200)
+@router.post("/{bot_id}/events", status_code=200, response_model=None)
 async def slack_events(
     bot_id: UUID,
     request: Request,

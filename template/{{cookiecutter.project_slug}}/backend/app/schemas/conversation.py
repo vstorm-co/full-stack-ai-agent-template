@@ -234,3 +234,8 @@ class ConversationAdminList(BaseSchema):
     items: list[ConversationWithLatestMessage]
     total: int
 {%- endif %}
+
+
+class ConversationExport(BaseSchema):
+    conversations: list[Any]
+    total: int

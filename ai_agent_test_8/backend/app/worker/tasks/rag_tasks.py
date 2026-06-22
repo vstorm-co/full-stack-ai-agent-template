@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 import redis.asyncio as aioredis
-from prefect import flow
+from prefect import flow, task
 
 from app.core.config import settings
 from app.db.session import get_worker_db_context
@@ -75,17 +75,23 @@ async def sync_single_source_flow(source_id: str, sync_log_id: str | None = None
     return await _run_source_sync(source_id, sync_log_id=sync_log_id)
 
 
+@task(name="get-due-sync-sources")
+async def _get_due_sources() -> list:
+    async with get_worker_db_context() as db:
+        return await sync_source_repo.get_due_for_sync(db)
+
+
 @flow(name="rag-sync-check", log_prints=True)
 async def check_scheduled_syncs_flow() -> None:
     """Scheduled flow: find sources due for sync and dispatch individual flows."""
-    async with get_worker_db_context() as db:
-        sources = await sync_source_repo.get_due_for_sync(db)
-        tasks = [asyncio.create_task(sync_single_source_flow(str(source.id))) for source in sources]
-        if tasks:
-            await asyncio.gather(*tasks, return_exceptions=True)
-        logger.info("Scheduled sync check: dispatched %d source(s)", len(sources))
+    sources = await _get_due_sources()
+    jobs = [asyncio.create_task(sync_single_source_flow(str(source.id))) for source in sources]
+    if jobs:
+        await asyncio.gather(*jobs, return_exceptions=True)
+    logger.info("Scheduled sync check: dispatched %d source(s)", len(sources))
 
 
+@task(name="run-ingestion", retries=1)
 async def _run_ingestion(
     rag_document_id: str, collection_name: str, filepath: str, source_path: str, replace: bool
 ) -> dict[str, Any]:
@@ -113,6 +119,7 @@ async def _run_ingestion(
         raise
 
 
+@task(name="run-sync")
 async def _run_sync(
     sync_log_id: str, source: str, collection_name: str, mode: str, path: str
 ) -> dict[str, Any]:
@@ -220,6 +227,7 @@ async def _run_sync(
     }
 
 
+@task(name="update-document-status")
 async def _update_status(
     rag_document_id: str, status: str, error_message: str | None = None
 ) -> None:
@@ -240,6 +248,7 @@ async def _update_status(
         logger.warning("Failed to update RAGDocument status: %s", e)
 
 
+@task(name="notify-websocket")
 async def _notify_ws(rag_document_id: str, status: str, filename: str) -> None:
     try:
         r = aioredis.from_url(
@@ -260,6 +269,7 @@ async def _notify_ws(rag_document_id: str, status: str, filename: str) -> None:
         logger.warning("Failed to send WS notification: %s", e)
 
 
+@task(name="update-sync-log")
 async def _update_sync_log(sync_log_id: str, status: str, error_message: str | None = None) -> None:
     from app.services.rag_sync import RAGSyncService
 
@@ -272,6 +282,7 @@ async def _update_sync_log(sync_log_id: str, status: str, error_message: str | N
         logger.warning("Failed to update SyncLog: %s", e)
 
 
+@task(name="run-source-sync")
 async def _run_source_sync(source_id: str, sync_log_id: str | None = None) -> dict[str, Any]:
     """Core sync logic for connector-based sources (shared between all task frameworks).
 

@@ -20,6 +20,7 @@ capabilities are ordered with the context manager last, which
 import asyncio
 import logging
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 from typing import Any
 
 from pydantic_ai.capabilities import WebFetch, WebSearch
@@ -138,6 +139,20 @@ _TODO_DESCRIPTIONS = {
 EmitEvent = Callable[[str, Any], Awaitable[bool]]
 
 
+@dataclass
+class ResearchCapabilities:
+    """Typed capabilities built per-turn by ResearchToolkit.
+
+    Passed by name to ``get_agent()`` so ``assistant.py`` can import and
+    reference each capability explicitly instead of accepting a raw ``list[Any]``.
+    The context manager must remain last — ``summarization-pydantic-ai`` requires it.
+    """
+
+    todo: TodoCapability | None
+    subagents: SubAgentCapability
+    context_manager: ContextManagerCapability
+
+
 def _todo_event_payload(event: TodoEvent) -> dict[str, Any]:
     """Serialize a ``TodoEvent`` to a JSON-safe ``todo_event`` frame payload."""
     return {
@@ -163,22 +178,18 @@ class ResearchToolkit:
         self.context_manager: ContextManagerCapability | None = None
         self._bg_tasks: set[asyncio.Task[Any]] = set()
 
-    async def build(self, conversation_id: str) -> list[Any]:
-        """Build the ordered capability list for this turn.
+    async def build(self, conversation_id: str) -> ResearchCapabilities:
+        """Build typed capabilities for this turn.
 
-        ``conversation_id`` scopes the TODO storage. The context manager is kept
-        last, as ``summarization-pydantic-ai`` requires.
+        ``conversation_id`` scopes the TODO storage. Returned as a
+        :class:`ResearchCapabilities` dataclass so callers can pass each
+        capability by name to ``get_agent()``.
         """
-        capabilities: list[Any] = []
-
-        todo_cap = await self._build_todo_capability(conversation_id)
-        if todo_cap is not None:
-            capabilities.append(todo_cap)
-
-        capabilities.append(self._build_subagent_capability())
-        capabilities.append(self._build_context_manager())
-
-        return capabilities
+        return ResearchCapabilities(
+            todo=await self._build_todo_capability(conversation_id),
+            subagents=self._build_subagent_capability(),
+            context_manager=self._build_context_manager(),
+        )
 
     def _emit_soon(self, event_type: str, payload: dict[str, Any]) -> None:
         """Schedule an emit from a synchronous callback as a tracked task."""

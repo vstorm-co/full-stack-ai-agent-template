@@ -10,6 +10,7 @@ import { FilePreviewPanel } from "./file-preview-panel";
 import { SourcesPanel } from "./sources-panel";
 import { MessageList } from "./message-list";
 import { PendingMessages } from "./pending-messages";
+import { ResearchPanel } from "./research-panel";
 import { ToolApprovalDialog } from "./tool-approval-dialog";
 import { QuestionPrompt } from "@/components/ui";
 import type { PendingApproval, AskUserQuestion, AskUserAnswer, Decision } from "@/types";
@@ -270,6 +271,12 @@ function ChatUI({
   onStop,
 }: ChatUIProps) {
   const tc = useTranslations("common");
+  const currentTurnId = useResearchStore((s) => s.currentTurnId);
+  const hasPlanData = useResearchStore((s) => {
+    if (!s.currentTurnId) return false;
+    const t = s.byTurn[s.currentTurnId];
+    return (t?.todos.length ?? 0) > 0 || (t?.subagents.length ?? 0) > 0;
+  });
   return (
     <div className="flex h-full w-full">
       <div className="mx-auto flex h-full max-w-5xl min-w-0 flex-1 flex-col">
@@ -288,6 +295,11 @@ function ChatUI({
           )}
           <div ref={messagesEndRef} />
         </div>{" "}
+        {hasPlanData && currentTurnId && (
+          <div className="px-2 pb-2 sm:px-4 sm:pb-2">
+            <ResearchPanel turnId={currentTurnId} />
+          </div>
+        )}
         {pendingApproval && onResumeDecisions && (
           <div className="px-2 pb-2 sm:px-4 sm:pb-2">
             <ToolApprovalDialog

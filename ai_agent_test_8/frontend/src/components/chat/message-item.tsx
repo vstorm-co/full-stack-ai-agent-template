@@ -123,7 +123,7 @@ export function MessageItem({ message, groupPosition, onRegenerate }: MessageIte
   const updateMessage = useChatStore((state) => state.updateMessage);
   const openPreview = useFilePreviewStore((s) => s.open);
   const openSources = useSourcesPanelStore((s) => s.open);
-  const { user: authUser } = useAuthStore();
+  const { user: authUser, avatarVersion } = useAuthStore();
   const isGrouped = groupPosition && groupPosition !== "single";
 
   const sources = !isUser ? extractSources(message) : [];
@@ -184,7 +184,7 @@ export function MessageItem({ message, groupPosition, onRegenerate }: MessageIte
       >
         {isUser && authUser?.avatar_url ? (
           <Image
-            src={`/api/users/avatar/${authUser.id}`}
+            src={`/api/users/avatar/${authUser.id}?v=${avatarVersion}`}
             alt=""
             width={36}
             height={36}

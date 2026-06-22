@@ -60,7 +60,7 @@ dependencies = [
     "matplotlib>=3.9.0",
     "pydantic-monty>=0.0.18",
     "pydantic-ai-skills>=0.11.0",
-    "pydantic-ai-todo>=0.2.1",
+    "pydantic-ai-todo[postgres]>=0.2.1",
     "subagents-pydantic-ai>=0.2.7",
     "summarization-pydantic-ai>=0.1.7",
     "cryptography>=44.0.0",
@@ -213,6 +213,9 @@ exclude_lines = [
     "raise NotImplementedError",
     "\\.\\.\\.",
 ]
+
+[tool.uv.sources]
+pydantic-ai-todo = { path = "../../../pydantic-ai-todo", editable = true }
 
 [tool.fastapi-fullstack]
 generator_version = "0.2.12"

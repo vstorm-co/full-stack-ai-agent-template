@@ -22,12 +22,13 @@ from app.api.deps import {% if cookiecutter.use_database %}DBSession{% endif %}{
 
 {%- endif %}
 from app.core.config import settings
+from app.schemas.base import HealthDetailResponse, HealthResponse
 from app.services.health import build_health_response
 
 router = APIRouter()
 
 
-@router.get("/health")
+@router.get("/health", response_model=HealthResponse)
 async def health_check() -> dict[str, Any]:
     """Simple liveness probe - check if application is running.
 
@@ -43,7 +44,7 @@ async def health_check() -> dict[str, Any]:
     }
 
 
-@router.get("/health/live")
+@router.get("/health/live", response_model=HealthDetailResponse)
 async def liveness_probe() -> dict[str, Any]:
     """Detailed liveness probe for Kubernetes.
 

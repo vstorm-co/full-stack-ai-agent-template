@@ -46,6 +46,7 @@ from app.schemas.rag import (
     RAGSyncRequest,
     RAGSyncResponse,
     RAGTrackedDocumentList,
+    SupportedFormatsResponse,
 )
 from app.schemas.sync_source import (
     ConnectorList,
@@ -61,7 +62,7 @@ from app.schemas.sync_source import (
 router = APIRouter()
 
 
-@router.get("/supported-formats")
+@router.get("/supported-formats", response_model=SupportedFormatsResponse)
 async def get_supported_formats_endpoint() -> Any:
     """Return file formats supported by the current PDF parser configuration."""
     parser_name = getattr(settings, "PDF_PARSER", "pymupdf")
@@ -284,7 +285,7 @@ async def list_rag_documents(
     return await rag_doc_svc.list_documents(collection_name)
 
 
-@router.get("/documents/{doc_id}/download")
+@router.get("/documents/{doc_id}/download", response_model=None)
 async def download_rag_document(
     doc_id: str,
     rag_doc_svc: RAGDocumentSvc,

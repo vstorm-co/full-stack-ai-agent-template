@@ -13,6 +13,7 @@ from uuid import UUID
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect{%- if cookiecutter.websocket_auth_api_key %}, Query{%- endif %}
 
 from app.core.config import settings
+from app.schemas.base import AgentModelsResponse
 from app.services.agent import AgentConnectionManager, send_event
 from app.services.agent_session import AgentSession
 {%- if cookiecutter.websocket_auth_jwt %}
@@ -43,7 +44,7 @@ router = APIRouter()
 manager = AgentConnectionManager()
 
 
-@router.get("/agent/models")
+@router.get("/agent/models", response_model=AgentModelsResponse)
 async def list_models() -> dict[str, Any]:
     """Return available LLM models and the current default."""
     return {

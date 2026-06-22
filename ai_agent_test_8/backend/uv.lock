@@ -46,7 +46,7 @@ dependencies = [
     { name = "pydantic", extra = ["email"] },
     { name = "pydantic-ai-skills" },
     { name = "pydantic-ai-slim", extra = ["duckduckgo", "openrouter", "web-fetch"] },
-    { name = "pydantic-ai-todo" },
+    { name = "pydantic-ai-todo", extra = ["postgres"] },
     { name = "pydantic-monty" },
     { name = "pydantic-settings" },
     { name = "pyjwt" },
@@ -111,7 +111,7 @@ requires-dist = [
     { name = "pydantic", extras = ["email"], specifier = ">=2.12.0" },
     { name = "pydantic-ai-skills", specifier = ">=0.11.0" },
     { name = "pydantic-ai-slim", extras = ["openrouter", "duckduckgo", "web-fetch"], specifier = ">=1.80.0" },
-    { name = "pydantic-ai-todo", specifier = ">=0.2.1" },
+    { name = "pydantic-ai-todo", extras = ["postgres"], editable = "../../../pydantic-ai-todo" },
     { name = "pydantic-monty", specifier = ">=0.0.18" },
     { name = "pydantic-settings", specifier = ">=2.13.0" },
     { name = "pyjwt", specifier = ">=2.9.0" },
@@ -3546,15 +3546,37 @@ web-fetch = [
 [[package]]
 name = "pydantic-ai-todo"
 version = "0.2.6"
-source = { registry = "https://pypi.org/simple" }
+source = { editable = "../../../pydantic-ai-todo" }
 dependencies = [
     { name = "pydantic" },
     { name = "pydantic-ai-slim" },
     { name = "redis" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f6/84/5ebc066fe8aab597d0ee33ca9e1fa969a6403627a41b121a5edaa0ee262d/pydantic_ai_todo-0.2.6.tar.gz", hash = "sha256:d44bdcbbe3db77f79a4db55c99800d309d2f657e3b2e7ddf3ebfb09b7c4e8409", size = 120402, upload-time = "2026-06-17T15:00:16.68Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/ce/ce/09f6e8dd28b82f33ee8769075022bdca4cec602ef203c7a4da5d9579046e/pydantic_ai_todo-0.2.6-py3-none-any.whl", hash = "sha256:d5da4d92139266d0f7cc9d954fdf5b1298895210913c0476058559a93eeee7ac", size = 26072, upload-time = "2026-06-17T15:00:15.395Z" },
+
+[package.optional-dependencies]
+postgres = [
+    { name = "asyncpg" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "asyncpg", marker = "extra == 'postgres'", specifier = ">=0.29.0" },
+    { name = "pydantic", specifier = ">=2.0" },
+    { name = "pydantic-ai-slim", specifier = ">=1.74.0" },
+    { name = "redis", specifier = ">=7.4.0" },
+]
+provides-extras = ["postgres"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "asyncpg", specifier = ">=0.29.0" },
+    { name = "build", specifier = ">=1.0.0" },
+    { name = "coverage", specifier = ">=7.0.0" },
+    { name = "pyright", specifier = ">=1.1.0" },
+    { name = "pytest", specifier = ">=9.0.0" },
+    { name = "pytest-asyncio", specifier = ">=0.23.0" },
+    { name = "pytest-cov", specifier = ">=5.0.0" },
+    { name = "ruff", specifier = ">=0.6.3" },
 ]
 
 [[package]]

@@ -17,6 +17,7 @@ from app.api.deps import ActiveOrg
 from app.db.models.user import UserRole
 from app.schemas.conversation import (
     ConversationCreate,
+    ConversationExport,
     ConversationList,
     ConversationRead,
     ConversationReadWithMessages,
@@ -41,14 +42,8 @@ from app.schemas.message_rating import (
     MessageRatingRead,
 )
 {%- endif %}
-from pydantic import BaseModel
 
 router = APIRouter()
-
-
-class ConversationExport(BaseModel):
-    conversations: list[Any]
-    total: int
 
 
 @router.get("/export", response_model=ConversationExport)
@@ -96,7 +91,7 @@ async def list_shared_with_me(
     return ConversationList(items=items, total=total)
 
 
-@router.get("/shared/{token}")
+@router.get("/shared/{token}", response_model=ConversationReadWithMessages)
 async def get_shared_conversation(
     token: str,
     share_service: ConversationShareSvc,

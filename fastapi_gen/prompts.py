@@ -921,20 +921,18 @@ def prompt_skills() -> bool:
     )
 
 
-def prompt_deep_research() -> bool:
-    """Prompt for the deep research agent (PydanticAI only)."""
+def prompt_deep_research() -> dict[str, bool]:
+    """Prompt for deep research + its sub-features (PydanticAI only)."""
     console.print()
     console.print("[bold cyan]Deep Research Agent[/]")
     console.print(
-        "Turns the assistant into a deep research agent: a TODO planner, "
+        "Turns the assistant into a deep research planner: a TODO checklist, "
         "researcher/analyst/writer subagents, and an automatic context manager. "
-        "The planner delegates web work to subagents and surfaces progress in a "
-        "live research panel. PydanticAI only. Activate at runtime with "
-        "ENABLE_DEEP_RESEARCH=true."
+        "Activate at runtime with ENABLE_DEEP_RESEARCH=true."
     )
     console.print()
 
-    return cast(
+    enable = cast(
         bool,
         _check_cancelled(
             questionary.confirm(
@@ -943,6 +941,36 @@ def prompt_deep_research() -> bool:
             ).ask()
         ),
     )
+    if not enable:
+        return {"enable_deep_research": False, "enable_todo": False, "enable_subagents": False}
+
+    console.print()
+    console.print("[dim]Deep research sub-features:[/]")
+
+    enable_todo = cast(
+        bool,
+        _check_cancelled(
+            questionary.confirm(
+                "  Enable TODO planner (pydantic-ai-todo — live checklist + Postgres persistence)?",
+                default=True,
+            ).ask()
+        ),
+    )
+    enable_subagents = cast(
+        bool,
+        _check_cancelled(
+            questionary.confirm(
+                "  Enable subagents (researcher / analyst / writer delegation)?",
+                default=True,
+            ).ask()
+        ),
+    )
+
+    return {
+        "enable_deep_research": True,
+        "enable_todo": enable_todo,
+        "enable_subagents": enable_subagents,
+    }
 
 
 def prompt_langsmith() -> bool:
@@ -1626,10 +1654,15 @@ def run_interactive_prompts() -> ProjectConfig:
             state["enable_skills"] = False
 
     def step_deep_research() -> None:
-        if state["ai_framework"] == AIFrameworkType.PYDANTIC_AI:
-            state["enable_deep_research"] = prompt_deep_research()
+        if state.get("ai_framework") == AIFrameworkType.PYDANTIC_AI.value:
+            result = prompt_deep_research()
+            state["enable_deep_research"] = result["enable_deep_research"]
+            state["enable_todo"] = result["enable_todo"]
+            state["enable_subagents"] = result["enable_subagents"]
         else:
             state["enable_deep_research"] = False
+            state["enable_todo"] = False
+            state["enable_subagents"] = False
 
     def step_langsmith() -> None:
         if state["ai_framework"] in (

@@ -489,6 +489,18 @@
     }
   }
 
+  /* Slide-in entrance for research TODO rows. */
+  @keyframes todo-enter {
+    from {
+      opacity: 0;
+      transform: translateX(-6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
   /* Tiny fade+scale entrance for popovers / dropdowns. */
   @keyframes lsFadeIn {
     from {

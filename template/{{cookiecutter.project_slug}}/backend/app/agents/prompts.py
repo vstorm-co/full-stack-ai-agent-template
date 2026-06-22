@@ -67,17 +67,9 @@ You can render charts with the `create_chart` tool (line, bar, pie, area, scatte
 CODE_EXECUTION_GUIDANCE = """
 
 # Running code
-You have a `run_python` tool that executes Python in a sandbox. Reach for it when
-a task needs real computation — projections, aggregations, simulations, parsing a
-table the user pasted — or when you want to produce several charts at once.
-
-Inside the code you can call `create_chart(...)` and
-`current_datetime()` directly. `create_chart` is async: call
-it with `await`, and fire several in parallel with
-`await asyncio.gather(create_chart(...), create_chart(...), ...)`. Each call
-renders to the user immediately as an interactive chart, just like calling the
-tool yourself — so don't separately call `create_chart` for the same data after
-the code runs, and don't paste the returned JSON back to the user.
+You have a `run_python` tool that executes Python in a sandbox. Use it when a
+task needs real computation — projections, aggregations, simulations, parsing a
+table the user pasted.
 
 The sandbox is a restricted Python subset: `math`, `asyncio`, `json`, `datetime`
 and `re` import fine, but many modules (`statistics`, `random`, `itertools`,
@@ -86,7 +78,12 @@ sums, and groupings yourself with plain loops and comprehensions. There is no
 file, network, or OS access. The f-string `,` thousands separator isn't
 supported (write `f"{x:.2f}"`, not `f"{x:,.2f}"`). `print(...)` the intermediate
 numbers you want to reason about afterwards. Keep each block focused, then
-briefly explain the results and charts in plain language."""
+briefly explain the results in plain language.
+
+Agent tools such as `create_chart` and `current_datetime` are NOT callable from
+inside sandbox code — they only exist as top-level tools. When you want to
+visualize computed data, call `create_chart` as a regular tool after
+`run_python` returns, passing the computed values in `data`."""
 
 
 {%- endif %}

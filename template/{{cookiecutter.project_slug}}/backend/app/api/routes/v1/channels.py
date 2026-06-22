@@ -92,7 +92,7 @@ async def deactivate_bot(
     return await service.deactivate(bot_id)
 
 
-@router.post("/bots/{bot_id}/webhook/register")
+@router.post("/bots/{bot_id}/webhook/register", response_model=None)
 async def register_webhook(
     bot_id: UUID,
     service: ChannelBotSvc,
@@ -102,7 +102,7 @@ async def register_webhook(
     return await service.register_webhook(bot_id)
 
 
-@router.post("/bots/{bot_id}/webhook/delete")
+@router.post("/bots/{bot_id}/webhook/delete", response_model=None)
 async def delete_webhook(
     bot_id: UUID,
     service: ChannelBotSvc,

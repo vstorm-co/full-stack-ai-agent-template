@@ -32,7 +32,7 @@ def _is_domain_allowed(email: str) -> bool:
 {%- if cookiecutter.enable_oauth_google %}
 
 
-@router.get("/google/login")
+@router.get("/google/login", response_model=None)
 async def google_login(request: Request):
     """Redirect to Google OAuth2 login page."""
     return await oauth.google.authorize_redirect(request, settings.GOOGLE_REDIRECT_URI)
@@ -40,7 +40,7 @@ async def google_login(request: Request):
 
 
 
-@router.get("/google/callback")
+@router.get("/google/callback", response_model=None)
 async def google_callback(request: Request, user_service: UserSvc):
     """Handle Google OAuth2 callback."""
     frontend = settings.FRONTEND_URL.rstrip("/")

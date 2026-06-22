@@ -41,7 +41,7 @@ function DeviceIcon({ type }: { type?: string | null }) {
 
 export default function ProfileSettingsPage() {
   const { user } = useAuth();
-  const { setUser } = useAuthStore();
+  const { setUser, bumpAvatarVersion, avatarVersion } = useAuthStore();
 
   const [name, setName] = useState(user?.full_name ?? "");
   const [email, setEmail] = useState(user?.email ?? "");
@@ -121,6 +121,7 @@ export default function ProfileSettingsPage() {
       }
       const updated = await res.json();
       setUser(updated);
+      bumpAvatarVersion();
       toast.success("Avatar updated");
     } catch (err) {
       toast.error(getErrorMessage(err, "Failed to upload avatar"));
@@ -169,7 +170,7 @@ export default function ProfileSettingsPage() {
           >
             {user.avatar_url ? (
               <Image
-                src={`/api/users/avatar/${user.id}`}
+                src={`/api/users/avatar/${user.id}?v=${avatarVersion}`}
                 alt=""
                 width={80}
                 height={80}

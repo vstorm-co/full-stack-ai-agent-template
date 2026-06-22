@@ -2,7 +2,7 @@
 
 import logging
 
-from prefect import flow
+from prefect import flow, task
 
 from app.db.session import get_worker_db_context
 from app.services.usage import UsageService
@@ -12,11 +12,13 @@ logger = logging.getLogger(__name__)
 USAGE_RETENTION_DAYS = 90
 
 
+@task(name="cleanup-old-usage-events")
 async def _cleanup_usage_events() -> int:
     async with get_worker_db_context() as db:
         return await UsageService(db).cleanup_old_events(retention_days=USAGE_RETENTION_DAYS)
 
 
+@task(name="refresh-usage-matview")
 async def _refresh_usage_matview() -> None:
     async with get_worker_db_context() as db:
         await UsageService(db).refresh_daily_matview()

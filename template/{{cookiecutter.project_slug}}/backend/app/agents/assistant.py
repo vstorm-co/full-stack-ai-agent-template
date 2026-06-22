@@ -48,6 +48,15 @@ from app.agents.prompts import get_system_prompt_with_rag
 {%- if cookiecutter.enable_deep_research %}
 from app.agents.prompts import get_research_prompt
 {%- endif %}
+{%- if cookiecutter.enable_todo %}
+from pydantic_ai_todo import TodoCapability
+{%- endif %}
+{%- if cookiecutter.enable_subagents %}
+from subagents_pydantic_ai import SubAgentCapability
+{%- endif %}
+{%- if cookiecutter.enable_deep_research %}
+from pydantic_ai_summarization import ContextManagerCapability
+{%- endif %}
 from app.agents.tools.ask_user_tool import MAX_QUESTIONS, QuestionItem, format_answers
 from app.agents.utils import get_current_datetime
 {%- if cookiecutter.enable_rag %}
@@ -156,7 +165,7 @@ class Deps:
 {%- endif %}
     metadata: dict[str, Any] = field(default_factory=dict)
     ask_user: AskUserCallback | None = None
-{%- if cookiecutter.enable_deep_research %}
+{%- if cookiecutter.enable_subagents %}
     # Required by SubAgentDepsProtocol; kept empty (capabilities carry the agents).
     subagents: dict[str, Any] = field(default_factory=dict)
 
@@ -184,12 +193,28 @@ class AssistantAgent:
         thinking_effort: str | None = None,
 {%- if cookiecutter.enable_deep_research %}
         deep_research: bool = False,
-        research_capabilities: list[Any] | None = None,
+{%- endif %}
+{%- if cookiecutter.enable_todo %}
+        todo_capability: "TodoCapability | None" = None,
+{%- endif %}
+{%- if cookiecutter.enable_subagents %}
+        subagent_capability: "SubAgentCapability | None" = None,
+{%- endif %}
+{%- if cookiecutter.enable_deep_research %}
+        context_manager_capability: "ContextManagerCapability | None" = None,
 {%- endif %}
     ):
 {%- if cookiecutter.enable_deep_research %}
         self.deep_research = deep_research
-        self.research_capabilities = research_capabilities or []
+{%- endif %}
+{%- if cookiecutter.enable_todo %}
+        self.todo_capability = todo_capability
+{%- endif %}
+{%- if cookiecutter.enable_subagents %}
+        self.subagent_capability = subagent_capability
+{%- endif %}
+{%- if cookiecutter.enable_deep_research %}
+        self.context_manager_capability = context_manager_capability
 {%- endif %}
         self.model_name = model_name or settings.AI_MODEL
         # ``temperature`` stays ``None`` when caller didn't set it — don't fall
@@ -262,9 +287,19 @@ class AssistantAgent:
         if skills_dir.exists():
             toolsets.append(SkillsToolset(directories=[str(skills_dir)]))
 {%- endif %}
-{%- if cookiecutter.enable_deep_research %}
+{%- if cookiecutter.enable_todo %}
 
-        capabilities.extend(self.research_capabilities)
+        if self.todo_capability is not None:
+            capabilities.append(self.todo_capability)
+{%- endif %}
+{%- if cookiecutter.enable_subagents %}
+        if self.subagent_capability is not None:
+            capabilities.append(self.subagent_capability)
+{%- endif %}
+{%- if cookiecutter.enable_deep_research %}
+        # Context manager must be last — summarization-pydantic-ai requires it.
+        if self.context_manager_capability is not None:
+            capabilities.append(self.context_manager_capability)
 {%- endif %}
 
         agent = Agent[Deps, str](
@@ -483,7 +518,15 @@ def get_agent(
     temperature: float | None = None,
 {%- if cookiecutter.enable_deep_research %}
     deep_research: bool = False,
-    research_capabilities: list[Any] | None = None,
+{%- endif %}
+{%- if cookiecutter.enable_todo %}
+    todo_capability: "TodoCapability | None" = None,
+{%- endif %}
+{%- if cookiecutter.enable_subagents %}
+    subagent_capability: "SubAgentCapability | None" = None,
+{%- endif %}
+{%- if cookiecutter.enable_deep_research %}
+    context_manager_capability: "ContextManagerCapability | None" = None,
 {%- endif %}
 ) -> AssistantAgent:
     return AssistantAgent(
@@ -492,7 +535,15 @@ def get_agent(
         temperature=temperature,
 {%- if cookiecutter.enable_deep_research %}
         deep_research=deep_research,
-        research_capabilities=research_capabilities,
+{%- endif %}
+{%- if cookiecutter.enable_todo %}
+        todo_capability=todo_capability,
+{%- endif %}
+{%- if cookiecutter.enable_subagents %}
+        subagent_capability=subagent_capability,
+{%- endif %}
+{%- if cookiecutter.enable_deep_research %}
+        context_manager_capability=context_manager_capability,
 {%- endif %}
     )
 

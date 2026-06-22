@@ -55,3 +55,21 @@ class ErrorResponse(BaseModel):
     error: str
     detail: str | None = None
     code: str | None = None
+
+
+class AgentModelsResponse(BaseModel):
+    default: str
+    models: list[str]
+
+
+class HealthResponse(BaseModel):
+    status: str
+    max_upload_size_mb: int | None = None
+
+
+class HealthDetailResponse(BaseModel):
+    status: str
+    timestamp: str
+    service: str
+    checks: dict[str, Any] | None = None
+    details: dict[str, Any] | None = None

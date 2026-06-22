@@ -37,7 +37,7 @@ from app.services.agent import (
     send_event,
 )
 from app.services.file_storage import get_file_storage
-from app.services.research import RESEARCH_TOOL_NAMES, ResearchToolkit
+from app.agents.tools.research import RESEARCH_TOOL_NAMES, ResearchToolkit
 from app.services.usage import UsageService
 
 logger = logging.getLogger(__name__)
@@ -138,6 +138,7 @@ class AgentSession:
         if not user_message and not file_ids:
             await send_event(self.websocket, "error", {"message": "Empty message"})
             return
+
         self.current_conversation_id, newly_created, organization_id = await persist_user_turn(
             self.user,
             user_message,
@@ -155,21 +156,30 @@ class AgentSession:
         await send_event(self.websocket, "user_prompt", {"content": user_message})
 
         try:
-            deep_research = settings.ENABLE_DEEP_RESEARCH and bool(data.get("deep_research", True))
-            research_capabilities: list[Any] = []
+            # Capabilities are a compile-time decision (CLI flag) — always build
+            # them when the project includes the feature and we have a scoped
+            # conversation_id. The deep_research toggle only switches the persona
+            # (system prompt); it does NOT gate the capabilities.
             self._research = None
-            if deep_research and self.current_conversation_id:
+            todo_cap = None
+            subagent_cap = None
+            ctx_manager_cap = None
+            if self.current_conversation_id:
                 self._research = ResearchToolkit(self._send, model_name=data.get("model"))
-                research_capabilities = await self._research.build(self.current_conversation_id)
-            else:
-                # No conversation_id to scope the capabilities → run the normal
-                # assistant, not the research persona without its tools.
-                deep_research = False
+                caps = await self._research.build(self.current_conversation_id)
+                todo_cap = caps.todo
+                subagent_cap = caps.subagents
+                ctx_manager_cap = caps.context_manager
+
+            # deep_research only controls the system prompt (research persona).
+            deep_research = settings.ENABLE_DEEP_RESEARCH and bool(data.get("deep_research", False))
             assistant = get_agent(
                 model_name=data.get("model"),
                 thinking_effort=data.get("thinking_effort"),
                 deep_research=deep_research,
-                research_capabilities=research_capabilities,
+                todo_capability=todo_cap,
+                subagent_capability=subagent_cap,
+                context_manager_capability=ctx_manager_cap,
             )
             model_history = build_message_history(self.conversation_history)
             user_input = await self._build_multimodal_input(user_message, file_ids)

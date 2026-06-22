@@ -39,7 +39,7 @@ async def get_rating_summary(
     return await rating_service.get_summary(days=days)
 
 
-@router.get("/export")
+@router.get("/export", response_model=None)
 async def export_ratings(
     rating_service: MessageRatingSvc,
     _: CurrentAdmin,

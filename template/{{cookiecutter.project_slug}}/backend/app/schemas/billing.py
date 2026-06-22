@@ -170,6 +170,12 @@ class InvoiceList(BaseSchema):
     total: int
 
 {%- endif %}
+
+class StorageUsageRead(BaseSchema):
+    chat_files_bytes: int
+    rag_documents_bytes: int
+    total_bytes: int
+
 {%- else %}
 """Billing schemas — not configured (enable_billing or enable_teams is false)."""
 {%- endif %}

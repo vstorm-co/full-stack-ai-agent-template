@@ -170,7 +170,7 @@ async def upload_kb_document(
     )
 
 
-@router.get("/{kb_id}/documents/{doc_id}/download")
+@router.get("/{kb_id}/documents/{doc_id}/download", response_model=None)
 async def download_kb_document(
     kb_id: UUID,
     doc_id: UUID,

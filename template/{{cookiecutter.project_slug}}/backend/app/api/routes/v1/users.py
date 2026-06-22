@@ -62,7 +62,7 @@ async def upload_avatar(
     return user
 
 
-@router.get("/avatar/{user_id}")
+@router.get("/avatar/{user_id}", response_model=None)
 async def get_avatar(user_id: UUID, user_service: UserSvc) -> Any:
     """Get user avatar image."""
     user = await user_service.get_by_id(user_id)

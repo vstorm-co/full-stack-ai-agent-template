@@ -22,7 +22,7 @@ _background_tasks: set[asyncio.Task[None]] = set()
 
 
 
-@router.post("/{bot_id}/webhook", status_code=200)
+@router.post("/{bot_id}/webhook", status_code=200, response_model=None)
 async def telegram_webhook(
     bot_id: UUID,
     request: Request,

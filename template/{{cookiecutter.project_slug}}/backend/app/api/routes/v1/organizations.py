@@ -122,7 +122,7 @@ async def upload_organization_avatar(
     return _build_org_read(updated, member_count, role)
 
 
-@router.get("/{org_id}/avatar")
+@router.get("/{org_id}/avatar", response_model=None)
 async def get_organization_avatar(
     org_id: UUID,
     service: OrganizationSvc,

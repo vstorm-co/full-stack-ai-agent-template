@@ -150,4 +150,9 @@ class RAGSyncResponse(BaseSchema):
     id: str
     status: str
     message: str
+
+
+class SupportedFormatsResponse(BaseSchema):
+    parser: str
+    formats: list[str]
 {%- endif %}

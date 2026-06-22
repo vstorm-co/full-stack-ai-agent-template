@@ -2,7 +2,7 @@
 
 import logging
 
-from prefect import flow
+from prefect import flow, task
 
 from app.db.session import get_worker_db_context
 from app.services.billing import BillingService
@@ -10,11 +10,13 @@ from app.services.billing import BillingService
 logger = logging.getLogger(__name__)
 
 
+@task(name="send-trial-reminder-emails")
 async def _send_trial_reminders() -> int:
     async with get_worker_db_context() as db:
         return await BillingService(db).send_trial_ending_reminders()
 
 
+@task(name="send-low-credits-alert-emails")
 async def _send_low_credits_alerts() -> int:
     async with get_worker_db_context() as db:
         return await BillingService(db).send_low_credits_alerts()

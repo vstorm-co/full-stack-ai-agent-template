@@ -63,5 +63,5 @@ from app.schemas.user import UserCreate, UserRead
 - `datetime.now(UTC)` not `datetime.utcnow()`
 - `secrets.compare_digest()` for constant-time comparisons
 - `__repr__` on all DB models
-- Async for PostgreSQL/MongoDB I/O, sync for SQLite
+- Async I/O throughout (PostgreSQL via asyncpg)
 - Keyword-only args in repo functions after `db` parameter

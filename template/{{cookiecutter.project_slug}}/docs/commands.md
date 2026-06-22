@@ -73,6 +73,31 @@ Run these from the project root directory.
 | `make taskiq-scheduler` | Start Taskiq scheduler |
 {%- endif %}
 
+{%- if cookiecutter.use_arq %}
+
+### ARQ
+
+The ARQ worker runs as a service in the dev stack (`make dev`). To run it directly:
+
+```bash
+uv run --directory backend arq app.worker.arq_app.WorkerSettings
+```
+{%- endif %}
+
+{%- if cookiecutter.use_prefect %}
+
+### Prefect
+
+Prefect runs as two containers in the dev stack — they start automatically with `make dev`:
+
+- **`prefect-server`** — orchestration API + web UI at <http://localhost:4200>
+- **`prefect-runner`** — registers the scheduled deployments and polls for work
+
+The runner is `python -m app.worker.prefect_app`; flows live in `app/worker/tasks/`.
+Open the UI to watch flow runs, inspect logs, and trigger deployments manually.
+Self-hosted by default — set `PREFECT_API_KEY` (and a Cloud `PREFECT_API_URL`) to use Prefect Cloud instead.
+{%- endif %}
+
 {%- if cookiecutter.enable_docker %}
 
 ### Docker (Development)

@@ -262,7 +262,7 @@ dependencies = [
 {%- if cookiecutter.enable_deep_research %}
     "summarization-pydantic-ai>=0.1.7",
 {%- endif %}
-{%- if cookiecutter.use_telegram or cookiecutter.use_slack %}
+{%- if cookiecutter.use_telegram or cookiecutter.use_slack or cookiecutter.enable_rag %}
     "cryptography>=44.0.0",
 {%- endif %}
 {%- if cookiecutter.use_telegram %}

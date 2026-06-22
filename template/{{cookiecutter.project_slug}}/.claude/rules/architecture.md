@@ -44,7 +44,7 @@ Rules:
 - ALWAYS `db.flush()` + `db.refresh()`, NEVER `db.commit()` — session auto-commits in `get_db_session`
 - Use keyword-only args after `db`: `create(db, *, email: str, name: str)`
 - Return the entity (or None for get/delete), never return IDs or dicts
-- Functions are async for PostgreSQL/MongoDB, sync for SQLite
+- Functions are async (PostgreSQL via asyncpg)
 
 ## Services (`app/services/`)
 

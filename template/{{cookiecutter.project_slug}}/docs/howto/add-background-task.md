@@ -42,6 +42,19 @@ async def send_notification(ctx, user_id: str, message: str) -> dict:
     print(f"Sending to {user_id}: {message}")
     return {"status": "sent", "user_id": user_id}
 ```
+{%- elif cookiecutter.use_prefect %}
+```python
+# app/worker/tasks/notifications.py
+from prefect import flow
+
+
+@flow(name="send-notification", log_prints=True)
+async def send_notification_flow(user_id: str, message: str) -> dict:
+    """Send a notification to a user."""
+    # Your async logic here
+    print(f"Sending to {user_id}: {message}")
+    return {"status": "sent", "user_id": user_id}
+```
 {%- endif %}
 
 ### 2. Call it from your API

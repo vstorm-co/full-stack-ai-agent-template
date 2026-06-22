@@ -138,7 +138,7 @@ async def get_conversation(
 - List responses: `*List` with `items: list[*Read]` and `total: int`
 - Update schemas: all fields `Optional` (`str | None = None`)
 - Use `Field(max_length=255)`, `Field(min_length=8)`, `EmailStr`
-- `@field_validator` for deserialization (e.g., JSON string → dict for SQLite)
+- `@field_validator` for complex deserialization (e.g., JSON string → dict)
 - IDs are `UUID` type
 
 ## Exception Handling

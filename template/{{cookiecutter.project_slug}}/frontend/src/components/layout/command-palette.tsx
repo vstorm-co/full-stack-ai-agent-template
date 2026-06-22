@@ -48,7 +48,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-import { useAuth{%- if cookiecutter.enable_rag %}, useKnowledgeBases{%- endif %} } from "@/hooks";
+import { useAuth{%- if cookiecutter.enable_teams and cookiecutter.enable_rag %}, useKnowledgeBases{%- endif %} } from "@/hooks";
 import { apiClient } from "@/lib/api-client";
 import { ROUTES } from "@/lib/constants";
 import { isAppAdmin } from "@/lib/utils";
@@ -63,7 +63,7 @@ export function CommandPalette() {
   const router = useRouter();
   const t = useTranslations("nav");
   const { user, logout } = useAuth();
-{%- if cookiecutter.enable_rag %}
+{%- if cookiecutter.enable_teams and cookiecutter.enable_rag %}
   const { kbs } = useKnowledgeBases();
 {%- endif %}
   const [open, setOpen] = useState(false);
@@ -161,7 +161,7 @@ export function CommandPalette() {
           </Group>
         )}
 
-{%- if cookiecutter.enable_rag %}
+{%- if cookiecutter.enable_teams and cookiecutter.enable_rag %}
         {open && kbs.length > 0 && (
           <Group heading={t("knowledgeBases")}>
             {kbs.slice(0, 6).map((kb) => (

@@ -114,7 +114,13 @@ bun test:e2e --headed
 
 ## Test Database
 
-Tests use a separate test database or SQLite in-memory:
-- Configuration in `tests/conftest.py`
-- Database is reset between tests
-- Use fixtures for test data
+Tests don't hit a real database. The `client` fixture in `tests/conftest.py` overrides
+`get_db_session` with a mocked async session (`AsyncMock`) via FastAPI's
+`app.dependency_overrides`, so the suite runs fast and needs no Postgres container:
+
+- `mock_db_session` — an `AsyncMock` standing in for `AsyncSession` (`execute`, `commit`, `rollback`, `close`)
+- Overrides are registered before each test and cleared afterwards
+- Assert against the mock's calls, or stub `execute(...)` return values for the path under test
+
+For tests that need to exercise real SQL, instantiate your own async engine/session
+inside the test rather than relying on a shared fixture.

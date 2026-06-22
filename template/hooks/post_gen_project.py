@@ -149,8 +149,16 @@ if not enable_todo:
     if use_frontend:
         frontend_src = os.path.join(os.getcwd(), "frontend", "src")
         remove_file(os.path.join(frontend_src, "components", "chat", "research-panel.tsx"))
-        remove_file(os.path.join(frontend_src, "stores", "research-store.ts"))
-        remove_file(os.path.join(frontend_src, "stores", "chat-mode-store.ts"))
+
+if not enable_deep_research and use_frontend:
+    frontend_src = os.path.join(os.getcwd(), "frontend", "src")
+    remove_file(os.path.join(frontend_src, "stores", "research-store.ts"))
+    remove_file(os.path.join(frontend_src, "stores", "chat-mode-store.ts"))
+
+if not enable_subagents and use_frontend:
+    frontend_src = os.path.join(os.getcwd(), "frontend", "src")
+    remove_file(os.path.join(frontend_src, "components", "chat", "subagent-feed.tsx"))
+    remove_file(os.path.join(frontend_src, "components", "chat", "subagent-panel.tsx"))
 
 if not use_ai:
     remove_dir(os.path.join(backend_app, "agents"))
@@ -316,6 +324,7 @@ if not enable_rag:
         remove_dir(os.path.join(frontend_src, "app", "api", "kb"))
         remove_dir(os.path.join(frontend_src, "app", "[locale]", "(dashboard)", "kb"))
         remove_file(os.path.join(frontend_src, "hooks", "use-knowledge-bases.ts"))
+        remove_file(os.path.join(frontend_src, "hooks", "use-org-integrations.ts"))
         remove_file(os.path.join(frontend_src, "types", "knowledge-base.ts"))
 else:
     # RAG enabled — remove optional components if not enabled
@@ -712,6 +721,7 @@ if not enable_teams:
         remove_dir(os.path.join(frontend_src, "app", "api", "kb"))
         remove_dir(os.path.join(frontend_src, "app", "[locale]", "(dashboard)", "kb"))
         remove_file(os.path.join(frontend_src, "hooks", "use-knowledge-bases.ts"))
+        remove_file(os.path.join(frontend_src, "hooks", "use-org-integrations.ts"))
         remove_file(os.path.join(frontend_src, "types", "knowledge-base.ts"))
         remove_dir(os.path.join(frontend_src, "components", "billing"))
         remove_dir(os.path.join(frontend_src, "app", "api", "billing"))

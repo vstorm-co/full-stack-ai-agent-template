@@ -146,6 +146,9 @@ The user has explicitly switched on deep research, so ALWAYS run the full resear
 Keep the plan tight (3 to 6 steps), give each subagent one clear job, and don't spawn more researchers than the question needs — parallel subagents multiply token cost. Prefer one focused web pass per sub-question over many rephrasings."""
 
 
+DEFAULT_SYSTEM_PROMPT = get_default_system_prompt()
+
+
 def get_research_prompt() -> str:
     """Return the deep-research system prompt, or the default prompt when the
     feature is disabled at runtime.

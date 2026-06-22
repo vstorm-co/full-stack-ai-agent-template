@@ -1,4 +1,4 @@
-import Link from "next/link";
+{% raw %}import Link from "next/link";
 import { Play } from "lucide-react";
 
 interface DemoListItem {
@@ -10,7 +10,7 @@ interface DemoListItem {
 }
 
 async function fetchDemos(): Promise<DemoListItem[]> {
-  const baseUrl = process.env.BACKEND_URL || "http://localhost:{{ cookiecutter.backend_port }}";
+  const baseUrl = process.env.BACKEND_URL || "http://localhost:{% endraw %}{{ cookiecutter.backend_port }}{% raw %}";
   try {
     const res = await fetch(`${baseUrl}/api/v1/demos`, { cache: "no-store" });
     if (!res.ok) return [];
@@ -29,22 +29,28 @@ function WaveTrace({ seed, count }: { seed: string; count: number }) {
       {Array.from({ length: n }, (_, i) => {
         const c = stripped.charCodeAt(i % stripped.length) || 65;
         const h = 20 + ((c * 17 + i * 31) % 65);
-        return (
-          <div
-            key={i}
-            style={{
-              height: `${h}%`,
-              width: "3px",
-              borderRadius: "9999px",
-              background: "var(--color-brand)",
-              opacity: i % 2 === 0 ? 0.72 : 0.28,
-            }}
-          />
-        );
+        const barStyle = {
+          height: `${h}%`,
+          width: "3px",
+          borderRadius: "9999px",
+          background: "var(--color-brand)",
+          opacity: i % 2 === 0 ? 0.72 : 0.28,
+        };
+        return <div key={i} style={barStyle} />;
       })}
     </div>
   );
 }
+
+const glowRight = {
+  background: "radial-gradient(circle, oklch(65% 0.2 250 / 0.11) 0%, transparent 70%)",
+};
+const glowLeft = {
+  background: "radial-gradient(circle, oklch(65% 0.2 250 / 0.06) 0%, transparent 70%)",
+};
+const cardHoverGradient = {
+  background: "radial-gradient(ellipse at top left, oklch(65% 0.2 250 / 0.07) 0%, transparent 55%)",
+};
 
 export default async function DemoGalleryPage({
   params,
@@ -62,16 +68,12 @@ export default async function DemoGalleryPage({
         <div
           aria-hidden
           className="pointer-events-none absolute -right-40 -top-40 h-[560px] w-[560px] rounded-full"
-          style={{
-            background: "radial-gradient(circle, oklch(65% 0.2 250 / 0.11) 0%, transparent 70%)",
-          }}
+          style={glowRight}
         />
         <div
           aria-hidden
           className="pointer-events-none absolute -left-24 top-1/2 h-[380px] w-[380px] rounded-full"
-          style={{
-            background: "radial-gradient(circle, oklch(65% 0.2 250 / 0.06) 0%, transparent 70%)",
-          }}
+          style={glowLeft}
         />
 
         <div className="relative mx-auto max-w-5xl">
@@ -113,10 +115,7 @@ export default async function DemoGalleryPage({
                 {/* Hover gradient reveal */}
                 <div
                   className="pointer-events-none absolute inset-0 rounded-2xl opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-                  style={{
-                    background:
-                      "radial-gradient(ellipse at top left, oklch(65% 0.2 250 / 0.07) 0%, transparent 55%)",
-                  }}
+                  style={cardHoverGradient}
                 />
 
                 {/* Wave trace + turn count */}
@@ -154,3 +153,4 @@ export default async function DemoGalleryPage({
     </div>
   );
 }
+{% endraw %}

@@ -1,4 +1,4 @@
-"use client";
+{% raw %}"use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, Play, RotateCcw, Square } from "lucide-react";
@@ -9,6 +9,10 @@ import { conversationMessagesToChatMessages, type RawMessage } from "@/lib/conve
 interface DemoReplayProps {
   rawMessages: RawMessage[];
 }
+
+const playBtnRingStyle = { inset: "-10px", borderRadius: "9999px" };
+const playBtnGlowStyle = { boxShadow: "0 0 60px oklch(from var(--color-brand) l c h / 0.5)" };
+const scrollbarStyle: React.CSSProperties = { scrollbarWidth: "thin", scrollbarColor: "var(--color-border) transparent" };
 
 export function DemoReplay({ rawMessages }: DemoReplayProps) {
   const messages = useMemo(() => conversationMessagesToChatMessages(rawMessages), [rawMessages]);
@@ -66,17 +70,19 @@ export function DemoReplay({ rawMessages }: DemoReplayProps) {
     lastAutoY.current = container.scrollTop;
   };
 
+  const blurStyle = { filter: "blur(6px)", opacity: 0.25, pointerEvents: "none" as const, userSelect: "none" as const };
+
   return (
     <div className="mx-auto flex h-[calc(100vh-3.5rem)] w-full max-w-4xl flex-col px-4">
       {/* Messages — scrollable container, fills remaining height */}
       <div
         ref={scrollRef}
         className="flex-1 overflow-y-auto py-4 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-thumb:hover]:bg-brand/50"
-        style={{ scrollbarWidth: "thin", scrollbarColor: "var(--color-border) transparent" }}
+        style={scrollbarStyle}
       >
         <div
           className="transition-[filter,opacity] duration-700"
-          style={showPrePlay ? { filter: "blur(6px)", opacity: 0.25, pointerEvents: "none", userSelect: "none" } : {}}
+          style={showPrePlay ? blurStyle : undefined}
         >
           {(showPrePlay ? messages : displayMessages).map((message) => (
             <MessageItem key={message.id} message={message} />
@@ -103,11 +109,11 @@ export function DemoReplay({ rawMessages }: DemoReplayProps) {
             />
             <span
               className="absolute animate-ping rounded-full bg-brand/12 [animation-delay:420ms]"
-              style={{ inset: "-10px", borderRadius: "9999px" }}
+              style={playBtnRingStyle}
             />
             <span
               className="bg-brand relative flex h-24 w-24 items-center justify-center rounded-full shadow-lg transition-transform duration-300 group-hover/btn:scale-[1.06] group-active/btn:scale-95"
-              style={{ boxShadow: "0 0 60px oklch(from var(--color-brand) l c h / 0.5)" }}
+              style={playBtnGlowStyle}
             >
               <Play className="h-10 w-10 translate-x-1 fill-white text-white" />
             </span>
@@ -180,3 +186,4 @@ export function DemoReplay({ rawMessages }: DemoReplayProps) {
     </div>
   );
 }
+{% endraw %}

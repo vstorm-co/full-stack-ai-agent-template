@@ -103,3 +103,24 @@
   background-color: var(--md-primary-fg-color--dark);
   border-color: var(--md-primary-fg-color--dark);
 }
+
+/* --------------------------------------------
+   Screenshot gallery
+   -------------------------------------------- */
+.shot {
+  border-radius: 10px;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.10);
+  width: 100%;
+  height: auto;
+  margin: 0.4rem 0 1.4rem;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.shot:hover {
+  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.18);
+  transform: translateY(-2px);
+}
+[data-md-color-scheme="slate"] .shot {
+  border-color: var(--md-default-fg-color--lighter);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+}

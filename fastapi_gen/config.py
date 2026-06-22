@@ -672,13 +672,13 @@ class ProjectConfig(BaseModel):
 
         return self
 
-    @model_validator(mode='after')
-    def _derive_todo_subagent_flags(self) -> 'ProjectConfig':
+    @model_validator(mode="after")
+    def _derive_todo_subagent_flags(self) -> "ProjectConfig":
         if self.enable_deep_research:
             if not self.enable_todo:
-                object.__setattr__(self, 'enable_todo', True)
+                object.__setattr__(self, "enable_todo", True)
             if not self.enable_subagents:
-                object.__setattr__(self, 'enable_subagents', True)
+                object.__setattr__(self, "enable_subagents", True)
         return self
 
     def to_cookiecutter_context(self) -> dict[str, Any]:

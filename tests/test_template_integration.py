@@ -479,7 +479,12 @@ class TestGeneratedDeepResearch:
         ]
         for f in files:
             content = f.read_text()
-            assert "{%" not in content and "{{" not in content, f"Jinja leftover in {f.name}"
+            # Check for unrendered Jinja markers (cookiecutter vars / block tags),
+            # not bare {{ which legitimately appears in JSX inline objects.
+            assert "cookiecutter" not in content, f"Unrendered cookiecutter var in {f.name}"
+            assert "{%- if" not in content and "{%- endif" not in content, (
+                f"Unrendered Jinja block in {f.name}"
+            )
 
     @pytest.mark.slow
     def test_files_removed_when_disabled(self, generated_project_deep_research_off: Path) -> None:

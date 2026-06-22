@@ -401,7 +401,9 @@ def prompt_background_tasks() -> BackgroundTaskType:
 
     choices = [
         questionary.Choice("Celery (classic, battle-tested)", value=BackgroundTaskType.CELERY),
-        questionary.Choice("Prefect (modern workflows, self-hosted or Cloud)", value=BackgroundTaskType.PREFECT),
+        questionary.Choice(
+            "Prefect (modern workflows, self-hosted or Cloud)", value=BackgroundTaskType.PREFECT
+        ),
         questionary.Choice("Taskiq (async-native, modern)", value=BackgroundTaskType.TASKIQ),
         questionary.Choice("ARQ (lightweight async Redis)", value=BackgroundTaskType.ARQ),
         questionary.Choice(
@@ -1790,7 +1792,7 @@ def run_interactive_prompts() -> ProjectConfig:
     rate_limit_period = state["rate_limit_period"]
     rate_limit_storage = state["rate_limit_storage"]
     # Marketing features are always enabled when frontend is present — no prompt needed.
-    frontend = state.get("frontend")
+    frontend = state.get("frontend", FrontendType.NONE)
     marketing_features = (
         {
             "enable_marketing_site": True,

@@ -1,4 +1,4 @@
-"use client";
+{% raw %}"use client";
 
 import { memo, useMemo } from "react";
 import {
@@ -388,3 +388,4 @@ function ChartMessageInner({ spec }: { spec: ChartSpec }) {
     </div>
   );
 }
+{% endraw %}

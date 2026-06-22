@@ -1,4 +1,4 @@
-"use client";
+{% raw %}"use client";
 
 import { useEffect, useRef, useState } from "react";
 import { useResearchStore } from "@/stores";
@@ -203,3 +203,4 @@ function ResearchChecklist({ todos }: { todos: ResearchTodo[] }) {
   );
 }
 
+{% endraw %}

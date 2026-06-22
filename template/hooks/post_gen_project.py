@@ -143,6 +143,7 @@ if not enable_code_execution:
     remove_file(os.path.join(backend_app, "agents", "tools", "code_execution.py"))
 if not enable_deep_research:
     remove_file(os.path.join(backend_app, "agents", "tools", "research.py"))
+    remove_file(os.path.join(backend_app, "services", "research.py"))
 if not enable_todo:
     remove_file(os.path.join(backend_app, "db", "todo_pool.py"))
     if use_frontend:

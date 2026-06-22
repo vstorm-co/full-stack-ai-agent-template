@@ -6,12 +6,12 @@ All available options when generating a project.
 
 | Option | Values | Description |
 |--------|--------|-------------|
-| `--database` | `postgresql`, `mongodb`, `sqlite` | Database backend (async by default) |
+| `--database` | `postgresql`, `none` | Async PostgreSQL (SQLAlchemy 2.0 + Alembic) |
 | `--orm` | `sqlalchemy`, `sqlmodel` | ORM choice (SQLModel for simplified syntax) |
 | `--oauth` | `none`, `google` | OAuth2 social login |
 | `--ai-framework` | `pydantic_ai`, `pydantic_deep`, `langchain`, `langgraph`, `deepagents` | AI agent framework |
 | `--llm-provider` | `openai`, `anthropic`, `google`, `openrouter` | LLM provider |
-| `--background-tasks` | `none`, `celery`, `taskiq`, `arq` | Background task queue |
+| `--background-tasks` | `none`, `celery`, `taskiq`, `arq`, `prefect` | Background task queue / orchestration |
 | `--frontend` | `none`, `nextjs` | Frontend framework |
 
 ## Presets
@@ -45,25 +45,31 @@ fastapi-fullstack create my_app --ai-framework langgraph --llm-provider google
 
 ## Database Options
 
-### PostgreSQL (recommended)
+### PostgreSQL
 
 ```bash
 fastapi-fullstack create my_app --database postgresql
 ```
 
 - Async via `asyncpg`
+- SQLAlchemy 2.0 + Alembic migrations
 - Connection pooling
-- Full SQL features
+- pgvector-ready (use it as your RAG vector store)
 
-### MongoDB
+> PostgreSQL is the single supported database. To generate without any database (e.g. a stateless service), pass `--database none` — note that JWT auth, RAG, and teams require a database.
+
+## Background Task Options
+
+| Queue | Description |
+|-------|-------------|
+| `celery` | Classic, battle-tested (Redis broker) |
+| `taskiq` | Async-native, modern (Redis broker) |
+| `arq` | Lightweight async (Redis) |
+| `prefect` | Workflow orchestration — self-hosted server + runner, cron/interval scheduled flows, web UI on `:4200`. Set `PREFECT_API_KEY` to use Prefect Cloud |
 
 ```bash
-fastapi-fullstack create my_app --database mongodb
+fastapi-fullstack create my_app --background-tasks prefect
 ```
-
-- Async via `Motor`
-- Beanie ODM
-- Flexible schema
 
 ## Messaging Channels
 

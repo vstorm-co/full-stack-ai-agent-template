@@ -53,7 +53,7 @@ You can render charts with the `create_chart` tool (line, bar, pie, area, scatte
 - For scatter charts every data point MUST have numeric `x` and `y` fields.
   Use the `series` arg to label groups (one entry per category, key = y field
   name). If grouping by category, add a "category" field to each row and make
-  each series key match the category value. Example for a 2×2 map:
+  each series key match the category value. Example for a 2x2 map:
     data=[{"x": 2.0, "y": 4.1, "category": "Managed", "name": "AWS Bedrock"},
           {"x": 3.5, "y": 2.8, "category": "Open-source", "name": "LangChain"}]
     series=[{"key": "Managed", "label": "Managed platform"},

@@ -22,7 +22,7 @@ Generate complete, type-safe applications with authentication, WebSocket streami
 
 2. **Production Ready**: 100% test coverage, strict typing, Docker/Kubernetes configs, and battle-tested in real applications.
 
-3. **25+ Integrations**: PostgreSQL, MongoDB, Redis, Celery, Logfire, Sentry, Prometheus, S3, and more — all optional and configurable.
+3. **25+ Integrations**: PostgreSQL, Redis, Celery/Prefect, Logfire, Sentry, Prometheus, Stripe, S3, and more — all optional and configurable.
 
 4. **AI-Agent Friendly**: Generated projects include `CLAUDE.md` and `AGENTS.md` files optimized for AI coding assistants.
 
@@ -54,8 +54,8 @@ fastapi-fullstack create my_app --preset ai-agent
 | **AI Agents** | PydanticAI, LangChain, LangGraph, DeepAgents with tool calling |
 | **WebSocket Streaming** | Real-time responses with full event access |
 | **Authentication** | JWT + Refresh tokens, API Keys, OAuth2 (Google) |
-| **Databases** | PostgreSQL (async), MongoDB (async), SQLite |
-| **Background Tasks** | Celery, Taskiq, or ARQ |
+| **Database** | PostgreSQL (async, SQLAlchemy 2.0 + Alembic) |
+| **Background Tasks** | Celery, Taskiq, ARQ, or Prefect |
 | **Observability** | Logfire, LangSmith, Sentry, Prometheus |
 | **Admin Panel** | SQLAdmin with authentication |
 | **Deployment** | Docker, Kubernetes, GitHub Actions, GitLab CI |

@@ -20,9 +20,9 @@ graph TB
     end
 
     subgraph Infrastructure
-        DB[(PostgreSQL/MongoDB)]
+        DB[(PostgreSQL)]
         Redis[(Redis)]
-        Queue[Celery/Taskiq]
+        Queue[Celery/Taskiq/ARQ/Prefect]
     end
 
     UI --> API

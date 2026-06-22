@@ -8,7 +8,7 @@ This guide covers setting up a local development environment for your generated 
 - **uv** - Fast Python package manager
 - **Docker** (optional, for databases)
 - **Bun** - JavaScript runtime (for frontend)
-- **PostgreSQL** or **MongoDB** (depending on your choice)
+- **PostgreSQL** (run via Docker with `make dev`)
 
 ---
 

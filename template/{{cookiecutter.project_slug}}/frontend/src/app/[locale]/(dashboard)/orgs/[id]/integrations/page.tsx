@@ -1,4 +1,4 @@
-"use client";
+{% raw %}"use client";
 
 import { use, useState } from "react";
 import { AlertCircle, Database, Plug, PlayCircle, RefreshCw, Trash2, Unplug } from "lucide-react";
@@ -249,3 +249,4 @@ export default function OrgIntegrationsPage({ params }: PageProps) {
     </div>
   );
 }
+{% endraw %}

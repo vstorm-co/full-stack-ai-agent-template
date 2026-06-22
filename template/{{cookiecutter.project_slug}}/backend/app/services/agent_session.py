@@ -51,7 +51,7 @@ from app.services.usage import UsageService
 {%- endif %}
 {%- if cookiecutter.enable_deep_research %}
 from app.core.config import settings
-from app.agents.tools.research import RESEARCH_TOOL_NAMES, ResearchToolkit
+from app.services.research import RESEARCH_TOOL_NAMES, ResearchToolkit
 {%- endif %}
 
 logger = logging.getLogger(__name__)
@@ -188,9 +188,7 @@ class AgentSession:
 
         try:
 {%- if cookiecutter.enable_deep_research %}
-            # Capabilities are a compile-time decision (CLI flag) — always build
-            # them when the project includes the feature and we have a scoped
-            # conversation_id. The deep_research toggle only switches the persona.
+            deep_research = settings.ENABLE_DEEP_RESEARCH and bool(data.get("deep_research", False))
             self._research = None
 {%- if cookiecutter.enable_todo %}
             todo_cap = None
@@ -199,7 +197,7 @@ class AgentSession:
             subagent_cap = None
 {%- endif %}
             ctx_manager_cap = None
-            if self.current_conversation_id:
+            if deep_research and self.current_conversation_id:
                 self._research = ResearchToolkit(self._send, model_name=data.get("model"))
                 caps = await self._research.build(self.current_conversation_id)
 {%- if cookiecutter.enable_todo %}
@@ -209,9 +207,8 @@ class AgentSession:
                 subagent_cap = caps.subagents
 {%- endif %}
                 ctx_manager_cap = caps.context_manager
-
-            # deep_research only controls the system prompt (research persona).
-            deep_research = settings.ENABLE_DEEP_RESEARCH and bool(data.get("deep_research", False))
+            else:
+                deep_research = False
 {%- endif %}
             assistant = get_agent(
                 model_name=data.get("model"),

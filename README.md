@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new2/chat_demo.gif" alt="Live chat — web search, tool calls, and chart generation" width="100%">
+  <img src="https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/landing_hero.png" alt="AI that knows your work — generated marketing site and chat assistant" width="100%">
 </p>
 
 <h1 align="center">Full-Stack AI Agent Template</h1>
@@ -103,50 +103,23 @@ uv tool install fastapi-fullstack
 pipx install fastapi-fullstack
 ```
 
-### Create Your Project
+### From zero to a running app
+
+Three steps. The wizard scaffolds the project, `make bootstrap` brings up the whole backend, and the frontend runs with a single command:
 
 ```bash
-# Interactive wizard (recommended — runs by default)
+# 1. Generate your project — just answer the wizard's prompts
 fastapi-fullstack
 
-# Quick mode with options
-fastapi-fullstack create my_ai_app \
-  --database postgresql \
-  --frontend nextjs
-
-# Use presets for common setups
-fastapi-fullstack create my_ai_app --preset production   # Full production setup
-fastapi-fullstack create my_ai_app --preset ai-agent     # AI agent with streaming
-
-# Minimal project (no extras)
-fastapi-fullstack create my_ai_app --minimal
-```
-
-### Start Development
-
-#### First time on a fresh clone
-
-```bash
+# 2. Backend + PostgreSQL up, migrations applied, default admin seeded
 cd my_ai_app
-make bootstrap       # = make dev + make seed
+make bootstrap
+
+# 3. Frontend (in a second terminal)
+cd frontend && bun install && bun dev
 ```
 
-That's it — backend, database, Redis, vector store (if RAG), Celery (if selected) come up, migrations are applied, and a default admin is seeded.
-
-#### Day-to-day
-
-```bash
-make dev             # idempotent: build + up + migrate. Re-run anytime.
-```
-
-`make dev` skips admin seeding (that's a one-shot in `make seed`) so it stays cheap to run after every code/config change.
-
-**Behind the scenes (`make dev`):**
-
-1. Builds the backend Docker image (cached after first run)
-2. Starts services via `docker-compose.dev.yml` (hot-reload bind mounts)
-3. Polls Postgres until ready (`pg_isready` — no fixed sleeps)
-4. Applies pending Alembic migrations (no-op if already at head)
+> **What `make bootstrap` does** (= `make dev` + `make seed`): builds the backend Docker image, starts the stack via `docker-compose.dev.yml`, waits for PostgreSQL (`pg_isready`), applies Alembic migrations, and seeds `admin@example.com` / `admin123`. It's idempotent — re-run it anytime.
 
 **Then access:**
 
@@ -167,6 +140,28 @@ make dev-logs      # tail container logs
 make dev-rebuild   # force-rebuild backend image (after pyproject.toml changes)
 make dev-frontend  # start the Next.js container
 ```
+
+After the first `make bootstrap`, day-to-day you just run `make dev` (skips admin re-seed). Run `make help` inside the project for the full list.
+
+<details>
+<summary><b>Other ways to generate (flags, presets, minimal)</b></summary>
+
+Skip the wizard and pass options directly:
+
+```bash
+# Non-interactive with explicit options
+fastapi-fullstack create my_ai_app --database postgresql --frontend nextjs
+
+# Presets for common scenarios (run `fastapi-fullstack templates` for the full list)
+fastapi-fullstack create my_ai_app --preset ai-agent           # AI agent with streaming
+fastapi-fullstack create my_ai_app --preset production         # Full production setup
+fastapi-fullstack create my_ai_app --preset production-saas    # SaaS: billing, teams, admin
+
+# Bare-bones project (PostgreSQL, no Docker/Redis/CI)
+fastapi-fullstack create my_ai_app --minimal
+```
+
+</details>
 
 ### Environments
 
@@ -245,129 +240,186 @@ Use `make help` to see all available Makefile shortcuts.
 
 ## 🎬 Demo
 
-**CLI generator:**
+> The videos below are best viewed on GitHub. On other viewers, see the [Screenshots](#-screenshots) gallery.
+
+**Live AI chat** — streaming responses, tool calls, charts, and a live plan/task checklist:
+
+<video src="https://github.com/vstorm-co/full-stack-ai-agent-template/raw/main/assets/new3/chat_demo_with_tasks.mp4" controls muted width="100%"></video>
+
+**File upload & RAG ingestion** — drop a document, watch it get parsed, chunked, embedded, and answered against:
+
+<video src="https://github.com/vstorm-co/full-stack-ai-agent-template/raw/main/assets/new3/rag_demo.mp4" controls muted width="100%"></video>
+
+**Generated marketing site** — the public landing page that ships with `enable_marketing_site`:
+
+<video src="https://github.com/vstorm-co/full-stack-ai-agent-template/raw/main/assets/new3/landing.mp4" controls muted width="100%"></video>
+
+**CLI generator** — configure and scaffold a project in seconds:
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/app_start.gif" alt="FastAPI Fullstack Generator Demo">
-</p>
-
-**File upload & RAG ingestion:**
-
-<p align="center">
-  <img src="https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new2/rag_demo.gif" alt="File upload &amp; RAG ingestion" width="100%">
 </p>
 
 ---
 
 ## 📸 Screenshots
 
+### AI Chat
+
+The chat UI streams responses over WebSocket and renders each tool call as a purpose-built card instead of a raw JSON dump.
+
+**Plan & tasks** — a sticky plan/task checklist sits above the composer, updating live as the agent (or Deep Research planner) works through steps, with an inline "thinking" indicator.
+
+![Chat plan and tasks](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/chat_tasks.png)
+
+**Subagents** — when work is delegated, a live subagent feed and side panel show each subagent's status, streamed messages, and final result.
+
+![Chat subagents](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/chat_subagents.png)
+
+**Charts** — the agent's `create_chart` tool renders interactive, theme-aware bar / area / line / pie / scatter charts directly in the conversation.
+
+![Chat charts](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/chat_graphs.png)
+
+**Code execution** — the optional `run_python` tool shows the executed code alongside its stdout / result (or error) in a collapsible card.
+
+![Chat Python code execution](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/chat_python_code.png)
+
+**Ask user** — the agent can pause to ask clarifying questions and resume once you answer; the card keeps the full question/answer transcript.
+
+![Chat ask-user tool](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/chat_ask_user.png)
+
+**Reasoning & answered questions** — a clean reasoning/"thinking" view plus answered-question history keeps long agent turns readable.
+
+![Chat reasoning and answered questions](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/chat_answered_questions_and_thinking.png)
+
 ### Marketing Site
 
 **Landing Page** — Full-page marketing site with hero, features breakdown, testimonials, pricing preview, and FAQ. Generated with the `enable_marketing_site` option.
 
-![Landing Page](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new2/landing_page.png)
+![Landing Page](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/landing_full.png)
 
-**Pricing** — Three-tier pricing page (Starter / Pro / Business) with monthly/annual toggle. Pulls live plan data from Stripe when connected; shows template plans otherwise.
+**Pricing** — Three-tier pricing page with monthly/annual toggle. Pulls live plan data from Stripe when connected; shows template plans otherwise.
 
-![Pricing](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new2/pricing.png)
+![Pricing](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/landing_pricing.png)
 
 **Blog** — Engineering blog included out of the box. Posts are MDX files in the repo — no CMS needed. Supports tags, featured posts, and author bylines.
 
-![Blog](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new2/blog.png)
-
-**Blog Post** — Individual post view with author card, reading time, and tag badges. Content is plain MDX — edit files and redeploy.
-
-![Blog Post](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new2/blog_post.png)
+![Blog](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/blogs.png)
 
 ### Auth
 
 **Login** — Split-screen login with Google OAuth and email/password. Left panel shows a product pitch with a social proof quote. HTTP-only cookie session on submit.
 
-![Login](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new2/login.png)
+![Login](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/login.png)
 
 **Register** — Same split-screen layout as login. Google sign-up and email/password form with confirm-password field and terms acceptance.
 
-![Register](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new2/register.png)
+![Register](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/register.png)
 
 ### Dashboard
 
-**Dashboard (light mode)** — Workspace overview showing conversation count, knowledge base vector count, recent activity feed, agent tool call stats, active sessions, and team info. Onboarding banner guides new users through setup in under 2 minutes.
+**Dashboard (light mode)** — Workspace overview with conversation count, knowledge base vectors, sparkline stat cards, a usage timeline, recent activity, and team info. Onboarding banner guides new users through setup.
 
-![Dashboard Light](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new2/dashboard_light.png)
+![Dashboard Light](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/dashboard_light.png)
 
 **Dashboard (dark mode)** — Same dashboard in dark theme. Theme is saved per-device and can be overridden per-workspace in appearance settings.
 
-![Dashboard Dark](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new2/dashboard_dark.png)
+![Dashboard Dark](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/dashboard_dark.png)
 
 ### Teams & Organizations
 
 **Workspaces** — List of all organizations the user belongs to. Shows plan tier and role for each. Users can switch active workspace or create a new organization.
 
-![Organizations](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new2/organizations.png)
+![Organizations](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/organizations_light.png)
 
 **Team Management** — Organization detail page with workspace profile (name + avatar), member list with roles, and an "Invite teammate" button. Owners and admins can adjust roles inline.
 
-![Organization Details](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new2/organization_details.png)
+![Organization Details](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/organization_light.png)
 
 ### Knowledge Bases
 
 **Knowledge Bases** — List of RAG knowledge bases scoped to the current workspace. Each base shows its collection slug. Users can create new bases, toggle which ones are active in chat, and upload documents through the UI.
 
-![Knowledge Bases](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new2/knowledge_bases.png)
+![Knowledge Bases](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/knowledge_bases_light.png)
 
-### Billing
+**Documents & Sync Sources** — Inspect a knowledge base's documents, preview or download any file in-app, and manage connected sync sources (Google Drive, S3/MinIO) with manual triggers and per-run logs.
 
-**Billing** — Workspace billing dashboard showing current plan, storage usage (chat attachments + indexed RAG documents), quick links to usage breakdown, invoices, payment methods, and subscription management. "Manage in Stripe" opens the Stripe customer portal.
+![Knowledge Base Source](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/knowledge_base_source_light.png)
 
-![Billing](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new2/billing.png)
+### Billing & Usage
+
+**Billing Overview** — Workspace billing dashboard showing the current plan, seats, storage usage (chat attachments + indexed RAG documents), and quick links to usage, invoices, payment methods, and subscription. "Manage in Stripe" opens the Customer Portal.
+
+![Billing and usage](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/billing_and_usage_light.png)
+
+**Usage** — Daily credits-spent and call-count charts plus a by-model token breakdown, built from per-message usage events.
+
+![Billing usage charts](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/billing_usage_light.png)
+
+**Credits** — Credit balance and an immutable transaction ledger (grants, purchases, debits) with a usage sparkline.
+
+![Billing credits](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/billing_credits_light.png)
+
+**Subscription, Invoices & Payment Methods** — Manage the plan, view invoices, and update payment methods — all backed by Stripe.
+
+![Billing subscription](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/billing_subscription_light.png)
+![Billing invoices](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/billing_invoices_light.png)
 
 ### Profile & Settings
 
 **Profile** — Personal info tab: avatar upload, display name, email, and active session list with per-device revoke buttons. Visibility note explains which fields are shown to teammates.
 
-![Profile](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new2/profile.png)
+![Profile](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/profile_light.png)
 
 **Account & Security** — Change password form with strength guidance, "Sign out everywhere" button, and danger zone for permanent account deletion.
 
-![Account](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new2/profile_account.png)
+![Account](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/account_light.png)
 
 **Slash Commands** — Customize the `/command` palette in chat. Toggle built-in commands (`/clear`, `/regen`, `/settings`, `/summarize`, `/explain`) and create custom shortcuts that send a stored prompt with a few keystrokes.
 
-![Slash Commands](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new2/profile_commands.png)
+![Slash Commands](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/commands_light.png)
 
-**Appearance** — Theme switcher (light / dark / system) and brand color picker with four presets: Blue (Stripe/Vercel), Green (healthtech), Red (energetic), Orange (B2C), Violet (Anthropic-style). Brand color updates CSS variables across the entire workspace and is saved per-device.
+**Appearance** — Theme switcher (light / dark / system) and brand color picker with five presets: Blue, Green, Red, Orange, and Violet. Brand color updates CSS variables across the entire workspace and is saved per-device.
 
-![Appearance](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new2/profile_appearance.png)
+![Appearance](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/appearance_light.png)
 
-**Notification Preferences** — Per-category notification controls with separate toggles for email and in-app delivery. Categories: Billing, Team activity, Security alerts, and Product updates. Preferences stored locally and synced to the backend via `/users/me/notifications`.
+**Notification Preferences** — Per-category notification controls with separate toggles for email and in-app delivery. Categories: Billing, Team activity, Security alerts, and Product updates.
 
-![Notifications](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new2/profile_notifications.png)
+![Notifications](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/notifications_light.png)
 
 ### Admin Panel
 
 **Admin Overview** — Workspace-wide metrics (total users, active sessions last 24h, conversation count, MRR) plus a recent activity feed showing all conversations across all users. Requires the `admin` role.
 
-![Admin Overview](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new2/admin_overview.png)
+![Admin Overview](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/admin_overview_light.png)
 
 **User Management** — Full user list with search by email or name. Shows role, status, join date, and an "Inspect" action to impersonate or suspend any user. Pagination built in.
 
-![Admin Users](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new2/admin_users.png)
+![Admin Users](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/admin_users_light.png)
 
 **Conversation Browser** — Browse all conversations across the workspace. Filter by status and owner, sort by any column, open any conversation in a read-only view. Useful for support and quality review.
 
-![Admin Conversations](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new2/admin_conversations.png)
+![Admin Conversations](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/admin_conversations_light.png)
 
-**Message Quality & Ratings** — Aggregated like/dislike feedback on AI responses over the last 30 days. Shows approval rate, daily chart, and a filterable table of individual ratings with optional user comments. Export to CSV.
+**Message Quality & Ratings** — Aggregated like/dislike feedback on AI responses. Shows approval rate, a daily chart, and a filterable table of individual ratings with optional user comments.
 
-![Admin Ratings](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new2/admin_ratings.png)
+![Admin Ratings](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/admin_ratings_light.png)
 
-**Stripe Events Log** — Webhook event browser for debugging Stripe billing flows. Lists all received events (type, customer, amount, status, timestamp) and lets admins manually replay any event via the backend `/admin/stripe-events/{id}/replay` endpoint.
+**Stripe Events Log** — Webhook event browser for debugging Stripe billing flows. Lists all received events (type, customer, amount, status, timestamp) and lets admins manually replay any event.
 
-![Stripe Events](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new2/admin_stripe_events.png)
+![Stripe Events](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/admin_stripe_events_light.png)
 
-**System Health** — Live readiness dashboard auto-refreshing every 30 seconds. Checks API, Database (PostgreSQL primary), Redis, Vector store, LLM provider, Background worker, and Stripe API. Shows uptime percentage per service.
+**System Health** — Live readiness dashboard. Checks API, PostgreSQL, Redis, Vector store, LLM provider, Background worker, and Stripe API, with uptime percentage per service.
 
-![System Health](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new2/admin_system_health.png)
+![System Health](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/admin_system_light.png)
+
+### Background Tasks & Orchestration
+
+**Prefect** — With `--background-tasks prefect`, the project ships a self-hosted Prefect server and runner. Flows cover RAG ingestion/sync, billing & email reminders, and credits maintenance, each on a cron/interval schedule visible in the Prefect UI.
+
+![Prefect dashboard](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/prefect_dashboard.png)
+![Prefect flow runs](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/prefect_runs.png)
+![Prefect task timeline](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/new3/prefect_task_timeline.png)
 
 ### Observability
 
@@ -446,12 +498,12 @@ Generated projects include **CLAUDE.md** and **AGENTS.md** files optimized for A
 
 <p align="center">
   <a href="https://www.postgresql.org"><img src="https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white" alt="PostgreSQL"></a>
-  <a href="https://www.mongodb.com"><img src="https://img.shields.io/badge/MongoDB-47A248?logo=mongodb&logoColor=white" alt="MongoDB"></a>
   <a href="https://redis.io"><img src="https://img.shields.io/badge/Redis-DC382D?logo=redis&logoColor=white" alt="Redis"></a>
   <a href="https://milvus.io"><img src="https://img.shields.io/badge/Milvus-00A1EA?logoColor=white" alt="Milvus"></a>
   <a href="https://qdrant.tech"><img src="https://img.shields.io/badge/Qdrant-FF6B6B?logoColor=white" alt="Qdrant"></a>
   <a href="https://www.trychroma.com"><img src="https://img.shields.io/badge/ChromaDB-FF6F61?logoColor=white" alt="ChromaDB"></a>
   <a href="https://docs.celeryq.dev"><img src="https://img.shields.io/badge/Celery-37814A?logo=celery&logoColor=white" alt="Celery"></a>
+  <a href="https://www.prefect.io"><img src="https://img.shields.io/badge/Prefect-070E10?logo=prefect&logoColor=white" alt="Prefect"></a>
   <a href="https://logfire.pydantic.dev"><img src="https://img.shields.io/badge/Logfire-E92063?logo=pydantic&logoColor=white" alt="Logfire"></a>
   <a href="https://sentry.io"><img src="https://img.shields.io/badge/Sentry-362D59?logo=sentry&logoColor=white" alt="Sentry"></a>
   <a href="https://prometheus.io"><img src="https://img.shields.io/badge/Prometheus-E6522C?logo=prometheus&logoColor=white" alt="Prometheus"></a>
@@ -470,22 +522,24 @@ Generated projects include **CLAUDE.md** and **AGENTS.md** files optimized for A
 - **4 LLM Providers** - OpenAI, Anthropic, Google Gemini, OpenRouter
 - **RAG** - Document ingestion, vector search, reranking (Milvus, Qdrant, ChromaDB, pgvector)
 - **WebSocket Streaming** - Real-time responses with full event access
+- **Rich Chat UI** - Specialized tool-call cards (web search, knowledge base, Python, charts, skills), live subagent feed, citation sources panel, plan/task checklist, reasoning view, and in-chat file previews
+- **Agent Tools** - Web search, URL fetch, charts, code execution (`run_python`), skills, `ask_user`, plus optional Deep Research (TODO planner + parallel subagents)
 - **Messaging Channels** - Telegram and Slack multi-bot integration with polling, webhooks, per-thread sessions, group concurrency control
 - **Conversation Sharing** - Share conversations with users or via public links, admin conversation browser
 - **Conversation Persistence** - Save chat history to database
 - **Message Ratings** - Like/dislike responses with feedback, admin analytics
 - **Image Description** - Extract images from documents, describe via LLM vision
-- **Multimodal Embeddings** - Google Gemini embedding model (text + images)
+- **Multimodal Embeddings** - Provider-aware: OpenAI, Voyage (Anthropic), Gemini (multimodal text + images)
 - **Document Sources** - Local files, API upload, Google Drive, S3/MinIO
-- **Sync Sources** - Configurable connectors (Google Drive, S3) with scheduled sync
+- **Sync Sources** - Per-organization connector management UI (Google Drive, S3/MinIO) with scheduled sync, manual triggers, encrypted credentials, and per-run logs
 - **Observability** - Logfire for PydanticAI, LangSmith for LangChain/LangGraph/DeepAgents
 
 ### ⚡ Backend (FastAPI)
 
 - **[FastAPI](https://fastapi.tiangolo.com)** + **[Pydantic v2](https://docs.pydantic.dev)** - High-performance async API
-- **Multiple Databases** - PostgreSQL (async), MongoDB (async), SQLite
+- **PostgreSQL** (async) - SQLAlchemy 2.0 + Alembic migrations, pgvector-ready
 - **Authentication** - JWT + Refresh tokens, API Keys, OAuth2 (Google)
-- **Background Tasks** - Celery, Taskiq, or ARQ
+- **Background Tasks** - Celery, Taskiq, ARQ, or Prefect
 - **Django-style CLI** - Custom management commands with auto-discovery
 
 ### 🎨 Frontend (Next.js 15)
@@ -494,8 +548,9 @@ Generated projects include **CLAUDE.md** and **AGENTS.md** files optimized for A
 - **AI Chat Interface** - WebSocket streaming, tool call visualization
 - **Authentication** - HTTP-only cookies, auto-refresh, password reset, magic link
 - **Marketing Site** - hero, pricing, FAQ, blog, contact form, legal pages (PL + EN)
+- **Billing Dashboard** - subscription, payment methods, invoices, credits balance/ledger, and usage charts (Stripe)
 - **User Settings** - profile, API keys CRUD (`sk_*` tokens), onboarding tracking
-- **Admin Panel** - workspace stats, Stripe events browser
+- **Admin Panel** - workspace stats, message-rating analytics, Stripe events browser
 - **SEO** - per-page metadata, OG image, sitemap, robots, manifest, favicons
 - **Dark Mode** + **i18n** (PL/EN via next-intl, locale-prefixed routes)
 
@@ -506,8 +561,10 @@ Generated projects include **CLAUDE.md** and **AGENTS.md** files optimized for A
 | **AI Frameworks** | PydanticAI, PydanticDeep, LangChain, LangGraph, DeepAgents |
 | **LLM Providers** | OpenAI, Anthropic, Google Gemini, OpenRouter |
 | **RAG / Vector Stores** | Milvus, Qdrant, ChromaDB, pgvector |
-| **RAG Sources** | Local files, API upload, Google Drive, S3/MinIO, Sync Sources (configurable, scheduled) |
+| **RAG Sources** | Local files, API upload, Google Drive, S3/MinIO, Sync Sources (per-org UI, scheduled) |
 | **Embeddings** | OpenAI, Voyage, Gemini (multimodal), SentenceTransformers |
+| **Background Tasks** | Celery, Taskiq, ARQ, Prefect |
+| **Billing** | Stripe subscriptions (seat-based), credits + usage metering, invoices, Customer Portal |
 | **Caching & State** | Redis, fastapi-cache2 |
 | **Security** | Rate limiting, CORS, CSRF protection |
 | **Observability** | Logfire, LangSmith, Sentry, Prometheus |
@@ -557,14 +614,15 @@ Generated projects include **CLAUDE.md** and **AGENTS.md** files optimized for A
 │  └─────────────────────────────────────────────────────────────────┘     │
 │                                                                          │
 │  Auth (JWT/API Key/OAuth) · Rate Limiting · Webhooks · Admin Panel       │
-│  Background Tasks (Celery/Taskiq/ARQ) · Django-style CLI                 │
-│  Observability (Logfire/LangSmith/Sentry/Prometheus)                     │
+│  Billing (Stripe + credits) · Background Tasks (Celery/Taskiq/ARQ/       │
+│  Prefect) · Django-style CLI · Observability (Logfire/LangSmith/         │
+│  Sentry/Prometheus)                                                      │
 └───────┬──────────────┬──────────────┬──────────────┬─────────────────────┘
         │              │              │              │
         ▼              ▼              ▼              ▼
    PostgreSQL       Redis         Vector DB      LLM APIs
-   MongoDB                        (Milvus/       (OpenAI/
-   SQLite                         Qdrant/        Anthropic/
+   (async)                        (Milvus/       (OpenAI/
+                                  Qdrant/        Anthropic/
                                   ChromaDB/      Gemini)
                                   pgvector)
 ```
@@ -589,9 +647,9 @@ graph TB
     end
 
     subgraph Infrastructure
-        DB[(PostgreSQL/MongoDB)]
+        DB[(PostgreSQL)]
         Redis[(Redis)]
-        Queue[Celery/Taskiq]
+        Queue[Celery/Taskiq/ARQ/Prefect]
     end
 
     subgraph External
@@ -637,7 +695,7 @@ See [Architecture Documentation](https://github.com/vstorm-co/full-stack-ai-agen
 
 ## 🤖 AI Agent
 
-Choose from **6 AI frameworks** and **4 LLM providers** when generating your project:
+Choose from **5 AI frameworks** and **4 LLM providers** when generating your project:
 
 ```bash
 # PydanticAI with OpenAI (default)
@@ -781,7 +839,7 @@ uv run my_app rag-sync-s3 --collection docs --prefix reports/ --bucket my-bucket
 - **Image description** - Extract images from documents, describe via LLM vision API (opt-in)
 - **Chunking** - RecursiveCharacterTextSplitter with configurable size/overlap
 - **Reranking** - Cohere API or local CrossEncoder for improved search quality
-- **Agent integration** - All 6 AI frameworks get a `search_knowledge_base` tool automatically
+- **Agent integration** - All 5 AI frameworks get a `search_knowledge_base` tool automatically
 
 ---
 
@@ -820,7 +878,7 @@ graph LR
 |-----------|-------------|
 | **PydanticAI** | Agent runs, tool calls, LLM requests, token usage, streaming events |
 | **FastAPI** | Request/response traces, latency, status codes, route performance |
-| **PostgreSQL/MongoDB** | Query execution time, slow queries, connection pool stats |
+| **PostgreSQL** | Query execution time, slow queries, connection pool stats |
 | **Redis** | Cache hits/misses, command latency, key patterns |
 | **Celery/Taskiq** | Task execution, queue depth, worker performance |
 | **HTTPX** | External API calls, response times, error rates |
@@ -948,7 +1006,7 @@ my_project/
 │   │   │   ├── deps.py          # Dependency injection
 │   │   │   └── router.py        # Route aggregation
 │   │   ├── core/                # Config, security, middleware
-│   │   ├── db/models/           # SQLAlchemy/MongoDB models
+│   │   ├── db/models/           # SQLAlchemy 2.0 models
 │   │   ├── schemas/             # Pydantic schemas
 │   │   ├── repositories/        # Data access layer
 │   │   ├── services/            # Business logic
@@ -987,15 +1045,15 @@ generated_at = "2024-12-21T10:30:00+00:00"
 
 | Option | Values | Description |
 |--------|--------|-------------|
-| **Database** | `postgresql`, `mongodb`, `sqlite`, `none` | Async by default |
+| **Database** | `postgresql`, `none` | Async PostgreSQL (SQLAlchemy 2.0 + Alembic) |
 | **ORM** | `sqlalchemy`, `sqlmodel` | SQLModel for simplified syntax |
 | **Auth** | `jwt`, `api_key`, `both`, `none` | JWT includes user management |
 | **OAuth** | `none`, `google` | Social login |
-| **AI Framework** | `pydantic_ai`, `langchain`, `langgraph`, `deepagents` | Choose your AI agent framework |
+| **AI Framework** | `pydantic_ai`, `pydantic_deep`, `langchain`, `langgraph`, `deepagents` | Choose your AI agent framework |
 | **LLM Provider** | `openai`, `anthropic`, `google`, `openrouter` | OpenRouter only with PydanticAI |
 | **RAG** | `--rag` | Enable RAG with vector database |
 | **Vector Store** | `milvus`, `qdrant`, `chromadb`, `pgvector` | pgvector uses existing PostgreSQL |
-| **Background Tasks** | `none`, `celery`, `taskiq`, `arq` | Distributed queues |
+| **Background Tasks** | `none`, `celery`, `taskiq`, `arq`, `prefect` | Distributed queues / orchestration |
 | **Frontend** | `none`, `nextjs` | Next.js 15 + React 19 |
 
 ### Presets
@@ -1063,9 +1121,10 @@ fastapi-fullstack
 | **FastAPI Backend** | ✅ | ✅ | ❌ |
 | **Next.js Frontend** | ✅ (v15) | ❌ | ✅ |
 | **JWT + OAuth Authentication** | ✅ | ✅ | ✅ (NextAuth) |
-| **Background Tasks** (Celery/Taskiq/ARQ) | ✅ | ✅ (Celery) | ❌ |
+| **Background Tasks** (Celery/Taskiq/ARQ/Prefect) | ✅ | ✅ (Celery) | ❌ |
+| **Billing & Credits** (Stripe + usage metering) | ✅ | ❌ | ❌ |
 | **Admin Panel** | ✅ (SQLAdmin) | ❌ | ❌ |
-| **Multiple Databases** (PG/Mongo/SQLite) | ✅ | PostgreSQL only | Prisma |
+| **Async PostgreSQL** (SQLAlchemy 2.0 + pgvector) | ✅ | ✅ | Prisma |
 | **Docker + K8s** | ✅ | ✅ | ❌ |
 | **Interactive CLI Wizard** | ✅ | ❌ | ✅ |
 | **Django-style Commands** | ✅ | ❌ | ❌ |

@@ -29,7 +29,7 @@ The backend follows a clean layered architecture with clear separation of concer
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                      Database                                │
-│            PostgreSQL / MongoDB / SQLite                     │
+│              PostgreSQL (async, SQLAlchemy 2.0)              │
 └─────────────────────────────────────────────────────────────┘
 ```
 

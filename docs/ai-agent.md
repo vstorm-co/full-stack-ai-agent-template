@@ -4,7 +4,7 @@ This document describes the AI agent integrations available in the template.
 
 ## Overview
 
-The template supports 6 AI frameworks for building intelligent agents:
+The template supports 5 AI frameworks for building intelligent agents:
 
 | Framework | Description | Best For |
 |-----------|-------------|----------|

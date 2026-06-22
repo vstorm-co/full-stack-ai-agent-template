@@ -1,6 +1,6 @@
 [project]
 name = "fastapi-fullstack"
-version = "0.2.12"
+version = "0.2.13"
 description = "Full-stack FastAPI + Next.js template generator with PydanticAI/LangChain agents, WebSocket streaming, 20+ enterprise integrations, and Logfire/LangSmith observability. Ship AI apps fast. CLI tool to generate production-ready FastAPI + Next.js projects with AI agents, auth, and observability."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -49,7 +49,7 @@ dependencies = [
     "rich>=15.0.0",
     "questionary>=2.1.0",
     "pydantic>=2.13.0",
-    "pydantic-settings>=2.13.0",
+    "pydantic-settings>=2.14.2",
     "email-validator>=2.3.0",
     "httpx>=0.28.1",
     "pytest>=9.0.3",

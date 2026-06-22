@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.13] - 2026-06-22
+
+### Added
+
+- **Prefect background-task option** (`--background-tasks prefect`, `use_prefect`) — a fourth task backend alongside Celery, Taskiq, and ARQ. Unlike the Redis-backed queues, Prefect runs its own orchestrator: a `prefect-server` container (UI on `:4200`) plus a `prefect-runner` that registers deployments from `app/worker/prefect_app.py` and polls for work. Ships flows for RAG (on-demand ingest/sync + a scheduled `check_scheduled_syncs`), billing/email reminders (trial-ending, low-credits), and credits maintenance (ledger cleanup, `mv_usage_daily` refresh) on cron/interval schedules. Self-hosted by default (`PREFECT_API_URL`); set `PREFECT_API_KEY` for Prefect Cloud (#105)
+- **Organization integrations / sync sources UI** — manage RAG connectors per organization from the dashboard (`/orgs/[id]/integrations`). Add a Google Drive or S3/MinIO source, assign it to a knowledge base, trigger a sync manually, and inspect per-run logs (status, mode, duration, and ingested/updated/skipped/failed counts). Sources can live at the org level as reusable templates or be wired to a specific collection. Connector credentials are encrypted at rest with Fernet (`app/core/crypto.py`) and masked in API responses. Endpoints under `/api/v1/org/integrations` (admin/owner only) (#105)
+- **Billing, credits & usage metering** — a full Stripe billing stack: plans/prices mirrored locally, seat-based subscriptions with trials and end-of-period cancellation, an idempotent Stripe webhook event log, a Customer Portal link, and invoices. Adds a credits ledger (`credit_transaction`) and per-message usage events (`usage_event`: input/output/cached tokens, model, provider, credits charged) rolled up into a `mv_usage_daily` materialized view. New billing dashboard pages: subscription, payment methods, invoices, credits balance/ledger, and usage with daily credits/calls and by-model token charts (#105)
+- **File view & download** — preview knowledge-base documents and chat attachments in-app via a modal viewer supporting 20+ types (PDF, images, audio/video, CSV tables, HTML sandbox, JSON, Markdown, syntax-highlighted code, plain text) with a download/open-external fallback for anything else. Backed by document/file download routes on the API (#105)
+- **Standalone TODO planner and subagents** (`enable_todo`, `enable_subagents`) — the planner and multi-agent delegation that previously only shipped with Deep Research are now independent opt-in toggles. Enabling `enable_deep_research` still turns both on automatically (#105)
+- **Chat UI overhaul** — specialized tool-result cards replace generic JSON dumps: numbered web-search results, knowledge-base chunks grouped by source file with relevance scores, `run_python` code + stdout/result, skill cards, `ask_user` question/answer transcripts, and datetime cards. Adds a live **subagent feed and side panel** (status, messages, results per delegated agent), a **sources panel** that collects every citation (knowledge base + web) with clickable `[N]` badges in Markdown, a sticky **task/plan checklist** above the composer, inline **chart rendering** (bar/area/line/pie/scatter, theme-aware), file-preview cards for attachments, and a reasoning/"thinking" view (#105)
+- **Multi-provider embeddings** — the embedding provider is now selected automatically from the chosen LLM provider: OpenAI → `text-embedding-3-small`, Anthropic → Voyage, Google → Gemini (multimodal text + image) (#105)
+- **Marketing & dashboard polish** — new marketing sections (feature bento, comparison table, integrations grid, enterprise-security band, outcomes band, case study, smooth scroll), dashboard sparkline stat cards and a usage timeline chart, an admin message-ratings chart, and a `/dev/components` showcase page. New shared UI primitives: data table, confirm dialog, form field, icon button, section heading (#105)
+
+### Changed
+
+- **Database simplified to PostgreSQL** — PostgreSQL (async) is now the single supported database. The migration history, seed command, and Makefile targets are PostgreSQL-only; SQLModel and the example-CRUD scaffold simply require PostgreSQL now (#105)
+- **Charts consolidated** — the separate `enable_antv_charts` option is gone; charting is covered by `enable_charts` (native chart tool + web rendering) (#105)
+
+### Removed
+
+- **CrewAI framework** — the generator now offers **5** AI frameworks (PydanticAI, PydanticDeep, LangChain, LangGraph, DeepAgents). CrewAI's older `opentelemetry-sdk` pin conflicted with current Logfire, and the option is dropped (#105)
+- **MongoDB and SQLite database backends** — `--database` now accepts `postgresql` or `none`. Projects needing those engines should pin a generator ≤ 0.2.12 (#105)
+- **`enable_antv_charts`** flag (folded into `enable_charts`) (#105)
+
+### Fixed
+
+- **Frontend Docker build (`make dev-frontend`) failed with `"/app/public": not found`** — the standalone runner stage copies `frontend/public`, but Next.js never created the directory when there were no static assets. Ship `frontend/public/.gitkeep` so the directory always exists in the build context (#103, #105)
+
 ## [0.2.12] - 2026-06-17
 
 ### Added

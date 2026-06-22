@@ -51,7 +51,7 @@ services, which in turn delegate to repositories.
 | ↳ `rag.py` | RAG query/response schemas |
 | ↳ `sync_source.py` | Sync source schemas |
 {%- endif %}
-| **`db/models/`** | **SQLAlchemy / MongoDB models** |
+| **`db/models/`** | **SQLAlchemy 2.0 models** |
 | ↳ `user.py` | User model |
 | ↳ `conversation.py` | Conversation & message models |
 | ↳ `chat_file.py` | Chat file model |
@@ -99,7 +99,7 @@ services, which in turn delegate to repositories.
 - `Response` schemas use `model_config = ConfigDict(from_attributes=True)` for ORM conversion
 
 ### Models (`db/models/`)
-- SQLAlchemy (or MongoDB) model definitions
+- SQLAlchemy 2.0 model definitions
 - Relationships, indexes, and column defaults live here
 {%- if cookiecutter.enable_rag %}
 

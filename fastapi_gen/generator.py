@@ -12,7 +12,7 @@ from .config import DatabaseType, FrontendType, ProjectConfig
 console = Console()
 
 
-def _get_database_setup_commands(database: DatabaseType) -> list[tuple[str, str]]:
+def _get_database_setup_commands(_database: DatabaseType) -> list[tuple[str, str]]:
     """Get database-specific setup commands for post-generation messages.
 
     Args:
@@ -22,10 +22,10 @@ def _get_database_setup_commands(database: DatabaseType) -> list[tuple[str, str]
         List of (command, description) tuples to display
     """
     return [
-            ("make docker-db", "Start PostgreSQL container"),
-            ("make db-migrate", "Create initial migration"),
-            ("make db-upgrade", "Apply migrations"),
-        ]
+        ("make docker-db", "Start PostgreSQL container"),
+        ("make db-migrate", "Create initial migration"),
+        ("make db-upgrade", "Apply migrations"),
+    ]
 
 
 def _find_template_dir() -> Path:

@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.14] - 2026-06-23
+
+### Added
+
+- **Public demo gallery & live replay** — any conversation can be flagged as a demo by an admin (`PATCH /api/v1/admin/conversations/{id}/demo`), after which it appears on a public gallery page (`/{locale}/demo`) and can be played back frame-by-frame at `/{locale}/demo/{id}`. The gallery shows a deterministic waveform-trace visualisation (WaveTrace) unique to each demo UUID alongside a message-count, title, and preview quote. The replay page streams every message turn in real time, including tool calls and their results, at a configurable speed — exactly as the original session unfolded. No auth required; the public endpoints (`GET /api/v1/demos`, `GET /api/v1/demos/{id}`) return only flagged conversations (#106)
+- **Conversation replay engine** — `useConversationReplay` hook drives step-by-step playback: reveals committed messages one turn at a time with character-by-character streaming on the active turn, emits a `tick` on every visual update, and exposes `start / stop / isReplaying / displayMessages / progress`. `useStepReplay` handles the per-turn streaming loop with configurable char-rate and inter-message delay. Tool calls animate in the same pass, with human-readable captions mapped from tool names via `agent-step-captions.ts` (#106)
+- **`is_demo` conversation flag** — Alembic migration `0023`, `Conversation.is_demo: bool = False` column, repository helpers (`list_demos`, `get_public_demo`), and service methods (`mark_as_demo`, `list_public_demos`, `get_public_demo`). Admin conversations endpoint extended with a toggle action and `is_demo` field in the response schema (#106)
+- **Admin conversations panel update** — the admin conversations table gains a "Demo" toggle button that calls the new action endpoint and reflects the current state with an optimistic UI update and toast feedback (#106)
+- **Demo UI** — cinematic pre-play overlay (pulsing branded play button with radial glow, backdrop blur), sticky progress bar, "Jump to active" re-engage button, and "Watch again" reset. Gallery uses a dark hero with ambient glow blobs, live-indicator pill, and a two-column card grid with per-card hover gradient reveal (#106)
+
+### Fixed
+
+- **Demo replay auto-scroll** — replaced `window.scrollBy` (which has no effect when the page's scroll container is not `window`) with an inner `overflow-y-auto` container that the replay hook scrolls directly via `container.scrollBy`. The outer wrapper uses `h-[calc(100vh-3.5rem)]` (fixed height) so `flex-1` on the messages pane actually constrains its height and triggers overflow — previously `min-h` let the container grow unbounded, making `overflow-y-auto` a no-op (#106)
+- **Jinja2 parse error on demo pages** — JSX inline style objects (`style={{ ... }}`) conflicted with Jinja2's `{{ }}` delimiter, causing "expected token 'end of print statement', got ':'" at generation time. Both demo template files are now wrapped in `{% raw %}...{% endraw %}`, with the single `{{ cookiecutter.backend_port }}` substitution broken out of the raw block. Inline style objects are also extracted to named constants to eliminate all `style={{` occurrences (#106)
+
+### Changed
+
+- **Demo replay scrollbar** — replaced the browser-default scrollbar on the replay container with a 4 px thin variant: transparent track, `border`-coloured thumb at rest, brand-coloured thumb on hover. Applied via Tailwind arbitrary-variant selectors (webkit) and `scrollbar-width: thin` / `scrollbar-color` (Firefox) (#106)
+
 ## [0.2.13] - 2026-06-22
 
 ### Added

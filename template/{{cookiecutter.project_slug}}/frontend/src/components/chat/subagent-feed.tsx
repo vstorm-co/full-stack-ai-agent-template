@@ -1,4 +1,4 @@
-"use client";
+{% raw %}"use client";
 
 import { Bot, CheckCircle2, Loader2, XCircle } from "lucide-react";
 import { useResearchStore } from "@/stores";
@@ -11,11 +11,13 @@ function SubagentCard({
   subagent,
   selected,
   messageCount,
+  index,
   onClick,
 }: {
   subagent: SubagentStatus;
   selected: boolean;
   messageCount: number;
+  index: number;
   onClick: () => void;
 }) {
   const isRunning = subagent.status === "running" || subagent.status === "retrying";
@@ -37,8 +39,9 @@ function SubagentCard({
     <button
       type="button"
       onClick={onClick}
+      style={{ animationDelay: `${index * 60}ms` }}
       className={cn(
-        "flex w-full items-center gap-2.5 rounded-xl border px-3.5 py-2 text-left text-sm transition-colors",
+        "step-card-in flex w-full items-center gap-2.5 rounded-xl border px-3.5 py-2 text-left text-sm transition-colors",
         selected
           ? "border-foreground/20 bg-foreground/[0.06]"
           : "border-foreground/8 bg-foreground/[0.02] hover:border-foreground/15 hover:bg-foreground/[0.04]",
@@ -95,15 +98,17 @@ export function SubagentFeed({ turnId }: { turnId: string }) {
 
   return (
     <div className="mt-4 space-y-1.5 px-2 sm:px-4">
-      {subagents.map((s) => (
+      {subagents.map((s, i) => (
         <SubagentCard
           key={s.task_id}
           subagent={s}
           selected={selectedId === s.task_id}
           messageCount={messagesByTask?.[s.task_id]?.length ?? 0}
+          index={i}
           onClick={() => setSelected(selectedId === s.task_id ? null : s.task_id)}
         />
       ))}
     </div>
   );
 }
+{% endraw %}

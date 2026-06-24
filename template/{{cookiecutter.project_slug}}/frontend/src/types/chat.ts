@@ -55,7 +55,12 @@ export interface ToolCall {
   status: "pending" | "running" | "completed" | "error";
 }
 
-export type MessagePartType = "thinking" | "text" | "tool";
+export type MessagePartType = "thinking" | "text" | "tool" | "research";
+
+export interface ResearchReplay {
+  todos: ResearchTodo[];
+  subagents: SubagentStatus[];
+}
 
 /** One ordered segment of an assistant turn. */
 export interface MessagePart {
@@ -65,6 +70,7 @@ export interface MessagePart {
   content?: string;
   /** Tool invocation for "tool" parts. */
   toolCall?: ToolCall;
+  research?: ResearchReplay;
 }
 
 export interface MapMarker {

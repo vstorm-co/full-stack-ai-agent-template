@@ -66,7 +66,7 @@
     "cmdk": "^1.1.1",
     "date-fns": "^4.1.0",
     "leaflet": "^1.9.4",
-    "react-leaflet": "^4.2.1"
+    "react-leaflet": "^5.0.0"
 {%- if cookiecutter.enable_marketing_site %},
     "@next/mdx": "^16.2.6",
     "@mdx-js/loader": "^3.1.1",

@@ -30,7 +30,7 @@ export function parseMapResult(result: unknown): MapSpec | null {
 /** Render a titled card containing the interactive Leaflet map. */
 export function MapMessage({ spec }: { spec: MapSpec }) {
   return (
-    <div className="bg-card overflow-hidden rounded-xl border p-3 sm:p-4">
+    <div className="bg-card step-card-in overflow-hidden rounded-xl border p-3 sm:p-4">
       <p className="text-foreground mb-3 text-sm font-semibold">{spec.title}</p>
       <MapLeaflet spec={spec} />
     </div>

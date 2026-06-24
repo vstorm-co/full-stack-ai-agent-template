@@ -154,6 +154,8 @@ if not enable_deep_research and use_frontend:
     frontend_src = os.path.join(os.getcwd(), "frontend", "src")
     remove_file(os.path.join(frontend_src, "stores", "research-store.ts"))
     remove_file(os.path.join(frontend_src, "stores", "chat-mode-store.ts"))
+    remove_file(os.path.join(frontend_src, "lib", "research-from-tools.ts"))
+    remove_file(os.path.join(frontend_src, "components", "chat", "research-replay-block.tsx"))
 
 if not enable_subagents and use_frontend:
     frontend_src = os.path.join(os.getcwd(), "frontend", "src")

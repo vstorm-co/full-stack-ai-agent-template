@@ -24,7 +24,7 @@ import {
 {%- endif %}
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { toolCaption } from "@/lib/agent-step-captions";
+import { toolCaption, toolDisplayName } from "@/lib/agent-step-captions";
 {%- if cookiecutter.enable_charts %}
 import { ChartMessage, parseChartResult } from "./chart-message";
 {%- endif %}
@@ -144,11 +144,11 @@ export function ToolCallCard({ toolCall }: ToolCallCardProps) {
                 ? "Available Skills"
                 : toolCall.name === "run_python"
                   ? "Run Python"
-                  : toolCall.name;
+                  : toolDisplayName(toolCall.name);
 {%- else %}
             : toolCall.name === "run_python"
               ? "Run Python"
-              : toolCall.name;
+              : toolDisplayName(toolCall.name);
 {%- endif %}
 
   const ToolIcon = isDateTime

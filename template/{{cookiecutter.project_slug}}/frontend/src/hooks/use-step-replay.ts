@@ -35,6 +35,8 @@ const RICH_TOOLS = new Set<string>([
 const STREAM_TICK_MS = 55;
 const TEXT_TOTAL_MS = 3200;
 const THINK_TOTAL_MS = 1100;
+const MAX_WORDS_PER_FRAME = 2;
+const MAX_TYPE_DURATION_MS = 10000;
 
 export const END_HOLD_MS = 700;
 
@@ -91,14 +93,17 @@ export async function playTurn(
     const lastStop = stops.at(-1);
     if (lastStop === undefined || lastStop !== full.length) stops.push(full.length);
 
-    const maxTicks = Math.max(1, Math.round(totalMs / STREAM_TICK_MS));
-    const frames: number[] =
-      stops.length <= maxTicks
-        ? stops
-        : Array.from({ length: maxTicks }, (_, i) => {
-            const at = Math.min(stops.length - 1, Math.ceil(((i + 1) / maxTicks) * stops.length) - 1);
-            return stops[at] ?? full.length;
-          });
+    const targetFrames = Math.max(1, Math.round(totalMs / STREAM_TICK_MS));
+    const wordsPerFrame = Math.min(
+      MAX_WORDS_PER_FRAME,
+      Math.max(1, Math.ceil(stops.length / targetFrames)),
+    );
+    const maxFrames = Math.round(MAX_TYPE_DURATION_MS / STREAM_TICK_MS);
+    const frameCount = Math.min(maxFrames, Math.ceil(stops.length / wordsPerFrame));
+    const frames: number[] = Array.from({ length: frameCount }, (_, i) => {
+      const at = Math.min(stops.length - 1, (i + 1) * wordsPerFrame - 1);
+      return stops[at] ?? full.length;
+    });
 
     for (const stop of frames) {
       if (token.cancelled) return;
@@ -128,6 +133,13 @@ export async function playTurn(
       if (token.cancelled) return;
       built[idx] = { ...part, toolCall: { ...tc } };
       commit();
+{%- if cookiecutter.enable_deep_research %}
+    } else if (part.type === "research" && part.research) {
+      built.push({ ...part });
+      commit();
+      const steps = part.research.todos.length;
+      await sleep(Math.min(6000, 900 + steps * 460));
+{%- endif %}
     } else if (part.type === "text" && part.content) {
       const idx = built.push({ ...part, content: "" }) - 1;
       commit();

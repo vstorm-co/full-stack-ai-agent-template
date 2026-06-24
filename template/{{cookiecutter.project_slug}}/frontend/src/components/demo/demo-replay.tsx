@@ -51,12 +51,26 @@ export function DemoReplay({ rawMessages }: DemoReplayProps) {
     if (!isReplaying) return;
     const container = scrollRef.current;
     if (!container) return;
-    const onScroll = () => {
-      if (Math.abs(container.scrollTop - lastAutoY.current) < 4) return;
-      if (container.scrollTop < lastAutoY.current) setFollowing(false);
+    let touchY = 0;
+    const onWheel = (e: WheelEvent) => {
+      if (e.deltaY < 0) setFollowing(false);
     };
-    container.addEventListener("scroll", onScroll, { passive: true });
-    return () => container.removeEventListener("scroll", onScroll);
+    const onTouchStart = (e: TouchEvent) => {
+      touchY = e.touches[0]?.clientY ?? 0;
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      const y = e.touches[0]?.clientY ?? 0;
+      if (y - touchY > 8) setFollowing(false);
+      touchY = y;
+    };
+    container.addEventListener("wheel", onWheel, { passive: true });
+    container.addEventListener("touchstart", onTouchStart, { passive: true });
+    container.addEventListener("touchmove", onTouchMove, { passive: true });
+    return () => {
+      container.removeEventListener("wheel", onWheel);
+      container.removeEventListener("touchstart", onTouchStart);
+      container.removeEventListener("touchmove", onTouchMove);
+    };
   }, [isReplaying]);
 
   const jumpToActive = () => {

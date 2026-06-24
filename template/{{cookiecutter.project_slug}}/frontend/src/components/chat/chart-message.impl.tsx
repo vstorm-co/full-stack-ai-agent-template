@@ -378,7 +378,7 @@ function ChartMessageInner({ spec }: { spec: ChartSpec }) {
   };
 
   return (
-    <div className="bg-card overflow-hidden rounded-xl border p-3 sm:p-4">
+    <div className="bg-card step-card-in overflow-hidden rounded-xl border p-3 sm:p-4">
       <p className="text-foreground mb-3 text-sm font-semibold">{spec.title}</p>
       <div className="h-[300px] w-full" style={{ minWidth: 1, minHeight: 1 }}>
         <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>

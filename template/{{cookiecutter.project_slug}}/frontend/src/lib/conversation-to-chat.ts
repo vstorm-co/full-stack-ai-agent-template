@@ -1,4 +1,7 @@
 import type { ChatMessage, ChatMessageFile, MessagePart, ToolCall } from "@/types";
+{%- if cookiecutter.enable_deep_research %}
+import { reconstructResearch, RESEARCH_TOOL_NAMES } from "@/lib/research-from-tools";
+{%- endif %}
 
 /**
  * Shape of a persisted message as returned by the backend (MessageRead).
@@ -32,6 +35,30 @@ export interface RawMessage {
  * before the final answer), then the text part. Used by both the authenticated chat (when
  * loading a saved conversation) and the public demo replay.
  */
+function buildAssistantParts(toolCalls: ToolCall[], content: string, msgId: string): MessagePart[] {
+{%- if cookiecutter.enable_deep_research %}
+  const research = reconstructResearch(toolCalls);
+  const parts: MessagePart[] = [];
+  if (research) {
+    parts.push({ id: `${msgId}-research`, type: "research", research });
+  }
+  for (const tc of toolCalls) {
+    if (RESEARCH_TOOL_NAMES.has(tc.name)) continue;
+    parts.push({ id: tc.id, type: "tool", toolCall: tc });
+  }
+  if (content) parts.push({ id: `${msgId}-text`, type: "text", content });
+  return parts;
+{%- else %}
+  const parts: MessagePart[] = toolCalls.map((tc) => ({
+    id: tc.id,
+    type: "tool" as const,
+    toolCall: tc,
+  }));
+  if (content) parts.push({ id: `${msgId}-text`, type: "text" as const, content });
+  return parts;
+{%- endif %}
+}
+
 export function conversationMessageToChatMessage(msg: RawMessage): ChatMessage {
   const toolCalls: ToolCall[] | undefined = msg.tool_calls?.map((tc) => ({
     id: tc.tool_call_id,
@@ -42,18 +69,7 @@ export function conversationMessageToChatMessage(msg: RawMessage): ChatMessage {
   }));
 
   const parts: MessagePart[] | undefined =
-    msg.role === "assistant"
-      ? [
-          ...(toolCalls ?? []).map((tc) => ({
-            id: tc.id,
-            type: "tool" as const,
-            toolCall: tc,
-          })),
-          ...(msg.content
-            ? [{ id: `${msg.id}-text`, type: "text" as const, content: msg.content }]
-            : []),
-        ]
-      : undefined;
+    msg.role === "assistant" ? buildAssistantParts(toolCalls ?? [], msg.content, msg.id) : undefined;
 
   const files = Array.isArray(msg.files) ? msg.files : undefined;
 

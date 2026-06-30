@@ -174,7 +174,8 @@ class OrganizationService:
         return await organization_repo.update(self.db, org, avatar_url=storage_path)
 
     def get_avatar_path(self, avatar_url: str) -> str | None:
-        return get_file_storage().get_full_path(avatar_url)
+        full_path = get_file_storage().get_full_path(avatar_url)
+        return str(full_path) if full_path is not None else None
 
 
 {%- else %}

@@ -331,6 +331,9 @@ ignore = [
 [tool.ruff.lint.isort]
 known-first-party = ["app", "cli"]
 
+[tool.ty.terminal]
+error-on-warning = false
+
 [tool.ty.environment]
 python-version = "3.11"
 

@@ -293,7 +293,8 @@ class UserService:
         return await user_repo.update(self.db, db_user=user, update_data={"avatar_url": storage_path})
 
     def get_avatar_path(self, avatar_url: str) -> str | None:
-        return get_file_storage().get_full_path(avatar_url)
+        full_path = get_file_storage().get_full_path(avatar_url)
+        return str(full_path) if full_path is not None else None
 
     async def delete(self, user_id: UUID) -> User:
         user = await user_repo.delete(self.db, user_id)

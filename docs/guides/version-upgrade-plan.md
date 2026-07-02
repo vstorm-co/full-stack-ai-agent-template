@@ -36,8 +36,8 @@ issue discussion):
 | OURS   | the client's current project (their live, customized code)        |
 | THEIRS | template **@ new version Y**, rendered with the client's answers   |
 
-`git merge-file BASE OURS THEIRS` (or a patch of BASE→THEIRS applied onto OURS) then gives
-correct, automatic behavior for cases 1–3 and clean conflict markers for case 4.
+A real 3-way merge over these three trees (see the engine in §4) then gives correct, automatic
+behavior for cases 1–3 and clean conflict markers for case 4.
 
 ### 2.1 Render-then-diff: how the comparison actually works
 
@@ -104,9 +104,12 @@ Add a machine-readable manifest to every generated project, e.g. `.fastapi-fulls
 ```json
 {
   "template": "https://github.com/vstorm-co/full-stack-ai-agent-template",
+  "template_ref": "v0.2.14",
+  "package_version": "0.2.14",
   "generator_version": "0.2.14",
   "generated_at": "2026-07-01T10:00:00Z",
   "commit": "<template git sha or tag>",
+  "context_hash": "sha256:<hash of the normalized context below>",
   "context": { "...": "the full cookiecutter context used at generation time" }
 }
 ```
@@ -115,6 +118,17 @@ Add a machine-readable manifest to every generated project, e.g. `.fastapi-fulls
 - Records the **full derived context** (not just the raw prompt answers), so BASE and
   THEIRS regenerate deterministically without re-running `ProjectConfig` derivation logic
   that may itself have changed between versions.
+- **Never persists secrets or environment values** — no `.env` contents, API keys, DB
+  passwords, JWT secrets, or anything sourced from the runtime environment. The manifest is
+  committed to the client's repo, so it must be safe to commit; only structural/context data
+  belongs here. Secret-shaped keys are stripped before writing.
+- Auditability fields: **`template_ref`** (git tag/sha the template was rendered from),
+  **`package_version`** (the `fastapi-fullstack` PyPI version that generated the project — this
+  is what §10 uses to fetch BASE), and **`context_hash`** (a stable hash of the normalized
+  context). The hash lets the tool assert that the reconstructed BASE was rendered from the
+  exact same inputs the client generated from, and detect manifest tampering / drift.
+  *(The hash is only meaningful once rendering is deterministic — see the render-only hook
+  requirement in §7 / §9.2.)*
 - From this point on, every project self-describes and `upgrade` is a clean 3-way merge.
 
 ### 3b. Backward fix — recovery for projects generated before the manifest existed
@@ -129,75 +143,98 @@ Existing client projects have no manifest. Recovery path:
    - `frontend/` present → `use_frontend`
    - `backend/app/agents/<framework>.py` → which AI framework
    - …one detector per feature flag.
-   The user confirms/corrects the inferred answers, and we write a manifest — after which
-   the project is upgraded exactly like a 3a project.
+   The user confirms/corrects the inferred answers, and we write a manifest.
 
-**Recovery is best-effort — a known limitation.** Feature detection reliably recovers
+**MVP scope: recovery is `--dry-run` only.** Because the reconstructed context is a *guess*
+(see below), an automatic 3-way apply on top of it can produce a false BASE and silently
+mis-merge. So in v1 the recovery path is deliberately limited:
+
+- A manifest-less project can only run `upgrade recover --dry-run`, which **detects flags,
+  produces a candidate `.fastapi-fullstack.json`, and prints a loud warning** listing every
+  value it could not recover.
+- The client **reviews and commits that manifest by hand**. Only once a manifest exists does
+  the project become a normal §3a project eligible for a real (applying) upgrade.
+- No auto-apply is offered for manifest-less projects in v1. (A future `--force` on a review
+  branch could relax this, but it is out of scope.)
+
+**Why recovery is best-effort — a known limitation.** Feature detection reliably recovers
 *boolean toggles* (celery on/off) from file presence, but it **cannot** recover *value*
 variables that have no structural footprint — `db_pool_size`, `rate_limit_requests`,
 `timezone`, `author_name`, `project_description`, pool timeouts, etc. If these are wrong,
-BASE mis-renders and **every file containing that value shows a spurious conflict**. Handling:
-default such values, **warn the user explicitly** which variables are guessed, and let them
-correct the manifest by hand. (A later enhancement could reverse-extract some values by
-parsing the client's files, but that is fragile and out of scope for v1.)
+BASE mis-renders and **every file containing that value shows a spurious conflict**. This is
+exactly why the manifest must be human-reviewed before any apply. (A later enhancement could
+reverse-extract some values by parsing the client's files, but that is fragile and out of
+scope for v1.)
 
-## 4. Build vs adopt: `cruft` as the engine
+## 4. Merge engine: a throwaway git repo with three commits
 
-`cruft` already implements 3-way template diffing and updating for cookiecutter templates
-(`cruft diff`, `cruft update`, stores `.cruft.json`, applies BASE→THEIRS as a patch onto
-OURS with git-style conflict handling). We should **not** reinvent this.
+We considered `cruft` (it manages `.cruft.json` and applies template updates onto a project)
+but in our model it does **not** earn its place, because we render the two versions ourselves
+(§2.1) — cruft's headline feature is bypassed and what remains is just a 3-way apply. A
+patch-only apply (`git apply --3way`) is also too weak: it mishandles **renames, deletions,
+binary files, and permission (mode) changes**, and degrades to noisy add/delete pairs.
 
-**Division of labour (the agreed model).** We do **not** hand the whole job to cruft as a
-black box. Instead:
+**Chosen engine — reconstruct the merge inside a temporary git repository.** We drive git's
+real merge machinery (which already solves renames/binary/modes/conflict markers) by staging
+the three trees as commits:
 
-1. **We own the rendering.** The `fastapi-fullstack upgrade` wrapper renders **two** trees
-   from the client's recorded answers — BASE (template @ old version X) and THEIRS
-   (template @ new version Y) — exactly as in §2.1.
-2. **cruft/git owns the 3-way apply.** We take the client's project (OURS) plus BASE and
-   THEIRS and let the merge engine apply the BASE→THEIRS change onto OURS.
+```
+temp repo:
+  1. commit BASE   on branch `base`        (template @ vX, client's answers)
+  2. from base → branch `theirs`; replace worktree with THEIRS; commit   (template @ vY)
+  3. from base → branch `ours`;   replace worktree with OURS;   commit   (client project)
+  4. on `ours`:  git merge theirs     (or `git merge-tree base ours theirs` for a
+                                        no-checkout, scriptable 3-way result)
+```
 
-The wrapper is therefore responsible for: reading/writing our manifest, resolving
-`version → git ref`, feeding the **final derived context** in non-interactively (no
-re-prompting), and orchestrating the two renders. The merge engine is responsible only for
-the 3-way apply.
+Because both `theirs` and `ours` share the **same `base` commit** as ancestor, this is a
+textbook 3-way merge: git fast-forwards template-only changes, keeps client-only changes,
+converges identical changes, and writes standard conflict markers for genuine `A/B/C`
+conflicts — with **rename detection, binary handling and mode changes for free**. The result
+(merged tree + conflict list) is what we surface in the report (§5) and land on the client's
+`template-upgrade/vY` branch (§5.1).
 
-**Honest caveat about cruft's role in this model.** Because we render the two versions
-ourselves, cruft's headline feature (managing `.cruft.json` + re-rendering) is largely
-bypassed — what we actually need from it collapses to "apply a BASE→THEIRS diff onto OURS
-with 3-way conflict handling," which plain `git apply --3way` / `git merge-file` already
-does. So the **first implementation task is a spike** (Phase 2) that decides whether cruft
-earns its place here or whether cookiecutter (render) + git (3-way merge) is simpler. Open
-questions the spike must answer:
-- Does cruft support our template living in the `template/` **subdirectory** (cookiecutter
-  `--directory` style)?
-- Can we drive it fully **non-interactively** with the recorded derived context?
-- Existing client projects have **no `.cruft.json`** (they were made via `fastapi-fullstack
-  create`, not cruft) — can we synthesize/bootstrap one, or is plain git cleaner?
+The wrapper around this engine is responsible for: reading/writing our manifest, resolving
+`package_version → template snapshot` (§10), feeding the **final derived context** in
+non-interactively (no re-prompting), orchestrating the two renders, building the temp repo,
+and translating the merge result back onto the client's real repo. `cruft` is retained only as
+**inspiration for the manifest format** (`.cruft.json` → `.fastapi-fullstack.json`), not as a
+runtime dependency.
+
+**Still a Phase-2 spike** — the plan commits to the *approach* (temp git repo), but the exact
+plumbing must be validated: `git merge-tree --write-tree` vs a real checkout+merge, how to map
+the merged tree/conflicts cleanly onto the client's working tree without disturbing their
+history, and handling of files in the excluded set (§6.2) so they never enter the temp repo.
 
 ## 5. The `upgrade` command — workflow
 
 ```bash
-fastapi-fullstack upgrade [PROJECT_DIR] [--to VERSION] [--dry-run]
+fastapi-fullstack upgrade  [PROJECT_DIR] [--to VERSION] [--dry-run] [--with-new-features]
+fastapi-fullstack upgrade finalize [PROJECT_DIR]
 ```
 
-1. **Locate manifest** in `PROJECT_DIR` (or run §3b recovery).
+1. **Locate manifest** in `PROJECT_DIR` (or run §3b recovery — dry-run only, no apply).
 2. **Resolve refs**: old version X (from manifest) and target Y (`--to`, default = latest tag).
-3. **Reconcile context & new features** (§7, §7.1): fill drifted/derived variables, prompt
-   the client about any new opt-in feature questions, augment the context.
-4. **Render BASE**: check out template @ X into a temp worktree, run cookiecutter with the
-   recorded context → BASE tree.
-5. **Render THEIRS**: same with template @ Y and the augmented context → THEIRS tree.
+3. **Reconcile context** (§7): fill drifted/derived variables. By default the upgrade keeps the
+   client's **existing feature set** — new optional features are *not* prompted. Only with
+   `--with-new-features` (§7.1) does the tool ask Yes/No about newly introduced feature
+   questions and augment the context.
+4. **Render BASE**: fetch template @ X, run cookiecutter with the recorded context → BASE tree.
+5. **Render THEIRS**: same with template @ Y and the (possibly augmented) context → THEIRS tree.
 6. **Apply structural map** (§8): use the maintainer-curated `UPGRADES.yaml` to align renamed
    /moved files between BASE and OURS *before* diffing, so the client's edits follow the file
    to its new path instead of being lost.
-7. **Classify** every path via the §6 matrix (BASE vs OURS vs THEIRS).
+7. **Classify** every path via the §6 matrix (BASE vs OURS vs THEIRS), using the temp-git-repo
+   3-way merge (§4).
 8. **Report**: grouped summary (auto-updatable / conflicts / new files / removed / new
    migrations / client-only) **plus the breaking-changes & manual-steps digest** accumulated
    between X and Y (§8). `--dry-run` stops here.
 9. **Apply**: auto-apply the safe hunks (template-only changes); land the template update on
-   a dedicated git branch and let the client resolve conflicts with their normal git tooling
-   (§5.1); never touch the excluded set (§6).
-10. **Bump manifest** to Y (authored directly, not merged — see §6.2).
+   a dedicated git branch (§5.1) with genuine conflicts as git 3-way markers; never touch the
+   excluded set (§6).
+10. **Bump manifest — only on `upgrade finalize`.** The apply step does **not** bump the
+    manifest (see §5.1). The client runs `upgrade finalize` after conflicts are resolved and
+    verified; that step authors the manifest at Y directly (not merged — §6.2).
 
 ### 5.1 Conflict resolution — git branch + merge (start here)
 
@@ -206,24 +243,33 @@ already a git repo and the client already knows their merge tools.
 
 - `upgrade` requires a clean working tree and does its work on a dedicated branch, e.g.
   `template-upgrade/vY`.
-- Safe hunks (template changed, client didn't — `A/A/B`) apply cleanly.
-- Genuine conflicts (`A/B/C`) are produced via `git apply --3way`, so git computes them from
-  BASE/OURS/THEIRS the same way as any merge.
+- Safe changes (template changed, client didn't — `A/A/B`) apply cleanly.
+- Genuine conflicts (`A/B/C`) come out as standard git conflict markers, computed by the
+  temp-git-repo 3-way merge (§4) from BASE/OURS/THEIRS.
 - The client then resolves them with what they already use — the **3-way merge editor** in
   PyCharm / VS Code (`git mergetool`), reviews the whole thing as an ordinary diff/PR, and
   merges into their main branch. Aborting is just `git checkout` away.
 
-This is deliberately the **simplest thing that could work**: cruft already emits `git apply
---3way`-style output, so we write very little. We ship this first and see how it feels in
-practice.
+**Manifest is NOT bumped here.** The apply step deliberately leaves `.fastapi-fullstack.json`
+on the old version X. If it bumped to Y now, an aborted merge or unresolved conflicts would
+leave the manifest **lying** (claiming Y while the tree is a half-merged X), and the *next*
+upgrade would compute a wrong BASE. Instead the bump is a separate, explicit step:
+
+- After the client has resolved all conflicts and verified the project, they run
+  **`upgrade finalize`**, which checks the tree is clean/conflict-free and only then authors
+  the manifest at Y (§5 step 10, §6.2).
+- Until `finalize` runs, the manifest honestly still says X, so re-running `upgrade` is safe
+  and idempotent.
+
+This is deliberately the **simplest thing that could work**: git produces the conflict markers,
+so we write very little. We ship this first and see how it feels in practice.
 
 **Fallback if this proves inconvenient:** if resolving template conflicts through the IDE
 turns out to be awkward (e.g. too many scattered hunks, or clients not comfortable with
 merge tooling), we implement our own **interactive hunk-by-hunk wizard** — `git add -p`-style,
 prompting only on genuine conflicts, with per-hunk *keep-yours / take-template / edit / skip*
-and an "apply to all remaining" escape hatch. That is a larger custom build on top of cruft
-(cruft's own apply step stops at `git apply --3way`), so we defer it until the git-native flow
-shows it's actually needed.
+and an "apply to all remaining" escape hatch. That is a larger custom build, so we defer it
+until the git-native flow shows it's actually needed.
 
 ## 6. File classification matrix (the diff/merge design)
 
@@ -259,8 +305,10 @@ Let `=` mean byte-identical after normalization (§6.1).
 - Lockfiles (`uv.lock`, `package-lock.json`, `bun.lockb`) → flag only; after the upgrade the
   client must re-run `uv lock` / `bun install` (surfaced as an explicit post-step, since new
   features pull new deps into `pyproject.toml` / `package.json`, which **do** merge normally).
-- `.fastapi-fullstack.json` / `.cruft.json` (the manifest) → **excluded from the merge**; the
-  tool authors it directly in step 10. Otherwise it always "conflicts" (vX vs vY) every run.
+- `.fastapi-fullstack.json` (the manifest) → **excluded from the merge**; it never enters the
+  temp git repo (§4) and is authored directly by `upgrade finalize` (§5 step 10, §5.1) once the
+  merge is clean. Otherwise it would always "conflict" (vX vs vY) every run, and a mid-merge
+  bump would make it lie about the project's real version.
 - `.git/`, `node_modules/`, `.venv/`, build artifacts → ignored.
 - Binary files → compared by hash only; report, never merge.
 
@@ -288,8 +336,18 @@ have" from "optional new features you could turn on."
 
 ## 7. Version-aware rendering & context drift
 
-- Render old versions by checking out the git **tag** into a temp worktree and running
-  cookiecutter against that historical template dir.
+- Render old versions from the historical template snapshot (bundled in the matching PyPI
+  package — §10; git tag as fallback) into a temp worktree with cookiecutter.
+- **Render-only, split the post-gen hook.** `post_gen_project.py` does two unrelated jobs:
+  (a) **structural cleanup** — deleting files/dirs for disabled features (e.g. removing `rag/`
+  when `enable_rag=false`), and (b) **environment operations** — `uv lock`, `bun install`,
+  `ruff`, `npx prettier`. For rendering BASE/THEIRS we **must run (a)** — otherwise the tree
+  contains files that a real generation would have deleted, producing spurious "additions" on
+  every upgrade — but we **must skip (b)**, which is slow, network-bound, and irrelevant to a
+  content diff. Newer template versions gain an explicit render-only mode (env flag) that runs
+  cleanup and skips installs; for *already-released* versions that predate the flag we render
+  into a temp dir and neutralize the environment operations (stub/patch the `subprocess` calls),
+  since the released package cannot be changed retroactively (§9.2).
 - **Context drift**: variables get added/renamed/removed between X and Y. When rendering, the
   recorded context may be missing keys the old/new `cookiecutter.json` expects, or contain
   stale keys. Strategy: drop unknown keys, **log the variable-set diff**, and for missing keys
@@ -301,11 +359,20 @@ have" from "optional new features you could turn on."
 
 The interesting drift case: vY adds a **brand-new cookiecutter question** that did not exist
 in vX — e.g. `enable_deep_research`, `enable_charts`. The client's saved context has no answer
-for it, and we genuinely **don't know whether they want the feature**. Silently taking the
-default is wrong in both directions: default-off hides a "goody" the client came here for, default-on forces an opt-in feature (new deps, new env vars) on a
-client who never asked for it.
+for it, and we genuinely **don't know whether they want the feature**.
 
-**Mechanism:**
+**Default behavior: an upgrade does not add new features.** Mixing "update the code you have"
+with "adopt new product features" in one uncontrolled step turns a routine upgrade into an
+unreviewable product migration (new deps, new env vars, new subtrees). So by default the tool
+**keeps the client's existing feature set**: any brand-new feature question is treated as
+**off**, its subtree simply never enters THEIRS, and the fact that it exists is **logged** (so
+the client learns a new goody is available) — but nothing is prompted and nothing is added.
+
+Adopting new features is an **explicit opt-in** via the `--with-new-features` flag. Only then
+does the mechanism below run; without the flag, steps 2–4 are skipped and the newcomers are
+merely reported.
+
+**Mechanism (only under `--with-new-features`):**
 
 1. **Detect new questions.** Diff the *variable set* of vY's `cookiecutter.json` against the
    keys in the client's manifest context. Split the newcomers into:
@@ -334,7 +401,8 @@ client who never asked for it.
    ```
    Each question's wording and default come from the same source the main wizard uses, so a
    feature is presented consistently whether at creation or at upgrade time.
-   `--accept-new-defaults` / `--reject-new-features` flags skip the prompts for scripted runs.
+   For scripted runs, `--with-new-features=accept-defaults` takes each new feature's default
+   without prompting; plain `--with-new-features` prompts interactively.
 3. **Record the answer** into the updated manifest, so the decision is remembered and the next
    upgrade never re-asks.
 4. **Render THEIRS with the augmented context.** If the client said **yes**, the feature's
@@ -389,22 +457,39 @@ modes (lost edits on rename, missed manual steps) into explicit, reviewed data. 
 the plain "what's new since your version" idea — the CHANGELOG stays human-facing; `UPGRADES.yaml`
 is the machine-actionable counterpart.
 
+**Guardrail — CI enforces it, so authors can't silently forget.** `UPGRADES.yaml` is only as
+good as the discipline behind it, and a forgotten `rename` block silently degrades to delete+add
+(client edits lost). A release check closes this: a CI job renders the previous release and the
+release-candidate template, diffs their file trees, and for every pair that looks like a
+**move** — a deletion plus an addition of a file with high content similarity — **requires**
+either a matching `renames` entry for that version *or* an explicit `# ignore: <path>` waiver.
+Missing coverage fails the release. This turns "maintainer remembered" into "the pipeline won't
+ship without it," which is exactly the fragility called out in §9.4.
+
 ## 9. Risks & known limitations
 
 Tracked so reviewers see what is *not* yet fully solved:
 
-1. **Engine still to be validated (§4).** In the agreed "render two versions ourselves" model,
-   cruft's role shrinks to a 3-way apply that plain git already does — the Phase 2 spike must
-   confirm cruft earns its place (subdir support, non-interactive, no pre-existing `.cruft.json`)
-   or we fall back to cookiecutter + git.
+1. **Engine plumbing to be validated (§4).** The approach is decided — a throwaway git repo
+   with BASE/OURS/THEIRS commits and git's real 3-way merge (cruft dropped as a runtime
+   dependency). The Phase 2 spike must still settle the plumbing: `git merge-tree --write-tree`
+   vs checkout+merge, mapping the merged tree/conflicts onto the client's repo without touching
+   their history, and keeping the excluded set (§6.2) out of the temp repo.
 2. **Rendering historical versions runs that version's `post_gen_project.py`** — which shells out
    to `uv lock`, `bun install`, `ruff`, `npx prettier` ([post_gen_project.py:605–677](template/hooks/post_gen_project.py:605)).
-   We need the hook's *file-removal* logic (to get the right tree for disabled features) but
-   **not** its network installs / formatting. Requires a "render-only" hook mode or stubbing —
-   non-trivial, and a hard dependency to design before Phase 2.
-3. **Recovery can't recover value variables (§3b).** Best-effort + warnings only in v1.
-4. **Rename detection depends on `UPGRADES.yaml` being maintained (§8).** If an author forgets a
-   rename block, that file falls back to delete+add and the client's edits to it are at risk.
+   Mitigation is the hook split in §7: run the *structural cleanup* (file removal for disabled
+   features — needed for a correct tree) but neutralize the *environment operations* (installs /
+   formatting). Newer versions get an explicit render-only flag; **already-released versions
+   predate it and must be handled by stubbing their `subprocess` calls at render time** — the
+   released package can't be changed retroactively. Still non-trivial; a hard dependency to
+   design before Phase 2.
+3. **Recovery is dry-run only in v1 (§3b).** Manifest-less projects can only generate a
+   human-reviewed candidate manifest; no auto-apply, because the reconstructed context is a
+   guess (value variables can't be recovered). Full upgrades require a committed manifest.
+4. **Rename detection depends on `UPGRADES.yaml` being maintained (§8).** A forgotten rename
+   block falls back to delete+add and risks the client's edits — now mitigated by the CI
+   release guard (§8) that fails the release when a likely move lacks a `renames` entry or an
+   explicit waiver, though similarity heuristics can still miss heavily-rewritten moves.
 5. **Multi-version jumps** (e.g. 0.1.7 → 0.2.14, 30+ tags) collapse all intermediate changes into
    one diff; correctness relies on the accumulated `breaking`/`manual_steps` digest being complete.
 6. **Toolchain requirements at upgrade time**: network access to **PyPI** (both BASE and THEIRS
@@ -419,7 +504,8 @@ Tracked so reviewers see what is *not* yet fully solved:
 
 The developer should run the upgrade **from inside their project**, using the project's own
 command surface (it already exposes a `Makefile` and a CLI in `backend/cli/commands.py`). But
-the upgrade *logic* (clone template, render two versions, 3-way merge, cruft) must **not** be
+the upgrade *logic* (fetch template versions, render two trees, 3-way merge via a temp git repo)
+must **not** be
 baked into every generated project — that would bloat each project and freeze the upgrade
 engine at generation time. So the project-side command is a **thin shim that delegates** to the
 generator tool, fetched fresh:
@@ -428,6 +514,9 @@ generator tool, fetched fresh:
 # added to the generated project's Makefile
 upgrade:                       ## Pull the latest template improvements into this project
 	uvx fastapi-fullstack@latest upgrade .
+
+upgrade-finalize:              ## Bump the manifest to the new version after resolving conflicts
+	uvx fastapi-fullstack@latest upgrade finalize .
 ```
 
 (`uvx`/`pipx` runs the latest published generator without a persistent install; a CLI
@@ -471,9 +560,10 @@ digest degrade (§9.4).
 4. **Resolve target version Y** (latest by default, or `--to X.Y.Z`). THEIRS = the template
    bundled in the just-fetched `@latest`/`@Y` generator; BASE = the template bundled in
    `fastapi-fullstack==X` from PyPI (git-clone fallback only if X isn't published — §10).
-5. **Reconcile context & new features** (§7, §7.1): drifted/derived variables are filled;
-   for each *new opt-in feature* the tool asks Yes/No in the main-wizard style; answers are
-   recorded back into the manifest.
+5. **Reconcile context** (§7): drifted/derived variables are filled. By default the upgrade
+   keeps your **existing feature set**; brand-new optional features are only *reported*. Pass
+   `--with-new-features` (§7.1) to be asked Yes/No about each new feature in the main-wizard
+   style — accepted answers are recorded back into the manifest.
 6. **Render BASE and THEIRS** from the (augmented) answers; normalize (strip volatile stamps,
    pinned formatter — §6.1); apply the `UPGRADES.yaml` rename map so edits follow moved files (§8).
 7. **Review the report** (`--dry-run` stops here): grouped as *auto-updates / conflicts / new
@@ -486,8 +576,10 @@ digest degrade (§9.4).
 10. **Run the flagged post-steps:** `uv lock` / `bun install` (new deps), `alembic upgrade head`
     (new migrations), and any `manual_steps` from the digest (e.g. renamed env vars).
 11. **Verify:** run the test suite and the app to confirm nothing broke.
-12. **Merge** `template-upgrade/vY` into your main branch. The manifest is now bumped to **Y**,
-    so the next upgrade starts cleanly from here.
+12. **Finalize and merge.** Run `make upgrade-finalize` (→ `upgrade finalize .`): it checks the
+    tree is clean and conflict-free, then **bumps the manifest to Y** (§5.1 — the apply step
+    intentionally left it at X so an aborted merge could never make it lie). Then **merge**
+    `template-upgrade/vY` into your main branch. The next upgrade now starts cleanly from Y.
 
 At the end the project has the new template goodies, the developer's customizations are
 preserved (or explicitly reconciled at conflicts), and the manifest records the new baseline

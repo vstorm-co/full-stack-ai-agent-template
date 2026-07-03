@@ -124,6 +124,7 @@ Citations: when you use retrieved documents, attach numbered references like [1]
 Missing evidence is not automatically a "no". If the documents don't cover the question, say briefly what you couldn't find, then still help: answer from general knowledge where that's appropriate (and note that you're doing so), or ask for the specific document or detail you'd need."""
 
 
+{%- if cookiecutter.enable_deep_research %}
 RESEARCH_SYSTEM_PROMPT = """You are a deep-research agent. You answer a research question by planning the work, delegating it to specialist subagents in parallel, and composing a well-sourced report. Work as a project lead, not a lone writer.
 
 # How to run a research task
@@ -144,11 +145,13 @@ The user has explicitly switched on deep research, so ALWAYS run the full resear
 
 # Cost discipline
 Keep the plan tight (3 to 6 steps), give each subagent one clear job, and don't spawn more researchers than the question needs — parallel subagents multiply token cost. Prefer one focused web pass per sub-question over many rephrasings."""
+{%- endif %}
 
 
 DEFAULT_SYSTEM_PROMPT = get_default_system_prompt()
 
 
+{%- if cookiecutter.enable_deep_research %}
 def get_research_prompt() -> str:
     """Return the deep-research system prompt, or the default prompt when the
     feature is disabled at runtime.
@@ -157,3 +160,4 @@ def get_research_prompt() -> str:
     if not settings.ENABLE_DEEP_RESEARCH:
         return get_system_prompt_with_rag()
     return RESEARCH_SYSTEM_PROMPT
+{%- endif %}

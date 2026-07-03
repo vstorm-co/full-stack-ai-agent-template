@@ -72,7 +72,7 @@ class AgentSession:
         self.user = user
 {%- endif %}
         self.conversation_history: list[dict[str, str]] = []
-        self.deps = Deps(kb_collection_names=[])
+        self.deps = Deps()
         self.deps.ask_user = self._ask_user
 {%- if cookiecutter.use_database %}
         self.current_conversation_id: str | None = None

@@ -1,6 +1,6 @@
 import type { SVGProps } from "react";
 import type { IconType } from "react-icons";
-import { FaAws, FaMicrosoft } from "react-icons/fa6";
+import { FaAws, FaMicrosoft, FaSlack } from "react-icons/fa6";
 import {
   SiDropbox,
   SiFigma,
@@ -12,7 +12,6 @@ import {
   SiLinear,
   SiLoom,
   SiNotion,
-  SiSlack,
   SiStripe,
   SiVercel,
 } from "react-icons/si";
@@ -42,7 +41,7 @@ type BrandName =
 
 const ICONS: Record<BrandName, IconType> = {
   gdrive: SiGoogledrive,
-  slack: SiSlack,
+  slack: FaSlack,
   notion: SiNotion,
   github: SiGithub,
   dropbox: SiDropbox,

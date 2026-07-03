@@ -98,6 +98,7 @@ class TestGenerateProject:
         temp_output_dir: Path,
     ) -> None:
         """Test project is generated in current directory when no output specified."""
+        (temp_output_dir / "test_project").mkdir()  # cookiecutter creates the project dir
         mock_cookiecutter.return_value = str(temp_output_dir / "test_project")
 
         with patch("fastapi_gen.generator.Path.cwd", return_value=temp_output_dir):
@@ -116,6 +117,7 @@ class TestGenerateProject:
         temp_output_dir: Path,
     ) -> None:
         """Test project is generated in specified output directory."""
+        (temp_output_dir / "test_project").mkdir()  # cookiecutter creates the project dir
         mock_cookiecutter.return_value = str(temp_output_dir / "test_project")
 
         result = generate_project(minimal_config, temp_output_dir)
@@ -133,6 +135,7 @@ class TestGenerateProject:
         temp_output_dir: Path,
     ) -> None:
         """Test config context is passed to cookiecutter."""
+        (temp_output_dir / "test_project").mkdir()  # cookiecutter creates the project dir
         mock_cookiecutter.return_value = str(temp_output_dir / "test_project")
 
         generate_project(minimal_config, temp_output_dir)

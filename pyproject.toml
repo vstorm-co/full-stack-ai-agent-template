@@ -46,6 +46,8 @@ classifiers = [
 dependencies = [
     "click>=8.3.0",
     "cookiecutter>=2.7.0",
+    "pyyaml>=6.0",
+    "ruff>=0.14.0",
     "rich>=15.0.0",
     "questionary>=2.1.0",
     "pydantic>=2.13.0",
@@ -64,7 +66,6 @@ dependencies = [
 dev = [
     "pytest>=9.0.0",
     "pytest-cov>=7.0.0",
-    "ruff>=0.14.0",
     "ty>=0.0.31",
     "pre-commit>=4.0.0",
 ]
@@ -91,11 +92,13 @@ packages = ["fastapi_gen"]
 
 [tool.hatch.build.targets.wheel.force-include]
 "template" = "fastapi_gen/template"
+"UPGRADES.yaml" = "fastapi_gen/UPGRADES.yaml"
 
 [tool.hatch.build.targets.sdist]
 include = [
     "fastapi_gen/",
     "template/",
+    "UPGRADES.yaml",
     "README.md",
     "LICENSE",
     "pyproject.toml",

@@ -18,6 +18,12 @@ Step-by-step guides to help you get the most out of FastAPI Fullstack.
 
     Learn about all available configuration options.
 
+-   :material-update: **[Version Upgrade](version-upgrade.md)**
+
+    ---
+
+    Pull the latest template improvements into an existing project without losing your changes.
+
 </div>
 
 ## Deployment

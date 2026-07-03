@@ -602,7 +602,7 @@ wheels = [
 
 [[package]]
 name = "fastapi-fullstack"
-version = "0.2.13"
+version = "0.2.14"
 source = { editable = "." }
 dependencies = [
     { name = "arq" },
@@ -615,8 +615,10 @@ dependencies = [
     { name = "pydantic-settings" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
+    { name = "pyyaml" },
     { name = "questionary" },
     { name = "rich" },
+    { name = "ruff" },
     { name = "stripe" },
     { name = "taskiq" },
 ]
@@ -626,7 +628,6 @@ dev = [
     { name = "pre-commit" },
     { name = "pytest" },
     { name = "pytest-cov" },
-    { name = "ruff" },
     { name = "ty" },
 ]
 docs = [
@@ -660,9 +661,10 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=9.0.0" },
     { name = "pytest-asyncio", specifier = ">=1.3.0" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=7.0.0" },
+    { name = "pyyaml", specifier = ">=6.0" },
     { name = "questionary", specifier = ">=2.1.0" },
     { name = "rich", specifier = ">=15.0.0" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.14.0" },
+    { name = "ruff", specifier = ">=0.14.0" },
     { name = "stripe", specifier = ">=15.1.0" },
     { name = "taskiq", specifier = ">=0.12.4" },
     { name = "ty", marker = "extra == 'dev'", specifier = ">=0.0.31" },

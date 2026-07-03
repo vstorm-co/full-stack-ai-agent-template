@@ -1446,6 +1446,80 @@ def templates() -> None:
     console.print("  --frontend-port N  Frontend port (default: 3000)")
 
 
+_PATH_OPTION = click.option(
+    "--path",
+    "project_path",
+    default=".",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path),
+    help="Project directory (default: current directory).",
+)
+
+
+@cli.group(invoke_without_command=True)
+@_PATH_OPTION
+@click.option("--to", "to_version", default=None, help="Target version (default: latest).")
+@click.option("--dry-run", is_flag=True, help="Preview the upgrade without changing anything.")
+@click.option(
+    "--with-new-features",
+    is_flag=True,
+    help="Prompt to adopt optional features introduced since your version.",
+)
+@click.option("--force", is_flag=True, help="Recreate the upgrade branch if it already exists.")
+@click.pass_context
+def upgrade(
+    ctx: click.Context,
+    project_path: Path,
+    to_version: str | None,
+    dry_run: bool,
+    with_new_features: bool,
+    force: bool,
+) -> None:
+    """Pull the latest template improvements into an existing project.
+
+    Run from inside a generated project. With no subcommand this performs the
+    upgrade; ``upgrade finalize`` bumps the manifest once conflicts are resolved.
+    """
+    if ctx.invoked_subcommand is not None:
+        return
+
+    from .upgrade.runner import UpgradeError, run_upgrade
+
+    try:
+        run_upgrade(
+            project_path,
+            to_version=to_version,
+            dry_run=dry_run,
+            with_new_features=with_new_features,
+            force=force,
+        )
+    except (UpgradeError, FileNotFoundError, RuntimeError) as exc:
+        raise click.ClickException(str(exc)) from exc
+
+
+@upgrade.command("finalize")
+@_PATH_OPTION
+def upgrade_finalize(project_path: Path) -> None:
+    """Bump the manifest to the new version after resolving conflicts."""
+    from .upgrade.runner import UpgradeError, run_finalize
+
+    try:
+        run_finalize(project_path)
+    except (UpgradeError, FileNotFoundError, RuntimeError) as exc:
+        raise click.ClickException(str(exc)) from exc
+
+
+@upgrade.command("recover")
+@_PATH_OPTION
+def upgrade_recover(project_path: Path) -> None:
+    """Reconstruct a candidate manifest for a project generated before manifests."""
+    from .upgrade.runner import run_recover
+
+    try:
+        run_recover(project_path)
+    except (FileNotFoundError, RuntimeError) as exc:
+        raise click.ClickException(str(exc)) from exc
+
+
 def main() -> None:
     """Main entry point."""
     cli()

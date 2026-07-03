@@ -1,0 +1,21 @@
+# Structural metadata for `fastapi-fullstack upgrade` (renames, removals, manual steps).
+# See docs/guides/version-upgrade.md — "For template maintainers". One block per release.
+#
+# Schema (all keys optional except `version`):
+#
+# - version: "0.2.15"
+#   renames:
+#     - from: "backend/app/core/config.py"
+#       to:   "backend/app/core/settings.py"
+#   variable_renames:
+#     - from: "use_pgvector"
+#       to:   "vector_store"
+#       value_map: { "true": "pgvector" }
+#   removed:
+#     - "backend/app/legacy_auth.py"
+#   breaking:
+#     - "JWT secret env var renamed SECRET_KEY → AUTH_SECRET_KEY."
+#   manual_steps:
+#     - "Run `alembic upgrade head` (new billing tables)."
+
+[]

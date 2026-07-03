@@ -153,6 +153,7 @@ nav:
     - Overview: guides/index.md
     - Quick Start: guides/quick-start.md
     - Configuration: guides/configuration.md
+    - Version Upgrade: guides/version-upgrade.md
   - Deployment: deployment.md
   - Observability: observability.md
   - Development: development.md

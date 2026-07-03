@@ -596,9 +596,11 @@ else:
                 f.write("\n".join(env_lines) + "\n")
             print("Generated frontend/.env.local")
 
+_render_only = os.environ.get("FASTAPI_FULLSTACK_RENDER_ONLY") == "1"
+
 # Generate uv.lock for backend (required for Docker builds)
 backend_dir = os.path.join(os.getcwd(), "backend")
-if os.path.exists(backend_dir):
+if os.path.exists(backend_dir) and not _render_only:
     uv_cmd = shutil.which("uv")
     if uv_cmd:
         print("Generating uv.lock for backend...")
@@ -615,7 +617,7 @@ if os.path.exists(backend_dir):
     else:
         print("Warning: uv not found. Run 'uv lock' in backend/ to generate lock file.")
 
-if os.path.exists(backend_dir):
+if os.path.exists(backend_dir) and not _render_only:
     ruff_cmd = None
 
     ruff_path = shutil.which("ruff")
@@ -649,7 +651,7 @@ if os.path.exists(backend_dir):
         print("Warning: ruff not found. Run 'ruff format .' in backend/ to format code.")
 
 frontend_dir = os.path.join(os.getcwd(), "frontend")
-if use_frontend and os.path.exists(frontend_dir):
+if use_frontend and os.path.exists(frontend_dir) and not _render_only:
     bun_cmd = shutil.which("bun")
     npx_cmd = shutil.which("npx")
 

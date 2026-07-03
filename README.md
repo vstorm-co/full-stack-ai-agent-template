@@ -163,6 +163,39 @@ fastapi-fullstack create my_ai_app --minimal
 
 </details>
 
+### Keeping your project up to date
+
+Your project doesn't get stranded on the template version you generated from. Pull the
+latest template improvements into your existing project with a real 3-way merge — your
+customizations are preserved, conflicts are left for you to resolve in your IDE, and the
+whole thing lands on a dedicated branch so it's fully reversible:
+
+```bash
+make upgrade-dry-run     # preview what would change (no changes made)
+make upgrade             # apply on a `template-upgrade/v…` branch
+# resolve any conflicts in your IDE's 3-way merge editor, then:
+make upgrade-finalize    # bump the manifest to the new version
+```
+
+Files only you changed are kept, files only the template changed are updated, and new
+features/migrations are pulled in. By default an upgrade keeps your existing feature set —
+to also adopt optional features added since your version, use:
+
+```bash
+make upgrade-new-features   # prompts Yes/No for each new optional feature
+```
+
+One-off flags (e.g. pinning a target version) go through `ARGS`, and you can always call
+the CLI directly instead of `make`:
+
+```bash
+make upgrade ARGS=--to=0.3.0
+uvx fastapi-fullstack@latest upgrade --with-new-features
+```
+
+See the [version-upgrade guide](docs/guides/version-upgrade.md) for the full walkthrough
+(including projects generated before upgrade support existed).
+
 ### Environments
 
 | `make` target | Compose file | When to use |

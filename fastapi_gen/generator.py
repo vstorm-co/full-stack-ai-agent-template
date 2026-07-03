@@ -8,6 +8,7 @@ from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from .config import DatabaseType, FrontendType, ProjectConfig
+from .upgrade import write_manifest
 
 console = Console()
 
@@ -102,6 +103,8 @@ def generate_project(config: ProjectConfig, output_dir: Path | None = None) -> P
             if target_dir.exists():
                 shutil.rmtree(target_dir)
             raise
+
+    write_manifest(Path(project_path), context)
 
     return Path(project_path)
 

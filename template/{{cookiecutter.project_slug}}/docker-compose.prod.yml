@@ -270,7 +270,7 @@ services:
 {%- if cookiecutter.use_milvus %}
 
   etcd:
-    image: quay.io/coreos/etcd:v3.6.12
+    image: quay.io/coreos/etcd:v3.6.13
     container_name: {{ cookiecutter.project_slug }}_etcd
     volumes:
       - etcd_data:/var/lib/etcd

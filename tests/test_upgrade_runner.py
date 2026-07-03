@@ -64,6 +64,34 @@ class TestGuards:
         with pytest.raises(RuntimeError, match="uncommitted changes"):
             run_upgrade(tmp_path, dry_run=False)
 
+    def test_run_recover_writes_candidate(self, tmp_path: Path) -> None:
+        from fastapi_gen.upgrade.runner import run_recover
+
+        (tmp_path / "README.md").write_text("Generated v0.2.10\n", encoding="utf-8")
+        (tmp_path / "frontend").mkdir()
+        candidate = run_recover(tmp_path)
+        assert candidate.exists()
+        assert candidate.name == MANIFEST_FILENAME + ".candidate"
+
+    def test_finalize_blocked_by_unmerged_conflicts(self, tmp_path: Path) -> None:
+        write_manifest(tmp_path, {"project_name": "x"}, package_version="0.1.0")
+        _commit_all(tmp_path)
+        (tmp_path / "c.txt").write_text("base\n", encoding="utf-8")
+        _git(tmp_path, "add", "-A")
+        _git(tmp_path, "commit", "-q", "-m", "base")
+        _git(tmp_path, "checkout", "-q", "-b", "other")
+        (tmp_path / "c.txt").write_text("other\n", encoding="utf-8")
+        _git(tmp_path, "add", "-A")
+        _git(tmp_path, "commit", "-q", "-m", "other")
+        _git(tmp_path, "checkout", "-q", "main")
+        (tmp_path / "c.txt").write_text("main\n", encoding="utf-8")
+        _git(tmp_path, "add", "-A")
+        _git(tmp_path, "commit", "-q", "-m", "main")
+        subprocess.run(["git", "-C", str(tmp_path), "merge", "other"], capture_output=True)
+        (tmp_path / (MANIFEST_FILENAME + ".pending")).write_text("{}", encoding="utf-8")
+        with pytest.raises(UpgradeError, match="Unresolved merge conflicts"):
+            run_finalize(tmp_path)
+
 
 @pytest.mark.slow
 class TestSelfUpgradeEndToEnd:

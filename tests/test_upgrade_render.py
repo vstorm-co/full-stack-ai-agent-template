@@ -2,6 +2,7 @@
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -12,7 +13,9 @@ from fastapi_gen.config import (
     ProjectConfig,
 )
 from fastapi_gen.generator import _find_template_dir
-from fastapi_gen.upgrade.render import filter_context, render_template
+from fastapi_gen.upgrade import _render_worker
+from fastapi_gen.upgrade import render as render_mod
+from fastapi_gen.upgrade.render import RenderError, filter_context, render_template
 
 
 class TestFilterContext:
@@ -51,3 +54,43 @@ class TestRenderTemplate:
         assert out.exists()
         assert (out / "backend" / "app" / "main.py").exists()
         assert not (out / "backend" / "uv.lock").exists()
+
+
+class TestRenderErrors:
+    def test_error_on_nonzero_exit(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(
+            render_mod.subprocess,
+            "run",
+            lambda *_a, **_k: SimpleNamespace(returncode=1, stdout="", stderr="boom"),
+        )
+        with pytest.raises(RenderError, match="failed"):
+            render_template(tmp_path / "tpl", {}, tmp_path / "out", filter_to_template=False)
+
+    def test_error_when_no_output_path(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            render_mod.subprocess,
+            "run",
+            lambda *_a, **_k: SimpleNamespace(returncode=0, stdout="noise\n", stderr=""),
+        )
+        with pytest.raises(RenderError, match="did not report"):
+            render_template(tmp_path / "tpl", {}, tmp_path / "out", filter_to_template=False)
+
+
+class TestRenderWorker:
+    def test_wrong_argc(self, capsys: pytest.CaptureFixture[str]) -> None:
+        assert _render_worker.main(["prog"]) == 2
+        assert "usage" in capsys.readouterr().err
+
+    def test_happy_path(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        ctx = tmp_path / "ctx.json"
+        ctx.write_text('{"project_name": "x"}', encoding="utf-8")
+        monkeypatch.setattr(
+            _render_worker, "cookiecutter", lambda *_a, **_k: str(tmp_path / "proj")
+        )
+        rc = _render_worker.main(["prog", str(tmp_path / "tpl"), str(ctx), str(tmp_path / "out")])
+        assert rc == 0
+        assert "RENDERED::" in capsys.readouterr().out

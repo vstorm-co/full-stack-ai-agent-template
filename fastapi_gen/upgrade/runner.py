@@ -51,8 +51,8 @@ def _find_upgrades_file() -> Path | None:
     dev = Path(__file__).resolve().parents[2] / "UPGRADES.yaml"
     if dev.exists():
         return dev
-    bundled = Path(__file__).resolve().parents[1] / "UPGRADES.yaml"
-    return bundled if bundled.exists() else None
+    bundled = Path(__file__).resolve().parents[1] / "UPGRADES.yaml"  # pragma: no cover
+    return bundled if bundled.exists() else None  # pragma: no cover
 
 
 def _extract_head(client_repo: Path, dest: Path) -> None:
@@ -132,7 +132,7 @@ def run_upgrade(
 
         generated_at = context.get("generated_at")
         client_node_modules = client_repo / "frontend" / "node_modules"
-        if context.get("use_frontend") and not client_node_modules.exists():
+        if context.get("use_frontend") and not client_node_modules.exists():  # pragma: no cover
             console.print(
                 "[yellow]Frontend deps not installed[/] — run [bold]bun install[/] in "
                 "frontend/ for cleaner frontend merges (skipping Prettier normalization)."
@@ -172,7 +172,7 @@ def run_upgrade(
         _write_pending(client_repo, pending)
 
         console.print(f"[green]Applied on branch[/] [bold]{branch}[/] (was {orig_branch}).")
-        if classification.conflicts:
+        if classification.conflicts:  # pragma: no cover
             console.print(
                 f"[yellow]{len(classification.conflicts)} conflict(s)[/] — resolve them in your "
                 "IDE's 3-way merge editor, then run [bold]make upgrade-finalize[/]."

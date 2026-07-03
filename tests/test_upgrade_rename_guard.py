@@ -1,6 +1,15 @@
 """Tests for fastapi_gen.upgrade.rename_guard."""
 
-from fastapi_gen.upgrade.rename_guard import detect_moves, uncovered_moves
+from pathlib import Path
+
+import pytest
+
+from fastapi_gen.upgrade.rename_guard import (
+    _strip_slug,
+    detect_moves,
+    template_files,
+    uncovered_moves,
+)
 
 
 class TestDetectMoves:
@@ -47,3 +56,26 @@ class TestUncoveredMoves:
         moves = detect_moves({"a.py": "x\n"}, {"b.py": "x\n"})
         result = uncovered_moves(moves, set())
         assert [(m.from_path, m.to_path) for m in result] == [("a.py", "b.py")]
+
+
+class TestTemplateFiles:
+    def test_maps_and_strips_slug_prefix(self, tmp_path: Path) -> None:
+        slug = tmp_path / "{{cookiecutter.project_slug}}"
+        (slug / "backend").mkdir(parents=True)
+        (slug / "backend" / "app.py").write_text("x", encoding="utf-8")
+        (tmp_path / "cookiecutter.json").write_text("{}", encoding="utf-8")  # outside slug
+        assert template_files(tmp_path) == {"backend/app.py": "x"}
+
+    def test_strip_slug_passthrough(self) -> None:
+        assert _strip_slug("other/x.py") == "other/x.py"
+
+    def test_skips_unreadable_files(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        slug = tmp_path / "{{cookiecutter.project_slug}}"
+        slug.mkdir()
+        (slug / "x.py").write_text("data", encoding="utf-8")
+
+        def _boom(*_a: object, **_k: object) -> str:
+            raise OSError("unreadable")
+
+        monkeypatch.setattr(Path, "read_text", _boom)
+        assert template_files(tmp_path) == {}

@@ -78,3 +78,48 @@ def test_always_prints_plan_header(dry_run: bool) -> None:
     finally:
         report_mod.console = original
     assert "Upgrade plan: v0.2.10 → v0.2.15" in buffer.getvalue()
+
+
+def _render_with(classification: Classification, reconcile: ReconcileReport) -> str:
+    from io import StringIO
+
+    import fastapi_gen.upgrade.report as report_mod
+    from rich.console import Console
+
+    buffer = StringIO()
+    original = report_mod.console
+    report_mod.console = Console(file=buffer, width=100, force_terminal=False)
+    try:
+        print_report(
+            classification,
+            reconcile,
+            UpgradeMetadata(),
+            from_version="0.1.0",
+            to_version="0.2.0",
+            dry_run=False,
+        )
+    finally:
+        report_mod.console = original
+    return buffer.getvalue()
+
+
+def test_report_truncates_long_sections() -> None:
+    out = _render_with(
+        Classification(auto_updated=[f"f{i}.py" for i in range(25)]), ReconcileReport()
+    )
+    assert "and 5 more" in out
+
+
+def test_report_new_features_not_accepted() -> None:
+    out = _render_with(Classification(), ReconcileReport(new_features_available=["enable_x"]))
+    assert "New optional features available" in out
+    assert "not enabled" in out
+    assert "Re-run with --with-new-features" in out
+
+
+def test_report_new_features_accepted() -> None:
+    out = _render_with(
+        Classification(),
+        ReconcileReport(new_features_available=["enable_x"], new_features_accepted=["enable_x"]),
+    )
+    assert "accepted" in out

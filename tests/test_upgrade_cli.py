@@ -26,6 +26,19 @@ class TestUpgradeCliWiring:
         result = runner.invoke(cli, ["upgrade", "finalize", "--help"])
         assert result.exit_code == 0
 
+    def test_finalize_without_pending_reports_error(
+        self, runner: CliRunner, tmp_path: Path
+    ) -> None:
+        result = runner.invoke(cli, ["upgrade", "finalize", "--path", str(tmp_path)])
+        assert result.exit_code != 0
+        assert "pending" in result.output.lower()
+
+    def test_recover_writes_candidate(self, runner: CliRunner, tmp_path: Path) -> None:
+        (tmp_path / "README.md").write_text("Generated v0.2.10\n", encoding="utf-8")
+        result = runner.invoke(cli, ["upgrade", "recover", "--path", str(tmp_path)])
+        assert result.exit_code == 0
+        assert (tmp_path / ".fastapi-fullstack.json.candidate").exists()
+
     def test_upgrade_without_manifest_reports_error(
         self, runner: CliRunner, tmp_path: Path
     ) -> None:

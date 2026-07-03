@@ -2,8 +2,13 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
+from types import SimpleNamespace
 
+import pytest
+
+from fastapi_gen.upgrade import normalize as normalize_mod
 from fastapi_gen.upgrade.normalize import (
     _ruff_cmd,
     format_frontend,
@@ -95,3 +100,37 @@ def test_format_frontend_does_not_clobber_real_node_modules(tmp_path: Path) -> N
     nm = _fake_node_modules(tmp_path, "#!/bin/sh\nexit 1\n")
     assert format_frontend(tree, node_modules=nm) is False
     assert (frontend / "node_modules").is_dir()
+
+
+def test_format_frontend_returns_false_on_symlink_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    tree = tmp_path / "tree"
+    (tree / "frontend").mkdir(parents=True)
+    nm = _fake_node_modules(tmp_path, "#!/bin/sh\n")
+
+    def _boom(*_a: object, **_k: object) -> None:
+        raise OSError("no symlinks")
+
+    monkeypatch.setattr(Path, "symlink_to", _boom)
+    assert format_frontend(tree, node_modules=nm) is False
+
+
+def test_is_binary_returns_true_on_oserror(tmp_path: Path) -> None:
+    assert normalize_mod._is_binary(tmp_path) is True  # opening a dir raises → defensive True
+
+
+def test_ruff_cmd_falls_back_to_module(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(normalize_mod.shutil, "which", lambda _: None)
+    monkeypatch.setattr(
+        normalize_mod.subprocess, "run", lambda *_a, **_k: SimpleNamespace(returncode=0)
+    )
+    assert _ruff_cmd() == [sys.executable, "-m", "ruff"]
+
+
+def test_ruff_cmd_none_when_module_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(normalize_mod.shutil, "which", lambda _: None)
+    monkeypatch.setattr(
+        normalize_mod.subprocess, "run", lambda *_a, **_k: SimpleNamespace(returncode=1)
+    )
+    assert _ruff_cmd() is None

@@ -2,9 +2,11 @@
 
 from pathlib import Path
 
+import pytest
 import yaml
 
 from fastapi_gen.upgrade.metadata import (
+    Rename,
     compose_metadata,
     load_metadata,
     load_upgrades_file,
@@ -68,3 +70,15 @@ def test_load_metadata_convenience(tmp_path: Path) -> None:
     p.write_text(yaml.safe_dump(_BLOCKS), encoding="utf-8")
     meta = load_metadata(tmp_path, "0.2.9", "0.2.12")
     assert len(meta.renames) == 2
+
+
+def test_rename_is_dir() -> None:
+    assert Rename("a/", "b/", "1").is_dir is True
+    assert Rename("a", "b", "1").is_dir is False
+
+
+def test_load_upgrades_rejects_non_list(tmp_path: Path) -> None:
+    path = tmp_path / "UPGRADES.yaml"
+    path.write_text("version: 1\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="must contain a list"):
+        load_upgrades_file(path)

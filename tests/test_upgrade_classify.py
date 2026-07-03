@@ -102,3 +102,12 @@ def test_uncategorized_state_lands_in_other(tmp_path: Path) -> None:
     result = classify_trees(base, ours, theirs, conflicted_paths=set())
     assert result.other == ["f.txt"]
     assert result.has_changes
+
+
+def test_client_modified_file_template_deleted_is_auto_merged(tmp_path: Path) -> None:
+    base, ours, theirs = tmp_path / "b", tmp_path / "o", tmp_path / "t"
+    for t in (base, ours, theirs):
+        t.mkdir()
+    _row(base, ours, theirs, "f.txt", "x", "y", "")
+    result = classify_trees(base, ours, theirs, conflicted_paths=set())
+    assert result.auto_merged == ["f.txt"]

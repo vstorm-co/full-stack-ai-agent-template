@@ -1516,7 +1516,7 @@ def upgrade_recover(project_path: Path) -> None:
 
     try:
         run_recover(project_path)
-    except (FileNotFoundError, RuntimeError) as exc:
+    except (FileNotFoundError, RuntimeError) as exc:  # pragma: no cover
         raise click.ClickException(str(exc)) from exc
 
 

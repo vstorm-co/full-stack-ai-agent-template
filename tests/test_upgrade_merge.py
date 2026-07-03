@@ -6,6 +6,8 @@ from pathlib import Path
 import pytest
 
 from fastapi_gen.upgrade.merge import (
+    MergeResult,
+    apply_renames,
     is_excluded,
     materialize,
     merge_trees,
@@ -167,3 +169,47 @@ class TestMaterialize:
         result = merge_trees(base, client, theirs)
         with pytest.raises(RuntimeError, match="uncommitted changes"):
             materialize(result, client, branch="template-upgrade/vY")
+
+    def test_missing_store_raises(self, tmp_path: Path) -> None:
+        with pytest.raises(RuntimeError, match="Merge store not found"):
+            materialize(
+                MergeResult(merged_tree="deadbeef"), tmp_path, branch="template-upgrade/vX"
+            )
+
+    def test_existing_branch_guard_and_force(self, tmp_path: Path) -> None:
+        base, ours, theirs = tmp_path / "b", tmp_path / "o", tmp_path / "t"
+        for t in (base, ours, theirs):
+            t.mkdir()
+        _write(base, "f.txt", "a\n")
+        _write(ours, "f.txt", "a\n")
+        _write(theirs, "f.txt", "b\n")
+        result = merge_trees(base, ours, theirs)
+
+        client = tmp_path / "client"
+        client.mkdir()
+        _write(client, "f.txt", "a\n")
+        _init_client_repo(client)
+        subprocess.run(
+            ["git", "-C", str(client), "branch", "template-upgrade/vY"], check=True
+        )
+
+        with pytest.raises(RuntimeError, match="already exists"):
+            materialize(result, client, branch="template-upgrade/vY", force=False)
+
+        assert materialize(result, client, branch="template-upgrade/vY", force=True) == "main"
+        assert (client / "f.txt").read_text() == "b\n"
+
+
+class TestApplyRenames:
+    def test_moves_dir_and_file(self, tmp_path: Path) -> None:
+        tree = tmp_path / "tree"
+        (tree / "old_dir").mkdir(parents=True)
+        (tree / "old_dir" / "a.py").write_text("A", encoding="utf-8")
+        (tree / "single.py").write_text("S", encoding="utf-8")
+
+        apply_renames(tree, [("old_dir/", "new_dir/"), ("single.py", "renamed.py")])
+
+        assert (tree / "new_dir" / "a.py").read_text() == "A"
+        assert not (tree / "old_dir").exists()
+        assert (tree / "renamed.py").read_text() == "S"
+        assert not (tree / "single.py").exists()

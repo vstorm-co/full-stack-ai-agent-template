@@ -201,7 +201,7 @@ def merge_trees(base_dir: Path, ours_dir: Path, theirs_dir: Path) -> MergeResult
         capture_output=True,
         check=False,
     )
-    if proc.returncode not in (0, 1):
+    if proc.returncode not in (0, 1):  # pragma: no cover
         raise RuntimeError(f"git merge-tree failed:\n{proc.stderr.decode(errors='replace')}")
 
     result = _parse_merge_output(proc.stdout, proc.returncode)

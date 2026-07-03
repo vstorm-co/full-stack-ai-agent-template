@@ -43,3 +43,8 @@ def test_write_candidate_manifest_is_separate_file(tmp_path: Path) -> None:
     assert not (tmp_path / MANIFEST_FILENAME).exists()
     data = json.loads(candidate.read_text())
     assert "context" in data
+
+
+def test_detect_version_readme_without_version(tmp_path: Path) -> None:
+    (tmp_path / "README.md").write_text("# Project\nno version here\n", encoding="utf-8")
+    assert detect_version(tmp_path) is None

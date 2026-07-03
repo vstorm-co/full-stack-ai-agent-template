@@ -4,7 +4,11 @@ import json
 from pathlib import Path
 
 from fastapi_gen.upgrade.metadata import UpgradeMetadata, VariableRename
-from fastapi_gen.upgrade.reconcile import apply_variable_renames, reconcile_context
+from fastapi_gen.upgrade.reconcile import (
+    apply_variable_renames,
+    default_confirm,
+    reconcile_context,
+)
 
 
 def _template(tmp_path: Path, defaults: dict) -> Path:
@@ -58,3 +62,8 @@ class TestReconcileNewFeatures:
         ctx = {"enable_charts": True}
         _result_ctx, report = reconcile_context(ctx, template, UpgradeMetadata())
         assert report.new_features_available == []
+
+
+def test_default_confirm_delegates_to_wizard_helper(monkeypatch) -> None:
+    monkeypatch.setattr("fastapi_gen.prompts._confirm_with_back", lambda *_a, **_k: True)
+    assert default_confirm("adopt X?", default=False) is True

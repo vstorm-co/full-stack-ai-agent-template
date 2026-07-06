@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.15] - 2026-07-03
+
+### Fixed
+
+- **Webhook tables migration** — generated projects with `enable_webhooks` shipped the `Webhook` / `WebhookDelivery` models but no Alembic migration, so `alembic upgrade head` never created the `webhooks` and `webhook_deliveries` tables — they were absent at runtime and SQL admin failed to load them. Adds `0024_create_webhook_tables` following the repo's conditional-migration pattern: when `enable_webhooks` is on it creates both tables with their indexes (the `user_id` column and index gated on `use_jwt` to mirror the model), and when off it renders a no-op revision with the same `revision`/`down_revision` so the chain keeps a single head with no gap (#113)
+
 ## [0.2.14] - 2026-06-23
 
 ### Added

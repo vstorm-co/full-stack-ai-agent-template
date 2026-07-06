@@ -21,7 +21,6 @@ export function DemoReplay({ rawMessages }: DemoReplayProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const [hasPlayed, setHasPlayed] = useState(false);
   const [following, setFollowing] = useState(true);
-  const lastAutoY = useRef(0);
 
   const showPrePlay = !hasPlayed && !isReplaying;
   const progress = messages.length > 0 ? Math.round((displayMessages.length / messages.length) * 100) : 0;
@@ -42,7 +41,6 @@ export function DemoReplay({ rawMessages }: DemoReplayProps) {
       el.getBoundingClientRect().top - container.getBoundingClientRect().top - container.clientHeight * 0.66;
     if (delta > 2) {
       container.scrollBy({ top: delta, behavior: "auto" });
-      lastAutoY.current = container.scrollTop;
     }
   }, [tick, isReplaying, following]);
 
@@ -81,7 +79,6 @@ export function DemoReplay({ rawMessages }: DemoReplayProps) {
     const delta =
       el.getBoundingClientRect().top - container.getBoundingClientRect().top - container.clientHeight * 0.66;
     container.scrollBy({ top: delta, behavior: "auto" });
-    lastAutoY.current = container.scrollTop;
   };
 
   const blurStyle = { filter: "blur(6px)", opacity: 0.25, pointerEvents: "none" as const, userSelect: "none" as const };

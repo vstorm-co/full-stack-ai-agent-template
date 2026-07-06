@@ -18,16 +18,18 @@ from .merge import (
     apply_renames,
     assert_clean_worktree,
     cleanup_store,
+    current_branch,
     materialize,
     merge_trees,
     undo_command,
 )
-from .metadata import UpgradeMetadata, _version_tuple, load_metadata
+from .metadata import UpgradeMetadata, _parse_version, load_metadata
 from .normalize import normalize_tree
 from .reconcile import ConfirmFn, ReconcileReport, reconcile_context
 from .report import console, print_report
 
 _PENDING_SUFFIX = ".pending"
+_UPGRADE_BRANCH_KEY = "_upgrade_branch"
 
 
 class UpgradeError(RuntimeError):
@@ -93,7 +95,7 @@ def run_upgrade(
             from_version, target, Classification(), ReconcileReport(), None, applied=False
         )
 
-    if _version_tuple(target) < _version_tuple(from_version):
+    if _parse_version(target) < _parse_version(from_version):
         raise UpgradeError(
             f"Target v{target} is older than the project's v{from_version}. "
             "Downgrades are not supported."
@@ -114,7 +116,11 @@ def run_upgrade(
     theirs_template = fetch_template(target, local_template=local_template, running_version=running)
 
     theirs_context, reconcile_report = reconcile_context(
-        context, theirs_template, metadata, with_new_features=with_new_features, confirm=confirm
+        context,
+        theirs_template,
+        metadata,
+        with_new_features=with_new_features,
+        confirm=(lambda *_: False) if dry_run else confirm,
     )
 
     work = Path(tempfile.mkdtemp(prefix="fastapi-fullstack-upgrade-"))
@@ -168,7 +174,12 @@ def run_upgrade(
         branch = f"template-upgrade/v{target}"
         orig_branch = materialize(result, client_repo, branch=branch, force=force)
 
+        from .normalize import restore_generated_at
+
+        restore_generated_at(client_repo, generated_at)
+
         pending = build_manifest(theirs_context, package_version=target)
+        pending[_UPGRADE_BRANCH_KEY] = branch
         _write_pending(client_repo, pending)
 
         console.print(f"[green]Applied on branch[/] [bold]{branch}[/] (was {orig_branch}).")
@@ -181,7 +192,8 @@ def run_upgrade(
             console.print(
                 "No conflicts. Review the branch, then run [bold]make upgrade-finalize[/]."
             )
-        console.print(f"[dim]Undo:[/] {undo_command(branch, orig_branch)}")
+        pending_file = MANIFEST_FILENAME + _PENDING_SUFFIX
+        console.print(f"[dim]Undo:[/] {undo_command(branch, orig_branch)} && rm -f {pending_file}")
 
         cleanup_store(result.merged_tree)
         return UpgradeOutcome(
@@ -233,9 +245,20 @@ def run_recover(client_repo: Path) -> Path:
 
 def run_finalize(client_repo: Path) -> str:
     """Promote the pending manifest after a clean, conflict-free resolution."""
+    import json
+
     pending_path = client_repo / (MANIFEST_FILENAME + _PENDING_SUFFIX)
     if not pending_path.exists():
         raise UpgradeError("No pending upgrade found. Run `upgrade` first (nothing to finalize).")
+
+    pending = json.loads(pending_path.read_text(encoding="utf-8"))
+    expected_branch = pending.get(_UPGRADE_BRANCH_KEY)
+    on_branch = current_branch(client_repo)
+    if expected_branch and on_branch != expected_branch:
+        raise UpgradeError(
+            f"finalize must run on the upgrade branch '{expected_branch}', not '{on_branch}'. "
+            f"Check out '{expected_branch}' first, or delete {pending_path.name} to abandon it."
+        )
 
     status = subprocess.run(
         ["git", "-C", str(client_repo), "status", "--porcelain"],
@@ -252,13 +275,14 @@ def run_finalize(client_repo: Path) -> str:
             + "\n".join(unmerged)
         )
 
+    pending.pop(_UPGRADE_BRANCH_KEY, None)
     manifest_path = client_repo / MANIFEST_FILENAME
-    manifest_path.write_text(pending_path.read_text(encoding="utf-8"), encoding="utf-8")
+    manifest_path.write_text(
+        json.dumps(pending, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+    )
     pending_path.unlink()
 
-    import json
-
-    to_version = json.loads(manifest_path.read_text(encoding="utf-8"))["package_version"]
+    to_version = pending["package_version"]
     console.print(f"[green]Finalized — manifest now at v{to_version}.[/]")
     console.print("[dim]Commit the changes and merge the upgrade branch into your main branch.[/]")
     return to_version

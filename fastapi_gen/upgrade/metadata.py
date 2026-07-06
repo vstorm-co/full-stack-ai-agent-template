@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import yaml
+from packaging.version import InvalidVersion, Version
 
 UPGRADES_FILENAME = "UPGRADES.yaml"
 
@@ -49,17 +50,21 @@ class UpgradeMetadata:
     manual_steps: list[str] = field(default_factory=list)
 
 
-def _version_tuple(version: str) -> tuple[int, ...]:
-    parts: list[int] = []
-    for chunk in version.lstrip("v").split("."):
-        num = "".join(c for c in chunk if c.isdigit())
-        parts.append(int(num) if num else 0)
-    return tuple(parts)
+def _parse_version(version: str) -> Version:
+    """Parse a version with correct pre/post-release ordering (PEP 440).
+
+    Falls back to ``0`` for an unparseable string so a malformed UPGRADES.yaml entry
+    sorts first instead of crashing the whole run.
+    """
+    try:
+        return Version(version.lstrip("v"))
+    except InvalidVersion:
+        return Version("0")
 
 
 def _in_range(version: str, from_version: str, to_version: str) -> bool:
     """True for from_version < version <= to_version (half-open, ascending)."""
-    return _version_tuple(from_version) < _version_tuple(version) <= _version_tuple(to_version)
+    return _parse_version(from_version) < _parse_version(version) <= _parse_version(to_version)
 
 
 def load_upgrades_file(path: Path) -> list[dict]:
@@ -69,7 +74,7 @@ def load_upgrades_file(path: Path) -> list[dict]:
     data = yaml.safe_load(path.read_text(encoding="utf-8")) or []
     if not isinstance(data, list):
         raise ValueError(f"{path} must contain a list of release blocks.")
-    return sorted(data, key=lambda b: _version_tuple(str(b.get("version", "0"))))
+    return sorted(data, key=lambda b: _parse_version(str(b.get("version", "0"))))
 
 
 def compose_metadata(

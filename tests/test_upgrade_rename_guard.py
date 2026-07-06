@@ -38,22 +38,37 @@ class TestDetectMoves:
         moves = detect_moves(old, new)
         assert len(moves) == 1
 
+    def test_skips_trivially_small_deleted_file(self) -> None:
+        assert detect_moves({"a.py": "x\n"}, {"b.py": "def f():\n    return 1\n"}) == []
+
+    def test_skips_trivially_small_added_file(self) -> None:
+        assert detect_moves({"a.py": "def f():\n    return 1\n"}, {"b.py": "x\n"}) == []
+
 
 class TestUncoveredMoves:
     def test_covered_by_exact_rename(self) -> None:
-        moves = detect_moves({"a.py": "x\n"}, {"b.py": "x\n"})
+        moves = detect_moves(
+            {"a.py": "def f():\n    return 1\n"}, {"b.py": "def f():\n    return 1\n"}
+        )
         assert uncovered_moves(moves, {("a.py", "b.py")}) == []
 
     def test_covered_by_directory_rename(self) -> None:
-        moves = detect_moves({"rag/x.py": "x\n"}, {"knowledge/x.py": "x\n"})
+        moves = detect_moves(
+            {"rag/x.py": "def f():\n    return 1\n"},
+            {"knowledge/x.py": "def f():\n    return 1\n"},
+        )
         assert uncovered_moves(moves, {("rag/", "knowledge/")}) == []
 
     def test_covered_by_waiver(self) -> None:
-        moves = detect_moves({"a.py": "x\n"}, {"b.py": "x\n"})
+        moves = detect_moves(
+            {"a.py": "def f():\n    return 1\n"}, {"b.py": "def f():\n    return 1\n"}
+        )
         assert uncovered_moves(moves, set(), waivers={"a.py"}) == []
 
     def test_uncovered_is_reported(self) -> None:
-        moves = detect_moves({"a.py": "x\n"}, {"b.py": "x\n"})
+        moves = detect_moves(
+            {"a.py": "def f():\n    return 1\n"}, {"b.py": "def f():\n    return 1\n"}
+        )
         result = uncovered_moves(moves, set())
         assert [(m.from_path, m.to_path) for m in result] == [("a.py", "b.py")]
 

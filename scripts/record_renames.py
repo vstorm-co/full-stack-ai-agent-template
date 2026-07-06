@@ -23,7 +23,7 @@ import yaml
 from fastapi_gen.config import get_generator_version
 from fastapi_gen.generator import _find_template_dir
 from fastapi_gen.upgrade.fetch import TemplateFetchError, fetch_template, latest_pypi_version
-from fastapi_gen.upgrade.metadata import UPGRADES_FILENAME, _version_tuple, load_upgrades_file
+from fastapi_gen.upgrade.metadata import UPGRADES_FILENAME, _parse_version, load_upgrades_file
 from fastapi_gen.upgrade.rename_guard import (
     DEFAULT_THRESHOLD,
     detect_moves,
@@ -62,7 +62,7 @@ def _clean_block(block: dict) -> dict:
 
 def _write_upgrades(path: Path, blocks: list[dict]) -> None:
     header = _split_header(path.read_text(encoding="utf-8")) if path.exists() else ""
-    ordered = sorted(blocks, key=lambda b: _version_tuple(str(b.get("version", "0"))))
+    ordered = sorted(blocks, key=lambda b: _parse_version(str(b.get("version", "0"))))
     cleaned = [_clean_block(b) for b in ordered]
     body = yaml.safe_dump(cleaned, sort_keys=False, allow_unicode=True) if cleaned else "[]\n"
     path.write_text(header + body, encoding="utf-8")

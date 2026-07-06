@@ -15,6 +15,8 @@ from pathlib import Path
 
 DEFAULT_THRESHOLD = 0.5
 
+_MIN_MATCH_LEN = 8
+
 _SLUG_PREFIX = "{{cookiecutter.project_slug}}/"
 
 
@@ -63,10 +65,16 @@ def detect_moves(
 
     for old_path in deleted:
         best_ratio, best_new = 0.0, None
+        old_text = old_files[old_path]
+        if len(old_text) < _MIN_MATCH_LEN:
+            continue
         for new_path in added:
             if new_path in claimed:
                 continue
-            ratio = difflib.SequenceMatcher(None, old_files[old_path], new_files[new_path]).ratio()
+            new_text = new_files[new_path]
+            if len(new_text) < _MIN_MATCH_LEN:
+                continue
+            ratio = difflib.SequenceMatcher(None, old_text, new_text).ratio()
             if ratio > best_ratio:
                 best_ratio, best_new = ratio, new_path
         if best_new is not None and best_ratio >= threshold:

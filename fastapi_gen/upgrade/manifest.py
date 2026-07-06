@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 from pathlib import Path
 from typing import Any
@@ -40,15 +41,20 @@ def redact_secrets(context: dict[str, Any]) -> dict[str, Any]:
 
     A value is redacted only when it is a non-empty ``str`` *and* its key matches
     :data:`_SECRET_KEY_RE`. Non-string values (the feature flags) are always kept,
-    so the manifest stays fully re-renderable.
+    so the manifest stays fully re-renderable. Recurses into nested dicts/lists so a
+    future non-flat context shape can't leak a live key into the committed manifest.
     """
-    cleaned: dict[str, Any] = {}
-    for key, value in context.items():
-        if isinstance(value, str) and value and _SECRET_KEY_RE.search(key):
-            cleaned[key] = _REDACTED
-        else:
-            cleaned[key] = value
-    return cleaned
+
+    def _clean(obj: Any, key: str | None = None) -> Any:
+        if isinstance(obj, dict):
+            return {k: _clean(v, k) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [_clean(x) for x in obj]
+        if isinstance(obj, str) and obj and key is not None and _SECRET_KEY_RE.search(key):
+            return _REDACTED
+        return obj
+
+    return {k: _clean(v, k) for k, v in context.items()}
 
 
 def _canonical_json(obj: Any) -> str:
@@ -120,10 +126,10 @@ def write_manifest(
         commit=commit,
     )
     manifest_path = project_path / MANIFEST_FILENAME
-    manifest_path.write_text(
-        json.dumps(manifest, indent=2, ensure_ascii=False) + "\n",
-        encoding="utf-8",
-    )
+    payload = json.dumps(manifest, indent=2, ensure_ascii=False) + "\n"
+    tmp_path = manifest_path.with_suffix(manifest_path.suffix + ".tmp")
+    tmp_path.write_text(payload, encoding="utf-8")
+    os.replace(tmp_path, manifest_path)
     return manifest_path
 
 
@@ -136,6 +142,7 @@ def read_manifest(project_path: Path) -> dict[str, Any]:
     Raises:
         FileNotFoundError: If no manifest exists (the caller should fall back to
             best-effort recovery).
+        ValueError: If the manifest is corrupt JSON or missing required keys.
     """
     manifest_path = (
         project_path if project_path.name == MANIFEST_FILENAME else project_path / MANIFEST_FILENAME
@@ -145,5 +152,16 @@ def read_manifest(project_path: Path) -> dict[str, Any]:
             f"No {MANIFEST_FILENAME} found in {project_path}. "
             "This project predates upgrade manifests; run recovery first."
         )
-    data: dict[str, Any] = json.loads(manifest_path.read_text(encoding="utf-8"))
+    try:
+        data: dict[str, Any] = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise ValueError(
+            f"Corrupt manifest {manifest_path}: {exc}. Run recovery to rebuild it."
+        ) from exc
+    missing = {"package_version", "template_ref", "context", "context_hash"} - data.keys()
+    if missing:
+        raise ValueError(
+            f"Manifest {manifest_path} is missing required keys: {sorted(missing)}. "
+            "Run recovery to rebuild it."
+        )
     return data

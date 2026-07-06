@@ -23,6 +23,31 @@ _GENERATED_AT_PLACEHOLDER = "<normalized-generated-at>"
 
 _BINARY_SNIFF = 8192
 
+_NORMALIZE_SUFFIXES = frozenset(
+    {
+        ".py",
+        ".pyi",
+        ".ts",
+        ".tsx",
+        ".js",
+        ".jsx",
+        ".mjs",
+        ".cjs",
+        ".json",
+        ".jsonc",
+        ".css",
+        ".scss",
+        ".sass",
+        ".less",
+        ".html",
+        ".vue",
+        ".svelte",
+        ".yaml",
+        ".yml",
+        ".toml",
+    }
+)
+
 
 def _is_binary(path: Path) -> bool:
     try:
@@ -32,8 +57,13 @@ def _is_binary(path: Path) -> bool:
         return True
 
 
+_SKIP_DIRS = frozenset({".git", "node_modules", ".venv", "venv", ".next", "__pycache__"})
+
+
 def _iter_text_files(tree: Path):
     for path in tree.rglob("*"):
+        if _SKIP_DIRS.intersection(path.parts):
+            continue
         if path.is_file() and not path.is_symlink() and not _is_binary(path):
             yield path
 
@@ -52,19 +82,42 @@ def strip_generated_at(tree: Path, value: str | None) -> None:
             )
 
 
+def restore_generated_at(tree: Path, value: str | None) -> None:
+    """Reverse :func:`strip_generated_at` — put the real timestamp back.
+
+    Run over the *materialized* client tree so the merged files never ship the
+    ``<normalized-generated-at>`` placeholder (e.g. in Alembic ``Create Date:``).
+    """
+    if not value:
+        return
+    for path in _iter_text_files(tree):
+        text = path.read_text(encoding="utf-8", errors="surrogateescape")
+        if _GENERATED_AT_PLACEHOLDER in text:
+            path.write_text(
+                text.replace(_GENERATED_AT_PLACEHOLDER, value),
+                encoding="utf-8",
+                errors="surrogateescape",
+            )
+
+
 def normalize_whitespace(tree: Path) -> None:
-    """Convert CRLF→LF, strip per-line trailing whitespace, and enforce a single
-    final newline.
+    """Convert CRLF→LF everywhere; strip trailing whitespace and enforce a single
+    final newline only for formatter-owned code files.
 
     The final-newline rule matters for frontend files: generation runs Prettier
     (which trims blank lines at EOF) while the upgrade render is Prettier-neutralized,
     so raw trees keep the template's trailing blank lines. Collapsing them in all three
-    trees cancels that difference before the merge.
+    trees cancels that difference before the merge. Prose files are only line-ending
+    normalized, so writing the merged tree back never mutates intentional whitespace.
     """
     for path in _iter_text_files(tree):
         text = path.read_text(encoding="utf-8", errors="surrogateescape")
-        stripped = "\n".join(line.rstrip() for line in text.replace("\r\n", "\n").split("\n"))
-        normalized = stripped.rstrip("\n") + "\n" if stripped.strip() else ""
+        unified = text.replace("\r\n", "\n")
+        if path.suffix in _NORMALIZE_SUFFIXES:
+            stripped = "\n".join(line.rstrip() for line in unified.split("\n"))
+            normalized = stripped.rstrip("\n") + "\n" if stripped.strip() else ""
+        else:
+            normalized = unified
         if normalized != text:
             path.write_text(normalized, encoding="utf-8", errors="surrogateescape")
 
@@ -112,7 +165,7 @@ def format_frontend(tree: Path, *, node_modules: Path | None) -> bool:
     if link.exists() or link.is_symlink():
         return False
     try:
-        link.symlink_to(node_modules)
+        link.symlink_to(node_modules.resolve())
     except OSError:
         return False
     try:
@@ -122,6 +175,8 @@ def format_frontend(tree: Path, *, node_modules: Path | None) -> bool:
             capture_output=True,
             check=False,
         )
+    except OSError:
+        return False
     finally:
         link.unlink()
     return True

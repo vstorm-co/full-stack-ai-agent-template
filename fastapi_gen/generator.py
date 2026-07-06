@@ -98,13 +98,12 @@ def generate_project(config: ProjectConfig, output_dir: Path | None = None) -> P
                 output_dir=str(output_dir),
                 no_input=True,
             )
+            write_manifest(Path(project_path), context)
         except Exception:
             # Cleanup partial files on failure
             if target_dir.exists():
                 shutil.rmtree(target_dir)
             raise
-
-    write_manifest(Path(project_path), context)
 
     return Path(project_path)
 

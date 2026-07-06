@@ -10,10 +10,13 @@ import pytest
 
 from fastapi_gen.upgrade import normalize as normalize_mod
 from fastapi_gen.upgrade.normalize import (
+    _GENERATED_AT_PLACEHOLDER,
     _ruff_cmd,
     format_frontend,
     format_python,
     normalize_tree,
+    normalize_whitespace,
+    restore_generated_at,
 )
 
 
@@ -114,6 +117,53 @@ def test_format_frontend_returns_false_on_symlink_error(
 
     monkeypatch.setattr(Path, "symlink_to", _boom)
     assert format_frontend(tree, node_modules=nm) is False
+
+
+def test_format_frontend_returns_false_when_prettier_exec_raises(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A broken prettier (e.g. dangling symlink) must be swallowed, not abort the upgrade."""
+    tree = tmp_path / "tree"
+    (tree / "frontend").mkdir(parents=True)
+    nm = _fake_node_modules(tmp_path, "#!/bin/sh\n")
+
+    def _boom(*_a: object, **_k: object) -> None:
+        raise OSError("cannot exec")
+
+    monkeypatch.setattr(normalize_mod.subprocess, "run", _boom)
+    assert format_frontend(tree, node_modules=nm) is False
+    assert not (tree / "frontend" / "node_modules").exists()
+
+
+def test_normalize_whitespace_leaves_prose_content_intact(tmp_path: Path) -> None:
+    """Only line endings change for non-code files — trailing spaces (MD hard-breaks)
+    and whitespace-only content survive so the merged tree never mutates them."""
+    md = tmp_path / "README.md"
+    md.write_text("line with break  \r\n\r\n", encoding="utf-8")
+    normalize_whitespace(tmp_path)
+    assert md.read_text(encoding="utf-8") == "line with break  \n\n"
+
+
+def test_normalize_whitespace_strips_code_files(tmp_path: Path) -> None:
+    py = tmp_path / "m.py"
+    py.write_text("x = 1  \n\n\n", encoding="utf-8")
+    normalize_whitespace(tmp_path)
+    assert py.read_text(encoding="utf-8") == "x = 1\n"
+
+
+def test_restore_generated_at_noop_when_value_empty(tmp_path: Path) -> None:
+    f = tmp_path / "m.py"
+    f.write_text(f"# {_GENERATED_AT_PLACEHOLDER}\n", encoding="utf-8")
+    restore_generated_at(tmp_path, None)
+    assert _GENERATED_AT_PLACEHOLDER in f.read_text(encoding="utf-8")
+
+
+def test_restore_generated_at_replaces_placeholder(tmp_path: Path) -> None:
+    f = tmp_path / "versions" / "mig.py"
+    f.parent.mkdir()
+    f.write_text(f"# Create Date: {_GENERATED_AT_PLACEHOLDER}\n", encoding="utf-8")
+    restore_generated_at(tmp_path, "2020-01-02 03:04:05")
+    assert f.read_text(encoding="utf-8") == "# Create Date: 2020-01-02 03:04:05\n"
 
 
 def test_is_binary_returns_true_on_oserror(tmp_path: Path) -> None:

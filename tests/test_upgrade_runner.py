@@ -73,6 +73,18 @@ class TestGuards:
         assert candidate.exists()
         assert candidate.name == MANIFEST_FILENAME + ".candidate"
 
+    def test_finalize_rejects_wrong_branch(self, tmp_path: Path) -> None:
+        import json
+
+        write_manifest(tmp_path, {"project_name": "x"}, package_version="0.1.0")
+        _commit_all(tmp_path)
+        (tmp_path / (MANIFEST_FILENAME + ".pending")).write_text(
+            json.dumps({"package_version": "0.2.0", "_upgrade_branch": "template-upgrade/v0.2.0"}),
+            encoding="utf-8",
+        )
+        with pytest.raises(UpgradeError, match="must run on the upgrade branch"):
+            run_finalize(tmp_path)
+
     def test_finalize_blocked_by_unmerged_conflicts(self, tmp_path: Path) -> None:
         write_manifest(tmp_path, {"project_name": "x"}, package_version="0.1.0")
         _commit_all(tmp_path)

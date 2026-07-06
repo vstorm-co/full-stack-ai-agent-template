@@ -1450,7 +1450,7 @@ _PATH_OPTION = click.option(
     "--path",
     "project_path",
     default=".",
-    type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path),
+    type=click.Path(exists=True, file_okay=False, dir_okay=True, resolve_path=True, path_type=Path),
     help="Project directory (default: current directory).",
 )
 

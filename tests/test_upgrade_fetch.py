@@ -172,6 +172,52 @@ class TestFetchFromPypi:
             fetch_mod._fetch_from_pypi("1.0.0", tmp_path)
 
 
+class TestSecureMkdir:
+    def test_refuses_dir_owned_by_another_user(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(fetch_mod.os, "getuid", lambda: 999999, raising=False)
+        with pytest.raises(TemplateFetchError, match="owned by another user"):
+            fetch_mod._secure_mkdir(tmp_path / "child")
+
+    def test_creates_private_dir(self, tmp_path: Path) -> None:
+        target = tmp_path / "root" / "leaf"
+        fetch_mod._secure_mkdir(target)
+        assert target.is_dir()
+
+
+class TestWheelSha256:
+    def test_returns_none_on_metadata_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        def _boom(*_a: object, **_k: object) -> None:
+            raise TemplateFetchError("no pypi")
+
+        monkeypatch.setattr(fetch_mod, "_pypi_metadata", _boom)
+        assert fetch_mod._wheel_sha256("1.0.0", "https://x/pkg.whl") is None
+
+    def test_returns_digest_for_matching_url(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        meta = {"urls": [{"url": "https://x/pkg.whl", "digests": {"sha256": "abc123"}}]}
+        monkeypatch.setattr(fetch_mod, "_pypi_metadata", lambda *_a, **_k: meta)
+        assert fetch_mod._wheel_sha256("1.0.0", "https://x/pkg.whl") == "abc123"
+
+    def test_returns_none_when_url_absent(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(fetch_mod, "_pypi_metadata", lambda *_a, **_k: {"urls": []})
+        assert fetch_mod._wheel_sha256("1.0.0", "https://x/pkg.whl") is None
+
+
+class TestFetchFromPypiDigest:
+    def test_rejects_wheel_with_wrong_digest(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(fetch_mod, "_pypi_wheel_url", lambda *_a, **_k: "https://x/pkg.whl")
+        resp = MagicMock()
+        resp.read.return_value = _wheel_bytes(include_template=True)
+        resp.__enter__.return_value = resp
+        monkeypatch.setattr(fetch_mod.urllib.request, "urlopen", lambda *_a, **_k: resp)
+        monkeypatch.setattr(fetch_mod, "_wheel_sha256", lambda *_a, **_k: "deadbeef")
+        with pytest.raises(TemplateFetchError, match="failed sha256 verification"):
+            fetch_mod._fetch_from_pypi("1.0.0", tmp_path)
+
+
 class TestFetchFromGit:
     def test_missing_git(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(fetch_mod.shutil, "which", lambda _: None)

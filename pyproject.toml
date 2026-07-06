@@ -47,6 +47,7 @@ dependencies = [
     "click>=8.3.0",
     "cookiecutter>=2.7.0",
     "pyyaml>=6.0",
+    "packaging>=24.0",
     "ruff>=0.14.0",
     "rich>=15.0.0",
     "questionary>=2.1.0",

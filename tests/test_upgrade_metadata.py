@@ -82,3 +82,16 @@ def test_load_upgrades_rejects_non_list(tmp_path: Path) -> None:
     path.write_text("version: 1\n", encoding="utf-8")
     with pytest.raises(ValueError, match="must contain a list"):
         load_upgrades_file(path)
+
+
+def test_parse_version_orders_prereleases_correctly() -> None:
+    from fastapi_gen.upgrade.metadata import _parse_version
+
+    assert _parse_version("0.2.14rc1") < _parse_version("0.2.14")
+    assert _parse_version("v2.0") == _parse_version("2.0.0")
+
+
+def test_parse_version_falls_back_on_garbage() -> None:
+    from fastapi_gen.upgrade.metadata import _parse_version
+
+    assert str(_parse_version("not-a-version")) == "0"

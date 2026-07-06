@@ -57,13 +57,16 @@ class RecoveryResult:
 
 
 def detect_version(project_path: Path) -> str | None:
-    """Parse the generator version from the README footer (``…) v0.2.x.``)."""
+    """Parse the generator version from the README footer (``…) v0.2.x.``).
+
+    Takes the *last* ``vX.Y.Z`` in the file: the generator stamps its version in the
+    footer, so an earlier match (a Python/FastAPI/dependency version) must not win.
+    """
     readme = project_path / "README.md"
     if not readme.exists():
         return None
-    for match in _VERSION_RE.finditer(readme.read_text(encoding="utf-8", errors="ignore")):
-        return match.group(1)
-    return None
+    matches = _VERSION_RE.findall(readme.read_text(encoding="utf-8", errors="ignore"))
+    return matches[-1] if matches else None
 
 
 def recover_context(project_path: Path) -> RecoveryResult:

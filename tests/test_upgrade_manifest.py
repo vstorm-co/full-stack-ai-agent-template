@@ -156,3 +156,31 @@ class TestManifestFromRealContext:
         ctx2 = minimal_config.to_cookiecutter_context()
         assert ctx1["generated_at"] != ctx2["generated_at"] or ctx1 == ctx2
         assert compute_context_hash(ctx1) == compute_context_hash(ctx2)
+
+
+class TestRedactNested:
+    def test_redacts_secret_in_nested_dict_and_list(self) -> None:
+        ctx = {
+            "enable_x": True,
+            "creds": {"api_key": "sk_live_123", "name": "keep"},
+            "tokens": [{"token": "tok_abc"}],
+        }
+        cleaned = redact_secrets(ctx)
+        assert cleaned["enable_x"] is True
+        assert cleaned["creds"]["api_key"] == "<redacted>"
+        assert cleaned["creds"]["name"] == "keep"
+        assert cleaned["tokens"][0]["token"] == "<redacted>"
+
+
+class TestReadManifestErrors:
+    def test_corrupt_json_raises_value_error(self, tmp_path: Path) -> None:
+        (tmp_path / MANIFEST_FILENAME).write_text("{not json", encoding="utf-8")
+        with pytest.raises(ValueError, match="Corrupt manifest"):
+            read_manifest(tmp_path)
+
+    def test_missing_keys_raises_value_error(self, tmp_path: Path) -> None:
+        (tmp_path / MANIFEST_FILENAME).write_text(
+            json.dumps({"package_version": "1.0.0"}), encoding="utf-8"
+        )
+        with pytest.raises(ValueError, match="missing required keys"):
+            read_manifest(tmp_path)

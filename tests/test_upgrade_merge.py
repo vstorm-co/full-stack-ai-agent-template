@@ -199,6 +199,38 @@ class TestMaterialize:
         assert materialize(result, client, branch="template-upgrade/vY", force=True) == "main"
         assert (client / "f.txt").read_text() == "b\n"
 
+    def test_rolls_back_on_materialize_failure(
+        self, tmp_path: Path, three_trees: tuple[Path, Path, Path], monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        base, ours, theirs = three_trees
+        client = tmp_path / "client"
+        client.mkdir()
+        _write(client, "upd.txt", "one\ntwo\nthree\n")
+        _init_client_repo(client)
+        result = merge_trees(base, client, theirs)
+
+        def _boom(*_a: object, **_k: object) -> None:
+            raise RuntimeError("write blew up")
+
+        monkeypatch.setattr("fastapi_gen.upgrade.merge._materialize_onto_branch", _boom)
+        with pytest.raises(RuntimeError, match="write blew up"):
+            materialize(result, client, branch="template-upgrade/vY")
+
+        head = subprocess.run(
+            ["git", "-C", str(client), "rev-parse", "--abbrev-ref", "HEAD"],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+        assert head == "main"
+        branches = subprocess.run(
+            ["git", "-C", str(client), "branch", "--list", "template-upgrade/vY"],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+        assert branches == ""
+
 
 class TestApplyRenames:
     def test_moves_dir_and_file(self, tmp_path: Path) -> None:

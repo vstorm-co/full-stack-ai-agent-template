@@ -86,10 +86,13 @@ class MergeResult:
         return sorted(self.conflicts)
 
 
+_SAFE_CONFIG = ("-c", "core.autocrlf=false", "-c", "core.attributesFile=/dev/null")
+
+
 def _git(
     git_dir: Path, *args: str, index_file: Path | None = None, work_tree: Path | None = None
 ) -> str:
-    env_prefix: list[str] = ["git", f"--git-dir={git_dir}"]
+    env_prefix: list[str] = ["git", f"--git-dir={git_dir}", *_SAFE_CONFIG]
     if work_tree is not None:
         env_prefix.append(f"--work-tree={work_tree}")
     env = None
@@ -180,7 +183,9 @@ def merge_trees(base_dir: Path, ours_dir: Path, theirs_dir: Path) -> MergeResult
     """3-way merge three concrete trees; return the merged tree + conflicts."""
     tmp = Path(tempfile.mkdtemp(prefix="fastapi-fullstack-merge-"))
     git_dir = tmp / "store.git"
-    subprocess.run(["git", "init", "--bare", "-q", str(git_dir)], check=True)
+    subprocess.run(
+        ["git", "init", "--bare", "-q", "--object-format=sha1", str(git_dir)], check=True
+    )
 
     base = _stage_tree(git_dir, base_dir, tmp, "base")
     ours = _stage_tree(git_dir, ours_dir, tmp, "ours")
@@ -280,8 +285,24 @@ def materialize(
 
     _client_git(client_repo, "checkout", "-b", branch, base_ref)
 
+    try:
+        _materialize_onto_branch(result, client_repo, store, base_ref)
+    except Exception:
+        _client_git(client_repo, "checkout", "--force", orig_branch, check=False)
+        _client_git(client_repo, "branch", "-D", branch, check=False)
+        raise
+
+    return orig_branch
+
+
+def _materialize_onto_branch(
+    result: MergeResult, client_repo: Path, store: Path, base_ref: str
+) -> None:
     merged_files = _tree_files(store, result.merged_tree)
     in_scope_tracked = {f for f in _tracked_files(client_repo, base_ref) if not is_excluded(f)}
+    symlinks = {
+        p.relative_to(client_repo).as_posix() for p in client_repo.rglob("*") if p.is_symlink()
+    }
 
     archive = subprocess.run(
         ["git", f"--git-dir={store}", "archive", "--format=tar", result.merged_tree],
@@ -290,7 +311,7 @@ def materialize(
     ).stdout
     subprocess.run(["tar", "-x", "-C", str(client_repo)], input=archive, check=True)
 
-    for rel in sorted(in_scope_tracked - merged_files):
+    for rel in sorted(in_scope_tracked - merged_files - symlinks):
         target = client_repo / rel
         if target.exists():
             target.unlink()
@@ -319,15 +340,13 @@ def materialize(
                     .strip()
                 )
                 index_info.append(f"{mode} {new_oid} {stage}\t{path}")
+        payload = b"".join((rec + "\0").encode("utf-8", "surrogateescape") for rec in index_info)
         subprocess.run(
-            ["git", "-C", str(client_repo), "update-index", "--index-info"],
-            input="\n".join(index_info) + "\n",
-            text=True,
+            ["git", "-C", str(client_repo), "update-index", "-z", "--index-info"],
+            input=payload,
             capture_output=True,
             check=True,
         )
-
-    return orig_branch
 
 
 def cleanup_store(merged_tree: str) -> None:

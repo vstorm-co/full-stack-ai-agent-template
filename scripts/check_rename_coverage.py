@@ -52,8 +52,13 @@ def main(argv: list[str] | None = None) -> int:
         old_version = args.old or latest_pypi_version()
         old_template = fetch_template(old_version)
     except TemplateFetchError as exc:
-        print(f"::warning:: could not resolve/fetch baseline template: {exc}")
-        return 0
+        msg = str(exc)
+        no_baseline = args.old is None and ("404" in msg or "Not Found" in msg)
+        if no_baseline:
+            print(f"::warning:: no published baseline yet ({exc}); skipping rename guard.")
+            return 0
+        print(f"::error:: could not fetch baseline template: {exc}")
+        return 2
 
     moves = detect_moves(
         template_files(old_template),

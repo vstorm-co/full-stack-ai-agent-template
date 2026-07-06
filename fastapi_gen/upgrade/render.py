@@ -107,7 +107,7 @@ def render_template(
         ctx_path = ctx_file.name
 
     env = os.environ.copy()
-    env["PATH"] = _ensure_shim_dir()
+    env["PATH"] = _ensure_shim_dir() + os.pathsep + env.get("PATH", "")
     env["FASTAPI_FULLSTACK_RENDER_ONLY"] = "1"
 
     try:

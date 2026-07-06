@@ -13,7 +13,9 @@ git clone of the template repo at tag ``vX``.
 
 from __future__ import annotations
 
+import hashlib
 import json
+import os
 import shutil
 import subprocess
 import tempfile
@@ -29,7 +31,15 @@ _PYPI_LATEST_JSON = "https://pypi.org/pypi/{name}/json"
 
 _BUNDLED_TEMPLATE_SUBPATH = Path("fastapi_gen") / "template"
 
-_CACHE_ROOT = Path(tempfile.gettempdir()) / "fastapi-fullstack-upgrade" / "templates"
+
+def _cache_root() -> Path:
+    """Per-user cache root. A shared, guessable path lets another local user
+    pre-seed a poisoned template whose post-gen hook runs as us during render."""
+    uid = getattr(os, "getuid", lambda: "shared")()
+    return Path(tempfile.gettempdir()) / f"fastapi-fullstack-upgrade-{uid}" / "templates"
+
+
+_CACHE_ROOT = _cache_root()
 
 
 class TemplateFetchError(RuntimeError):
@@ -38,6 +48,21 @@ class TemplateFetchError(RuntimeError):
 
 def _cache_dir(version: str) -> Path:
     return _CACHE_ROOT / version
+
+
+def _secure_mkdir(path: Path) -> None:
+    """Create ``path`` (and its parent) private to the current user, refusing a
+    pre-existing dir owned by someone else."""
+    getuid = getattr(os, "getuid", None)
+    for target in (path.parent, path):
+        if target.exists():
+            if getuid is not None and target.stat().st_uid != getuid():
+                raise TemplateFetchError(
+                    f"Refusing to use cache dir {target} owned by another user — "
+                    "it could contain a poisoned template."
+                )
+        else:
+            target.mkdir(mode=0o700, parents=True, exist_ok=True)
 
 
 def _validate_template_dir(path: Path) -> Path:
@@ -70,33 +95,56 @@ def latest_pypi_version(*, timeout: float = 30.0) -> str:
     return str(version)
 
 
-def _pypi_wheel_url(version: str, *, timeout: float = 30.0) -> str:
-    """Return the download URL of the wheel for ``version`` from PyPI."""
+def _pypi_metadata(version: str, *, timeout: float = 30.0) -> dict:
+    """Fetch and parse PyPI's release JSON for ``version``."""
     url = _PYPI_JSON.format(name=GENERATOR_NAME, version=version)
     try:
         with urllib.request.urlopen(url, timeout=timeout) as resp:  # noqa: S310 (trusted host)
-            data = json.loads(resp.read().decode("utf-8"))
+            return json.loads(resp.read().decode("utf-8"))
     except Exception as exc:
         raise TemplateFetchError(
             f"Could not query PyPI for {GENERATOR_NAME}=={version}: {exc}"
         ) from exc
 
+
+def _pypi_wheel_url(version: str, *, timeout: float = 30.0) -> str:
+    """Return the download URL of the wheel for ``version`` from PyPI."""
+    data = _pypi_metadata(version, timeout=timeout)
     for entry in data.get("urls", []):
         if entry.get("packagetype") == "bdist_wheel" and entry.get("url"):
             return str(entry["url"])
     raise TemplateFetchError(f"No wheel found on PyPI for {GENERATOR_NAME}=={version}.")
 
 
+def _wheel_sha256(version: str, wheel_url: str, *, timeout: float = 30.0) -> str | None:
+    """Best-effort: the expected sha256 for ``wheel_url`` from PyPI (``None`` if unknown)."""
+    try:
+        data = _pypi_metadata(version, timeout=timeout)
+    except TemplateFetchError:
+        return None
+    for entry in data.get("urls", []):
+        if entry.get("url") == wheel_url:
+            return entry.get("digests", {}).get("sha256")
+    return None
+
+
 def _fetch_from_pypi(version: str, dest: Path, *, timeout: float = 30.0) -> Path:
     """Download the wheel for ``version`` and extract its bundled template into ``dest``."""
     wheel_url = _pypi_wheel_url(version, timeout=timeout)
-    dest.mkdir(parents=True, exist_ok=True)
+    _secure_mkdir(dest)
     wheel_path = dest / "package.whl"
     try:
         with urllib.request.urlopen(wheel_url, timeout=timeout) as resp:  # noqa: S310
-            wheel_path.write_bytes(resp.read())
+            wheel_bytes = resp.read()
     except Exception as exc:
         raise TemplateFetchError(f"Failed to download wheel for {version}: {exc}") from exc
+
+    expected = _wheel_sha256(version, wheel_url, timeout=timeout)
+    if expected and hashlib.sha256(wheel_bytes).hexdigest() != expected:
+        raise TemplateFetchError(
+            f"Wheel for {version} failed sha256 verification against PyPI's digest."
+        )
+    wheel_path.write_bytes(wheel_bytes)
 
     extract_dir = dest / "extracted"
     with zipfile.ZipFile(wheel_path) as zf:
@@ -115,7 +163,7 @@ def _fetch_from_git(version: str, dest: Path) -> Path:
     git = shutil.which("git")
     if not git:
         raise TemplateFetchError("git not available for template-repo fallback.")
-    dest.mkdir(parents=True, exist_ok=True)
+    _secure_mkdir(dest)
     clone_dir = dest / "repo"
     result = subprocess.run(
         [git, "clone", "--depth", "1", "--branch", f"v{version}", TEMPLATE_URL, str(clone_dir)],

@@ -16,6 +16,7 @@ export interface ConversationMessage {
   conversation_id: string;
   role: "user" | "assistant" | "system";
   content: string;
+  thinking?: string | null;
   created_at: string;
   model_name?: string;
   tokens_used?: number;

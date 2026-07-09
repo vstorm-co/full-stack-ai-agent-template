@@ -524,6 +524,7 @@ class ConversationService:
             conversation_id=conversation_id,
             role=data.role,
             content=data.content,
+            thinking=data.thinking,
             model_name=data.model_name,
             tokens_used=data.tokens_used,
         )

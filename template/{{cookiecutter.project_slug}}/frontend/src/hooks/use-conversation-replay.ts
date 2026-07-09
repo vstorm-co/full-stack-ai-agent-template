@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChatMessage } from "@/types";
-import { canReplayMessage, END_HOLD_MS, playTurn, type ReplayToken } from "./use-step-replay";
+import { canReplayMessage, END_HOLD_MS, playTurn, waitWhilePaused, type ReplayToken } from "./use-step-replay";
 
 /**
  * Whole-conversation "Watch again" for the public demo page.
@@ -33,21 +33,34 @@ const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve,
 export function useConversationReplay(messages: ChatMessage[]) {
   const [phase, setPhase] = useState<ReplayPhase>(IDLE);
   const [tick, setTick] = useState(0);
+  const [paused, setPaused] = useState(false);
   const tokenRef = useRef<ReplayToken | null>(null);
 
   const bump = useCallback(() => setTick((t) => t + 1), []);
 
   const stop = useCallback(() => {
     if (tokenRef.current) tokenRef.current.cancelled = true;
+    setPaused(false);
     setPhase(IDLE);
+  }, []);
+
+  const pause = useCallback(() => {
+    if (tokenRef.current) tokenRef.current.paused = true;
+    setPaused(true);
+  }, []);
+
+  const resume = useCallback(() => {
+    if (tokenRef.current) tokenRef.current.paused = false;
+    setPaused(false);
   }, []);
 
   useEffect(() => () => stop(), [stop]);
 
   const start = useCallback(() => {
     if (tokenRef.current) tokenRef.current.cancelled = true;
-    const token: ReplayToken = { cancelled: false };
+    const token: ReplayToken = { cancelled: false, paused: false };
     tokenRef.current = token;
+    setPaused(false);
 
     void (async () => {
       setPhase({ playing: true, revealed: 0, active: null });
@@ -55,6 +68,8 @@ export function useConversationReplay(messages: ChatMessage[]) {
       await sleep(START_DELAY_MS);
 
       for (let i = 0; i < messages.length; i++) {
+        if (token.cancelled) return;
+        await waitWhilePaused(token);
         if (token.cancelled) return;
         const msg = messages[i];
         if (!msg) continue;
@@ -114,5 +129,5 @@ export function useConversationReplay(messages: ChatMessage[]) {
     return phase.active ? [...shown, phase.active] : shown;
   }, [messages, phase]);
 
-  return { isReplaying: phase.playing, displayMessages, tick, start, stop };
+  return { isReplaying: phase.playing, paused, displayMessages, tick, start, stop, pause, resume };
 }

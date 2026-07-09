@@ -1450,6 +1450,11 @@ def prompt_marketing_features() -> dict[str, bool]:
                     value="status_badge",
                     checked=True,
                 ),
+                questionary.Choice(
+                    "Demo export (offline HTML replay of a saved conversation)",
+                    value="demo_export",
+                    checked=False,
+                ),
             ],
         ).ask()
     )
@@ -1461,6 +1466,7 @@ def prompt_marketing_features() -> dict[str, bool]:
         "enable_comparison_pages": "comparison_pages" in features,
         "enable_affiliate_program": "affiliate_program" in features,
         "enable_status_badge": "status_badge" in features,
+        "enable_demo_export": "demo_export" in features,
     }
 
 
@@ -1801,6 +1807,7 @@ def run_interactive_prompts() -> ProjectConfig:
             "enable_comparison_pages": True,
             "enable_affiliate_program": True,
             "enable_status_badge": True,
+            "enable_demo_export": False,
         }
         if frontend != FrontendType.NONE
         else {}

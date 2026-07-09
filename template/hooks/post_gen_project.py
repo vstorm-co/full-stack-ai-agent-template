@@ -41,7 +41,9 @@ enable_rag_image_description = "{{ cookiecutter.enable_rag_image_description }}"
 enable_google_drive_ingestion = "{{ cookiecutter.enable_google_drive_ingestion }}" == "True"
 enable_s3_ingestion = "{{ cookiecutter.enable_s3_ingestion }}" == "True"
 enable_web_search = "{{ cookiecutter.enable_web_search }}" == "True"
+enable_web_fetch = "{{ cookiecutter.enable_web_fetch }}" == "True"
 web_fetch_tool = "{{ cookiecutter.web_fetch_tool }}" == "True"
+enable_demo_export = "{{ cookiecutter.enable_demo_export }}" == "True"
 enable_charts = "{{ cookiecutter.enable_charts }}" == "True"
 charts_channel_png = "{{ cookiecutter.charts_channel_png }}" == "True"
 enable_code_execution = "{{ cookiecutter.enable_code_execution }}" == "True"
@@ -156,6 +158,18 @@ if not enable_deep_research and use_frontend:
     remove_file(os.path.join(frontend_src, "stores", "chat-mode-store.ts"))
     remove_file(os.path.join(frontend_src, "lib", "research-from-tools.ts"))
     remove_file(os.path.join(frontend_src, "components", "chat", "research-replay-block.tsx"))
+
+# The fetched-page tool-result renderer is only referenced when web fetch is on.
+if not enable_web_fetch and use_frontend:
+    frontend_src = os.path.join(os.getcwd(), "frontend", "src")
+    remove_file(os.path.join(frontend_src, "components", "chat", "tool-results", "fetch-url.tsx"))
+
+# Self-contained HTML demo export (Vite single-file bundle + exporter script).
+# Only meaningful with a frontend to bundle; drop everything otherwise. The
+# scripts/ dir exists solely for this exporter, so remove it wholesale.
+if not (enable_demo_export and use_frontend):
+    remove_dir(os.path.join(os.getcwd(), "frontend", "demo-export"))
+    remove_dir(os.path.join(os.getcwd(), "scripts"))
 
 if not enable_subagents and use_frontend:
     frontend_src = os.path.join(os.getcwd(), "frontend", "src")

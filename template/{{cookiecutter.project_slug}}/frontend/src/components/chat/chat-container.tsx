@@ -20,6 +20,7 @@ import { SubagentPanel } from "./subagent-panel";
 import { ToolApprovalDialog } from "./tool-approval-dialog";
 import { QuestionPrompt } from "@/components/ui";
 import type { PendingApproval, AskUserQuestion, AskUserAnswer, Decision } from "@/types";
+import { buildAssistantParts } from "@/lib/conversation-to-chat";
 import { useConversationStore, useChatStore } from "@/stores";
 {%- if cookiecutter.enable_deep_research %}
 import { useResearchStore } from "@/stores";
@@ -119,32 +120,18 @@ export function ChatContainer() {
             | "completed"
             | "error",
         }));
-        // Reconstruct an ordered timeline for assistant turns. The DB has no
-        // interleaving metadata, so we use the realistic order: tools ran
-        // before the final answer → tool parts first, then the text.
+        // Reconstruct an ordered timeline for assistant turns via the shared builder
+        // (same one the demo replay uses), so thinking + reconstructed research +
+        // tool/text parts render consistently across the chat and the demo.
         const parts =
           msg.role === "assistant"
-            ? [
-                ...(toolCalls ?? []).map((tc) => ({
-                  id: tc.id,
-                  type: "tool" as const,
-                  toolCall: tc,
-                })),
-                ...(msg.content
-                  ? [
-                      {
-                        id: `${msg.id}-text`,
-                        type: "text" as const,
-                        content: msg.content,
-                      },
-                    ]
-                  : []),
-              ]
+            ? buildAssistantParts(toolCalls ?? [], msg.content, msg.id, msg.thinking)
             : undefined;
         addChatMessage({
           id: msg.id,
           role: msg.role,
           content: msg.content,
+          thinking: msg.thinking ?? undefined,
           timestamp: new Date(msg.created_at),
           conversationId: msg.conversation_id,
           toolCalls,

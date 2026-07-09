@@ -21,7 +21,8 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "test:ui": "vitest --ui"
+    "test:ui": "vitest --ui"{% if cookiecutter.enable_demo_export %},
+    "build:demo-export": "vite build --config demo-export/vite.config.ts"{% endif %}
   },
   "dependencies": {
     "next": "^15.1.0",
@@ -96,6 +97,9 @@
     "lint-staged": "^16.0.0",
     "@playwright/test": "^1.49.1",
     "vitest": "^2.1.8",
+{%- if cookiecutter.enable_demo_export %}
+    "vite-plugin-singlefile": "^2.3.3",
+{%- endif %}
     "@vitejs/plugin-react": "^4.3.4",
     "@testing-library/react": "^16.1.0",
     "@testing-library/jest-dom": "^6.6.3",

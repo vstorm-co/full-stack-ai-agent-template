@@ -1,5 +1,6 @@
 "use client";
 import { Globe, Link } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface WebHit {
   title: string;
@@ -35,7 +36,14 @@ function domainOf(url: string): string {
   }
 }
 
-export function WebSearchResults({ data }: { data: WebSearchPayload }) {
+export function WebSearchResults({
+  data,
+  detailed = false,
+}: {
+  data: WebSearchPayload;
+  /** Deep-dive view (computer panel): show relevance scores and the full snippet. */
+  detailed?: boolean;
+}) {
   if (data.results.length === 0) {
     return (
       <div className="text-muted-foreground flex items-center gap-2 py-2 text-sm">
@@ -52,6 +60,9 @@ export function WebSearchResults({ data }: { data: WebSearchPayload }) {
         <span>
           {data.results.length} web result{data.results.length !== 1 ? "s" : ""}
         </span>
+        {detailed && data.query && (
+          <span className="text-foreground/40 truncate normal-case">· “{data.query}”</span>
+        )}
       </div>
 
       <div className="border-foreground/10 divide-foreground/8 divide-y overflow-hidden rounded-xl border">
@@ -67,14 +78,24 @@ export function WebSearchResults({ data }: { data: WebSearchPayload }) {
               <span className="bg-foreground/8 text-foreground/65 inline-flex h-5 min-w-[1.5rem] shrink-0 items-center justify-center rounded px-1 font-mono text-[10px] tabular-nums">
                 {i + 1}
               </span>
-              <p className="text-foreground truncate text-xs font-medium">{hit.title}</p>
+              <p className="text-foreground min-w-0 flex-1 truncate text-xs font-medium">{hit.title}</p>
+              {detailed && typeof hit.score === "number" && (
+                <span className="bg-brand/10 text-brand shrink-0 rounded px-1.5 py-0.5 font-mono text-[10px] tabular-nums">
+                  {(hit.score * 100).toFixed(0)}%
+                </span>
+              )}
             </div>
             <div className="text-primary mt-1 flex items-center gap-1 truncate pl-[calc(1.5rem+0.5rem)] text-[10px]">
               <Link className="h-2.5 w-2.5 shrink-0" />
               {domainOf(hit.url)}
             </div>
             {hit.content && (
-              <p className="text-foreground/55 mt-1 line-clamp-2 pl-[calc(1.5rem+0.5rem)] text-[11px] leading-relaxed">
+              <p
+                className={cn(
+                  "text-foreground/55 mt-1 pl-[calc(1.5rem+0.5rem)] text-[11px] leading-relaxed",
+                  detailed ? "whitespace-pre-wrap" : "line-clamp-2",
+                )}
+              >
                 {hit.content}
               </p>
             )}

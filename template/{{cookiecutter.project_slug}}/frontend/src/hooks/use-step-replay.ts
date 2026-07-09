@@ -63,9 +63,16 @@ export function canReplayMessage(message: ChatMessage): boolean {
 
 export interface ReplayToken {
   cancelled: boolean;
+  /** When true, the replay holds at the next checkpoint until it flips back to false. */
+  paused?: boolean;
 }
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+/** Block progression while the token is paused (polls until resumed or cancelled). */
+export const waitWhilePaused = async (token: ReplayToken): Promise<void> => {
+  while (token.paused && !token.cancelled) await sleep(80);
+};
 
 /**
  * Play one assistant turn, emitting the progressively-built `parts` array on every visual
@@ -107,6 +114,8 @@ export async function playTurn(
 
     for (const stop of frames) {
       if (token.cancelled) return;
+      await waitWhilePaused(token);
+      if (token.cancelled) return;
       built[idx] = { ...part, content: full.slice(0, stop) };
       commit();
       await sleep(STREAM_TICK_MS);
@@ -120,6 +129,8 @@ export async function playTurn(
   await sleep(GAP_MS);
 
   for (const part of script) {
+    if (token.cancelled) return;
+    await waitWhilePaused(token);
     if (token.cancelled) return;
     await sleep(GAP_MS);
     if (token.cancelled) return;

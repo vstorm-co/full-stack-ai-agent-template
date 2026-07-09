@@ -39,12 +39,17 @@ import { GenericToolResult, RawToolView } from "./tool-results/generic";
 {%- if cookiecutter.enable_code_execution %}
 import { RunPythonResult } from "./tool-results/run-python";
 {%- endif %}
+{%- if cookiecutter.enable_web_fetch %}
+import { FetchUrlResult } from "./tool-results/fetch-url";
+{%- endif %}
 
 interface ToolCallCardProps {
   toolCall: ToolCall;
+  /** Force the card open on mount (used by the demo "Agent's computer" panel). */
+  defaultExpanded?: boolean;
 }
 
-export function ToolCallCard({ toolCall }: ToolCallCardProps) {
+export function ToolCallCard({ toolCall, defaultExpanded = false }: ToolCallCardProps) {
   // Collapsed by default — the bar acts as the toggle. `showRaw` swaps the
   // formatted view for args + raw output (the </> button). Charts are the
   // exception: they're only useful when visible, so expand them by default.
@@ -52,7 +57,8 @@ export function ToolCallCard({ toolCall }: ToolCallCardProps) {
   const isRunPython = toolCall.name === "run_python";
 {%- endif %}
   const [expanded, setExpanded] = useState(
-    toolCall.name === "ask_user" ||
+    defaultExpanded ||
+      toolCall.name === "ask_user" ||
 {%- if cookiecutter.enable_code_execution %}
       (isRunPython && toolCall.status === "completed") ||
 {%- endif %}
@@ -93,6 +99,11 @@ export function ToolCallCard({ toolCall }: ToolCallCardProps) {
       : null;
   const isWebSearch = webResults !== null;
   const isAskUser = toolCall.name === "ask_user";
+{%- if cookiecutter.enable_web_fetch %}
+  const isFetch =
+    (toolCall.name === "fetch_url" || toolCall.name === "fetch") &&
+    typeof toolCall.args?.url === "string";
+{%- endif %}
 {%- if cookiecutter.enable_skills %}
   const isLoadSkill = toolCall.name === "load_skill";
   const isListSkills = toolCall.name === "list_skills";
@@ -122,13 +133,17 @@ export function ToolCallCard({ toolCall }: ToolCallCardProps) {
 {%- endif %}
 
   const hasSpecialRenderer =
-    isDateTime || isRAGSearch || isWebSearch || isAskUser{%- if cookiecutter.enable_charts %} || isChart{%- endif %}{%- if cookiecutter.enable_code_execution %} || isRunPython{%- endif %};
+    isDateTime || isRAGSearch || isWebSearch || isAskUser{%- if cookiecutter.enable_web_fetch %} || isFetch{%- endif %}{%- if cookiecutter.enable_charts %} || isChart{%- endif %}{%- if cookiecutter.enable_code_execution %} || isRunPython{%- endif %};
   const friendlyName = isDateTime
     ? "Current Date & Time"
     : isRAGSearch
       ? "Knowledge Base Search"
       : isWebSearch
         ? "Web Search"
+{%- if cookiecutter.enable_web_fetch %}
+        : isFetch
+          ? "Fetched page"
+{%- endif %}
 {%- if cookiecutter.enable_charts %}
         : isChart
           ? "Chart"
@@ -155,7 +170,7 @@ export function ToolCallCard({ toolCall }: ToolCallCardProps) {
     ? Clock
     : isRAGSearch
       ? Search
-      : isWebSearch
+      : isWebSearch{%- if cookiecutter.enable_web_fetch %} || isFetch{%- endif %}
         ? Globe
 {%- if cookiecutter.enable_charts %}
         : isChart
@@ -286,6 +301,10 @@ export function ToolCallCard({ toolCall }: ToolCallCardProps) {
             <RAGSearchResults result={resultText} />
           ) : toolCall.status === "completed" && isWebSearch && webResults ? (
             <WebSearchResults data={webResults} />
+{%- if cookiecutter.enable_web_fetch %}
+          ) : isFetch ? (
+            <FetchUrlResult url={String(toolCall.args?.url ?? "")} content={resultText} />
+{%- endif %}
 {%- if cookiecutter.enable_charts %}
           ) : toolCall.status === "completed" && isChart && chartSpec ? (
             <ChartMessage spec={chartSpec} />

@@ -84,6 +84,7 @@
   "use_all_providers": false,
   "use_ai": true,
   "enable_conversation_persistence": true,
+  "enable_demo_export": false,
   "enable_langsmith": false,
   "enable_web_search": false,
   "enable_web_fetch": false,

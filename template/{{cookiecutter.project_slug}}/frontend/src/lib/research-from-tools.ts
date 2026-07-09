@@ -1,21 +1,9 @@
+import { RESEARCH_TOOL_NAMES } from "@/components/chat/research-panel";
 import type { ResearchReplay, ResearchTodo, SubagentStatus, ToolCall } from "@/types";
 
-export const RESEARCH_TOOL_NAMES = new Set([
-  "add_todo",
-  "update_todo_status",
-  "write_todos",
-  "remove_todo",
-  "add_subtask",
-  "set_dependency",
-  "read_todos",
-  "get_available_tasks",
-  "task",
-  "wait_tasks",
-  "check_task",
-  "list_active_tasks",
-  "send_message_to_subagent",
-  "answer_subagent",
-]);
+// Re-exported from the canonical set in research-panel.tsx (which mirrors the
+// backend `RESEARCH_TOOL_NAMES`) so the tool-name list lives in one place.
+export { RESEARCH_TOOL_NAMES };
 
 const ADD_TODO = "add_todo";
 const ADD_SUBTASK = "add_subtask";
@@ -55,6 +43,10 @@ export function reconstructResearch(toolCalls: ToolCall[]): ResearchReplay | nul
         pushTodo(asString(args.content), asString(args.active_form), lastRootId, `${i}`);
         break;
       case WRITE_TODOS: {
+        // write_todos replaces the whole list, so reset before appending —
+        // otherwise a transcript that calls it more than once duplicates rows.
+        todos.length = 0;
+        lastRootId = null;
         const list = Array.isArray(args.todos) ? args.todos : [];
         list.forEach((entry, j) => {
           const e = (entry ?? {}) as Record<string, unknown>;
@@ -69,6 +61,7 @@ export function reconstructResearch(toolCalls: ToolCall[]): ResearchReplay | nul
           description: asString(args.description),
           status: "completed",
           error: null,
+          result: asString(tc.result) || null,
         });
         break;
     }

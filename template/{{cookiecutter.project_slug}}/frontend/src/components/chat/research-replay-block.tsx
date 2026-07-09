@@ -19,13 +19,27 @@ function StatusIcon({ status }: { status: ResearchTodoStatus }) {
   }
 }
 
-export function ResearchReplayBlock({ research }: { research: ResearchReplay }) {
+export function ResearchReplayBlock({
+  research,
+  animate = true,
+  detailed = false,
+}: {
+  research: ResearchReplay;
+  /** When false, render the finished state immediately (used by the static computer panel). */
+  animate?: boolean;
+  /** When true, expand each subagent card with its returned findings (computer deep-dive). */
+  detailed?: boolean;
+}) {
   const { todos, subagents } = research;
   const total = todos.length;
-  const [completed, setCompleted] = useState(0);
+  const [completed, setCompleted] = useState(animate ? 0 : total);
 
   useEffect(() => {
     if (total === 0) return;
+    if (!animate) {
+      setCompleted(total);
+      return;
+    }
     setCompleted(0);
     let n = 0;
     const id = setInterval(() => {
@@ -34,7 +48,7 @@ export function ResearchReplayBlock({ research }: { research: ResearchReplay }) 
       if (n >= total) clearInterval(id);
     }, STEP_REVEAL_MS);
     return () => clearInterval(id);
-  }, [total]);
+  }, [total, animate]);
 
   const done = total > 0 && completed >= total;
   const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
@@ -105,17 +119,29 @@ export function ResearchReplayBlock({ research }: { research: ResearchReplay }) 
               <div
                 key={s.task_id}
                 style={{ animationDelay: `${i * 60}ms` }}
-                className="step-card-in border-foreground/8 bg-foreground/[0.02] flex items-center gap-2.5 rounded-xl border px-3.5 py-2 text-sm"
+                className="step-card-in border-foreground/8 bg-foreground/[0.02] rounded-xl border px-3.5 py-2 text-sm"
               >
-                <Bot className="text-muted-foreground h-3.5 w-3.5 shrink-0" />
-                <span className="text-foreground/80 shrink-0 text-xs font-medium">
-                  {s.subagent_name}
-                </span>
-                <span className="text-foreground/40 mx-0.5 shrink-0 text-xs">·</span>
-                <span className="text-muted-foreground min-w-0 flex-1 truncate text-xs">
-                  {s.description}
-                </span>
-                <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
+                <div className="flex items-center gap-2.5">
+                  <Bot className="text-muted-foreground h-3.5 w-3.5 shrink-0" />
+                  <span className="text-foreground/80 shrink-0 text-xs font-medium">
+                    {s.subagent_name}
+                  </span>
+                  <span className="text-foreground/40 mx-0.5 shrink-0 text-xs">·</span>
+                  <span
+                    className={cn(
+                      "text-muted-foreground min-w-0 flex-1 text-xs",
+                      detailed ? "" : "truncate",
+                    )}
+                  >
+                    {s.description}
+                  </span>
+                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
+                </div>
+                {detailed && s.result && (
+                  <p className="text-foreground/60 border-border/40 mt-1.5 border-t pt-1.5 text-xs leading-relaxed whitespace-pre-wrap">
+                    {s.result}
+                  </p>
+                )}
               </div>
             ))}
           </div>

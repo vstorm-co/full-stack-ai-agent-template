@@ -280,6 +280,8 @@ export interface SubagentStatus {
   description: string;
   status: SubagentTaskStatus;
   error: string | null;
+  /** The subagent's returned findings (shown in the detailed research view). */
+  result?: string | null;
 }
 
 export type SubagentMessageType = "info" | "steering" | "question" | "result" | "error";

@@ -1,7 +1,7 @@
 """messages: add thinking column for the reasoning trace
 
-Revision ID: 0024
-Revises: 0023
+Revision ID: 0025
+Revises: 0024_create_webhook_tables
 
 Adds a nullable ``thinking`` text column to messages so the assistant's
 reasoning trace (streamed live as ``thinking_delta``) is persisted alongside
@@ -13,8 +13,8 @@ import sqlalchemy as sa
 
 from alembic import op
 
-revision = "0024"
-down_revision = "0023"
+revision = "0025"
+down_revision = "0024_create_webhook_tables"
 branch_labels = None
 depends_on = None
 

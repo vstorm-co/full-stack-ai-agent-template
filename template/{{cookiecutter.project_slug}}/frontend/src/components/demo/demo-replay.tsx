@@ -810,7 +810,6 @@ export function DemoReplay({ rawMessages }: DemoReplayProps) {
   const [following, setFollowing] = useState(true);
   const [expanded, setExpanded] = useState(true);
   const userToggledExpand = useRef(false);
-  const lastAutoY = useRef(0);
 
   // Agent's computer panel — optional; opened from the thumbnail. `pinnedIdx` holds a frame the
   // user scrubbed/clicked to (null = follow the live/active frame).
@@ -987,7 +986,6 @@ export function DemoReplay({ rawMessages }: DemoReplayProps) {
     const target = container.scrollHeight - container.clientHeight;
     if (target - container.scrollTop > 2) {
       container.scrollTo({ top: target, behavior: "auto" });
-      lastAutoY.current = container.scrollTop;
     }
   }, [tick, isReplaying, following]);
 
@@ -1028,7 +1026,6 @@ export function DemoReplay({ rawMessages }: DemoReplayProps) {
     const container = scrollRef.current;
     if (!container) return;
     container.scrollTo({ top: container.scrollHeight, behavior: "auto" });
-    lastAutoY.current = container.scrollTop;
   };
 
   const blurStyle = {

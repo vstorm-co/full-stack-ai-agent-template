@@ -3,7 +3,7 @@
 {%- if cookiecutter.enable_charts %}
 import { useEffect, useMemo, useState, type MouseEvent } from "react";
 {%- else %}
-import { useState, type MouseEvent } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
 {%- endif %}
 import { Card, CardContent, Button } from "@/components/ui";
 import type { ToolCall } from "@/types";
@@ -24,7 +24,11 @@ import {
 {%- endif %}
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+{%- if cookiecutter.enable_web_fetch %}
+import { isFetchTool } from "@/lib/agent-tools";
+{%- endif %}
 import { toolCaption, toolDisplayName } from "@/lib/agent-step-captions";
+import { useBrowseState } from "./browse-activity";
 {%- if cookiecutter.enable_charts %}
 import { ChartMessage, parseChartResult } from "./chart-message";
 {%- endif %}
@@ -92,16 +96,22 @@ export function ToolCallCard({ toolCall, defaultExpanded = false }: ToolCallCard
     toolCall.status === "completed" &&
     typeof toolCall.result === "string";
   const webResults =
-    (toolCall.name === "web_search_tool" || toolCall.name === "search_web") &&
+    (toolCall.name === "web_search_tool" ||
+      toolCall.name === "search_web" ||
+      toolCall.name === "duckduckgo_search") &&
     toolCall.status === "completed" &&
     typeof toolCall.result === "string"
       ? parseWebSearch(toolCall.result)
       : null;
   const isWebSearch = webResults !== null;
+  // Demo replay only: live while this search's pages are being opened (computer panel may be closed).
+  // `visitIndex` mirrors the panel animation's current page when open, for a synced spinner.
+  const browse = useBrowseState(toolCall.id);
+  const isBrowsingLive = browse.busy && isWebSearch;
   const isAskUser = toolCall.name === "ask_user";
 {%- if cookiecutter.enable_web_fetch %}
   const isFetch =
-    (toolCall.name === "fetch_url" || toolCall.name === "fetch") &&
+    isFetchTool(toolCall.name) &&
     typeof toolCall.args?.url === "string";
 {%- endif %}
 {%- if cookiecutter.enable_skills %}
@@ -110,6 +120,14 @@ export function ToolCallCard({ toolCall, defaultExpanded = false }: ToolCallCard
   const loadedSkillName =
     isLoadSkill && typeof toolCall.args?.skill_name === "string" ? toolCall.args.skill_name : null;
 {%- endif %}
+  // A baked page screenshot rides in args; show it on expand, but keep it out of the raw-args blob.
+  const pageScreenshot =
+    typeof (toolCall.args as Record<string, unknown> | undefined)?.screenshot === "string"
+      ? ((toolCall.args as Record<string, unknown>).screenshot as string)
+      : undefined;
+  const rawToolCall = pageScreenshot
+    ? { ...toolCall, args: { ...(toolCall.args as Record<string, unknown>), screenshot: "[screenshot omitted]" } }
+    : toolCall;
 {%- if cookiecutter.enable_charts %}
   // Memoize the parsed chart spec — `parseChartResult` does `JSON.parse` for
   // string results, returning a NEW object each call. Without this memo, every
@@ -131,6 +149,10 @@ export function ToolCallCard({ toolCall, defaultExpanded = false }: ToolCallCard
     if (isChart) setExpanded(true);
   }, [isChart]);
 {%- endif %}
+  // Open the card as soon as the agent starts opening pages, so the live spinner is visible.
+  useEffect(() => {
+    if (isBrowsingLive) setExpanded(true);
+  }, [isBrowsingLive]);
 
   const hasSpecialRenderer =
     isDateTime || isRAGSearch || isWebSearch || isAskUser{%- if cookiecutter.enable_web_fetch %} || isFetch{%- endif %}{%- if cookiecutter.enable_charts %} || isChart{%- endif %}{%- if cookiecutter.enable_code_execution %} || isRunPython{%- endif %};
@@ -294,16 +316,20 @@ export function ToolCallCard({ toolCall, defaultExpanded = false }: ToolCallCard
       {expanded && (
         <CardContent className="px-3 pt-0 pb-3">
           {showRaw ? (
-            <RawToolView toolCall={toolCall} resultText={resultText} />
+            <RawToolView toolCall={rawToolCall} resultText={resultText} />
           ) : toolCall.status === "completed" && isDateTime ? (
             <DateTimeResult result={resultText} />
           ) : toolCall.status === "completed" && isRAGSearch ? (
             <RAGSearchResults result={resultText} />
           ) : toolCall.status === "completed" && isWebSearch && webResults ? (
-            <WebSearchResults data={webResults} />
+            <WebSearchResults data={webResults} busy={isBrowsingLive} activeIndex={browse.visitIndex} />
 {%- if cookiecutter.enable_web_fetch %}
           ) : isFetch ? (
-            <FetchUrlResult url={String(toolCall.args?.url ?? "")} content={resultText} />
+            <FetchUrlResult
+              url={String(toolCall.args?.url ?? "")}
+              content={resultText}
+              screenshot={pageScreenshot}
+            />
 {%- endif %}
 {%- if cookiecutter.enable_charts %}
           ) : toolCall.status === "completed" && isChart && chartSpec ? (

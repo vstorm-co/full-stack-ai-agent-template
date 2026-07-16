@@ -164,6 +164,9 @@ class ToolCall(SQLModel, table=True):
     tool_name: str = Field(max_length=100)
     args: dict[str, object] = Field(default_factory=dict, sa_column=Column(JSONB, nullable=False, default=dict))
     result: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
+    # Reasoning the model produced immediately before this call — kept per-call so the
+    # ordered timeline (reasoning → tool → reasoning → tool) survives round-tripping.
+    thinking: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
     status: str = Field(default="pending", max_length=20)  # pending, running, completed, failed
     started_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
     completed_at: datetime | None = Field(
@@ -346,6 +349,9 @@ class ToolCall(Base):
     tool_name: Mapped[str] = mapped_column(String(100), nullable=False)
     args: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False, default=dict)
     result: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Reasoning the model produced immediately before this call — kept per-call so the
+    # ordered timeline (reasoning → tool → reasoning → tool) survives round-tripping.
+    thinking: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default="pending"
     )  # pending, running, completed, failed

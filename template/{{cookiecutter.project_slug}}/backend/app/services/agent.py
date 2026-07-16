@@ -244,6 +244,7 @@ async def persist_assistant_turn(
                             tool_name=tc["tool_name"],
                             args=normalize_tool_args(tc.get("args")),
                             started_at=datetime.now(UTC),
+                            thinking=tc.get("thinking"),
                         ),
                     )
                     if tc.get("result"):

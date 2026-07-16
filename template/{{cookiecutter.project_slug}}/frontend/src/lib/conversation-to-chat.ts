@@ -13,6 +13,7 @@ export interface RawToolCall {
   args: Record<string, unknown>;
   result?: unknown;
   status: string;
+  thinking?: string | null;
 }
 
 export interface RawMessage {
@@ -45,26 +46,42 @@ export function buildAssistantParts(
 {%- if cookiecutter.enable_deep_research %}
   const research = reconstructResearch(toolCalls);
   const parts: MessagePart[] = [];
-  if (thinking) {
-    parts.push({ id: `${msgId}-thinking`, type: "thinking", content: thinking });
-  }
+  let thinkSeq = 0;
+  const pushThinking = (text: string | null | undefined) => {
+    if (text) parts.push({ id: `${msgId}-thinking-${thinkSeq++}`, type: "thinking", content: text });
+  };
+
+  // Research tools are folded into the research block; their preceding reasoning still
+  // belongs in the timeline, so surface it before the block.
   if (research) {
+    for (const tc of toolCalls) {
+      if (RESEARCH_TOOL_NAMES.has(tc.name)) pushThinking(tc.thinking);
+    }
     parts.push({ id: `${msgId}-research`, type: "research", research });
   }
   for (const tc of toolCalls) {
     if (RESEARCH_TOOL_NAMES.has(tc.name)) continue;
+    pushThinking(tc.thinking);
     parts.push({ id: tc.id, type: "tool", toolCall: tc });
   }
+  // Reasoning that led into the final answer (no tool call after it).
+  pushThinking(thinking);
   if (content) parts.push({ id: `${msgId}-text`, type: "text", content });
   return parts;
 {%- else %}
   const parts: MessagePart[] = [];
-  if (thinking) {
-    parts.push({ id: `${msgId}-thinking`, type: "thinking" as const, content: thinking });
-  }
+  let thinkSeq = 0;
+  const pushThinking = (text: string | null | undefined) => {
+    if (text)
+      parts.push({ id: `${msgId}-thinking-${thinkSeq++}`, type: "thinking" as const, content: text });
+  };
+
   for (const tc of toolCalls) {
+    pushThinking(tc.thinking);
     parts.push({ id: tc.id, type: "tool" as const, toolCall: tc });
   }
+  // Reasoning that led into the final answer (no tool call after it).
+  pushThinking(thinking);
   if (content) parts.push({ id: `${msgId}-text`, type: "text" as const, content });
   return parts;
 {%- endif %}
@@ -77,6 +94,7 @@ export function conversationMessageToChatMessage(msg: RawMessage): ChatMessage {
     args: tc.args,
     result: tc.result,
     status: (tc.status === "failed" ? "error" : tc.status) as ToolCall["status"],
+    thinking: tc.thinking ?? undefined,
   }));
 
   const parts: MessagePart[] | undefined =

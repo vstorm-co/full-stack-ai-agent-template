@@ -522,6 +522,7 @@ async def create_tool_call(
     tool_name: str,
     args: dict[str, Any],
     started_at: datetime,
+    thinking: str | None = None,
 ) -> ToolCall:
     """Create a new tool call record."""
     tool_call = ToolCall(
@@ -531,6 +532,7 @@ async def create_tool_call(
         args=args,
         started_at=started_at,
         status="running",
+        thinking=thinking,
     )
     db.add(tool_call)
     await db.flush()

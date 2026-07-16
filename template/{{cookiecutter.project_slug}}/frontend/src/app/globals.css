@@ -739,6 +739,29 @@
     to   { opacity: 1; transform: scale(1); }
   }
 
+/* BrowserStage (live web-search visualization): indeterminate load bar + result row entrance. */
+@keyframes browser-load {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(400%);
+  }
+}
+.browser-result-in {
+  animation: browser-result-in 0.4s var(--ease-out) both;
+}
+@keyframes browser-result-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* =========================================================================
    Reduced-motion — strip every long-running animation. Honors a11y opt-in.
    ========================================================================= */

@@ -564,6 +564,7 @@ class ConversationService:
             tool_name=data.tool_name,
             args=data.args,
             started_at=data.started_at or datetime.now(UTC),
+            thinking=data.thinking,
         )
 
     async def complete_tool_call(

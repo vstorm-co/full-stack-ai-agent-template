@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { ChatMessage, MessagePart } from "@/types";
+import type { ChatMessage, MessagePart, ToolCall } from "@/types";
 
 /**
  * "Watch again" replay engine.
@@ -30,6 +30,8 @@ const RICH_TOOLS = new Set<string>([
   "search_knowledge_base",
   "search_documents",
   "fetch_url",
+  "fetch",
+  "web_fetch",
 ]);
 
 const STREAM_TICK_MS = 55;
@@ -83,9 +85,17 @@ export async function playTurn(
   message: ChatMessage,
   emit: (parts: MessagePart[], isStreaming: boolean) => void,
   token: ReplayToken,
+  // Optional gate awaited once, right before the turn's first text (response) is revealed.
+  // The demo uses it to hold the answer until the browsing animation has played out.
+  onBeforeText?: (message: ChatMessage) => Promise<void>,
+  // Optional per-tool override for the "running" beat (ms). The demo shortens hidden browse
+  // fetch beats to near-zero so replaying them doesn't add dead time. Returns undefined to keep
+  // the default pacing.
+  toolBeatMs?: (toolCall: ToolCall) => number | undefined,
 ): Promise<void> {
   const script = scriptFromMessage(message);
   const built: MessagePart[] = [];
+  let firstText = true;
 
   const commit = (isStreaming = true) => {
     if (token.cancelled) return;
@@ -138,9 +148,10 @@ export async function playTurn(
     if (part.type === "tool" && part.toolCall) {
       const tc = part.toolCall;
       const rich = RICH_TOOLS.has(tc.name);
+      const beat = toolBeatMs?.(tc) ?? (rich ? RICH_TOOL_MS : TOOL_RUNNING_MS);
       const idx = built.push({ ...part, toolCall: { ...tc, status: "running" } }) - 1;
       commit();
-      await sleep(rich ? RICH_TOOL_MS : TOOL_RUNNING_MS);
+      await sleep(beat);
       if (token.cancelled) return;
       built[idx] = { ...part, toolCall: { ...tc } };
       commit();
@@ -152,6 +163,13 @@ export async function playTurn(
       await sleep(Math.min(6000, 900 + steps * 460));
 {%- endif %}
     } else if (part.type === "text" && part.content) {
+      if (firstText) {
+        firstText = false;
+        if (onBeforeText) {
+          await onBeforeText(message);
+          if (token.cancelled) return;
+        }
+      }
       const idx = built.push({ ...part, content: "" }) - 1;
       commit();
       await typeInto(idx, part, part.content, TEXT_TOTAL_MS);

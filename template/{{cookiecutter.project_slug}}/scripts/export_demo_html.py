@@ -27,12 +27,18 @@ Examples:
 from __future__ import annotations
 
 import argparse
+import ast
+import base64
 import json
 import re
+import ssl
 import subprocess
 import sys
+import time
 import urllib.error
+import urllib.parse
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
@@ -42,6 +48,11 @@ from typing import Any
 REPO_ROOT = Path(__file__).resolve().parent.parent
 BUNDLED_TEMPLATE = REPO_ROOT / "frontend" / "demo-export" / "dist" / "index.html"
 FRONTEND_DIR = REPO_ROOT / "frontend"
+
+# Tool names that mean "the agent searched the web" — the pydantic-ai DuckDuckGo builtin
+# (``duckduckgo_search``) plus the app's Tavily tool. Kept in sync with the frontend's
+# WEB_SEARCH_TOOLS set in frontend/src/lib/agent-tools.ts.
+WEB_SEARCH_TOOLS = {"web_search_tool", "search_web", "duckduckgo_search"}
 
 
 def _load_url(url: str) -> Any:
@@ -109,6 +120,8 @@ def _normalize(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
                     "args": tc.get("args") or {},
                     "result": tc.get("result"),
                     "status": tc.get("status") or "completed",
+                    # Per-call reasoning drives the interleaved reasoning nodes in the replay.
+                    "thinking": tc.get("thinking"),
                 }
             )
         out.append(
@@ -124,6 +137,161 @@ def _normalize(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
             }
         )
     return out
+
+
+def _extract_search_results(result: Any) -> list[dict[str, str]]:
+    """Pull [{title, url, content}] out of a web-search tool result.
+
+    Handles both shapes the agent can emit: the app's structured ``web_search`` JSON
+    ({kind, query, results:[{title,url,content}]}) and the pydantic-ai DuckDuckGo builtin,
+    whose result is a *Python-repr* list of ``{'title','href','body'}`` dicts.
+    """
+    if not isinstance(result, str):
+        return []
+    text = result.strip()
+    # Structured web_search JSON.
+    try:
+        payload = json.loads(text)
+        if isinstance(payload, dict) and payload.get("kind") == "web_search":
+            out: list[dict[str, str]] = []
+            for r in payload.get("results", []):
+                url = str(r.get("url") or "")
+                if url.startswith(("http://", "https://")):
+                    out.append({"title": str(r.get("title") or ""), "url": url, "content": str(r.get("content") or "")})
+            return out
+    except (json.JSONDecodeError, TypeError):
+        pass
+    # DuckDuckGo Python-repr list — a valid Python literal, so ast.literal_eval reads it directly.
+    if text.startswith("["):
+        try:
+            arr = ast.literal_eval(text)
+        except (ValueError, SyntaxError):
+            return []
+        out = []
+        for o in arr if isinstance(arr, list) else []:
+            if not isinstance(o, dict):
+                continue
+            url = str(o.get("href") or o.get("url") or "")
+            if not url.startswith(("http://", "https://")):
+                continue  # skip tracking-redirect junk (relative /clev?… links)
+            out.append(
+                {"title": str(o.get("title") or ""), "url": url, "content": str(o.get("body") or o.get("content") or "")}
+            )
+        return out
+    return []
+
+
+_SSL_CTX: "ssl.SSLContext | None" = None
+
+
+def _screenshot_ssl_context() -> "ssl.SSLContext":
+    """SSL context for the screenshot service (cached). Prefer certifi's CA bundle; if it isn't
+    installed (common with a bare macOS python where the system CA bundle is missing), fall back
+    to an unverified context — acceptable here since we only fetch public, non-sensitive images.
+    """
+    global _SSL_CTX
+    if _SSL_CTX is not None:
+        return _SSL_CTX
+    try:
+        import certifi
+
+        _SSL_CTX = ssl.create_default_context(cafile=certifi.where())
+    except Exception:
+        _SSL_CTX = ssl.create_default_context()
+    return _SSL_CTX
+
+
+def _mshots_url(url: str, width: int = 1024) -> str:
+    return f"https://s0.wp.com/mshots/v1/{urllib.parse.quote(url, safe='')}?w={width}"
+
+
+def _mshots_get(shot_url: str) -> bytes | None:
+    """One GET against mShots, with a one-time unverified-SSL fallback for missing CA bundles."""
+    global _SSL_CTX
+    for _ in range(2):
+        try:
+            req = urllib.request.Request(shot_url, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=30, context=_screenshot_ssl_context()) as resp:  # noqa: S310
+                if (resp.headers.get_content_type() or "").startswith("image/"):
+                    return resp.read()
+                return None
+        except urllib.error.URLError as exc:
+            if isinstance(getattr(exc, "reason", None), ssl.SSLCertVerificationError):
+                _SSL_CTX = ssl._create_unverified_context()  # noqa: S323 (public images only)
+                continue
+            return None
+        except (TimeoutError, OSError):
+            return None
+    return None
+
+
+def _fetch_screenshot(url: str, width: int = 1024, tries: int = 16, delay: float = 3.0) -> str | None:
+    """Poll mShots until it returns the *rendered* screenshot (not the placeholder) → data URI.
+
+    mShots renders asynchronously: early hits return a small "Generating Preview…" placeholder.
+    A real screenshot is much larger (>20 KB), so we poll on size until it lands or we give up.
+    The first GET also warms the URL, so mShots starts rendering it while we wait.
+    """
+    shot_url = _mshots_url(url, width)
+    for _ in range(tries):
+        data = _mshots_get(shot_url)
+        if data and len(data) > 20_000:
+            return f"data:image/jpeg;base64,{base64.b64encode(data).decode('ascii')}"
+        time.sleep(delay)
+    return None
+
+
+def _inject_browse_screenshots(messages: list[dict[str, Any]], top_n: int) -> None:
+    """Make every conversation replay like a full browse: for each web search, append synthetic
+    ``fetch_url`` visits (with baked page screenshots) for its top-N results — mutating in place.
+
+    The frontend already collapses ``web_search`` + following ``fetch_url`` calls into one browse
+    scene (open each page → scan → back), so this alone gives any conversation the rich, animated,
+    screenshot-driven demo without changing the frontend or re-running the agent.
+    """
+    if top_n <= 0:
+        return
+    for m in messages:
+        calls = m.get("tool_calls") or []
+        # Walk a copy of the indices; we splice synthetic calls in as we go.
+        i = 0
+        while i < len(calls):
+            tc = calls[i]
+            name = tc.get("tool_name") or tc.get("name") or ""
+            results = _extract_search_results(tc.get("result")) if name in WEB_SEARCH_TOOLS else []
+            if not results:
+                i += 1
+                continue
+            # Skip if this search is already followed by real fetch_url visits (don't double up).
+            nxt = calls[i + 1] if i + 1 < len(calls) else None
+            if nxt and (nxt.get("tool_name") or nxt.get("name")) in ("fetch_url", "fetch"):
+                i += 1
+                continue
+            targets = results[:top_n]
+            # Poll every URL concurrently: mShots renders asynchronously, so each thread's
+            # first GET warms its own URL and the (up to ~48 s) poll windows overlap instead
+            # of stacking per URL — the whole search costs ~one window, not one per result.
+            print(f"  • screenshotting {len(targets)} page(s) …")
+            with ThreadPoolExecutor(max_workers=len(targets)) as pool:
+                shots = list(pool.map(lambda r: _fetch_screenshot(r["url"]), targets))
+            synthetic: list[dict[str, Any]] = []
+            for j, (r, shot) in enumerate(zip(targets, shots, strict=True)):
+                url = r["url"]
+                if not shot:
+                    print(f"    ({url} — no screenshot, skipped)")
+                    continue
+                synthetic.append(
+                    {
+                        "tool_call_id": f"{tc.get('tool_call_id') or tc.get('id') or 'search'}-visit-{j}",
+                        "tool_name": "fetch_url",
+                        "args": {"url": url, "screenshot": shot},
+                        "result": r.get("content") or "",
+                        "status": "completed",
+                    }
+                )
+            calls[i + 1 : i + 1] = synthetic
+            i += 1 + len(synthetic)
+        m["tool_calls"] = calls
 
 
 def _ensure_bundle(rebuild: bool) -> Path:
@@ -188,6 +356,15 @@ def main() -> int:
         action="store_true",
         help="Reuse the existing Vite bundle instead of rebuilding it first (faster, but risks a stale UI)",
     )
+    ap.add_argument(
+        "--screenshots",
+        type=int,
+        default=3,
+        metavar="N",
+        help="Bake real page screenshots for the top-N results of each web search, so the replay "
+        "animates opening each page (default: 3). Fetched via WordPress mShots and embedded as "
+        "data URIs — needs network at export time. Use 0 to disable.",
+    )
     args = ap.parse_args()
 
     try:
@@ -218,6 +395,10 @@ def main() -> int:
     messages = _normalize(messages)
     if not messages:
         raise SystemExit("No messages found — nothing to export.")
+
+    if args.screenshots > 0:
+        print(f"• Baking page screenshots (top {args.screenshots} per web search)…")
+        _inject_browse_screenshots(messages, args.screenshots)
 
     avatar = _avatar_data_uri(args.avatar) if args.avatar else ""
     html = build_html(messages, title, args.theme, avatar, rebuild=not args.no_rebuild)

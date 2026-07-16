@@ -250,7 +250,12 @@ class AgentSession:
 {%- endif %}
 
             collected_tool_calls: list[dict[str, Any]] = []
+            # `collected_thinking` accumulates the CURRENT unattached reasoning; each time a tool
+            # call starts, that buffer is flushed into `tool_thinking[tool_call_id]`, so reasoning
+            # stays tied to the step it preceded. Whatever remains after the run is the reasoning
+            # before the final answer → the message-level thinking.
             collected_thinking: list[str] = []
+            tool_thinking: dict[str, str] = {}
 {%- if cookiecutter.enable_deep_research %}
 {%- if cookiecutter.enable_subagents %}
             self._subagent_task_manager = (
@@ -279,7 +284,11 @@ class AgentSession:
                     user_input, deps=self.deps, message_history=model_history
                 ) as agent_run:
                     await self._stream_agent_run(
-                        agent_run, user_message, collected_tool_calls, collected_thinking
+                        agent_run,
+                        user_message,
+                        collected_tool_calls,
+                        collected_thinking,
+                        tool_thinking,
                     )
             finally:
                 if poller is not None:
@@ -300,7 +309,11 @@ class AgentSession:
                 user_input, deps=self.deps, message_history=model_history
             ) as agent_run:
                 await self._stream_agent_run(
-                    agent_run, user_message, collected_tool_calls, collected_thinking
+                    agent_run,
+                    user_message,
+                    collected_tool_calls,
+                    collected_thinking,
+                    tool_thinking,
                 )
 {%- endif %}
 
@@ -314,6 +327,10 @@ class AgentSession:
 {%- if cookiecutter.use_database %}
             assistant_msg_id: str | None = None
             if self.current_conversation_id and agent_run.result is not None:
+                # Tie each call's preceding reasoning to it; the leftover buffer is the reasoning
+                # that led into the final answer (message-level thinking).
+                for tc in collected_tool_calls:
+                    tc["thinking"] = tool_thinking.get(tc["tool_call_id"])
                 assistant_msg_id = await persist_assistant_turn(
                     self.current_conversation_id,
                     agent_run.result.output,
@@ -608,6 +625,7 @@ class AgentSession:
         user_message: str,
         collected_tool_calls: list[dict[str, Any]],
         collected_thinking: list[str],
+        tool_thinking: dict[str, str],
     ) -> None:
         """Drive the agent_run iterator, dispatching each node to its streaming helper."""
         async for node in agent_run:
@@ -621,7 +639,9 @@ class AgentSession:
             elif Agent.is_model_request_node(node):
                 await send_event(self.websocket, "model_request_start", {})
                 async with node.stream(agent_run.ctx) as request_stream:
-                    await self._stream_request_events(request_stream, collected_thinking)
+                    await self._stream_request_events(
+                        request_stream, collected_thinking, tool_thinking
+                    )
             elif Agent.is_call_tools_node(node):
                 await send_event(self.websocket, "call_tools_start", {})
                 async with node.stream(agent_run.ctx) as handle_stream:
@@ -632,7 +652,7 @@ class AgentSession:
                 )
 
     async def _stream_request_events(
-        self, request_stream: Any, collected_thinking: list[str]
+        self, request_stream: Any, collected_thinking: list[str], tool_thinking: dict[str, str]
     ) -> None:
         """Forward model-request events (text/thinking/tool deltas + final-result start).
 {%- if cookiecutter.enable_deep_research %}
@@ -671,6 +691,11 @@ class AgentSession:
                 if isinstance(event.part, ToolCallPart):
                     if event.part.tool_name:
                         tool_names[event.index] = event.part.tool_name
+                    # A tool call starts here → the reasoning buffered so far belongs to it.
+                    tid = event.part.tool_call_id
+                    if tid and collected_thinking:
+                        tool_thinking[tid] = "".join(collected_thinking)
+                        collected_thinking.clear()
                 elif isinstance(event.part, TextPart) and event.part.content:
                     await emit_text(event.index, event.part.content)
 {%- else %}

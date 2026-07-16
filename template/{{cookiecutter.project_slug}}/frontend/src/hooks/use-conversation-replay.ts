@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ChatMessage } from "@/types";
+import type { ChatMessage, ToolCall } from "@/types";
 import { canReplayMessage, END_HOLD_MS, playTurn, waitWhilePaused, type ReplayToken } from "./use-step-replay";
 
 /**
@@ -30,11 +30,21 @@ const IDLE: ReplayPhase = { playing: false, revealed: 0, active: null };
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-export function useConversationReplay(messages: ChatMessage[]) {
+export function useConversationReplay(
+  messages: ChatMessage[],
+  opts?: {
+    onBeforeText?: (message: ChatMessage) => Promise<void>;
+    toolBeatMs?: (toolCall: ToolCall) => number | undefined;
+  },
+) {
   const [phase, setPhase] = useState<ReplayPhase>(IDLE);
   const [tick, setTick] = useState(0);
   const [paused, setPaused] = useState(false);
   const tokenRef = useRef<ReplayToken | null>(null);
+  const onBeforeTextRef = useRef(opts?.onBeforeText);
+  onBeforeTextRef.current = opts?.onBeforeText;
+  const toolBeatMsRef = useRef(opts?.toolBeatMs);
+  toolBeatMsRef.current = opts?.toolBeatMs;
 
   const bump = useCallback(() => setTick((t) => t + 1), []);
 
@@ -102,6 +112,8 @@ export function useConversationReplay(messages: ChatMessage[]) {
               bump();
             },
             token,
+            onBeforeTextRef.current,
+            toolBeatMsRef.current,
           );
           if (token.cancelled) return;
           await sleep(STEP_HOLD_MS);

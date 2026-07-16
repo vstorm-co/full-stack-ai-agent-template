@@ -53,6 +53,9 @@ export interface ToolCall {
   args: Record<string, unknown>;
   result?: unknown;
   status: "pending" | "running" | "completed" | "error";
+  /** Reasoning the model produced immediately before this call — drives an interleaved
+   *  reasoning node in the ordered timeline instead of one merged block at the top. */
+  thinking?: string | null;
 }
 
 export type MessagePartType = "thinking" | "text" | "tool" | "research";

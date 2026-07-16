@@ -21,6 +21,9 @@ class ToolCallBase(BaseSchema):
     tool_call_id: str = Field(..., description="External tool call ID from AI framework")
     tool_name: str = Field(..., max_length=100, description="Name of the tool called")
     args: dict[str, Any] = Field(default_factory=dict, description="Tool arguments")
+    thinking: str | None = Field(
+        default=None, description="Reasoning produced just before this call"
+    )
 
 
 

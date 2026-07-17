@@ -198,7 +198,7 @@ services:
 {%- if cookiecutter.use_qdrant %}
 
   qdrant:
-    image: qdrant/qdrant:v1.18.1
+    image: qdrant/qdrant:v1.18.3
     container_name: {{ cookiecutter.project_slug }}_qdrant
     ports:
       - "6333:6333"

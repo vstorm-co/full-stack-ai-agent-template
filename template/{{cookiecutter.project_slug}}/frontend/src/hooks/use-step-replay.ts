@@ -2,6 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChatMessage, MessagePart } from "@/types";
+{%- if cookiecutter.enable_deep_research %}
+import { STEP_REVEAL_MS } from "@/components/chat/research-replay-block";
+{%- endif %}
 
 /**
  * "Watch again" replay engine.
@@ -94,11 +97,11 @@ export async function playTurn(
     if (lastStop === undefined || lastStop !== full.length) stops.push(full.length);
 
     const targetFrames = Math.max(1, Math.round(totalMs / STREAM_TICK_MS));
-    const wordsPerFrame = Math.min(
-      MAX_WORDS_PER_FRAME,
-      Math.max(1, Math.ceil(stops.length / targetFrames)),
-    );
     const maxFrames = Math.round(MAX_TYPE_DURATION_MS / STREAM_TICK_MS);
+    const wordsPerFrame = Math.max(
+      Math.ceil(stops.length / maxFrames),
+      Math.min(MAX_WORDS_PER_FRAME, Math.max(1, Math.ceil(stops.length / targetFrames))),
+    );
     const frameCount = Math.min(maxFrames, Math.ceil(stops.length / wordsPerFrame));
     const frames: number[] = Array.from({ length: frameCount }, (_, i) => {
       const at = Math.min(stops.length - 1, (i + 1) * wordsPerFrame - 1);
@@ -138,7 +141,7 @@ export async function playTurn(
       built.push({ ...part });
       commit();
       const steps = part.research.todos.length;
-      await sleep(Math.min(6000, 900 + steps * 460));
+      await sleep(Math.min(6000, 900 + steps * STEP_REVEAL_MS));
 {%- endif %}
     } else if (part.type === "text" && part.content) {
       const idx = built.push({ ...part, content: "" }) - 1;

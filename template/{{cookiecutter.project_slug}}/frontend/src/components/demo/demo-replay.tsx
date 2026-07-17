@@ -61,13 +61,19 @@ export function DemoReplay({ rawMessages }: DemoReplayProps) {
       if (y - touchY > 8) setFollowing(false);
       touchY = y;
     };
+    const onPointerDown = (e: PointerEvent) => {
+      const inScrollbar = e.clientX - container.getBoundingClientRect().left >= container.clientWidth;
+      if (inScrollbar) setFollowing(false);
+    };
     container.addEventListener("wheel", onWheel, { passive: true });
     container.addEventListener("touchstart", onTouchStart, { passive: true });
     container.addEventListener("touchmove", onTouchMove, { passive: true });
+    container.addEventListener("pointerdown", onPointerDown, { passive: true });
     return () => {
       container.removeEventListener("wheel", onWheel);
       container.removeEventListener("touchstart", onTouchStart);
       container.removeEventListener("touchmove", onTouchMove);
+      container.removeEventListener("pointerdown", onPointerDown);
     };
   }, [isReplaying]);
 

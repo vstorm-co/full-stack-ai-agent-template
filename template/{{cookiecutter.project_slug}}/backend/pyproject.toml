@@ -332,6 +332,7 @@ ignore = [
 known-first-party = ["app", "cli"]
 
 [tool.ty.terminal]
+# The "warn" rules below are informational — don't let them fail `ty check`.
 error-on-warning = false
 
 [tool.ty.environment]

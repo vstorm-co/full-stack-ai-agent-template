@@ -10,6 +10,7 @@ from fastapi_gen.config import (
     BackgroundTaskType,
     CIType,
     DatabaseType,
+    FrontendType,
     LLMProviderType,
     LogfireFeatures,
     OrmType,
@@ -402,6 +403,27 @@ class TestOptionCombinationValidation:
                 enable_deep_research=True,
                 background_tasks=BackgroundTaskType.NONE,
             )
+
+    def test_demo_export_requires_frontend(self) -> None:
+        """Test that demo export requires a frontend to bundle the replay UI."""
+        with pytest.raises(ValidationError, match="Demo export requires a frontend"):
+            ProjectConfig(
+                project_name="test",
+                frontend=FrontendType.NONE,
+                enable_demo_export=True,
+                background_tasks=BackgroundTaskType.NONE,
+            )
+
+    def test_demo_export_with_frontend_is_valid(self) -> None:
+        """Test that demo export with the Next.js frontend is valid."""
+        config = ProjectConfig(
+            project_name="test",
+            frontend=FrontendType.NEXTJS,
+            enable_demo_export=True,
+            background_tasks=BackgroundTaskType.NONE,
+        )
+        assert config.enable_demo_export is True
+        assert config.to_cookiecutter_context()["enable_demo_export"] is True
 
     def test_sqlmodel_with_postgresql_is_valid(self) -> None:
         """Test that SQLModel with PostgreSQL is valid."""

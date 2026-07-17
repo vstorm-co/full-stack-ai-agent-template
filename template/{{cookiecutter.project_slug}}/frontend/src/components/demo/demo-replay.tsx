@@ -312,8 +312,14 @@ function FrameContent({ frame }: { frame: Frame }) {
 
   const tool = frame.tool;
   if (!tool) return <div className="text-foreground/50 p-3 text-sm">Working…</div>;
+  // `tool.result == null` must yield "" — stringifying it would give the literal
+  // two-char string `""`, which is truthy and renders as a bogus content box.
   const resultText =
-    typeof tool.result === "string" ? tool.result : JSON.stringify(tool.result ?? "", null, 2);
+    tool.result == null
+      ? ""
+      : typeof tool.result === "string"
+        ? tool.result
+        : JSON.stringify(tool.result, null, 2);
 
   if (tool.name === "web_search_tool" || tool.name === "search_web") {
     const data = parseWebSearch(resultText);
@@ -435,7 +441,8 @@ function graphNodePreview(frame: Frame): NodePreview {
   const t = frame.tool;
   if (!t) return { tag: "Tool" };
   const a = (t.args ?? {}) as Record<string, unknown>;
-  const result = typeof t.result === "string" ? t.result : JSON.stringify(t.result ?? "");
+  const result =
+    t.result == null ? "" : typeof t.result === "string" ? t.result : JSON.stringify(t.result);
 
   if (t.name === "run_python") {
     const code = typeof a.code === "string" ? a.code : "";

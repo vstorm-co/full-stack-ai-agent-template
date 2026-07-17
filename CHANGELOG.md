@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.16] - 2026-07-17
+
+### Added
+
+- **Self-contained HTML conversation export** — new `enable_demo_export` flag (off by default, requires a frontend): `frontend/demo-export/` is a Vite `singlefile` build target that bundles the REAL replay UI (DemoReplay → MessageItem → Recharts, plus `globals.css`) into one HTML file, with tiny local shims aliasing the Next.js-only imports (`next/image`, `next/dynamic`, `next/navigation`, `next/link`, `next-intl`). `scripts/export_demo_html.py` merges a saved conversation (from `/api/v1/demos/<id>`, any URL, or a JSON file) into that bundle and writes a single offline `.html` replay — no server, no API key, no network; open it and press Play. Supports `--theme light|dark|system`, `--title`, and `--avatar` (embedded as a data URI). CLI: `--demo-export` flag on `create` + wizard checkbox (#118)
+- **Reasoning trace persistence** — migration `0025` adds a nullable `thinking` text column to `messages`; the PydanticAI/PydanticDeep sessions collect `ThinkingPart`/`ThinkingPartDelta` content during streaming and persist it with the assistant turn, so loaded conversations and the HTML export show the THINKING block, not just live streams. Exposed through the message schema, repository, service, and the frontend `RawMessage`/`ConversationMessage` types (#118)
+- **Expanded demo replay** — "Agent's computer" side panel with a per-step log and run-graph view (sequential action nodes; deep research fans out into its parallel subagents), step scrubber with prompt-by-prompt navigation, pause/resume support in the replay engine, per-step live timer, and a collapsible per-prompt step timeline in the dock. New `fetch-url` tool-result renderer (gated on `enable_web_fetch`), relevance scores + full snippets in the detailed web-search view, subagent findings in the detailed research view, and a `formatSql` helper that pretty-prints single-line SQL (#118)
+- **Shared assistant-turn builder** — `chat-container` now reuses `buildAssistantParts` (the same builder the demo replay uses), so thinking, reconstructed deep-research blocks, and tool/text parts render consistently between the authenticated chat and the public demo (#118)
+
 ## [0.2.15] - 2026-07-03
 
 ### Fixed

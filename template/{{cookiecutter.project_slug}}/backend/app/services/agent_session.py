@@ -827,6 +827,10 @@ class AgentSession:
         self.current_conversation_id: str | None = None
 {%- endif %}
         self._last_usage_metadata: Any = None
+        # TODO: reasoning is streamed to the UI (thinking_delta) but not collected for
+        # persistence here — Message.thinking stays empty for this framework. The text is
+        # already extracted below; accumulate it per turn and pass it to
+        # persist_assistant_turn(thinking=...) like the PydanticAI session does.
         self._thinking_streamed: bool = False
         self._turn_task: asyncio.Task[None] | None = None
 
@@ -1287,6 +1291,10 @@ class AgentSession:
         self.current_conversation_id: str | None = None
 {%- endif %}
         self._last_usage_metadata: Any = None
+        # TODO: reasoning is streamed to the UI (thinking_delta) but not collected for
+        # persistence here — Message.thinking stays empty for this framework. The text is
+        # already extracted below; accumulate it per turn and pass it to
+        # persist_assistant_turn(thinking=...) like the PydanticAI session does.
         self._thinking_streamed: bool = False
         self._turn_task: asyncio.Task[None] | None = None
 
@@ -1756,6 +1764,10 @@ class AgentSession:
         # invalidate any pending interrupt anyway).
         self._current_thinking_effort: str | None = None
         self._last_usage_metadata: Any = None
+        # TODO: reasoning is streamed to the UI (thinking_delta) but not collected for
+        # persistence here — Message.thinking stays empty for this framework. The text is
+        # already extracted below; accumulate it per turn and pass it to
+        # persist_assistant_turn(thinking=...) like the PydanticAI session does.
         self._thinking_streamed: bool = False
 {%- if cookiecutter.use_database %}
         self.current_conversation_id: str | None = None

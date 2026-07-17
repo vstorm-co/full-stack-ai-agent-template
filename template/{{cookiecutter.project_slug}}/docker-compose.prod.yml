@@ -270,7 +270,7 @@ services:
 {%- if cookiecutter.use_milvus %}
 
   etcd:
-    image: quay.io/coreos/etcd:v3.6.13
+    image: quay.io/coreos/etcd:v3.7.0
     container_name: {{ cookiecutter.project_slug }}_etcd
     volumes:
       - etcd_data:/var/lib/etcd
@@ -313,7 +313,7 @@ services:
           memory: 256M
 
   milvus:
-    image: milvusdb/milvus:v2.6.19
+    image: milvusdb/milvus:v2.6.20
     container_name: {{ cookiecutter.project_slug }}_milvus
     command: ["milvus", "run", "standalone"]
     # NO external ports - only accessible within backend-internal network
@@ -348,7 +348,7 @@ services:
 {%- if cookiecutter.use_qdrant %}
 
   qdrant:
-    image: qdrant/qdrant:v1.18.1
+    image: qdrant/qdrant:v1.18.3
     container_name: {{ cookiecutter.project_slug }}_qdrant
     # NO external ports in production - only accessible within backend-internal network
     volumes:

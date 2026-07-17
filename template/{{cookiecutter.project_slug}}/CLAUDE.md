@@ -65,123 +65,28 @@ uv run {{ cookiecutter.project_slug }} cmd rag-source-sync
 {%- endif %}
 ```
 
-## Project Structure
+## Hard Boundaries
 
-```
-backend/app/
-├── main.py               # FastAPI app with lifespan (startup/shutdown)
-├── api/
-│   ├── deps.py           # Annotated DI aliases (DBSession, CurrentUser, *Svc)
-│   ├── exception_handlers.py
-│   └── routes/v1/        # HTTP endpoints — call services, never repos
-├── core/
-│   ├── config.py         # pydantic-settings Settings class
-│   ├── security.py       # JWT (PyJWT), bcrypt password hashing, API key verification
-│   ├── exceptions.py     # Domain exceptions (AppException → NotFoundError, etc.)
-│   └── middleware.py      # RequestID, SecurityHeaders, CORS
-├── db/
-│   ├── base.py           # DeclarativeBase, TimestampMixin, naming convention
-│   ├── session.py        # Engine, async_session_maker, get_db_session (auto-commit)
-│   └── models/           # SQLAlchemy models (Mapped[] type hints)
-├── schemas/              # Pydantic v2 models: *Create, *Update, *Read, *List
-├── repositories/         # Data access functions — db.flush(), never commit
-├── services/             # Business logic — flat *.py for thin domains, subpackage for thick
-│   ├── user.py           #   thin: just a class with db + repo calls
-{%- if cookiecutter.enable_billing %}
-│   ├── billing/          #   thick: facade + sub-services + Stripe client + handlers
+Non-obvious rules that are easy to violate and cross-cutting enough to state up front:
+
+- Repositories use `db.flush()` + `db.refresh()`, **never** `db.commit()` — the session auto-commits via `get_db_session`.
+- Routes call services only — **never** import or call repositories directly.
+- Route handlers return `-> Any`; serialization is handled by `response_model` (avoids double Pydantic validation).
+- `datetime.now(UTC)`, never `datetime.utcnow()`.
+- `secrets.compare_digest()` for API key comparison, never `==`.
+
+## Detailed Conventions
+
+Path-scoped guidance lives in `.claude/rules/*` and loads automatically when you edit matching files — it is intentionally NOT repeated here:
+
+- `architecture.md` — Routes → Services → Repositories, dependency injection, thin vs. thick domains
+- `schemas-models.md` — Pydantic v2 schemas (`*Create`/`*Update`/`*Read`/`*List`), SQLAlchemy models
+- `api-conventions.md` — REST structure, status codes, response format, pagination, auth
+- `exceptions-security.md` — domain exceptions (`NotFoundError`, etc.), JWT, RBAC
+- `code-style.md` — formatting, naming, imports, type hints
+- `testing.md` — test structure, fixtures, async patterns
+{%- if cookiecutter.use_frontend %}
+- `frontend.md` — Next.js 15 conventions
 {%- endif %}
-{%- if cookiecutter.enable_rag %}
-│   ├── rag/              #   thick: ingestion + vectorstore + embeddings + connectors
-{%- endif %}
-{%- if cookiecutter.use_telegram or cookiecutter.use_slack %}
-│   ├── channels/         #   thick: Slack/Telegram adapters + router
-{%- endif %}
-{%- if cookiecutter.enable_email %}
-│   └── email/            #   thick: providers + templates
-{%- endif %}
-├── agents/               # AI agent wrappers + tools
-├── worker/               # Background tasks (Celery/Taskiq/ARQ + in-process)
-└── commands/             # CLI commands (auto-discovered)
-```
 
-## Architecture: Routes → Services → Repositories
-
-**Routes** (`api/routes/v1/`) — HTTP layer only: validate input via Pydantic, call service, return response. Never import repositories.
-
-**Services** (`services/`) — Business logic: class with `__init__(self, db)`, orchestrate repos, raise domain exceptions (`NotFoundError`, `AlreadyExistsError`, etc.).
-
-**Repositories** (`repositories/`) — Pure data access functions. Always use `db.flush()` + `db.refresh()`, NEVER `db.commit()`. Session auto-commits via `get_db_session`.
-
-## Dependency Injection Pattern
-
-All DI uses `Annotated` type aliases defined in `api/deps.py`:
-
-```python
-# deps.py
-DBSession = Annotated[AsyncSession, Depends(get_db_session)]
-UserSvc = Annotated[UserService, Depends(get_user_service)]
-CurrentUser = Annotated[User, Depends(get_current_user)]
-CurrentAdmin = Annotated[User, Depends(RoleChecker(UserRole.ADMIN))]
-
-# Route usage — no raw Depends() in function signatures
-@router.get("/{id}", response_model=ConversationRead)
-async def get_conversation(
-    id: UUID, service: ConversationSvc, user: CurrentUser
-) -> Any:
-    return await service.get(id, user_id=user.id)
-```
-
-## Schema Conventions (Pydantic v2)
-
-- Base: `BaseSchema` with `ConfigDict(from_attributes=True, str_strip_whitespace=True)`
-- Separate models per operation: `*Create`, `*Update`, `*Read`
-- List responses: `*List` with `items: list[*Read]` and `total: int`
-- Update schemas: all fields `Optional` (`str | None = None`)
-- Use `Field(max_length=255)`, `Field(min_length=8)`, `EmailStr`
-- `@field_validator` for complex deserialization (e.g., JSON string → dict)
-- IDs are `UUID` type
-
-## Exception Handling
-
-Domain exceptions in `core/exceptions.py` — all extend `AppException`:
-
-| Exception | HTTP | Code |
-|-----------|------|------|
-| `NotFoundError` | 404 | `NOT_FOUND` |
-| `AlreadyExistsError` | 409 | `ALREADY_EXISTS` |
-| `ValidationError` | 422 | `VALIDATION_ERROR` |
-| `AuthenticationError` | 401 | `AUTHENTICATION_ERROR` |
-| `AuthorizationError` | 403 | `AUTHORIZATION_ERROR` |
-| `BadRequestError` | 400 | `BAD_REQUEST` |
-| `ExternalServiceError` | 503 | `EXTERNAL_SERVICE_ERROR` |
-
-Always pass `message` and `details` dict: `raise NotFoundError(message="User not found", details={"user_id": id})`
-
-## Response Format
-
-```python
-# Single item — use response_model
-@router.get("/{id}", response_model=ConversationRead)
-
-# List — return *List schema
-@router.get("", response_model=ConversationList)
-
-# Create — 201
-@router.post("", response_model=UserRead, status_code=status.HTTP_201_CREATED)
-
-# Delete — 204, no body
-@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
-
-# All route return types are -> Any (avoids double Pydantic validation)
-```
-
-## Key Conventions
-
-- Return type `-> Any` on route handlers (response_model handles serialization)
-- Use `Query(default, ge=0, le=100, description="...")` for query params
-- Keyword-only args in repo functions: `create(db, *, email: str, name: str)`
-- `__repr__` on all DB models
-- `datetime.now(UTC)` not `datetime.utcnow()`
-- `secrets.compare_digest()` for API key comparison
-- `TypedDict` for lifespan state
-- Imports: stdlib → third-party → local, with `TYPE_CHECKING` block for circular refs
+Longer-form docs: `docs/architecture.md`, `docs/adding_features.md`, `docs/testing.md`, `docs/patterns.md`.

@@ -44,7 +44,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "click>=8.3.0",
+    "click>=8.3.3",
     "cookiecutter>=2.7.0",
     "rich>=15.0.0",
     "questionary>=2.1.0",

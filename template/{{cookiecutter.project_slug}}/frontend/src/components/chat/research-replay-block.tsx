@@ -6,7 +6,7 @@ import type { ResearchReplay, ResearchTodoStatus } from "@/types";
 import { Card, Progress } from "@/components/ui";
 import { cn } from "@/lib/utils";
 
-const STEP_REVEAL_MS = 460;
+export const STEP_REVEAL_MS = 460;
 
 function StatusIcon({ status }: { status: ResearchTodoStatus }) {
   switch (status) {

@@ -123,7 +123,7 @@ services:
 {%- if cookiecutter.use_milvus %}
 
   etcd:
-    image: quay.io/coreos/etcd:v3.6.13
+    image: quay.io/coreos/etcd:v3.7.0
     container_name: {{ cookiecutter.project_slug }}_etcd
     command: >
       etcd --advertise-client-urls http://etcd:2379
@@ -162,7 +162,7 @@ services:
     restart: unless-stopped
 
   milvus:
-    image: milvusdb/milvus:v2.6.19
+    image: milvusdb/milvus:v2.6.20
     container_name: {{ cookiecutter.project_slug }}_milvus
     command: ["milvus", "run", "standalone"]
     ports:
@@ -196,7 +196,7 @@ services:
 {%- if cookiecutter.use_qdrant %}
 
   qdrant:
-    image: qdrant/qdrant:v1.18.1
+    image: qdrant/qdrant:v1.18.3
     container_name: {{ cookiecutter.project_slug }}_qdrant
     ports:
       - "6333:6333"

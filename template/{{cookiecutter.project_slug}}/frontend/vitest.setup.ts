@@ -6,6 +6,7 @@ import { afterEach, vi } from "vitest";
 // Cleanup after each test
 afterEach(() => {
   cleanup();
+  localStorage.clear();
 });
 
 // Mock Next.js router

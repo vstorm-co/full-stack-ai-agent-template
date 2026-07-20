@@ -48,6 +48,9 @@ from app.core.middleware import RequestIDMiddleware
 {%- if cookiecutter.enable_deep_research %}
 from app.db.todo_pool import close_todo_pool, init_todo_pool
 {%- endif %}
+{%- if cookiecutter.use_arq %}
+from app.worker.arq_app import close_arq_pool
+{%- endif %}
 {%- if cookiecutter.enable_caching and cookiecutter.enable_redis %}
 from app.core.cache import setup_cache
 {%- endif %}
@@ -294,6 +297,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[{% if cookiecutter.enable_red
 {%- if cookiecutter.enable_redis %}
     if "redis" in state:
         await state["redis"].close()
+{%- endif %}
+{%- if cookiecutter.use_arq %}
+    await close_arq_pool()
 {%- endif %}
 
     await close_db()

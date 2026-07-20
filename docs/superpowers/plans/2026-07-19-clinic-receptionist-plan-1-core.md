@@ -36,14 +36,23 @@
 
 - [ ] **Step 1: Generate**
 
+Exact command (flags verified against `fastapi-fullstack create --help`):
+
 ```bash
 cd ~/Scripts/Python/full-stack-ai-agent-template
 uv run fastapi-fullstack create clinic_receptionist \
-  --ai-framework pydantic_ai --rag --database postgresql --task-queue arq \
-  --output-dir ~/Scripts/Python
+  --output ~/Scripts/Python \
+  --database postgresql \
+  --ai-framework pydantic_ai \
+  --llm-provider anthropic \
+  --rag --vector-store qdrant \
+  --task-queue arq --redis \
+  --frontend nextjs \
+  --admin-panel \
+  --example-resource
 ```
 
-If `--output-dir` or flag names differ, check `uv run fastapi-fullstack create --help` and use the equivalents (frontend should be enabled — it is the default; confirm in the generated tree that `frontend/` exists).
+Notes: `--vector-store qdrant` (the generator default is milvus; qdrant is lighter to run locally). `--admin-panel` is needed by Plan 2. `--example-resource` scaffolds an Item CRUD that serves as the reference pattern for Tasks 1–3. `--llm-provider anthropic` — the key goes in `backend/.env` later; no key is needed for any automated test in this plan.
 
 - [ ] **Step 2: Boot the stack**
 
@@ -641,7 +650,11 @@ async def test_request_appointment_taken_slot_raises(service, monday_availabilit
     await clinic_repo.create_appointment(
         db, patient_name="A", contact="a@x.com", visit_type_id=checkup.id, starts_at=starts
     )
-    with pytest.raises(Exception):  # AlreadyExistsError (or project's conflict exception)
+    # Assert the project's actual conflict exception — never bare `Exception`,
+    # which would also pass on an unrelated crash. Open app/core/exceptions.py,
+    # pick the class the service raises for "slot already taken" (AlreadyExistsError
+    # or the nearest existing conflict type), and import it at the top of this file.
+    with pytest.raises(AlreadyExistsError):
         await service.request_appointment(
             patient_name="B", contact="b@x.com", visit_type_name="check-up", starts_at=starts
         )
@@ -1377,10 +1390,11 @@ git commit -m "feat: clinic seed command and office FAQ knowledge base"
 
 ---
 
-### Task 8: End-to-end smoke test on web chat
+### Task 8: Quality gates + smoke-test checklist
 
 **Files:**
-- No new code. Manual verification + full suite.
+- Create: `docs/SMOKE_TEST.md` (in the generated project)
+- Modify: any files needing fixes to pass the gates.
 
 - [ ] **Step 1: Full test suite + quality gates**
 
@@ -1392,25 +1406,28 @@ uv run ty check
 
 Expected: all green.
 
-- [ ] **Step 2: Manual smoke test**
+- [ ] **Step 2: Verify both servers boot**
 
 ```bash
 cd ~/Scripts/Python/clinic_receptionist/backend
-uv run uvicorn app.main:app --reload --port 8000 &
-cd ../frontend && bun dev
+uv run uvicorn app.main:app --port 8000 &
+sleep 5 && curl -sf http://localhost:8000/health && echo " backend OK"
+kill %1
 ```
 
-In the chat UI, verify each behavior:
+Expected: health endpoint responds. (Adjust the path if the generated app exposes health elsewhere — check `app/main.py`.)
+
+- [ ] **Step 3: Hand off the manual chat checklist**
+
+The five behavioral scenarios below need a live `ANTHROPIC_API_KEY` in `backend/.env` and a human at the browser — they are NOT automated here. Write them into `docs/SMOKE_TEST.md` in the generated project as a checklist for the operator:
 1. "What are your opening hours?" → answer sourced from FAQ (RAG tool call visible).
 2. "I'd like a check-up next Monday" → agent checks availability, gathers name/contact, books, quotes the ~$150 estimate, says staff will confirm.
 3. "I have chest pain" → immediate 911/988 escalation + urgent message filed (check `staff_messages` row: `is_urgent = true`).
 4. "What were my last test results?" → refusal to discuss PHI + offer to take a message.
 5. "Can you pay my bill?" → no payment in chat; billing message taken.
 
-- [ ] **Step 3: Commit any fixes and close out**
+- [ ] **Step 4: Commit**
 
 ```bash
-git add -A && git commit -m "test: receptionist smoke-test fixes"
+git add -A && git commit -m "docs: manual smoke-test checklist; test: quality-gate fixes"
 ```
-
-Then report results and proceed to Plan 2 (staff admin).

@@ -19,7 +19,7 @@ from pathlib import Path
 from fastapi_gen.config import get_generator_version
 from fastapi_gen.generator import _find_template_dir
 from fastapi_gen.upgrade.fetch import TemplateFetchError, fetch_template, latest_pypi_version
-from fastapi_gen.upgrade.metadata import UPGRADES_FILENAME, load_upgrades_file
+from fastapi_gen.upgrade.metadata import UPGRADES_FILENAME, _parse_version, load_upgrades_file
 from fastapi_gen.upgrade.rename_guard import (
     DEFAULT_THRESHOLD,
     detect_moves,
@@ -29,13 +29,17 @@ from fastapi_gen.upgrade.rename_guard import (
 )
 
 
-def _known_renames(repo_root: Path) -> set[tuple[str, str]]:
+def _known_renames(repo_root: Path) -> dict[tuple[str, str], str]:
+    """Map (from, to) → the newest version whose block records that rename."""
     blocks = load_upgrades_file(repo_root / UPGRADES_FILENAME)
-    renames: set[tuple[str, str]] = set()
+    versions: dict[tuple[str, str], str] = {}
     for block in blocks:
+        version = str(block.get("version", "0"))
         for r in block.get("renames", []) or []:
-            renames.add((r["from"], r["to"]))
-    return renames
+            key = (r["from"], r["to"])
+            if key not in versions or _parse_version(version) > _parse_version(versions[key]):
+                versions[key] = version
+    return versions
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -65,11 +69,36 @@ def main(argv: list[str] | None = None) -> int:
         template_files(current_template),
         threshold=args.threshold,
     )
-    uncovered = uncovered_moves(moves, _known_renames(repo_root), set(args.waive))
+    known = _known_renames(repo_root)
+    waived = set(args.waive)
+    uncovered = uncovered_moves(moves, set(known), waived)
 
-    if not uncovered:
+    # Presence in the YAML isn't enough: a rename recorded under a version <= the
+    # baseline is filtered out by the half-open (from, to] range at upgrade time.
+    baseline = _parse_version(old_version)
+    stale = [
+        (m, known[(m.from_path, m.to_path)])
+        for m in moves
+        if m not in uncovered
+        and m.from_path not in waived
+        and (m.from_path, m.to_path) in known
+        and _parse_version(known[(m.from_path, m.to_path)]) <= baseline
+    ]
+
+    if not uncovered and not stale:
         print(f"Rename guard OK — {len(moves)} move(s) detected, all covered.")
         return 0
+
+    if stale:
+        print(
+            f"::error:: File moves recorded under a version <= baseline v{old_version} — "
+            "they'd be filtered out of the upgrade range. Record them under the next release:"
+        )
+        for move, ver in stale:
+            print(f"  {move.from_path}  →  {move.to_path}  (recorded under v{ver})")
+
+    if not uncovered:
+        return 1
 
     print("::error:: Uncovered file moves — add a `renames` entry to UPGRADES.yaml:")
     for move in uncovered:

@@ -17,9 +17,17 @@ from typing import Any
 
 from .metadata import UpgradeMetadata, VariableRename
 
-_FEATURE_PREFIX = "enable_"
+_FEATURE_PREFIXES = ("enable_", "use_")
 
 ConfirmFn = Callable[[str, bool], bool]
+
+
+def _feature_label(key: str) -> str:
+    """Human label for a feature toggle key (drops the enable_/use_ prefix)."""
+    for prefix in _FEATURE_PREFIXES:
+        if key.startswith(prefix):
+            return key[len(prefix) :].replace("_", " ")
+    return key.replace("_", " ")
 
 
 @dataclass
@@ -44,8 +52,11 @@ def apply_variable_renames(
     for vr in variable_renames:
         if vr.from_key in context:
             value = context.pop(vr.from_key)
-            if isinstance(value, str) and value in vr.value_map:
-                value = vr.value_map[value]
+            # Map by the value's string form so a boolean flag (True) can map via a
+            # "true"/"false" key too — not only literal string values.
+            lookup = value if isinstance(value, str) else str(value).lower()
+            if lookup in vr.value_map:
+                value = vr.value_map[lookup]
             context[vr.to_key] = value
             applied.append(f"{vr.from_key}→{vr.to_key}")
     return applied
@@ -83,7 +94,12 @@ def reconcile_context(
     report.variable_renames_applied = apply_variable_renames(ctx, metadata.variable_renames)
 
     defaults = _template_defaults(target_template)
-    new_feature_keys = sorted(k for k in defaults if k.startswith(_FEATURE_PREFIX) and k not in ctx)
+    # Any *boolean* toggle the target introduced (enable_* or use_*, or a bare bool
+    # flag) must be forced off / reported — otherwise a new toggle defaulting to true
+    # silently turns the upgrade into a product migration.
+    new_feature_keys = sorted(
+        k for k, v in defaults.items() if isinstance(v, bool) and k not in ctx
+    )
     report.new_features_available = new_feature_keys
 
     for key in new_feature_keys:
@@ -91,7 +107,7 @@ def reconcile_context(
             ctx[key] = False
             continue
         default_on = bool(defaults.get(key, False))
-        label = key[len(_FEATURE_PREFIX) :].replace("_", " ")
+        label = _feature_label(key)
         if confirm(f"Enable new feature '{label}' ({key})?", default_on):
             ctx[key] = True
             report.new_features_accepted.append(key)

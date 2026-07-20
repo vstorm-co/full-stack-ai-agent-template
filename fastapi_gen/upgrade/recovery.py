@@ -24,11 +24,13 @@ _PRESENCE_DETECTORS: tuple[tuple[str, str], ...] = (
     ("enable_teams", "backend/app/db/models/organization.py"),
     ("enable_billing", "backend/app/services/billing"),
     ("enable_email", "backend/app/services/email"),
-    ("enable_admin_panel", "backend/app/api/routes/v1/admin.py"),
+    ("enable_admin_panel", "backend/app/admin.py"),
     ("use_celery", "backend/app/worker/celery_app.py"),
-    ("use_pydantic_ai", "backend/app/agents/pydantic_ai_agent.py"),
-    ("use_langchain", "backend/app/agents/langchain_agent.py"),
-    ("use_langgraph", "backend/app/agents/langgraph_agent.py"),
+    ("use_pydantic_ai", "backend/app/agents/assistant.py"),
+    ("use_langchain", "backend/app/agents/langchain_assistant.py"),
+    ("use_langgraph", "backend/app/agents/langgraph_assistant.py"),
+    ("use_deepagents", "backend/app/agents/deepagents_assistant.py"),
+    ("use_pydantic_deep", "backend/app/agents/pydantic_deep_assistant.py"),
 )
 
 _UNRECOVERABLE = (

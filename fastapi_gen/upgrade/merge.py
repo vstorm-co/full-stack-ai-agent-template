@@ -18,6 +18,8 @@ import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .normalize import _GENERATED_AT_PLACEHOLDER, restore_generated_at
+
 _EXCLUDED_NAMES = frozenset(
     {
         ".env",
@@ -242,6 +244,11 @@ def _tracked_files(repo: Path, ref: str) -> set[str]:
     return {line for line in out.splitlines() if line}
 
 
+def _untracked_files(repo: Path) -> set[str]:
+    out = _client_git(repo, "ls-files", "--others", "--exclude-standard", "-z").stdout
+    return {p for p in out.split("\0") if p}
+
+
 def _tree_files(store: Path, tree: str) -> set[str]:
     out = subprocess.run(
         ["git", f"--git-dir={store}", "ls-tree", "-r", "--name-only", tree],
@@ -258,6 +265,7 @@ def materialize(
     *,
     branch: str,
     force: bool = False,
+    generated_at: str | None = None,
 ) -> str:
     """Write the merged result onto a fresh branch in the client's repo.
 
@@ -286,7 +294,9 @@ def materialize(
     _client_git(client_repo, "checkout", "-b", branch, base_ref)
 
     try:
-        _materialize_onto_branch(result, client_repo, store, base_ref)
+        _materialize_onto_branch(
+            result, client_repo, store, base_ref, force=force, generated_at=generated_at
+        )
     except Exception:
         _client_git(client_repo, "checkout", "--force", orig_branch, check=False)
         _client_git(client_repo, "branch", "-D", branch, check=False)
@@ -296,13 +306,39 @@ def materialize(
 
 
 def _materialize_onto_branch(
-    result: MergeResult, client_repo: Path, store: Path, base_ref: str
+    result: MergeResult,
+    client_repo: Path,
+    store: Path,
+    base_ref: str,
+    *,
+    force: bool = False,
+    generated_at: str | None = None,
 ) -> None:
     merged_files = _tree_files(store, result.merged_tree)
     in_scope_tracked = {f for f in _tracked_files(client_repo, base_ref) if not is_excluded(f)}
     symlinks = {
         p.relative_to(client_repo).as_posix() for p in client_repo.rglob("*") if p.is_symlink()
     }
+
+    collisions = sorted((_untracked_files(client_repo) & merged_files) - symlinks)
+    if collisions and not force:
+        raise RuntimeError(
+            "These untracked files would be overwritten by the upgrade:\n"
+            + "\n".join(f"  {c}" for c in collisions)
+            + "\nCommit, stash, or remove them first (or re-run with --force)."
+        )
+
+    # Delete stale paths *before* extraction: doing it after would let a case-only
+    # rename (Readme.md → README.md, same inode on case-insensitive filesystems)
+    # unlink the freshly-written file, and a file→dir change raise IsADirectoryError.
+    for rel in sorted(in_scope_tracked - merged_files - symlinks):
+        target = client_repo / rel
+        if target.is_symlink():
+            target.unlink()
+        elif target.is_dir():
+            shutil.rmtree(target, ignore_errors=True)
+        elif target.exists():
+            target.unlink()
 
     archive = subprocess.run(
         ["git", f"--git-dir={store}", "archive", "--format=tar", result.merged_tree],
@@ -311,16 +347,36 @@ def _materialize_onto_branch(
     ).stdout
     subprocess.run(["tar", "-x", "-C", str(client_repo)], input=archive, check=True)
 
-    for rel in sorted(in_scope_tracked - merged_files - symlinks):
-        target = client_repo / rel
-        if target.exists():
-            target.unlink()
+    # Restore the real generated_at stamp on the worktree *before* staging, so the
+    # index never carries the <normalized-generated-at> placeholder into a commit.
+    if generated_at:
+        restore_generated_at(client_repo, generated_at)
 
-    _client_git(client_repo, "add", "-A")
+    # Stage only the merge-scoped paths (adds, edits, deletions) instead of a blanket
+    # `add -A`, which would sweep unrelated untracked files onto the upgrade branch.
+    to_stage = sorted((merged_files | in_scope_tracked) - symlinks)
+    if to_stage:
+        payload = ("\0".join(to_stage) + "\0").encode("utf-8", "surrogateescape")
+        subprocess.run(
+            [
+                "git",
+                "-C",
+                str(client_repo),
+                "add",
+                "-A",
+                "--pathspec-from-file=-",
+                "--pathspec-file-nul",
+            ],
+            input=payload,
+            capture_output=True,
+            check=True,
+        )
 
     if result.conflicts:
         index_info: list[str] = []
         null_oid = "0" * 40
+        placeholder_b = _GENERATED_AT_PLACEHOLDER.encode("utf-8")
+        value_b = generated_at.encode("utf-8") if generated_at else None
         for path, stages in result.conflicts.items():
             index_info.append(f"0 {null_oid} 0\t{path}")
             for stage, (mode, oid) in sorted(stages.items()):
@@ -329,6 +385,10 @@ def _materialize_onto_branch(
                     capture_output=True,
                     check=True,
                 ).stdout
+                # Rewrite the placeholder in the conflict stage blobs too, so an
+                # "accept ours/theirs" in the IDE can't reintroduce it.
+                if value_b:
+                    blob = blob.replace(placeholder_b, value_b)
                 new_oid = (
                     subprocess.run(
                         ["git", "-C", str(client_repo), "hash-object", "-w", "--stdin"],
@@ -357,5 +417,10 @@ def cleanup_store(merged_tree: str) -> None:
 
 
 def undo_command(branch: str, orig_branch: str) -> str:
-    """The exact plain-git command that reverts an applied upgrade."""
-    return f"git checkout {orig_branch} && git branch -D {branch}"
+    """The exact plain-git command that reverts an applied upgrade.
+
+    ``-f`` is required: with a conflicted index a plain ``git checkout`` refuses,
+    and with a clean index it would otherwise carry the staged upgrade onto the
+    original branch instead of discarding it.
+    """
+    return f"git checkout -f {orig_branch} && git branch -D {branch}"

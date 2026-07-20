@@ -65,6 +65,40 @@ def _secure_mkdir(path: Path) -> None:
             target.mkdir(mode=0o700, parents=True, exist_ok=True)
 
 
+def _assert_cache_owned(template_path: Path, cache: Path) -> None:
+    """Refuse a cached template if any component up to the cache root is a symlink
+    or owned by another user.
+
+    The write path is ownership-checked by :func:`_secure_mkdir`, but a *cache hit*
+    reads the tree straight from the guessable ``/tmp`` location — so without this a
+    pre-seeded, poisoned template would render (running its post-gen hook as us)
+    with no check at all.
+    """
+    getuid = getattr(os, "getuid", None)
+    if getuid is None:
+        return
+    uid = getuid()
+    stop = cache.parent
+    current = template_path
+    while True:
+        if current.is_symlink():
+            raise TemplateFetchError(
+                f"Refusing cached template — {current} is a symlink (possible cache poisoning)."
+            )
+        try:
+            not_ours = current.exists() and current.stat().st_uid != uid
+        except OSError:
+            break
+        if not_ours:
+            raise TemplateFetchError(
+                f"Refusing cached template — {current} is owned by another user "
+                "(possible cache poisoning)."
+            )
+        if current == stop or current.parent == current:
+            break
+        current = current.parent
+
+
 def _validate_template_dir(path: Path) -> Path:
     if not (path / "cookiecutter.json").exists():
         raise TemplateFetchError(
@@ -146,16 +180,32 @@ def _fetch_from_pypi(version: str, dest: Path, *, timeout: float = 30.0) -> Path
         )
     wheel_path.write_bytes(wheel_bytes)
 
+    # Extract into a staging dir and only rename into place on success. A corrupt or
+    # truncated wheel raises BadZipFile/OSError (now wrapped so the git fallback still
+    # fires) instead of leaving a half-populated tree that a later run would cache-hit
+    # (_validate_template_dir passes on cookiecutter.json alone).
     extract_dir = dest / "extracted"
-    with zipfile.ZipFile(wheel_path) as zf:
-        zf.extractall(extract_dir)
+    staging = dest / "extracted.partial"
+    shutil.rmtree(staging, ignore_errors=True)
+    try:
+        with zipfile.ZipFile(wheel_path) as zf:
+            zf.extractall(staging)
+    except (zipfile.BadZipFile, OSError) as exc:
+        shutil.rmtree(staging, ignore_errors=True)
+        raise TemplateFetchError(
+            f"Wheel for {version} could not be extracted (corrupt download?): {exc}"
+        ) from exc
 
-    template_dir = extract_dir / _BUNDLED_TEMPLATE_SUBPATH
+    template_dir = staging / _BUNDLED_TEMPLATE_SUBPATH
     if not template_dir.exists():
+        shutil.rmtree(staging, ignore_errors=True)
         raise TemplateFetchError(
             f"Wheel for {version} does not bundle a template at {_BUNDLED_TEMPLATE_SUBPATH}."
         )
-    return _validate_template_dir(template_dir)
+    _validate_template_dir(template_dir)
+    shutil.rmtree(extract_dir, ignore_errors=True)
+    os.replace(staging, extract_dir)
+    return _validate_template_dir(extract_dir / _BUNDLED_TEMPLATE_SUBPATH)
 
 
 def _fetch_from_git(version: str, dest: Path) -> Path:
@@ -204,9 +254,11 @@ def fetch_template(
     cache = _cache_dir(version)
     cached_template = cache / "extracted" / _BUNDLED_TEMPLATE_SUBPATH
     if use_cache and cached_template.exists():
+        _assert_cache_owned(cached_template, cache)
         return _validate_template_dir(cached_template)
     cached_git_template = cache / "repo" / "template"
     if use_cache and cached_git_template.exists():
+        _assert_cache_owned(cached_git_template, cache)
         return _validate_template_dir(cached_git_template)
 
     if use_cache and cache.exists():
@@ -215,4 +267,9 @@ def fetch_template(
     try:
         return _fetch_from_pypi(version, cache)
     except TemplateFetchError:
+        shutil.rmtree(cache, ignore_errors=True)  # clean slate for the fallback
+    try:
         return _fetch_from_git(version, cache)
+    except TemplateFetchError:
+        shutil.rmtree(cache, ignore_errors=True)
+        raise

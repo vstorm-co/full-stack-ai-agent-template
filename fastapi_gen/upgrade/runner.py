@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import tempfile
@@ -58,14 +59,29 @@ def _find_upgrades_file() -> Path | None:
 
 
 def _extract_head(client_repo: Path, dest: Path) -> None:
-    """Materialize the client's committed HEAD into ``dest`` (tracked files only)."""
+    """Materialize the client's committed HEAD into ``dest`` (tracked files only).
+
+    Uses ``read-tree`` + ``checkout-index`` through a throwaway index rather than
+    ``git archive``: ``archive`` applies the client's ``.gitattributes``
+    ``export-ignore`` / ``export-subst`` rules, which would silently drop tracked
+    files from OURS (the merge then reads them as client deletions) or rewrite
+    ``$Format:…$`` content into phantom edits. ``checkout-index`` honors neither.
+    """
     dest.mkdir(parents=True, exist_ok=True)
-    archive = subprocess.run(
-        ["git", "-C", str(client_repo), "archive", "--format=tar", "HEAD"],
-        capture_output=True,
-        check=True,
-    ).stdout
-    subprocess.run(["tar", "-x", "-C", str(dest)], input=archive, check=True)
+    with tempfile.TemporaryDirectory(prefix="fastapi-fullstack-idx-") as idx_dir:
+        env = {**os.environ, "GIT_INDEX_FILE": str(Path(idx_dir) / "index")}
+        subprocess.run(
+            ["git", "-C", str(client_repo), "read-tree", "HEAD"],
+            env=env,
+            capture_output=True,
+            check=True,
+        )
+        subprocess.run(
+            ["git", "-C", str(client_repo), "checkout-index", "-a", f"--prefix={dest}/"],
+            env=env,
+            capture_output=True,
+            check=True,
+        )
 
 
 def _rename_pairs(metadata: UpgradeMetadata) -> list[tuple[str, str]]:
@@ -86,6 +102,16 @@ def run_upgrade(
     from_version = manifest["package_version"]
     context = manifest["context"]
 
+    recorded_hash = manifest.get("context_hash")
+    if recorded_hash:
+        from .manifest import compute_context_hash
+
+        if compute_context_hash(context) != recorded_hash:
+            console.print(
+                "[yellow]⚠ Manifest context_hash does not match its context[/] — the manifest "
+                "may have been hand-edited; BASE will be rendered from the stored context as-is."
+            )
+
     running = get_generator_version()
     target = to_version or running
 
@@ -103,6 +129,11 @@ def run_upgrade(
 
     if not dry_run:
         assert_clean_worktree(client_repo)
+        if current_branch(client_repo) == "HEAD":
+            raise UpgradeError(
+                "Refusing to upgrade from a detached HEAD — check out a branch first "
+                "(the upgrade needs a branch to return to)."
+            )
 
     local_template = _find_template_dir()
     upgrades_file = _find_upgrades_file()
@@ -126,6 +157,7 @@ def run_upgrade(
     work = Path(tempfile.mkdtemp(prefix="fastapi-fullstack-upgrade-"))
     from .render import render_template
 
+    result: MergeResult | None = None
     try:
         base_dir = render_template(base_template, context, work / "base_parent")
         theirs_dir = render_template(theirs_template, theirs_context, work / "theirs_parent")
@@ -143,12 +175,18 @@ def run_upgrade(
                 "[yellow]Frontend deps not installed[/] — run [bold]bun install[/] in "
                 "frontend/ for cleaner frontend merges (skipping Prettier normalization)."
             )
+        # One shared ruff config for all three trees (the client's, so the delivered
+        # result keeps their formatting) — otherwise each tree formats to its own
+        # pyproject.toml and the diff fills with false conflicts.
+        client_ruff_config = client_repo / "backend" / "pyproject.toml"
+        ruff_config = client_ruff_config if client_ruff_config.exists() else None
         for tree in (base_dir, theirs_dir, ours_dir):
             normalize_tree(
                 tree,
                 generated_at=generated_at,
                 format_code=True,
                 frontend_node_modules=client_node_modules,
+                ruff_config=ruff_config,
             )
 
         result = merge_trees(base_dir, ours_dir, theirs_dir)
@@ -166,21 +204,31 @@ def run_upgrade(
         )
 
         if dry_run:
-            cleanup_store(result.merged_tree)
             return UpgradeOutcome(
                 from_version, target, classification, reconcile_report, result, applied=False
             )
 
         branch = f"template-upgrade/v{target}"
-        orig_branch = materialize(result, client_repo, branch=branch, force=force)
+        orig_branch = materialize(
+            result, client_repo, branch=branch, force=force, generated_at=generated_at
+        )
 
-        from .normalize import restore_generated_at
-
-        restore_generated_at(client_repo, generated_at)
-
-        pending = build_manifest(theirs_context, package_version=target)
-        pending[_UPGRADE_BRANCH_KEY] = branch
-        _write_pending(client_repo, pending)
+        # Past this point the branch exists with staged changes; if the bookkeeping
+        # below fails, the user still needs the undo command, so always surface it.
+        pending_file = MANIFEST_FILENAME + _PENDING_SUFFIX
+        try:
+            pending = build_manifest(theirs_context, package_version=target)
+            pending[_UPGRADE_BRANCH_KEY] = branch
+            _write_pending(client_repo, pending)
+        except Exception:
+            console.print(
+                f"[red]Applied on branch[/] [bold]{branch}[/] but writing the pending "
+                "manifest failed."
+            )
+            console.print(
+                f"[dim]Undo:[/] {undo_command(branch, orig_branch)} && rm -f {pending_file}"
+            )
+            raise
 
         console.print(f"[green]Applied on branch[/] [bold]{branch}[/] (was {orig_branch}).")
         if classification.conflicts:  # pragma: no cover
@@ -192,10 +240,8 @@ def run_upgrade(
             console.print(
                 "No conflicts. Review the branch, then run [bold]make upgrade-finalize[/]."
             )
-        pending_file = MANIFEST_FILENAME + _PENDING_SUFFIX
         console.print(f"[dim]Undo:[/] {undo_command(branch, orig_branch)} && rm -f {pending_file}")
 
-        cleanup_store(result.merged_tree)
         return UpgradeOutcome(
             from_version,
             target,
@@ -207,6 +253,8 @@ def run_upgrade(
             orig_branch=orig_branch,
         )
     finally:
+        if result is not None:
+            cleanup_store(result.merged_tree)
         shutil.rmtree(work, ignore_errors=True)
 
 

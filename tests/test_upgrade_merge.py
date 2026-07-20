@@ -153,7 +153,7 @@ class TestMaterialize:
         assert (client / ".env").read_text() == "SECRET=xyz\n"
 
         assert undo_command("template-upgrade/vY", orig) == (
-            "git checkout main && git branch -D template-upgrade/vY"
+            "git checkout -f main && git branch -D template-upgrade/vY"
         )
 
     def test_refuses_dirty_worktree(

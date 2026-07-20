@@ -132,17 +132,29 @@ def _ruff_cmd() -> list[str] | None:
     return [sys.executable, "-m", "ruff"] if probe.returncode == 0 else None
 
 
-def format_python(tree: Path) -> bool:
-    """Best-effort ruff format+fix over a tree. Returns True if ruff ran."""
+def format_python(tree: Path, *, config: Path | None = None) -> bool:
+    """Best-effort ``ruff format`` over a tree. Returns True if ruff ran.
+
+    Two deliberate choices keep this from corrupting the merge:
+
+    * We run **only** ``ruff format`` — never ``check --fix``. Autofixes (unused-import
+      removal, etc.) are code *changes*, not formatting; applying them to the client's
+      committed tree (OURS) would materialize onto the branch as phantom client edits.
+    * A single ``config`` is applied to all three trees. Without it ruff resolves each
+      tree's own ``pyproject.toml`` — the *client's* (often customized line-length /
+      rule set) for OURS but the template's for BASE/THEIRS — so the trees format
+      differently and every file looks edited, drowning the merge in false conflicts.
+    """
     backend = tree / "backend"
     target = backend if backend.exists() else tree
     cmd = _ruff_cmd()
     if not cmd:
         return False
-    subprocess.run(
-        [*cmd, "check", "--fix", "--quiet", str(target)], capture_output=True, check=False
-    )
-    subprocess.run([*cmd, "format", "--quiet", str(target)], capture_output=True, check=False)
+    fmt = [*cmd, "format", "--quiet"]
+    if config is not None and config.exists():
+        fmt += ["--config", str(config)]
+    fmt.append(str(target))
+    subprocess.run(fmt, capture_output=True, check=False)
     return True
 
 
@@ -188,13 +200,16 @@ def normalize_tree(
     generated_at: str | None = None,
     format_code: bool = True,
     frontend_node_modules: Path | None = None,
+    ruff_config: Path | None = None,
 ) -> None:
     """Apply the full normalization pass to a tree (in place).
 
-    Must be applied *identically* to BASE, OURS and THEIRS so differences cancel.
+    Must be applied *identically* to BASE, OURS and THEIRS so differences cancel —
+    which is why ``ruff_config`` (the one shared config) is passed the same for all
+    three.
     """
     if format_code:
-        format_python(tree)
+        format_python(tree, config=ruff_config)
         format_frontend(tree, node_modules=frontend_node_modules)
     strip_generated_at(tree, generated_at)
     normalize_whitespace(tree)

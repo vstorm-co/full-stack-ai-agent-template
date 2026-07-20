@@ -89,6 +89,19 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Could not resolve/fetch baseline template: {exc}", file=sys.stderr)
         return 1
 
+    # The upgrade range is half-open — (from, to] — so a rename recorded under a
+    # version that isn't strictly newer than the baseline is filtered out for a
+    # baseline→next upgrade and silently degrades to delete+add. Force a bump first.
+    if _parse_version(version) <= _parse_version(old_version):
+        print(
+            f"Refusing to record renames under v{version}: it is not newer than the "
+            f"baseline v{old_version}, so they would be filtered out of a "
+            f"{old_version}→next upgrade. Bump the package version, or pass "
+            f"--version <next-release>.",
+            file=sys.stderr,
+        )
+        return 1
+
     moves = detect_moves(
         template_files(old_template),
         template_files(current_template),

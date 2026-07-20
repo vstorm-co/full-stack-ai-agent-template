@@ -3,8 +3,10 @@
 import json
 from pathlib import Path
 
+from fastapi_gen.generator import _find_template_dir
 from fastapi_gen.upgrade.manifest import MANIFEST_FILENAME
 from fastapi_gen.upgrade.recovery import (
+    _PRESENCE_DETECTORS,
     detect_version,
     recover_context,
     write_candidate_manifest,
@@ -48,3 +50,15 @@ def test_write_candidate_manifest_is_separate_file(tmp_path: Path) -> None:
 def test_detect_version_readme_without_version(tmp_path: Path) -> None:
     (tmp_path / "README.md").write_text("# Project\nno version here\n", encoding="utf-8")
     assert detect_version(tmp_path) is None
+
+
+def test_every_detector_path_exists_in_template() -> None:
+    """Every recovery sentinel must map to a path the template actually ships.
+
+    A sentinel that never exists in the template always infers its feature as
+    absent — e.g. the earlier ``agents/pydantic_ai_agent.py`` typo silently disabled
+    the client's AI framework on recovery. This guards against that regression.
+    """
+    slug_dir = _find_template_dir() / "{{cookiecutter.project_slug}}"
+    missing = [rel for _, rel in _PRESENCE_DETECTORS if not (slug_dir / rel).exists()]
+    assert not missing, f"recovery detector paths absent from the template: {missing}"

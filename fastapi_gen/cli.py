@@ -1492,7 +1492,7 @@ def upgrade(
             with_new_features=with_new_features,
             force=force,
         )
-    except (UpgradeError, FileNotFoundError, RuntimeError) as exc:
+    except (UpgradeError, FileNotFoundError, RuntimeError, ValueError) as exc:
         raise click.ClickException(str(exc)) from exc
 
 
@@ -1504,7 +1504,7 @@ def upgrade_finalize(project_path: Path) -> None:
 
     try:
         run_finalize(project_path)
-    except (UpgradeError, FileNotFoundError, RuntimeError) as exc:
+    except (UpgradeError, FileNotFoundError, RuntimeError, ValueError) as exc:
         raise click.ClickException(str(exc)) from exc
 
 

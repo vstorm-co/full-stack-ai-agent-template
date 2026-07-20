@@ -49,7 +49,7 @@ def redact_secrets(context: dict[str, Any]) -> dict[str, Any]:
         if isinstance(obj, dict):
             return {k: _clean(v, k) for k, v in obj.items()}
         if isinstance(obj, list):
-            return [_clean(x) for x in obj]
+            return [_clean(x, key) for x in obj]
         if isinstance(obj, str) and obj and key is not None and _SECRET_KEY_RE.search(key):
             return _REDACTED
         return obj
@@ -153,11 +153,16 @@ def read_manifest(project_path: Path) -> dict[str, Any]:
             "This project predates upgrade manifests; run recovery first."
         )
     try:
-        data: dict[str, Any] = json.loads(manifest_path.read_text(encoding="utf-8"))
+        data: Any = json.loads(manifest_path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
         raise ValueError(
             f"Corrupt manifest {manifest_path}: {exc}. Run recovery to rebuild it."
         ) from exc
+    if not isinstance(data, dict):
+        raise ValueError(
+            f"Manifest {manifest_path} must be a JSON object, got {type(data).__name__}. "
+            "Run recovery to rebuild it."
+        )
     missing = {"package_version", "template_ref", "context", "context_hash"} - data.keys()
     if missing:
         raise ValueError(

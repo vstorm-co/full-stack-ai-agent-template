@@ -50,6 +50,7 @@ def _preflight_check(  # noqa: C901
     frontend: str,
     admin_panel: bool,
     marketing_site: bool,
+    demo_export: bool,
     oauth_google: bool,
     gdrive_rag: bool,
     s3_rag: bool,
@@ -150,6 +151,13 @@ def _preflight_check(  # noqa: C901
             (
                 "--marketing-site requires --frontend nextjs (landing/blog/legal pages need a UI)",
                 "Add --frontend nextjs or drop --marketing-site",
+            )
+        )
+    if demo_export and frontend == "none":
+        issues.append(
+            (
+                "--demo-export requires --frontend nextjs (it bundles the real replay UI into the HTML)",
+                "Add --frontend nextjs or drop --demo-export",
             )
         )
     if admin_panel and frontend == "none":
@@ -632,6 +640,12 @@ def new(output: Path | None, no_input: bool, name: str | None, minimal: bool) ->
     help="Generate marketing/landing pages",
 )
 @click.option(
+    "--demo-export",
+    is_flag=True,
+    default=False,
+    help="Self-contained HTML demo export (Vite bundle + exporter script; requires --frontend)",
+)
+@click.option(
     "--i18n/--no-i18n",
     "i18n",
     default=True,
@@ -793,6 +807,7 @@ def create(
     email_provider: str,
     newsletter: bool,
     marketing_site: bool,
+    demo_export: bool,
     i18n: bool,
     example_resource: bool,
     changelog: bool,
@@ -1117,6 +1132,7 @@ def create(
                 frontend=frontend,
                 admin_panel=admin_panel,
                 marketing_site=marketing_site,
+                demo_export=demo_export,
                 oauth_google=oauth_google,
                 gdrive_rag=gdrive_rag,
                 s3_rag=s3_rag,
@@ -1213,6 +1229,7 @@ def create(
                 email_provider=EmailProviderType(email_provider),
                 enable_newsletter_signup=newsletter,
                 enable_marketing_site=marketing_site,
+                enable_demo_export=demo_export,
                 enable_i18n=i18n,
                 include_example_crud=example_resource,
                 enable_changelog=changelog,

@@ -196,6 +196,7 @@ These variables are set automatically by the generator.
 | `enable_cors` | bool | `true` | Enable CORS middleware | - |
 | `enable_webhooks` | bool | `false` | Enable webhook support | - |
 | `enable_conversation_persistence` | bool | `true` | Enable conversation persistence (derived from `use_ai`) | Computed from `use_ai` |
+| `enable_demo_export` | bool | `false` | Self-contained HTML demo export: a `frontend/demo-export/` Vite single-file bundle + `scripts/export_demo_html.py` that render a saved conversation to one offline `.html` replay | Requires a frontend |
 | `include_example_crud` | bool | `false` | Include example CRUD endpoints (always disabled) | Always false |
 | `enable_i18n` | bool | `true` | Enable internationalization in frontend (always enabled) | Always true |
 | `seed_admin_email` | string | `""` | Email of a user to auto-promote to app-admin on first startup (via `FIRST_ADMIN_EMAIL` env var) | - |

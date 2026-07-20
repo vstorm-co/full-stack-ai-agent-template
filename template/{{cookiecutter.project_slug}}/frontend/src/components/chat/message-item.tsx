@@ -17,6 +17,7 @@ import type { SourceItem } from "@/lib/chat-sources";
 {%- if cookiecutter.enable_deep_research %}
 import type { MessagePart } from "@/types";
 import { RESEARCH_TOOL_NAMES } from "./research-panel";
+import { ResearchReplayBlock } from "./research-replay-block";
 {%- endif %}
 
 function ThinkingBlock({ text, open, isStreaming }: { text: string; open: boolean; isStreaming: boolean }) {
@@ -290,6 +291,11 @@ export function MessageItem({ message, groupPosition, onRegenerate }: MessageIte
                       />
                     );
                   }
+{%- if cookiecutter.enable_deep_research %}
+                  if (part.type === "research" && part.research) {
+                    return <ResearchReplayBlock key={part.id} research={part.research} />;
+                  }
+{%- endif %}
                   if (part.type === "tool" && part.toolCall) {
                     return (
                       <div key={part.id} className="w-full">

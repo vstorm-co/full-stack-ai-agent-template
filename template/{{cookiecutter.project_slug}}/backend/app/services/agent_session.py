@@ -250,6 +250,7 @@ class AgentSession:
 {%- endif %}
 
             collected_tool_calls: list[dict[str, Any]] = []
+            collected_thinking: list[str] = []
 {%- if cookiecutter.enable_deep_research %}
 {%- if cookiecutter.enable_subagents %}
             self._subagent_task_manager = (
@@ -277,7 +278,9 @@ class AgentSession:
                 async with assistant.agent.iter(
                     user_input, deps=self.deps, message_history=model_history
                 ) as agent_run:
-                    await self._stream_agent_run(agent_run, user_message, collected_tool_calls)
+                    await self._stream_agent_run(
+                        agent_run, user_message, collected_tool_calls, collected_thinking
+                    )
             finally:
                 if poller is not None:
                     poller.cancel()
@@ -296,7 +299,9 @@ class AgentSession:
             async with assistant.agent.iter(
                 user_input, deps=self.deps, message_history=model_history
             ) as agent_run:
-                await self._stream_agent_run(agent_run, user_message, collected_tool_calls)
+                await self._stream_agent_run(
+                    agent_run, user_message, collected_tool_calls, collected_thinking
+                )
 {%- endif %}
 
             # Update in-memory history only after a complete agent run
@@ -314,6 +319,7 @@ class AgentSession:
                     agent_run.result.output,
                     getattr(assistant, "model_name", None),
                     collected_tool_calls,
+                    thinking="".join(collected_thinking) or None,
                 )
 
 {%- if cookiecutter.enable_billing and cookiecutter.enable_teams and cookiecutter.enable_credits_system %}
@@ -601,6 +607,7 @@ class AgentSession:
         agent_run: Any,
         user_message: str,
         collected_tool_calls: list[dict[str, Any]],
+        collected_thinking: list[str],
     ) -> None:
         """Drive the agent_run iterator, dispatching each node to its streaming helper."""
         async for node in agent_run:
@@ -614,7 +621,7 @@ class AgentSession:
             elif Agent.is_model_request_node(node):
                 await send_event(self.websocket, "model_request_start", {})
                 async with node.stream(agent_run.ctx) as request_stream:
-                    await self._stream_request_events(request_stream)
+                    await self._stream_request_events(request_stream, collected_thinking)
             elif Agent.is_call_tools_node(node):
                 await send_event(self.websocket, "call_tools_start", {})
                 async with node.stream(agent_run.ctx) as handle_stream:
@@ -624,7 +631,9 @@ class AgentSession:
                     self.websocket, "final_result", {"output": agent_run.result.output}
                 )
 
-    async def _stream_request_events(self, request_stream: Any) -> None:
+    async def _stream_request_events(
+        self, request_stream: Any, collected_thinking: list[str]
+    ) -> None:
         """Forward model-request events (text/thinking/tool deltas + final-result start).
 {%- if cookiecutter.enable_deep_research %}
 
@@ -673,6 +682,9 @@ class AgentSession:
                     )
 {%- endif %}
                 elif isinstance(event.part, ThinkingPart) and event.part.content:
+                    if collected_thinking:
+                        collected_thinking.append(" ")
+                    collected_thinking.append(event.part.content)
                     await send_event(
                         self.websocket,
                         "thinking_delta",
@@ -691,6 +703,7 @@ class AgentSession:
 {%- endif %}
                 elif isinstance(event.delta, ThinkingPartDelta):
                     if event.delta.content_delta:
+                        collected_thinking.append(event.delta.content_delta)
                         await send_event(
                             self.websocket,
                             "thinking_delta",
@@ -814,6 +827,10 @@ class AgentSession:
         self.current_conversation_id: str | None = None
 {%- endif %}
         self._last_usage_metadata: Any = None
+        # TODO: reasoning is streamed to the UI (thinking_delta) but not collected for
+        # persistence here — Message.thinking stays empty for this framework. The text is
+        # already extracted below; accumulate it per turn and pass it to
+        # persist_assistant_turn(thinking=...) like the PydanticAI session does.
         self._thinking_streamed: bool = False
         self._turn_task: asyncio.Task[None] | None = None
 
@@ -1274,6 +1291,10 @@ class AgentSession:
         self.current_conversation_id: str | None = None
 {%- endif %}
         self._last_usage_metadata: Any = None
+        # TODO: reasoning is streamed to the UI (thinking_delta) but not collected for
+        # persistence here — Message.thinking stays empty for this framework. The text is
+        # already extracted below; accumulate it per turn and pass it to
+        # persist_assistant_turn(thinking=...) like the PydanticAI session does.
         self._thinking_streamed: bool = False
         self._turn_task: asyncio.Task[None] | None = None
 
@@ -1743,6 +1764,10 @@ class AgentSession:
         # invalidate any pending interrupt anyway).
         self._current_thinking_effort: str | None = None
         self._last_usage_metadata: Any = None
+        # TODO: reasoning is streamed to the UI (thinking_delta) but not collected for
+        # persistence here — Message.thinking stays empty for this framework. The text is
+        # already extracted below; accumulate it per turn and pass it to
+        # persist_assistant_turn(thinking=...) like the PydanticAI session does.
         self._thinking_streamed: bool = False
 {%- if cookiecutter.use_database %}
         self.current_conversation_id: str | None = None
@@ -2465,17 +2490,19 @@ class AgentSession:
             kb_token = _active_kb_collections.set(kb_names)
             try:
                 collected_tool_calls: list[dict[str, Any]] = []
+                collected_thinking: list[str] = []
                 async with assistant.agent.iter(user_input, deps=assistant.deps) as agent_run:
                     await self._stream_agent_run(
-                        agent_run, user_message, collected_tool_calls
+                        agent_run, user_message, collected_tool_calls, collected_thinking
                     )
             finally:
                 _active_kb_collections.reset(kb_token)
 {%- else %}
             collected_tool_calls: list[dict[str, Any]] = []
+            collected_thinking: list[str] = []
             async with assistant.agent.iter(user_input, deps=assistant.deps) as agent_run:
                 await self._stream_agent_run(
-                    agent_run, user_message, collected_tool_calls
+                    agent_run, user_message, collected_tool_calls, collected_thinking
                 )
 {%- endif %}
 
@@ -2486,6 +2513,7 @@ class AgentSession:
                     agent_run.result.output,
                     getattr(assistant, "model_name", None),
                     collected_tool_calls,
+                    thinking="".join(collected_thinking) or None,
                 )
 
             await send_event(
@@ -2587,6 +2615,7 @@ class AgentSession:
         agent_run: Any,
         user_message: str,
         collected_tool_calls: list[dict[str, Any]],
+        collected_thinking: list[str],
     ) -> None:
         """Drive the pydantic-ai agent_run iterator, forwarding all events."""
         async for node in agent_run:
@@ -2600,7 +2629,7 @@ class AgentSession:
             elif Agent.is_model_request_node(node):
                 await send_event(self.websocket, "model_request_start", {})
                 async with node.stream(agent_run.ctx) as request_stream:
-                    await self._stream_request_events(request_stream)
+                    await self._stream_request_events(request_stream, collected_thinking)
             elif Agent.is_call_tools_node(node):
                 await send_event(self.websocket, "call_tools_start", {})
                 async with node.stream(agent_run.ctx) as handle_stream:
@@ -2610,7 +2639,9 @@ class AgentSession:
                     self.websocket, "final_result", {"output": agent_run.result.output}
                 )
 
-    async def _stream_request_events(self, request_stream: Any) -> None:
+    async def _stream_request_events(
+        self, request_stream: Any, collected_thinking: list[str]
+    ) -> None:
         """Forward model-request events (text/thinking/tool deltas + final-result start)."""
         async for event in request_stream:
             if isinstance(event, PartStartEvent):
@@ -2628,6 +2659,9 @@ class AgentSession:
                 elif isinstance(event.part, ThinkingPart) and event.part.content:
                     # Surface the model's reasoning trace to the UI. Anthropic +
                     # OpenAI-reasoning models emit these as the model "thinks".
+                    if collected_thinking:
+                        collected_thinking.append(" ")
+                    collected_thinking.append(event.part.content)
                     await send_event(
                         self.websocket,
                         "thinking_delta",
@@ -2642,6 +2676,7 @@ class AgentSession:
                     )
                 elif isinstance(event.delta, ThinkingPartDelta):
                     if event.delta.content_delta:
+                        collected_thinking.append(event.delta.content_delta)
                         await send_event(
                             self.websocket,
                             "thinking_delta",

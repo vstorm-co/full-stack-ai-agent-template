@@ -1,0 +1,7 @@
+/* Pull in the real app theme + Tailwind, and tell Tailwind v4 to scan the shared
+   components so their utility classes end up in the bundle. */
+@import "../src/app/globals.css";
+
+@source "../src/components";
+@source "../src/lib";
+@source "./main.tsx";

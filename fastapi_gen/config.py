@@ -395,6 +395,7 @@ class ProjectConfig(BaseModel):
 
     # Marketing / Frontend pages
     enable_marketing_site: bool = False
+    enable_demo_export: bool = False
     enable_i18n: bool = True
     include_example_crud: bool = False
     enable_changelog: bool = False
@@ -617,6 +618,11 @@ class ProjectConfig(BaseModel):
             raise ValueError(
                 "Marketing site requires a frontend (landing/blog/legal pages need a UI). "
                 "Quick fix: add --frontend nextjs, or drop --marketing-site."
+            )
+        if self.enable_demo_export and self.frontend == FrontendType.NONE:
+            raise ValueError(
+                "Demo export requires a frontend (it bundles the real replay UI into the HTML). "
+                "Quick fix: add --frontend nextjs, or drop --demo-export."
             )
         if self.oauth_provider != OAuthProvider.NONE and self.frontend == FrontendType.NONE:
             raise ValueError(
@@ -969,6 +975,7 @@ class ProjectConfig(BaseModel):
             "enable_admin_features_system_health": self.enable_admin_features_system_health,
             # Marketing / Frontend pages
             "enable_marketing_site": self.enable_marketing_site,
+            "enable_demo_export": self.enable_demo_export and self.frontend != FrontendType.NONE,
             "enable_changelog": self.enable_changelog,
             "enable_testimonials": self.enable_testimonials,
             "enable_comparison_pages": self.enable_comparison_pages,

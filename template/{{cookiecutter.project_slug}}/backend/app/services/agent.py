@@ -223,6 +223,7 @@ async def persist_assistant_turn(
     output: str,
     model_name: str | None,
     collected_tool_calls: list[dict[str, Any]],
+    thinking: str | None = None,
 ) -> str | None:
     """Persist the assistant message and any tool calls. Returns the saved message id."""
     try:
@@ -230,7 +231,9 @@ async def persist_assistant_turn(
             conv_service = get_conversation_service(db)
             assistant_msg = await conv_service.add_message(
                 UUID(conversation_id),
-                MessageCreate(role="assistant", content=output, model_name=model_name),
+                MessageCreate(
+                    role="assistant", content=output, thinking=thinking, model_name=model_name
+                ),
             )
             for tc in collected_tool_calls:
                 try:

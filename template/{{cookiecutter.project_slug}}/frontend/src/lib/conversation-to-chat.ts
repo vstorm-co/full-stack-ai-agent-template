@@ -1,4 +1,7 @@
 import type { ChatMessage, ChatMessageFile, MessagePart, ToolCall } from "@/types";
+{%- if cookiecutter.enable_deep_research %}
+import { reconstructResearch, RESEARCH_TOOL_NAMES } from "@/lib/research-from-tools";
+{%- endif %}
 
 /**
  * Shape of a persisted message as returned by the backend (MessageRead).
@@ -19,6 +22,7 @@ export interface RawMessage {
   content: string;
   created_at: string;
   tool_calls?: RawToolCall[] | null;
+  thinking?: string | null;
   user_rating?: number | null;
   rating_count?: { likes: number; dislikes: number } | null;
   files?: ChatMessageFile[] | null;
@@ -32,6 +36,40 @@ export interface RawMessage {
  * before the final answer), then the text part. Used by both the authenticated chat (when
  * loading a saved conversation) and the public demo replay.
  */
+export function buildAssistantParts(
+  toolCalls: ToolCall[],
+  content: string,
+  msgId: string,
+  thinking?: string | null,
+): MessagePart[] {
+{%- if cookiecutter.enable_deep_research %}
+  const research = reconstructResearch(toolCalls);
+  const parts: MessagePart[] = [];
+  if (thinking) {
+    parts.push({ id: `${msgId}-thinking`, type: "thinking", content: thinking });
+  }
+  if (research) {
+    parts.push({ id: `${msgId}-research`, type: "research", research });
+  }
+  for (const tc of toolCalls) {
+    if (RESEARCH_TOOL_NAMES.has(tc.name)) continue;
+    parts.push({ id: tc.id, type: "tool", toolCall: tc });
+  }
+  if (content) parts.push({ id: `${msgId}-text`, type: "text", content });
+  return parts;
+{%- else %}
+  const parts: MessagePart[] = [];
+  if (thinking) {
+    parts.push({ id: `${msgId}-thinking`, type: "thinking" as const, content: thinking });
+  }
+  for (const tc of toolCalls) {
+    parts.push({ id: tc.id, type: "tool" as const, toolCall: tc });
+  }
+  if (content) parts.push({ id: `${msgId}-text`, type: "text" as const, content });
+  return parts;
+{%- endif %}
+}
+
 export function conversationMessageToChatMessage(msg: RawMessage): ChatMessage {
   const toolCalls: ToolCall[] | undefined = msg.tool_calls?.map((tc) => ({
     id: tc.tool_call_id,
@@ -43,16 +81,7 @@ export function conversationMessageToChatMessage(msg: RawMessage): ChatMessage {
 
   const parts: MessagePart[] | undefined =
     msg.role === "assistant"
-      ? [
-          ...(toolCalls ?? []).map((tc) => ({
-            id: tc.id,
-            type: "tool" as const,
-            toolCall: tc,
-          })),
-          ...(msg.content
-            ? [{ id: `${msg.id}-text`, type: "text" as const, content: msg.content }]
-            : []),
-        ]
+      ? buildAssistantParts(toolCalls ?? [], msg.content, msg.id, msg.thinking)
       : undefined;
 
   const files = Array.isArray(msg.files) ? msg.files : undefined;
@@ -61,6 +90,7 @@ export function conversationMessageToChatMessage(msg: RawMessage): ChatMessage {
     id: msg.id,
     role: msg.role,
     content: msg.content,
+    thinking: msg.thinking ?? undefined,
     timestamp: new Date(msg.created_at),
     conversationId: msg.conversation_id,
     toolCalls,

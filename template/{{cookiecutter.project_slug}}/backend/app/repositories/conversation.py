@@ -411,6 +411,7 @@ async def create_message(
     conversation_id: UUID,
     role: str,
     content: str,
+    thinking: str | None = None,
     model_name: str | None = None,
     tokens_used: int | None = None,
 ) -> Message:
@@ -419,6 +420,7 @@ async def create_message(
         conversation_id=conversation_id,
         role=role,
         content=content,
+        thinking=thinking,
         model_name=model_name,
         tokens_used=tokens_used,
     )

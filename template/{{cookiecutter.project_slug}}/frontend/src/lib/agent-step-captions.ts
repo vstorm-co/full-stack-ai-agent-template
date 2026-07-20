@@ -37,6 +37,27 @@ function humanizeToolName(name: string): string {
   return words.map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
 }
 
+const DISPLAY_NAMES: Record<string, string> = {
+  run_python: "Run Python",
+  create_chart_tool: "Chart",
+  create_map_tool: "Map",
+  web_search_tool: "Web Search",
+  search_web: "Web Search",
+  web_search: "Web Search",
+  web_fetch: "Web Fetch",
+  fetch_url: "Fetch URL",
+  get_current_datetime: "Current Date & Time",
+  search_knowledge_base: "Knowledge Base Search",
+  search_documents: "Knowledge Base Search",
+  ask_user: "Question",
+  load_skill: "Load Skill",
+  list_skills: "Available Skills",
+};
+
+export function toolDisplayName(toolName: string): string {
+  return DISPLAY_NAMES[toolName] ?? humanizeToolName(toolName);
+}
+
 /**
  * Present-tense phrase describing what the agent is doing while `toolName` runs.
  * Falls back to "Running <Tool Name>" for unknown tools.

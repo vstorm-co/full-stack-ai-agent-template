@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>__DEMO_TITLE__</title>
+    <script>
+      // Theme is chosen at export time. The exporter replaces __DEMO_THEME__ with
+      // "light", "dark" or "system". Uses the same root classes as the app:
+      //   .light  -> forces light (also blocks the prefers-color-scheme:dark override)
+      //   .dark   -> forces dark
+      //   (none)  -> "system": follows the viewer's OS via the CSS media query
+      (function () {
+        var t = "__DEMO_THEME__";
+        if (t === "dark") document.documentElement.classList.add("dark");
+        else if (t === "light") document.documentElement.classList.add("light");
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script id="demo-data" type="application/json">__DEMO_DATA__</script>
+    <script id="demo-user-avatar" type="text/plain">__DEMO_USER_AVATAR__</script>
+    <script type="module" src="/main.tsx"></script>
+  </body>
+</html>

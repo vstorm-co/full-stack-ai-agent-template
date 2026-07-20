@@ -250,9 +250,10 @@ class QdrantVectorStore(BaseVectorStore):
         self.client = AsyncQdrantClient(
             host=app_settings.QDRANT_HOST,
             port=app_settings.QDRANT_PORT,
-            # QDRANT_API_KEY is str | None; pass directly without `or None`
-            # to avoid silently coercing empty strings to None.
-            api_key=app_settings.QDRANT_API_KEY,
+            # A non-None api_key makes qdrant-client infer an HTTPS endpoint,
+            # which breaks plain-HTTP local Qdrant containers. Only pass it
+            # when it's actually set, so a blank default keeps plain HTTP.
+            api_key=app_settings.QDRANT_API_KEY or None,
         )
 
     async def _ensure_collection(self, name: str) -> None:

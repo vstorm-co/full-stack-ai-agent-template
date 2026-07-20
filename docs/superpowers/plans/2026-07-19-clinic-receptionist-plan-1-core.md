@@ -1290,7 +1290,9 @@ git add app/agents tests/agents
 git commit -m "feat: receptionist agent tools (availability, booking, messages); drop chart/code-exec tools"
 ```
 
----### Task 7: Seed data + FAQ knowledge base
+---
+
+### Task 7: Seed data + FAQ knowledge base
 
 **Files:**
 - Create: `backend/app/commands/seed_clinic.py` (follow the Django-style command pattern in `app/commands/` — copy the structure of an existing command there)

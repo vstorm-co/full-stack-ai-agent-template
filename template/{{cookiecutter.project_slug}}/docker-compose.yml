@@ -208,7 +208,8 @@ services:
     networks:
       - backend
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:6333/healthz"]
+      # qdrant/qdrant image ships no curl/wget; probe the port with a bash /dev/tcp check instead.
+      test: ["CMD", "bash", "-c", "echo > /dev/tcp/localhost/6333"]
       interval: 10s
       timeout: 5s
       retries: 5

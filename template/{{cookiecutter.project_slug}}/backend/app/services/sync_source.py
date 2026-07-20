@@ -25,9 +25,7 @@ from app.schemas.sync_source import (
     SyncSourceRead,
     SyncSourceUpdate,
 )
-{%- if cookiecutter.use_arq %}
-from app.worker.arq_app import get_arq_pool
-{%- elif not cookiecutter.use_celery and not cookiecutter.use_taskiq and not cookiecutter.use_prefect %}
+{%- if not cookiecutter.use_arq and not cookiecutter.use_celery and not cookiecutter.use_taskiq and not cookiecutter.use_prefect %}
 from app.worker.background import fire_and_forget
 from app.worker.background.rag import sync_source_in_background
 {%- endif %}
@@ -261,6 +259,9 @@ class SyncSourceService:
         from app.worker.tasks.rag_tasks import sync_single_source_task
         sync_single_source_task.delay(source_id, str(sync_log.id))
 {%- elif cookiecutter.use_arq %}
+        # Deferred import: breaks the arq_app -> rag_tasks -> sync_source import cycle.
+        from app.worker.arq_app import get_arq_pool
+
         pool = await get_arq_pool()
         await pool.enqueue_job("sync_single_source", source_id, str(sync_log.id))
 {%- elif cookiecutter.use_prefect %}

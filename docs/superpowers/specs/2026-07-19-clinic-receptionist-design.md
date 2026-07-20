@@ -16,10 +16,13 @@ medical advice and never discusses PHI.
 
 | Decision | Choice |
 |---|---|
-| Capabilities | Scheduling, FAQs, message-taking & triage, billing info + handoff |
+| Capabilities | Scheduling including a Weekly outline, FAQs for patients , message-taking & triage, billing info + handoff, Account Reconcilation |
 | Channels | Web chat (built-in UI) + WhatsApp (Meta Cloud API webhook) |
 | Schedule source of truth | In-app PostgreSQL database |
-| Payments | Informational only; actual payment routed to staff/portal |
+| Payments | Informational only; actual payment routed to staff/portal to reconcile with accountant |
+| Payment estimates | Per-appointment estimate records computed from visit reason (rates from a staff-editable `visit_types` price list) |
+| Account reconciliation | Staff-only admin report: estimates vs appointments per period, CSV export for the accountant |
+| Weekly outline | Scheduled weekly WhatsApp summary to the doctor via ARQ cron, abbreviated patient names |
 | PHI posture | No PHI in chat — generic info and scheduling requests only; personal details via staff follow-up |
 | AI framework | PydanticAI |
 | Build approach | Generate + customize (not a template preset, not standalone) |
@@ -30,7 +33,7 @@ Generate with:
 
 ```bash
 fastapi-fullstack create clinic_receptionist \
-  --ai-framework pydantic_ai --rag --database postgresql
+  --ai-framework pydantic_ai --rag --database postgresql --task-queue arq
 ```
 
 (plus frontend enabled). This provides the FastAPI backend, Next.js chat UI,
@@ -78,9 +81,22 @@ The agent never triages medically beyond this escalation.
 ## Staff side (admin panel)
 
 - Appointment requests: confirm / decline.
-- Message inbox with urgent-flag highlighting.
+- Message inbox with urgent-flag highlighting tasks.
 - Availability management (recurring weekly hours + exceptions).
+- Visit-type price list management (drives payment estimates).
+- Reconciliation report: estimated payments vs appointments for a chosen
+  period, rendered in the admin panel with CSV export for the accountant.
+  Staff-only; patients never see it.
 - Staff-role gate on these routes.
+
+## Weekly schedule to the doctor
+
+A scheduled ARQ cron job (default: Monday 07:00 office time, configurable)
+builds a Markdown outline of the week's confirmed + pending appointments and
+sends it to the doctor's WhatsApp via the outbound client. Patient names are
+abbreviated to first-name initial + first four letters of the last name
+(e.g. "J. Smit — 9:00 — check-up") to keep the WhatsApp channel low-PHI;
+full details stay in the admin panel.
 
 ## Data
 
@@ -89,8 +105,13 @@ migrations:
 
 - `availability` — staff-managed open hours/slots.
 - `appointments` — requested/confirmed/declined/cancelled, with name, contact,
-  visit reason, slot.
+  visit reason, calendar slot.
 - `staff_messages` — structured messages with category and urgent flag.
+- `visit_types` — staff-editable list of visit types with standard estimated
+  rates (source for estimates; also lets the agent quote non-binding ranges).
+- `estimate_payments` — one record per appointment: appointment_id, visit
+  type, estimated amount (from `visit_types` at booking time), status. Feeds
+  the reconciliation report.
 
 FAQ content is authored as documents and ingested through the existing RAG CLI.
 
@@ -109,9 +130,9 @@ still get encrypted-at-rest treatment (standard Postgres deployment practice).
 ## Task phases
 
 - **Phase 0 — Generate & baseline:** generate project, boot backend/frontend/DB, run migrations, smoke-test stock chat.
-- **Phase 1 — Data layer:** models + migrations + repositories + services for the three tables (tests first).
-- **Phase 2 — Agent:** receptionist prompt, four tools, remove unneeded template tools, urgent-symptom guardrail.
+- **Phase 1 — Data layer:** models + migrations + repositories + services for the five tables (tests first).
+- **Phase 2 — Agent:** receptionist prompt, four tools, urgent-symptom guardrail, payment information guardrail.
 - **Phase 3 — Knowledge base:** author FAQ docs, ingest via RAG CLI, verify retrieval.
-- **Phase 4 — Staff admin:** API endpoints + UI pages for appointments, availability, message inbox.
-- **Phase 5 — WhatsApp:** webhook route, outbound sender, formatting, rate limiting, mocked-API integration tests.
+- **Phase 4 — Staff admin:** API endpoints + UI pages for appointments, availability, message inbox, visit-type price list, reconciliation report + CSV export.
+- **Phase 5 — WhatsApp:** webhook route, outbound sender, formatting, rate limiting, weekly-schedule ARQ cron job, mocked-API integration tests.
 - **Phase 6 — Hardening & ship:** security review, E2E test, coverage/lint/type checks, README + deployment notes.

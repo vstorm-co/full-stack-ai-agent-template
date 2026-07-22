@@ -728,3 +728,13 @@ def get_admin_service(db: DBSession) -> AdminService:
 
 AdminSvc = Annotated[AdminService, Depends(get_admin_service)]
 {%- endif %}
+{%- if cookiecutter.enable_mcp_client %}
+from app.services.mcp_connection import McpConnectionService
+
+
+def get_mcp_connection_service(db: DBSession) -> McpConnectionService:
+    return McpConnectionService(db)
+
+
+McpConnectionSvc = Annotated[McpConnectionService, Depends(get_mcp_connection_service)]
+{%- endif %}

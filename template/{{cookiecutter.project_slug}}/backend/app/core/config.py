@@ -11,6 +11,23 @@ from pydantic import computed_field, field_validator, model_validator{% if cooki
 from pydantic import field_validator, model_validator{% if cookiecutter.use_jwt or cookiecutter.use_api_key or cookiecutter.enable_cors %}, ValidationInfo{% endif %}
 {% endif -%}
 from pydantic_settings import BaseSettings, SettingsConfigDict
+{%- if cookiecutter.enable_mcp_client %}
+from pydantic import BaseModel
+{%- endif %}
+
+
+{%- if cookiecutter.enable_mcp_client %}
+
+
+class McpServerConfig(BaseModel):
+    """One deployment-managed MCP server (see MCP_SERVERS below)."""
+
+    name: str
+    url: str
+    headers: dict[str, str] = {}
+    # None = expose every tool the server offers.
+    allowed_tools: list[str] | None = None
+{%- endif %}
 
 
 def find_env_file() -> Path | None:
@@ -384,6 +401,19 @@ class Settings(BaseSettings):
     ENABLE_DEEP_RESEARCH: bool = False
     DEEP_RESEARCH_MAX_TOKENS: int = 120_000
     DEEP_RESEARCH_COMPRESS_THRESHOLD: float = 0.8
+{%- endif %}
+{%- if cookiecutter.enable_mcp_client %}
+
+    # Deployment-managed MCP servers, always attached to the agent (on top of
+    # the per-user connections configured in Settings → Integrations).
+    # JSON list, e.g.:
+    #   MCP_SERVERS='[{"name":"github","url":"https://api.githubcopilot.com/mcp/",
+    #                  "headers":{"Authorization":"Bearer ..."},
+    #                  "allowed_tools":["search_issues"]}]'
+    MCP_SERVERS: list[McpServerConfig] = []
+    # Per-server budget for the pre-flight tools/list ping; unreachable servers
+    # are skipped for the turn instead of failing the chat.
+    MCP_CONNECT_TIMEOUT_SECS: float = 3.0
 {%- endif %}
 {%- if cookiecutter.use_deepagents %}
 

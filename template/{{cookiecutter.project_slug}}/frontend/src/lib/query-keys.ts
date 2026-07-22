@@ -53,6 +53,12 @@ export const qk = {
   slashCommands: {
     list: () => ["slash-commands", "list"] as const,
   },
+{%- if cookiecutter.enable_mcp_client %}
+  mcpConnections: {
+    list: () => ["mcp-connections", "list"] as const,
+    workspace: () => ["mcp-connections", "workspace"] as const,
+  },
+{%- endif %}
   admin: {
     stats: () => ["admin", "stats"] as const,
     events: () => ["admin", "events"] as const,

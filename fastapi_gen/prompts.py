@@ -975,6 +975,29 @@ def prompt_deep_research() -> dict[str, bool]:
     }
 
 
+def prompt_mcp_client() -> bool:
+    """Prompt for the MCP client (PydanticAI only)."""
+    console.print()
+    console.print("[bold cyan]MCP Client[/]")
+    console.print(
+        "Let users connect external Model Context Protocol servers (Notion, Linear, "
+        "Jira, Stripe, GitHub, …) as extra agent tools from Settings → Integrations. "
+        "Includes a curated marketplace, per-user connections, OAuth sign-in and "
+        "token/SSE + streamable-HTTP transports."
+    )
+    console.print()
+
+    return cast(
+        bool,
+        _check_cancelled(
+            questionary.confirm(
+                "Enable the MCP client (PydanticAI only)?",
+                default=False,
+            ).ask()
+        ),
+    )
+
+
 def prompt_langsmith() -> bool:
     """Prompt for LangSmith observability."""
     return cast(
@@ -1493,6 +1516,7 @@ def run_interactive_prompts() -> ProjectConfig:
         "enable_code_execution": False,
         "enable_skills": False,
         "enable_deep_research": False,
+        "enable_mcp_client": False,
         "rag_features": RAGFeatures(),
         "orm_type": OrmType.SQLALCHEMY,
         "sandbox_backend": "state",
@@ -1672,6 +1696,12 @@ def run_interactive_prompts() -> ProjectConfig:
             state["enable_todo"] = False
             state["enable_subagents"] = False
 
+    def step_mcp_client() -> None:
+        if state.get("ai_framework") == AIFrameworkType.PYDANTIC_AI.value:
+            state["enable_mcp_client"] = prompt_mcp_client()
+        else:
+            state["enable_mcp_client"] = False
+
     def step_langsmith() -> None:
         if state["ai_framework"] in (
             AIFrameworkType.LANGCHAIN,
@@ -1734,6 +1764,7 @@ def run_interactive_prompts() -> ProjectConfig:
         ("Code Execution", step_code_execution),
         ("Skills System", step_skills),
         ("Deep Research", step_deep_research),
+        ("MCP Client", step_mcp_client),
         ("Observability (Logfire)", step_logfire),
         ("Agent Sandbox", step_sandbox_backend),
         ("LLM Provider", step_llm_provider),
@@ -1786,6 +1817,7 @@ def run_interactive_prompts() -> ProjectConfig:
     enable_code_execution = state["enable_code_execution"]
     enable_skills = state["enable_skills"]
     enable_deep_research = state["enable_deep_research"]
+    enable_mcp_client = state["enable_mcp_client"]
     rag_features = state["rag_features"]
     enable_langsmith = state["enable_langsmith"]
     use_telegram = state["use_telegram"]
@@ -1844,6 +1876,7 @@ def run_interactive_prompts() -> ProjectConfig:
         enable_code_execution=enable_code_execution,
         enable_skills=enable_skills,
         enable_deep_research=enable_deep_research,
+        enable_mcp_client=enable_mcp_client,
         use_telegram=use_telegram,
         use_slack=use_slack,
         rate_limit_requests=rate_limit_requests,

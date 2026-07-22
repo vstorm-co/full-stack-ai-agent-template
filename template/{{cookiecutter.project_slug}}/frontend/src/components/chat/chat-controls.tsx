@@ -18,6 +18,9 @@ import {
 {%- endif %}
   Settings2,
   Sliders,
+{%- if cookiecutter.enable_mcp_client %}
+  Plug,
+{%- endif %}
 {%- if cookiecutter.enable_teams and cookiecutter.enable_rag %}
   Sparkles,
   Users,
@@ -43,12 +46,19 @@ import { cn } from "@/lib/utils";
 {%- if cookiecutter.enable_teams and cookiecutter.enable_rag %}
 import type { KBScope, KnowledgeBase } from "@/types";
 {%- endif %}
+{%- if cookiecutter.enable_mcp_client %}
+import Link from "next/link";
+import { toast } from "sonner";
+import { useMcpConnections } from "@/hooks";
+import { ROUTES } from "@/lib/constants";
+import type { McpConnectionRecord } from "@/lib/mcp-connections-api";
+{%- endif %}
 
 type ThinkingEffort = "off" | "low" | "medium" | "high";
 {%- if cookiecutter.enable_teams and cookiecutter.enable_rag %}
-type Tab = "kb" | "model" | "settings";
+type Tab = "kb" | "model" | "settings"{% if cookiecutter.enable_mcp_client %} | "plugins"{% endif %};
 {%- else %}
-type Tab = "model" | "settings";
+type Tab = "model" | "settings"{% if cookiecutter.enable_mcp_client %} | "plugins"{% endif %};
 {%- endif %}
 
 interface ChatControlsProps {
@@ -249,6 +259,14 @@ export function ChatControls({
               onClick={() => setTab("settings")}
             />
           )}
+{%- if cookiecutter.enable_mcp_client %}
+          <TabButton
+            icon={Plug}
+            label="Plugins"
+            active={tab === "plugins"}
+            onClick={() => setTab("plugins")}
+          />
+{%- endif %}
         </div>
 
         <div className="max-h-[420px] scrollbar-thin overflow-y-auto p-4">
@@ -289,6 +307,9 @@ export function ChatControls({
               }}
             />
           )}
+{%- if cookiecutter.enable_mcp_client %}
+          {tab === "plugins" && <PluginsPanel />}
+{%- endif %}
         </div>
 
         <div className="border-foreground/10 text-foreground/45 flex items-center justify-between border-t px-4 py-2 font-mono text-[10px] tracking-wider uppercase">
@@ -477,6 +498,98 @@ function ModelPanel({
     </div>
   );
 }
+
+{%- if cookiecutter.enable_mcp_client %}
+/** Plugins panel — toggle the user's MCP servers on/off for the assistant. */
+function PluginsPanel() {
+  const { connections, isLoading, update } = useMcpConnections();
+
+  const handleToggle = async (connection: McpConnectionRecord, next: boolean) => {
+    try {
+      await update(connection.id, { is_enabled: next });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to toggle plugin");
+    }
+  };
+
+  return (
+    <div>
+      <p className="text-foreground mb-1 text-sm font-semibold">Plugins</p>
+      <p className="text-foreground/55 mb-4 text-xs leading-relaxed">
+        MCP servers your assistant can pull tools from. Changes apply from your next message.
+      </p>
+
+      {connections.length === 0 ? (
+        <p className="text-foreground/55 text-xs leading-relaxed">
+          No servers connected yet.{" "}
+          <Link
+            href={ROUTES.SETTINGS_INTEGRATIONS}
+            className="text-foreground underline underline-offset-2"
+          >
+            Add one in Settings → Integrations
+          </Link>
+          .
+        </p>
+      ) : (
+        <>
+          <ul className="space-y-1">
+            {connections.map((connection) => (
+              <li
+                key={connection.id}
+                className="border-border flex items-center gap-3 rounded-xl border px-3 py-2.5"
+              >
+                <span
+                  aria-hidden
+                  className={cn(
+                    "h-1.5 w-1.5 shrink-0 rounded-full",
+                    // Off (toggle disabled) reads as muted/inactive, regardless of last test.
+                    !connection.is_enabled && "bg-foreground/20",
+                    connection.is_enabled && connection.last_status === "ok" && "bg-emerald-500",
+                    connection.is_enabled && connection.last_status === "error" && "bg-destructive",
+                    connection.is_enabled && !connection.last_status && "bg-foreground/40",
+                  )}
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="text-foreground truncate text-xs font-medium">{connection.name}</p>
+                  <p className="text-foreground/45 text-[10px]">
+                    {connection.allowed_tools === null
+                      ? "all tools"
+                      : `${connection.allowed_tools.length} tools`}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={connection.is_enabled}
+                  disabled={isLoading}
+                  onClick={() => handleToggle(connection, !connection.is_enabled)}
+                  className={cn(
+                    "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors",
+                    connection.is_enabled ? "bg-primary" : "bg-foreground/20",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "bg-background inline-block h-4 w-4 transform rounded-full shadow transition-transform",
+                      connection.is_enabled ? "translate-x-4" : "translate-x-0.5",
+                    )}
+                  />
+                </button>
+              </li>
+            ))}
+          </ul>
+          <Link
+            href={ROUTES.SETTINGS_INTEGRATIONS}
+            className="text-foreground/55 hover:text-foreground mt-3 inline-block text-[11px] underline-offset-2 hover:underline"
+          >
+            Manage servers & tools in Settings
+          </Link>
+        </>
+      )}
+    </div>
+  );
+}
+{%- endif %}
 
 /** Chat settings panel — temperature + thinking effort. */
 function SettingsPanel({

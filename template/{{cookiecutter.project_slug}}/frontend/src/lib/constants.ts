@@ -26,6 +26,9 @@ export const ROUTES = {
   SETTINGS_APPEARANCE: "/settings/appearance",
   SETTINGS_NOTIFICATIONS: "/settings/notifications",
   SETTINGS_SLASH_COMMANDS: "/settings/slash-commands",
+{%- if cookiecutter.enable_mcp_client %}
+  SETTINGS_INTEGRATIONS: "/settings/integrations",
+{%- endif %}
   RAG: "/rag",
   ADMIN: "/admin",
   ADMIN_USERS: "/admin/users",

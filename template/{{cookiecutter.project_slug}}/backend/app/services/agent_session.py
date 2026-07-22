@@ -46,6 +46,9 @@ from app.db.models.user import User
 from app.api.deps import get_conversation_service
 from app.db.session import get_db_context
 from app.services.file_storage import get_file_storage
+{%- if cookiecutter.enable_mcp_client %}
+from app.services.mcp_connection import build_toolsets_for_user
+{%- endif %}
 {%- if cookiecutter.enable_billing and cookiecutter.enable_teams and cookiecutter.enable_credits_system %}
 from app.services.usage import UsageService
 {%- endif %}
@@ -210,9 +213,17 @@ class AgentSession:
             else:
                 deep_research = False
 {%- endif %}
+{%- if cookiecutter.enable_mcp_client %}
+            # Rebuilt every turn so Settings → Integrations changes apply
+            # immediately; unreachable/unauthorized servers are skipped there.
+            mcp_toolsets = await build_toolsets_for_user(self.user.id)
+{%- endif %}
             assistant = get_agent(
                 model_name=data.get("model"),
                 thinking_effort=data.get("thinking_effort"),
+{%- if cookiecutter.enable_mcp_client %}
+                extra_toolsets=mcp_toolsets,
+{%- endif %}
 {%- if cookiecutter.enable_deep_research %}
                 deep_research=deep_research,
 {%- endif %}

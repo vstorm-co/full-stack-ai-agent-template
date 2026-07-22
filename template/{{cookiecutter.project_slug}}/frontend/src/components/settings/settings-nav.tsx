@@ -5,6 +5,9 @@ import { usePathname } from "next/navigation";
 import {
   Bell,
   Palette,
+{%- if cookiecutter.enable_mcp_client %}
+  Plug,
+{%- endif %}
   Shield,
 {%- if cookiecutter.use_auth and cookiecutter.use_ai %}
   Slash,
@@ -42,6 +45,14 @@ const ITEMS: NavItem[] = [
     href: ROUTES.SETTINGS_SLASH_COMMANDS,
     icon: Slash,
     description: "Custom shortcuts + built-in toggles",
+  },
+{%- endif %}
+{%- if cookiecutter.enable_mcp_client %}
+  {
+    label: "Integrations",
+    href: ROUTES.SETTINGS_INTEGRATIONS,
+    icon: Plug,
+    description: "MCP servers for extra agent tools",
   },
 {%- endif %}
   {

@@ -50,6 +50,7 @@ enable_code_execution = "{{ cookiecutter.enable_code_execution }}" == "True"
 enable_deep_research = "{{ cookiecutter.enable_deep_research }}" == "True"
 enable_todo = "{{ cookiecutter.enable_todo }}" == "True"
 enable_subagents = "{{ cookiecutter.enable_subagents }}" == "True"
+enable_mcp_client = "{{ cookiecutter.enable_mcp_client }}" == "True"
 use_pydantic_deep = "{{ cookiecutter.use_pydantic_deep }}" == "True"
 use_telegram = "{{ cookiecutter.use_telegram }}" == "True"
 use_slack = "{{ cookiecutter.use_slack }}" == "True"
@@ -158,6 +159,39 @@ if not enable_deep_research and use_frontend:
     remove_file(os.path.join(frontend_src, "stores", "chat-mode-store.ts"))
     remove_file(os.path.join(frontend_src, "lib", "research-from-tools.ts"))
     remove_file(os.path.join(frontend_src, "components", "chat", "research-replay-block.tsx"))
+
+# MCP client (Settings → Integrations). The backend files are full modules
+# (not Jinja stubs), so the stub sweep won't catch them — remove explicitly.
+if not enable_mcp_client:
+    backend_root = os.path.join(os.getcwd(), "backend")
+    remove_file(os.path.join(backend_app, "agents", "mcp.py"))
+    remove_file(os.path.join(backend_app, "agents", "mcp_oauth.py"))
+    remove_file(os.path.join(backend_app, "services", "mcp_connection.py"))
+    remove_file(os.path.join(backend_app, "repositories", "mcp_connection.py"))
+    remove_file(os.path.join(backend_app, "schemas", "mcp_connection.py"))
+    remove_file(os.path.join(backend_app, "db", "models", "mcp_connection.py"))
+    remove_file(os.path.join(backend_app, "api", "routes", "v1", "me_mcp_connections.py"))
+    remove_file(os.path.join(backend_root, "tests", "test_mcp_connections.py"))
+    remove_file(
+        os.path.join(backend_root, "alembic", "versions", "0026_create_mcp_connections.py")
+    )
+    if use_frontend:
+        frontend_src = os.path.join(os.getcwd(), "frontend", "src")
+        remove_file(os.path.join(frontend_src, "lib", "mcp-catalog.ts"))
+        remove_file(os.path.join(frontend_src, "lib", "mcp-logos.generated.ts"))
+        remove_file(os.path.join(frontend_src, "lib", "mcp-connections-api.ts"))
+        remove_file(os.path.join(frontend_src, "hooks", "use-mcp-connections.ts"))
+        remove_file(os.path.join(frontend_src, "components", "demo", "demo-mode.tsx"))
+        remove_file(os.path.join(os.getcwd(), "frontend", "scripts", "gen-mcp-logos.ts"))
+        remove_file(
+            os.path.join(frontend_src, "components", "settings", "mcp-connections-manager.tsx")
+        )
+        remove_dir(
+            os.path.join(
+                frontend_src, "app", "[locale]", "(dashboard)", "settings", "integrations"
+            )
+        )
+        remove_dir(os.path.join(frontend_src, "app", "api", "me", "mcp-connections"))
 
 # The fetched-page tool-result renderer is only referenced when web fetch is on.
 if not enable_web_fetch and use_frontend:

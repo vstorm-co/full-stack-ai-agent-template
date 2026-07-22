@@ -22,7 +22,8 @@
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:ui": "vitest --ui"{% if cookiecutter.enable_demo_export %},
-    "build:demo-export": "vite build --config demo-export/vite.config.ts"{% endif %}
+    "build:demo-export": "vite build --config demo-export/vite.config.ts"{% endif %}{% if cookiecutter.enable_mcp_client %},
+    "gen:mcp-logos": "bun run scripts/gen-mcp-logos.ts"{% endif %}
   },
   "dependencies": {
     "next": "^15.1.0",

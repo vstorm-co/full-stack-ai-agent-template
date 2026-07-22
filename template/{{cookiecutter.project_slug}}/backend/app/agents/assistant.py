@@ -191,6 +191,9 @@ class AssistantAgent:
         temperature: float | None = None,
         system_prompt: str | None = None,
         thinking_effort: str | None = None,
+{%- if cookiecutter.enable_mcp_client %}
+        extra_toolsets: list[Any] | None = None,
+{%- endif %}
 {%- if cookiecutter.enable_deep_research %}
         deep_research: bool = False,
 {%- endif %}
@@ -215,6 +218,9 @@ class AssistantAgent:
 {%- endif %}
 {%- if cookiecutter.enable_deep_research %}
         self.context_manager_capability = context_manager_capability
+{%- endif %}
+{%- if cookiecutter.enable_mcp_client %}
+        self.extra_toolsets = extra_toolsets or []
 {%- endif %}
         self.model_name = model_name or settings.AI_MODEL
         # ``temperature`` stays ``None`` when caller didn't set it — don't fall
@@ -278,7 +284,7 @@ class AssistantAgent:
         if self.thinking_effort:
             model_settings["openai_reasoning_summary"] = "auto"  # type: ignore[typeddict-unknown-key]  # ty: ignore[invalid-key]
 
-{%- if cookiecutter.enable_skills %}
+{%- if cookiecutter.enable_skills or cookiecutter.enable_mcp_client %}
         toolsets: list[Any] = []
 {%- endif %}
 {%- if cookiecutter.enable_skills %}
@@ -286,6 +292,12 @@ class AssistantAgent:
         skills_dir = Path(__file__).parent.parent.parent / "skills"
         if skills_dir.exists():
             toolsets.append(SkillsToolset(directories=[str(skills_dir)]))
+{%- endif %}
+{%- if cookiecutter.enable_mcp_client %}
+
+        # MCP servers (deployment-managed + the user's Settings → Integrations
+        # connections) resolved for this turn; see build_toolsets_for_user.
+        toolsets.extend(self.extra_toolsets)
 {%- endif %}
 {%- if cookiecutter.enable_todo %}
 
@@ -307,7 +319,7 @@ class AssistantAgent:
             model_settings=model_settings,
             system_prompt=self.system_prompt,
             capabilities=capabilities,
-{%- if cookiecutter.enable_skills %}
+{%- if cookiecutter.enable_skills or cookiecutter.enable_mcp_client %}
             toolsets=toolsets,
 {%- endif %}
         )
@@ -516,6 +528,9 @@ def get_agent(
     model_name: str | None = None,
     thinking_effort: str | None = None,
     temperature: float | None = None,
+{%- if cookiecutter.enable_mcp_client %}
+    extra_toolsets: list[Any] | None = None,
+{%- endif %}
 {%- if cookiecutter.enable_deep_research %}
     deep_research: bool = False,
 {%- endif %}
@@ -533,6 +548,9 @@ def get_agent(
         model_name=model_name,
         thinking_effort=thinking_effort,
         temperature=temperature,
+{%- if cookiecutter.enable_mcp_client %}
+        extra_toolsets=extra_toolsets,
+{%- endif %}
 {%- if cookiecutter.enable_deep_research %}
         deep_research=deep_research,
 {%- endif %}

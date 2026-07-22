@@ -22,9 +22,16 @@ import {
 {%- if cookiecutter.enable_charts %}
   BarChart3,
 {%- endif %}
+{%- if cookiecutter.enable_mcp_client %}
+  Plug,
+{%- endif %}
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toolCaption, toolDisplayName } from "@/lib/agent-step-captions";
+{%- if cookiecutter.enable_mcp_client %}
+import { useDemoMode } from "@/components/demo/demo-mode";
+import { matchCatalogMcpTool, logoDataUri } from "@/lib/mcp-catalog";
+{%- endif %}
 {%- if cookiecutter.enable_charts %}
 import { ChartMessage, parseChartResult } from "./chart-message";
 {%- endif %}
@@ -203,6 +210,19 @@ export function ToolCallCard({ toolCall, defaultExpanded = false }: ToolCallCard
   const isRunning = toolCall.status === "running" || toolCall.status === "pending";
   const isError = toolCall.status === "error";
   const liveCaption = toolCaption(toolCall.name);
+{%- if cookiecutter.enable_mcp_client %}
+
+  // MCP "plugin" badge — demo-only. In a live chat the badge is hidden; during a
+  // demo replay/export it flags which tool calls went through an external MCP
+  // server and shows that server's brand logo. Resolved from the static catalog
+  // (no live connections), so it works in the self-contained export too.
+  const demoMode = useDemoMode();
+  const mcp = demoMode ? matchCatalogMcpTool(toolCall.name) : null;
+  // Drop the "{server}_" prefix from the label — the MCP badge carries the server name.
+  const displayName = mcp
+    ? toolDisplayName(toolCall.name.slice(mcp.prefix.length + 1))
+    : friendlyName;
+{%- endif %}
 
   return (
     <Card
@@ -245,8 +265,29 @@ export function ToolCallCard({ toolCall, defaultExpanded = false }: ToolCallCard
               </span>
             </span>
           ) : (
-            <span className="truncate text-sm font-medium">{friendlyName}</span>
+            <span className="truncate text-sm font-medium">{% if cookiecutter.enable_mcp_client %}{displayName}{% else %}{friendlyName}{% endif %}</span>
           )}
+{%- if cookiecutter.enable_mcp_client %}
+          {mcp ? (
+            <span
+              title={`Provided by ${mcp.entry.title} (MCP plugin)`}
+              className="border-brand/30 text-brand inline-flex shrink-0 items-center gap-1 rounded-full border py-0.5 pr-2 pl-1 font-mono text-[9px] font-medium tracking-wider uppercase"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={logoDataUri(mcp.entry.domain)}
+                alt=""
+                aria-hidden
+                className="h-3 w-3 rounded-[2px]"
+                onError={(e) => {
+                  e.currentTarget.style.display = "none";
+                }}
+              />
+              <Plug className="h-2.5 w-2.5" />
+              {mcp.entry.title}
+            </span>
+          ) : null}
+{%- endif %}
           {inputHint && !isRunning ? (
             <span className="text-muted-foreground min-w-0 flex-1 truncate text-xs italic">
               {inputHint}

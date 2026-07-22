@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Bell, Palette, Shield, Slash, UserCircle } from "lucide-react";
+import { Bell, Palette, {% if cookiecutter.enable_mcp_client %}Plug, {% endif %}Shield, Slash, UserCircle } from "lucide-react";
 
 import { ROUTES } from "@/lib/constants";
 import { PageHeader } from "@/components/dashboard/page-header";
@@ -11,6 +11,9 @@ const SETTINGS_TABS: PageTab[] = [
   { label: "Profile", href: ROUTES.SETTINGS_PROFILE, icon: UserCircle },
   { label: "Account", href: ROUTES.SETTINGS_ACCOUNT, icon: Shield },
   { label: "Slash commands", href: ROUTES.SETTINGS_SLASH_COMMANDS, icon: Slash },
+{%- if cookiecutter.enable_mcp_client %}
+  { label: "Integrations", href: ROUTES.SETTINGS_INTEGRATIONS, icon: Plug },
+{%- endif %}
   { label: "Notifications", href: ROUTES.SETTINGS_NOTIFICATIONS, icon: Bell },
   { label: "Appearance", href: ROUTES.SETTINGS_APPEARANCE, icon: Palette },
 ];

@@ -35,6 +35,10 @@ import { MessageItem } from "@/components/chat/message-item";
 import { ResearchReplayBlock } from "@/components/chat/research-replay-block";
 {% endraw %}{%- endif %}{% raw %}
 import { ToolCallCard } from "@/components/chat/tool-call-card";
+{% endraw %}{%- if cookiecutter.enable_mcp_client %}{% raw %}
+import { DemoModeProvider } from "./demo-mode";
+import { matchCatalogMcpTool, logoDataUri } from "@/lib/mcp-catalog";
+{% endraw %}{%- endif %}{% raw %}
 {% endraw %}{%- if cookiecutter.enable_web_fetch %}{% raw %}
 import { FetchUrlResult } from "@/components/chat/tool-results/fetch-url";
 {% endraw %}{%- endif %}{% raw %}
@@ -505,6 +509,10 @@ function GraphNode({ frame, active, onClick }: { frame: Frame; active: boolean; 
   const sub = graphSubLabel(frame);
   const preview = graphNodePreview(frame);
   const accent = NODE_ACCENT[accentKeyFor(frame.kind)];
+{% endraw %}{%- if cookiecutter.enable_mcp_client %}{% raw %}
+  // Flag tool calls that went through an external MCP server (demo-only affordance).
+  const mcp = frame.tool ? matchCatalogMcpTool(frame.tool.name) : null;
+{% endraw %}{%- endif %}{% raw %}
   return (
     <button
       type="button"
@@ -528,6 +536,26 @@ function GraphNode({ frame, active, onClick }: { frame: Frame; active: boolean; 
           {sub && <span className="text-foreground/45 block truncate text-xs">{sub}</span>}
         </span>
         <span className="flex shrink-0 items-center gap-1.5">
+{% endraw %}{%- if cookiecutter.enable_mcp_client %}{% raw %}
+          {mcp && (
+            <span
+              title={`Provided by ${mcp.entry.title} (MCP plugin)`}
+              className="border-brand/30 text-brand inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] font-medium tracking-wide uppercase"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={logoDataUri(mcp.entry.domain)}
+                alt=""
+                aria-hidden
+                className="h-3 w-3 rounded-[2px]"
+                onError={(e) => {
+                  e.currentTarget.style.display = "none";
+                }}
+              />
+              MCP
+            </span>
+          )}
+{% endraw %}{%- endif %}{% raw %}
           {preview.meta && (
             <span className="text-foreground/50 bg-muted rounded px-1.5 py-0.5 font-mono text-[10px] tabular-nums">
               {preview.meta}
@@ -1051,6 +1079,9 @@ export function DemoReplay({ rawMessages }: DemoReplayProps) {
   const panelVisible = panelOpen && !showPrePlay;
 
   return (
+{% endraw %}{%- if cookiecutter.enable_mcp_client %}{% raw %}
+    <DemoModeProvider>
+{% endraw %}{%- endif %}{% raw %}
     <div className={cn("mx-auto flex h-[calc(100vh-3.5rem)] w-full", panelVisible ? "max-w-none" : "max-w-4xl")}>
       {/* Chat + dock column — grows to fill the left; the panel takes a fixed share on the right */}
       <div className={cn("flex min-w-0 flex-1 flex-col px-4", panelVisible && "hidden lg:flex")}>
@@ -1324,6 +1355,9 @@ export function DemoReplay({ rawMessages }: DemoReplayProps) {
         </aside>
       )}
     </div>
+{% endraw %}{%- if cookiecutter.enable_mcp_client %}{% raw %}
+    </DemoModeProvider>
+{% endraw %}{%- endif %}{% raw %}
   );
 }
 {% endraw %}

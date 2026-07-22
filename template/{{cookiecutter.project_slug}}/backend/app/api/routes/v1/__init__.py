@@ -30,6 +30,9 @@ from app.api.routes.v1 import projects
 {%- if cookiecutter.enable_webhooks and cookiecutter.use_database %}
 from app.api.routes.v1 import webhooks
 {%- endif %}
+{%- if cookiecutter.enable_mcp_client %}
+from app.api.routes.v1 import me_mcp_connections
+{%- endif %}
 {%- if cookiecutter.use_ai %}
 from app.api.routes.v1 import agent
 {%- endif %}
@@ -115,6 +118,13 @@ v1_router.include_router(projects.router, prefix="/projects", tags=["projects"])
 {%- if cookiecutter.enable_webhooks and cookiecutter.use_database %}
 
 v1_router.include_router(webhooks.router, prefix="/webhooks", tags=["webhooks"])
+{%- endif %}
+
+{%- if cookiecutter.enable_mcp_client %}
+
+v1_router.include_router(
+    me_mcp_connections.router, prefix="/me/mcp-connections", tags=["me:mcp-connections"]
+)
 {%- endif %}
 
 {%- if cookiecutter.use_ai %}

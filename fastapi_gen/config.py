@@ -328,6 +328,7 @@ class ProjectConfig(BaseModel):
     enable_deep_research: bool = False
     enable_todo: bool = False
     enable_subagents: bool = False
+    enable_mcp_client: bool = False
     use_telegram: bool = False
     use_slack: bool = False
     enable_cors: bool = True
@@ -490,6 +491,23 @@ class ProjectConfig(BaseModel):
             raise ValueError(
                 "Deep research requires the PydanticAI framework. "
                 "Quick fix: set --ai-framework pydantic_ai, or drop --deep-research."
+            )
+
+        if self.enable_mcp_client and self.ai_framework != AIFrameworkType.PYDANTIC_AI:
+            raise ValueError(
+                "The MCP client requires the PydanticAI framework. "
+                "Quick fix: set --ai-framework pydantic_ai, or drop --mcp-client."
+            )
+        if self.enable_mcp_client and not self.use_ai:
+            raise ValueError(
+                "The MCP client requires an AI framework. "
+                "Quick fix: set --ai-framework pydantic_ai, or drop --mcp-client."
+            )
+        if self.enable_mcp_client and self.database != DatabaseType.POSTGRESQL:
+            raise ValueError(
+                "The MCP client stores per-user connections in PostgreSQL "
+                "(JSONB + encrypted tokens). "
+                "Quick fix: switch to --database postgresql or drop --mcp-client."
             )
 
         # --no-ai: RAG and websockets require an AI framework
@@ -816,6 +834,7 @@ class ProjectConfig(BaseModel):
             "enable_deep_research": self.enable_deep_research,
             "enable_todo": self.enable_todo,
             "enable_subagents": self.enable_subagents,
+            "enable_mcp_client": self.enable_mcp_client,
             "enable_webhooks": self.enable_webhooks,
             # Legacy fixed values (WebSocket always uses JWT)
             "websocket_auth": "jwt",

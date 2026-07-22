@@ -58,6 +58,10 @@ from app.db.models.knowledge_base import KnowledgeBase
 {%- set _ = models.append("UserSlashCommand") %}
 from app.db.models.user_slash_command import UserSlashCommand
 {%- endif %}
+{%- if cookiecutter.enable_mcp_client %}
+{%- set _ = models.append("McpConnection") %}
+from app.db.models.mcp_connection import McpConnection
+{%- endif %}
 {%- if models %}
 
 __all__ = {{ models }}

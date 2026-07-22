@@ -55,6 +55,10 @@ from app.repositories import organization as organization_repo
 
 from app.repositories import user_slash_command as user_slash_command_repo
 {%- endif %}
+{%- if cookiecutter.enable_mcp_client %}
+
+from app.repositories import mcp_connection as mcp_connection_repo
+{%- endif %}
 
 __all__ = [
 {%- if cookiecutter.use_jwt %}
@@ -99,5 +103,8 @@ __all__ = [
 {%- endif %}
 {%- if cookiecutter.use_auth and cookiecutter.use_ai %}
     "user_slash_command_repo",
+{%- endif %}
+{%- if cookiecutter.enable_mcp_client %}
+    "mcp_connection_repo",
 {%- endif %}
 ]

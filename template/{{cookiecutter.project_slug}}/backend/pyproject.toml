@@ -121,6 +121,10 @@ dependencies = [
 {%- elif cookiecutter.use_openrouter %}
     "pydantic-ai-slim[openrouter,duckduckgo,web-fetch]>=1.80.0",
 {%- endif %}
+{%- if cookiecutter.enable_mcp_client %}
+    # MCP client transports + toolset support (Settings → Integrations).
+    "pydantic-ai-slim[mcp]>=1.80.0",
+{%- endif %}
 {%- endif %}
 {%- if cookiecutter.use_langchain %}
     "langchain>=1.2.0",

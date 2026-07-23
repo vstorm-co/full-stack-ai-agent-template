@@ -498,12 +498,13 @@ class ProjectConfig(BaseModel):
                 "The MCP client requires the PydanticAI framework. "
                 "Quick fix: set --ai-framework pydantic_ai, or drop --mcp-client."
             )
-        if self.enable_mcp_client and not self.use_ai:
-            raise ValueError(
-                "The MCP client requires an AI framework. "
-                "Quick fix: set --ai-framework pydantic_ai, or drop --mcp-client."
-            )
-        if self.enable_mcp_client and self.database != DatabaseType.POSTGRESQL:
+        # Defense-in-depth: unreachable today because the only non-Postgres option
+        # (DatabaseType.NONE) is already rejected above ("a database is required"), but
+        # kept so wiring in another backend (e.g. MongoDB) can't silently ship the MCP
+        # client on a store that lacks JSONB + encrypted-token columns.
+        if (
+            self.enable_mcp_client and self.database != DatabaseType.POSTGRESQL
+        ):  # pragma: no cover
             raise ValueError(
                 "The MCP client stores per-user connections in PostgreSQL "
                 "(JSONB + encrypted tokens). "

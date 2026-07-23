@@ -404,6 +404,31 @@ class TestOptionCombinationValidation:
                 background_tasks=BackgroundTaskType.NONE,
             )
 
+    def test_mcp_client_requires_pydantic_ai(self) -> None:
+        """The MCP client is wired only for the PydanticAI framework."""
+        with pytest.raises(
+            ValidationError, match="The MCP client requires the PydanticAI framework"
+        ):
+            ProjectConfig(
+                project_name="test",
+                ai_framework=AIFrameworkType.LANGCHAIN,
+                enable_mcp_client=True,
+                database=DatabaseType.POSTGRESQL,
+                background_tasks=BackgroundTaskType.NONE,
+            )
+
+    def test_mcp_client_with_pydantic_ai_and_postgresql_is_valid(self) -> None:
+        """The supported combination generates without error."""
+        config = ProjectConfig(
+            project_name="test",
+            ai_framework=AIFrameworkType.PYDANTIC_AI,
+            enable_mcp_client=True,
+            database=DatabaseType.POSTGRESQL,
+            background_tasks=BackgroundTaskType.NONE,
+        )
+        assert config.enable_mcp_client is True
+        assert config.to_cookiecutter_context()["enable_mcp_client"] is True
+
     def test_demo_export_requires_frontend(self) -> None:
         """Test that demo export requires a frontend to bundle the replay UI."""
         with pytest.raises(ValidationError, match="Demo export requires a frontend"):

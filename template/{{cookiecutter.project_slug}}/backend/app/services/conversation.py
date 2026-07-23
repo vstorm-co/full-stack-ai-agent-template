@@ -7,7 +7,7 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import func, select
 
-from app.core.exceptions import NotFoundError
+from app.core.exceptions import AuthorizationError, NotFoundError
 from app.db.models.conversation import Conversation, Message, ToolCall
 {%- if cookiecutter.use_jwt %}
 from app.db.models.message_rating import MessageRating
@@ -517,8 +517,33 @@ class ConversationService:
         self,
         conversation_id: UUID,
         data: MessageCreate,
+{%- if cookiecutter.use_jwt %}
+        *,
+        user_id: UUID | None = None,
+{%- endif %}
     ) -> Message:
-        await self.get_conversation(conversation_id)
+        conversation = await self.get_conversation(
+            conversation_id,
+{%- if cookiecutter.use_jwt %}
+            user_id=user_id,
+{%- endif %}
+        )
+{%- if cookiecutter.use_jwt %}
+        if (
+            user_id is not None
+            and hasattr(conversation, "user_id")
+            and conversation.user_id is not None
+            and str(conversation.user_id) != str(user_id)
+        ):
+            share = await conversation_share_repo.get_share(
+                self.db, conversation_id, user_id
+            )
+            if not share or share.permission != "edit":
+                raise AuthorizationError(
+                    message="You do not have edit permission for this conversation",
+                    details={"conversation_id": str(conversation_id)},
+                )
+{%- endif %}
         return await conversation_repo.create_message(
             self.db,
             conversation_id=conversation_id,

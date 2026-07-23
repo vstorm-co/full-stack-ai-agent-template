@@ -502,9 +502,7 @@ class ProjectConfig(BaseModel):
         # (DatabaseType.NONE) is already rejected above ("a database is required"), but
         # kept so wiring in another backend (e.g. MongoDB) can't silently ship the MCP
         # client on a store that lacks JSONB + encrypted-token columns.
-        if (
-            self.enable_mcp_client and self.database != DatabaseType.POSTGRESQL
-        ):  # pragma: no cover
+        if self.enable_mcp_client and self.database != DatabaseType.POSTGRESQL:  # pragma: no cover
             raise ValueError(
                 "The MCP client stores per-user connections in PostgreSQL "
                 "(JSONB + encrypted tokens). "

@@ -7,6 +7,7 @@ import pytest
 
 from fastapi_gen.upgrade.merge import (
     MergeResult,
+    _tracked_files,
     apply_renames,
     is_excluded,
     materialize,
@@ -156,6 +157,66 @@ class TestMaterialize:
             "git checkout -f main && git branch -D template-upgrade/vY"
         )
 
+    def test_preserves_submodule(
+        self, tmp_path: Path, three_trees: tuple[Path, Path, Path]
+    ) -> None:
+        """A gitlink (mode 160000) is never materialized, so it must not be treated as a
+        tracked file and deleted from the client's worktree."""
+        base, ours, theirs = three_trees
+        client = tmp_path / "client"
+        client.mkdir()
+        for p in ours.rglob("*"):
+            if p.is_file():
+                rel = p.relative_to(ours)
+                (client / rel).parent.mkdir(parents=True, exist_ok=True)
+                (client / rel).write_text(p.read_text(), encoding="utf-8")
+        _init_client_repo(client)
+
+        inner = tmp_path / "inner"
+        inner.mkdir()
+        _write(inner, "m.txt", "sub content\n")
+        _init_client_repo(inner)
+        subprocess.run(
+            [
+                "git",
+                "-C",
+                str(client),
+                "-c",
+                "protocol.file.allow=always",
+                "submodule",
+                "add",
+                str(inner),
+                "vendor/sub",
+            ],
+            capture_output=True,
+            check=True,
+        )
+        subprocess.run(
+            ["git", "-C", str(client), "commit", "-q", "-m", "add submodule"], check=True
+        )
+
+        # The merged tree (from the fixture trees) knows nothing about vendor/sub.
+        result = merge_trees(base, ours, theirs)
+        materialize(result, client, branch="template-upgrade/vY")
+
+        assert (client / "vendor" / "sub").is_dir()
+        assert (client / "vendor" / "sub" / "m.txt").exists()
+        status = subprocess.run(
+            ["git", "-C", str(client), "status", "--porcelain"],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout
+        assert "vendor/sub" not in status
+
+    def test_tracked_files_handles_unicode(self, tmp_path: Path) -> None:
+        """ls-tree -z returns real paths — without it, non-ASCII names are C-quoted."""
+        client = tmp_path / "client"
+        client.mkdir()
+        _write(client, "żółć.txt", "unicode\n")
+        _init_client_repo(client)
+        assert "żółć.txt" in _tracked_files(client, "HEAD")
+
     def test_refuses_dirty_worktree(
         self, tmp_path: Path, three_trees: tuple[Path, Path, Path]
     ) -> None:
@@ -172,9 +233,7 @@ class TestMaterialize:
 
     def test_missing_store_raises(self, tmp_path: Path) -> None:
         with pytest.raises(RuntimeError, match="Merge store not found"):
-            materialize(
-                MergeResult(merged_tree="deadbeef"), tmp_path, branch="template-upgrade/vX"
-            )
+            materialize(MergeResult(merged_tree="deadbeef"), tmp_path, branch="template-upgrade/vX")
 
     def test_existing_branch_guard_and_force(self, tmp_path: Path) -> None:
         base, ours, theirs = tmp_path / "b", tmp_path / "o", tmp_path / "t"
@@ -189,9 +248,7 @@ class TestMaterialize:
         client.mkdir()
         _write(client, "f.txt", "a\n")
         _init_client_repo(client)
-        subprocess.run(
-            ["git", "-C", str(client), "branch", "template-upgrade/vY"], check=True
-        )
+        subprocess.run(["git", "-C", str(client), "branch", "template-upgrade/vY"], check=True)
 
         with pytest.raises(RuntimeError, match="already exists"):
             materialize(result, client, branch="template-upgrade/vY", force=False)

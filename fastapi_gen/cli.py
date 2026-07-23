@@ -1,5 +1,6 @@
 """CLI interface for Full-Stack AI Agent Template Generator."""
 
+import subprocess
 from pathlib import Path
 
 import click
@@ -1472,6 +1473,24 @@ _PATH_OPTION = click.option(
 )
 
 
+def _git_error_message(exc: subprocess.CalledProcessError) -> str:
+    """Turn a failed git call into a message that keeps its stderr.
+
+    Every git call in the upgrade runs with ``check=True`` and captured output, so a
+    raw ``CalledProcessError`` would surface only the exit status and bury the actual
+    reason (bad git version, unicode pathspec, …) in the swallowed stderr.
+    """
+    cmd = exc.cmd
+    printable = " ".join(map(str, cmd)) if isinstance(cmd, (list, tuple)) else str(cmd)
+    detail = exc.stderr
+    if isinstance(detail, bytes):
+        detail = detail.decode("utf-8", "replace")
+    message = f"git command failed: {printable}"
+    if detail and detail.strip():
+        message += f"\n{detail.strip()}"
+    return message
+
+
 @cli.group(invoke_without_command=True)
 @_PATH_OPTION
 @click.option("--to", "to_version", default=None, help="Target version (default: latest).")
@@ -1497,6 +1516,21 @@ def upgrade(
     upgrade; ``upgrade finalize`` bumps the manifest once conflicts are resolved.
     """
     if ctx.invoked_subcommand is not None:
+        misplaced = [
+            name
+            for name, given in (
+                ("--to", to_version is not None),
+                ("--dry-run", dry_run),
+                ("--with-new-features", with_new_features),
+                ("--force", force),
+            )
+            if given
+        ]
+        if misplaced:
+            raise click.UsageError(
+                f"{', '.join(misplaced)} applies to `upgrade`, not "
+                f"`upgrade {ctx.invoked_subcommand}`. Put it before the subcommand or drop it."
+            )
         return
 
     from .upgrade.runner import UpgradeError, run_upgrade
@@ -1509,6 +1543,8 @@ def upgrade(
             with_new_features=with_new_features,
             force=force,
         )
+    except subprocess.CalledProcessError as exc:
+        raise click.ClickException(_git_error_message(exc)) from exc
     except (UpgradeError, FileNotFoundError, RuntimeError, ValueError) as exc:
         raise click.ClickException(str(exc)) from exc
 
@@ -1521,6 +1557,8 @@ def upgrade_finalize(project_path: Path) -> None:
 
     try:
         run_finalize(project_path)
+    except subprocess.CalledProcessError as exc:
+        raise click.ClickException(_git_error_message(exc)) from exc
     except (UpgradeError, FileNotFoundError, RuntimeError, ValueError) as exc:
         raise click.ClickException(str(exc)) from exc
 
@@ -1533,6 +1571,8 @@ def upgrade_recover(project_path: Path) -> None:
 
     try:
         run_recover(project_path)
+    except subprocess.CalledProcessError as exc:  # pragma: no cover
+        raise click.ClickException(_git_error_message(exc)) from exc
     except (FileNotFoundError, RuntimeError) as exc:  # pragma: no cover
         raise click.ClickException(str(exc)) from exc
 

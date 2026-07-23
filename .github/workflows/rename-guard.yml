@@ -8,6 +8,9 @@ on:
       - "template/**"
       - "UPGRADES.yaml"
       - "fastapi_gen/upgrade/**"
+      - "scripts/check_rename_coverage.py"
+      - "scripts/record_renames.py"
+      - ".github/workflows/rename-guard.yml"
   workflow_dispatch:
 
 jobs:

@@ -122,7 +122,9 @@ def normalize_whitespace(tree: Path) -> None:
             path.write_text(normalized, encoding="utf-8", errors="surrogateescape")
 
 
-def _ruff_cmd() -> list[str] | None:
+def _ruff_cmd(preferred: Path | None = None) -> list[str] | None:
+    if preferred is not None and preferred.exists():
+        return [str(preferred)]
     ruff = shutil.which("ruff")
     if ruff:
         return [ruff]
@@ -132,10 +134,10 @@ def _ruff_cmd() -> list[str] | None:
     return [sys.executable, "-m", "ruff"] if probe.returncode == 0 else None
 
 
-def format_python(tree: Path, *, config: Path | None = None) -> bool:
+def format_python(tree: Path, *, config: Path | None = None, ruff_bin: Path | None = None) -> bool:
     """Best-effort ``ruff format`` over a tree. Returns True if ruff ran.
 
-    Two deliberate choices keep this from corrupting the merge:
+    Three deliberate choices keep this from corrupting the merge:
 
     * We run **only** ``ruff format`` — never ``check --fix``. Autofixes (unused-import
       removal, etc.) are code *changes*, not formatting; applying them to the client's
@@ -144,17 +146,33 @@ def format_python(tree: Path, *, config: Path | None = None) -> bool:
       tree's own ``pyproject.toml`` — the *client's* (often customized line-length /
       rule set) for OURS but the template's for BASE/THEIRS — so the trees format
       differently and every file looks edited, drowning the merge in false conflicts.
+    * A single ``ruff_bin`` (the client's own, when present) formats all three trees, so
+      the delivered merged tree matches the ruff the client's project pins — otherwise a
+      style change between the bundled ruff and theirs churns files the template never
+      touched.
+
+    A non-zero ruff exit is surfaced as a warning: if ruff fails on one tree (a syntax
+    error in a client file, say) but not the others, the trees format asymmetrically and
+    the merge floods with false conflicts — the user needs to know why.
     """
     backend = tree / "backend"
     target = backend if backend.exists() else tree
-    cmd = _ruff_cmd()
+    cmd = _ruff_cmd(ruff_bin)
     if not cmd:
         return False
     fmt = [*cmd, "format", "--quiet"]
     if config is not None and config.exists():
         fmt += ["--config", str(config)]
     fmt.append(str(target))
-    subprocess.run(fmt, capture_output=True, check=False)
+    proc = subprocess.run(fmt, capture_output=True, check=False)
+    if proc.returncode != 0:
+        # Lazy import — report → classify → merge → normalize is a module cycle.
+        from .report import console
+
+        console.print(
+            f"[yellow]⚠ ruff format exited {proc.returncode} on {target}[/] — formatting "
+            "may be uneven across trees, which can add spurious merge conflicts."
+        )
     return True
 
 
@@ -201,15 +219,16 @@ def normalize_tree(
     format_code: bool = True,
     frontend_node_modules: Path | None = None,
     ruff_config: Path | None = None,
+    ruff_bin: Path | None = None,
 ) -> None:
     """Apply the full normalization pass to a tree (in place).
 
     Must be applied *identically* to BASE, OURS and THEIRS so differences cancel —
-    which is why ``ruff_config`` (the one shared config) is passed the same for all
-    three.
+    which is why ``ruff_config`` (the one shared config) and ``ruff_bin`` (the one
+    shared binary) are passed the same for all three.
     """
     if format_code:
-        format_python(tree, config=ruff_config)
+        format_python(tree, config=ruff_config, ruff_bin=ruff_bin)
         format_frontend(tree, node_modules=frontend_node_modules)
     strip_generated_at(tree, generated_at)
     normalize_whitespace(tree)

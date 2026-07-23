@@ -181,6 +181,31 @@ def apply_renames(tree_dir: Path, renames: list[tuple[str, str]]) -> None:
                 shutil.move(str(src), str(dst))
 
 
+def _commit_tree(git_dir: Path, tree: str, parent: str | None = None) -> str:
+    """Wrap a bare tree oid in a throwaway commit and return the commit oid.
+
+    ``merge-tree --write-tree`` accepts bare *tree* oids only since Git 2.45, and its
+    ``--merge-base`` flag needs 2.40 — Debian 12 ships 2.39 and Ubuntu 24.04 ships
+    2.43, so both would fail. Feeding real commits instead (OURS/THEIRS as children of
+    a common BASE commit) lets ``merge-tree`` discover the merge base from ancestry,
+    which works down to Git 2.38 without ``--merge-base`` at all.
+    """
+    env = {
+        **os.environ,
+        "GIT_AUTHOR_NAME": "upgrade",
+        "GIT_AUTHOR_EMAIL": "upgrade@local",
+        "GIT_COMMITTER_NAME": "upgrade",
+        "GIT_COMMITTER_EMAIL": "upgrade@local",
+        "GIT_AUTHOR_DATE": "@0 +0000",
+        "GIT_COMMITTER_DATE": "@0 +0000",
+    }
+    args = ["git", f"--git-dir={git_dir}", "commit-tree", tree]
+    if parent is not None:
+        args += ["-p", parent]
+    args += ["-m", "upgrade"]
+    return subprocess.run(args, capture_output=True, text=True, check=True, env=env).stdout.strip()
+
+
 def merge_trees(base_dir: Path, ours_dir: Path, theirs_dir: Path) -> MergeResult:
     """3-way merge three concrete trees; return the merged tree + conflicts."""
     tmp = Path(tempfile.mkdtemp(prefix="fastapi-fullstack-merge-"))
@@ -193,6 +218,10 @@ def merge_trees(base_dir: Path, ours_dir: Path, theirs_dir: Path) -> MergeResult
     ours = _stage_tree(git_dir, ours_dir, tmp, "ours")
     theirs = _stage_tree(git_dir, theirs_dir, tmp, "theirs")
 
+    base_commit = _commit_tree(git_dir, base)
+    ours_commit = _commit_tree(git_dir, ours, parent=base_commit)
+    theirs_commit = _commit_tree(git_dir, theirs, parent=base_commit)
+
     proc = subprocess.run(
         [
             "git",
@@ -201,9 +230,8 @@ def merge_trees(base_dir: Path, ours_dir: Path, theirs_dir: Path) -> MergeResult
             "merge-tree",
             "--write-tree",
             "-z",
-            f"--merge-base={base}",
-            ours,
-            theirs,
+            ours_commit,
+            theirs_commit,
         ],
         capture_output=True,
         check=False,
@@ -239,9 +267,31 @@ def current_branch(repo: Path) -> str:
     return _client_git(repo, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip()
 
 
+def _ls_tree_entries(out: str) -> list[tuple[str, str]]:
+    """Parse ``ls-tree -r -z`` output into (mode, path) pairs.
+
+    ``-z`` is essential: without it ``ls-tree`` C-quotes any non-ASCII path when
+    ``core.quotepath`` is at its default, so ``żółć.txt`` comes back as a mangled
+    literal that then breaks every downstream pathspec.
+    """
+    entries: list[tuple[str, str]] = []
+    for record in out.split("\0"):
+        if not record:
+            continue
+        meta, _, path = record.partition("\t")
+        mode = meta.split(" ", 1)[0]
+        entries.append((mode, path))
+    return entries
+
+
 def _tracked_files(repo: Path, ref: str) -> set[str]:
-    out = _client_git(repo, "ls-tree", "-r", "--name-only", ref).stdout
-    return {line for line in out.splitlines() if line}
+    out = _client_git(repo, "ls-tree", "-r", "-z", ref).stdout
+    return {path for mode, path in _ls_tree_entries(out) if mode != "160000"}
+
+
+def _tracked_symlinks(repo: Path, ref: str) -> set[str]:
+    out = _client_git(repo, "ls-tree", "-r", "-z", ref).stdout
+    return {path for mode, path in _ls_tree_entries(out) if mode == "120000"}
 
 
 def _untracked_files(repo: Path) -> set[str]:
@@ -251,12 +301,12 @@ def _untracked_files(repo: Path) -> set[str]:
 
 def _tree_files(store: Path, tree: str) -> set[str]:
     out = subprocess.run(
-        ["git", f"--git-dir={store}", "ls-tree", "-r", "--name-only", tree],
+        ["git", f"--git-dir={store}", "ls-tree", "-r", "--name-only", "-z", tree],
         capture_output=True,
         text=True,
         check=True,
     ).stdout
-    return {line for line in out.splitlines() if line}
+    return {p for p in out.split("\0") if p}
 
 
 def materialize(
@@ -316,8 +366,8 @@ def _materialize_onto_branch(
 ) -> None:
     merged_files = _tree_files(store, result.merged_tree)
     in_scope_tracked = {f for f in _tracked_files(client_repo, base_ref) if not is_excluded(f)}
-    symlinks = {
-        p.relative_to(client_repo).as_posix() for p in client_repo.rglob("*") if p.is_symlink()
+    symlinks = _tracked_symlinks(client_repo, base_ref) | {
+        p for p in _untracked_files(client_repo) if (client_repo / p).is_symlink()
     }
 
     collisions = sorted((_untracked_files(client_repo) & merged_files) - symlinks)
@@ -362,6 +412,7 @@ def _materialize_onto_branch(
                 "git",
                 "-C",
                 str(client_repo),
+                "--literal-pathspecs",
                 "add",
                 "-A",
                 "--pathspec-from-file=-",

@@ -127,6 +127,15 @@ def run_upgrade(
             "Downgrades are not supported."
         )
 
+    if _parse_version(target) > _parse_version(running):
+        raise UpgradeError(
+            f"Target v{target} is newer than this generator (v{running}). "
+            "The bundled UPGRADES.yaml is this (older) version's, so renames recorded "
+            "for the newer range are missing — moved files would degrade to delete+add "
+            "and lose your edits. Run the newer generator instead:\n"
+            "  uvx fastapi-fullstack@latest upgrade"
+        )
+
     if not dry_run:
         assert_clean_worktree(client_repo)
         if current_branch(client_repo) == "HEAD":
@@ -180,6 +189,17 @@ def run_upgrade(
         # pyproject.toml and the diff fills with false conflicts.
         client_ruff_config = client_repo / "backend" / "pyproject.toml"
         ruff_config = client_ruff_config if client_ruff_config.exists() else None
+        ruff_bin = next(
+            (
+                cand
+                for cand in (
+                    client_repo / "backend" / ".venv" / "bin" / "ruff",
+                    client_repo / ".venv" / "bin" / "ruff",
+                )
+                if cand.exists()
+            ),
+            None,
+        )
         for tree in (base_dir, theirs_dir, ours_dir):
             normalize_tree(
                 tree,
@@ -187,6 +207,7 @@ def run_upgrade(
                 format_code=True,
                 frontend_node_modules=client_node_modules,
                 ruff_config=ruff_config,
+                ruff_bin=ruff_bin,
             )
 
         result = merge_trees(base_dir, ours_dir, theirs_dir)
@@ -261,8 +282,11 @@ def run_upgrade(
 def _write_pending(client_repo: Path, manifest: dict) -> None:
     import json
 
-    (client_repo / (MANIFEST_FILENAME + _PENDING_SUFFIX)).write_text(
-        json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+    from .manifest import atomic_write_text
+
+    atomic_write_text(
+        client_repo / (MANIFEST_FILENAME + _PENDING_SUFFIX),
+        json.dumps(manifest, indent=2, ensure_ascii=False) + "\n",
     )
 
 
@@ -324,10 +348,10 @@ def run_finalize(client_repo: Path) -> str:
         )
 
     pending.pop(_UPGRADE_BRANCH_KEY, None)
+    from .manifest import atomic_write_text
+
     manifest_path = client_repo / MANIFEST_FILENAME
-    manifest_path.write_text(
-        json.dumps(pending, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
-    )
+    atomic_write_text(manifest_path, json.dumps(pending, indent=2, ensure_ascii=False) + "\n")
     pending_path.unlink()
 
     to_version = pending["package_version"]

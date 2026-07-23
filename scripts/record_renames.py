@@ -57,7 +57,10 @@ def _split_header(text: str) -> str:
 
 
 def _clean_block(block: dict) -> dict:
-    return {k: block[k] for k in _KEY_ORDER if block.get(k)}
+    ordered = {k: block[k] for k in _KEY_ORDER if block.get(k)}
+    extra = {k: v for k, v in block.items() if k not in _KEY_ORDER and v}
+    ordered.update(extra)
+    return ordered
 
 
 def _write_upgrades(path: Path, blocks: list[dict]) -> None:

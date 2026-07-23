@@ -15,7 +15,7 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .manifest import MANIFEST_FILENAME, build_manifest
+from .manifest import MANIFEST_FILENAME, atomic_write_text, build_manifest
 
 _PRESENCE_DETECTORS: tuple[tuple[str, str], ...] = (
     ("enable_rag", "backend/app/services/rag"),
@@ -92,7 +92,5 @@ def write_candidate_manifest(project_path: Path, result: RecoveryResult) -> Path
     """Write ``.fastapi-fullstack.json.candidate`` for human review (never the real file)."""
     manifest = build_manifest(result.context, package_version=result.version or "UNKNOWN")
     candidate = project_path / (MANIFEST_FILENAME + ".candidate")
-    candidate.write_text(
-        json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
-    )
+    atomic_write_text(candidate, json.dumps(manifest, indent=2, ensure_ascii=False) + "\n")
     return candidate

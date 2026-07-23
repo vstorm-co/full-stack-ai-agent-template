@@ -23,6 +23,8 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
+from packaging.version import InvalidVersion, Version
+
 from ..config import GENERATOR_NAME
 from .manifest import TEMPLATE_URL
 
@@ -248,6 +250,11 @@ def fetch_template(
     Raises:
         TemplateFetchError: If the template cannot be obtained by PyPI or git.
     """
+    try:
+        Version(version)
+    except InvalidVersion as exc:
+        raise TemplateFetchError(f"Invalid target version {version!r}: {exc}") from exc
+
     if local_template is not None and running_version is not None and version == running_version:
         return _validate_template_dir(local_template)
 

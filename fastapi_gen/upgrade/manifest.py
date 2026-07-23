@@ -45,12 +45,13 @@ def redact_secrets(context: dict[str, Any]) -> dict[str, Any]:
     future non-flat context shape can't leak a live key into the committed manifest.
     """
 
-    def _clean(obj: Any, key: str | None = None) -> Any:
+    def _clean(obj: Any, key: str | None = None, *, parent_secret: bool = False) -> Any:
+        secret = parent_secret or (key is not None and bool(_SECRET_KEY_RE.search(key)))
         if isinstance(obj, dict):
-            return {k: _clean(v, k) for k, v in obj.items()}
+            return {k: _clean(v, k, parent_secret=secret) for k, v in obj.items()}
         if isinstance(obj, list):
-            return [_clean(x, key) for x in obj]
-        if isinstance(obj, str) and obj and key is not None and _SECRET_KEY_RE.search(key):
+            return [_clean(x, key, parent_secret=secret) for x in obj]
+        if isinstance(obj, str) and obj and secret:
             return _REDACTED
         return obj
 
@@ -110,6 +111,18 @@ def build_manifest(
     }
 
 
+def atomic_write_text(path: Path, text: str) -> None:
+    """Write ``text`` to ``path`` atomically (tmp file + ``os.replace``).
+
+    A crash mid-write must never leave a torn ``.fastapi-fullstack.json`` — a truncated
+    manifest sends the next ``upgrade`` into recovery. Shared by every manifest writer
+    (write, pending, finalize, recovery candidate) so they all get the same guarantee.
+    """
+    tmp_path = path.with_suffix(path.suffix + ".tmp")
+    tmp_path.write_text(text, encoding="utf-8")
+    os.replace(tmp_path, path)
+
+
 def write_manifest(
     project_path: Path,
     context: dict[str, Any],
@@ -126,10 +139,7 @@ def write_manifest(
         commit=commit,
     )
     manifest_path = project_path / MANIFEST_FILENAME
-    payload = json.dumps(manifest, indent=2, ensure_ascii=False) + "\n"
-    tmp_path = manifest_path.with_suffix(manifest_path.suffix + ".tmp")
-    tmp_path.write_text(payload, encoding="utf-8")
-    os.replace(tmp_path, manifest_path)
+    atomic_write_text(manifest_path, json.dumps(manifest, indent=2, ensure_ascii=False) + "\n")
     return manifest_path
 
 

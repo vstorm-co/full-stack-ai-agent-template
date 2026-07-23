@@ -48,7 +48,7 @@ def test_format_python_runs_when_ruff_present(tmp_path: Path) -> None:
 
 
 def test_format_python_reports_false_when_ruff_missing(tmp_path: Path, monkeypatch) -> None:
-    monkeypatch.setattr("fastapi_gen.upgrade.normalize._ruff_cmd", lambda: None)
+    monkeypatch.setattr("fastapi_gen.upgrade.normalize._ruff_cmd", lambda *_a: None)
     (tmp_path / "m.py").write_text("x=1\n", encoding="utf-8")
     assert format_python(tmp_path) is False
     assert (tmp_path / "m.py").read_text(encoding="utf-8") == "x=1\n"

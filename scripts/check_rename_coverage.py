@@ -70,7 +70,11 @@ def main(argv: list[str] | None = None) -> int:
         threshold=args.threshold,
     )
     known = _known_renames(repo_root)
-    waived = set(args.waive)
+    blocks = load_upgrades_file(repo_root / UPGRADES_FILENAME)
+    repo_waivers = {
+        path for block in blocks for key in ("removed", "waived") for path in (block.get(key) or [])
+    }
+    waived = set(args.waive) | repo_waivers
     uncovered = uncovered_moves(moves, set(known), waived)
 
     # Presence in the YAML isn't enough: a rename recorded under a version <= the
@@ -108,7 +112,11 @@ def main(argv: list[str] | None = None) -> int:
         "(or run `uv run python scripts/record_renames.py`):\n"
     )
     print(format_renames_block(get_generator_version(), uncovered))
-    print("For intentional delete+add pairs, re-run with --waive <path>.")
+    print(
+        "For an intentional delete+add (not a rename), record the path under `removed:` "
+        "or `waived:` in the version's UPGRADES.yaml block so the waiver is versioned "
+        "and CI honours it (or re-run locally with --waive <path>)."
+    )
     return 1
 
 

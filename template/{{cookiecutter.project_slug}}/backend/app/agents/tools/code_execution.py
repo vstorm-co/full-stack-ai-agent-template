@@ -5,7 +5,7 @@ import json
 import logging
 from typing import Any
 
-from pydantic_monty import CollectString, Monty, MontyError, ResourceLimits
+from pydantic_monty import AsyncMonty, CollectString, MontyError, ResourceLimits
 
 from app.core.config import settings
 
@@ -48,12 +48,12 @@ async def run_python(code: str) -> str:
     """
     limits: ResourceLimits = {
         "max_duration_secs": settings.CODE_EXECUTION_TIMEOUT_SECS,
-        "max_allocations": settings.CODE_EXECUTION_MAX_ALLOCATIONS,
+        "max_memory": settings.CODE_EXECUTION_MAX_MEMORY_MB * 1024 * 1024,
     }
     collector = CollectString()
     try:
-        monty = await Monty.acreate(code)
-        output = await monty.run_async(print_callback=collector, limits=limits)
+        async with AsyncMonty() as monty, monty.checkout(limits=limits) as session:
+            output = await session.feed_run(code, print_callback=collector)
     except MontyError as e:
         return _clip(f"Execution failed: {e}")
     except Exception as e:

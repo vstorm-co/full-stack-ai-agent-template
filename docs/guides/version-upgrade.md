@@ -37,7 +37,9 @@ merge like any other change.
 ## Prerequisites
 
 - A **clean git working tree** (commit or stash your work first). The upgrade refuses to run
-  otherwise, so it's always reversible.
+  otherwise, so it's always reversible. `--dry-run` is the exception: it runs on a dirty tree
+  but compares against your committed `HEAD`, so uncommitted edits are not in the preview
+  (you'll get a warning).
 - Network access to **PyPI** (the tool fetches the template versions from published releases).
 - Your project's **Makefile** exposes `make upgrade-dry-run` / `make upgrade` /
   `make upgrade-new-features` / `make upgrade-finalize` (all projects generated with a recent
@@ -146,8 +148,15 @@ Then merge `template-upgrade/v<version>` into your main branch like any PR.
 ### Undo at any point
 
 ```bash
-git checkout <your-branch> && git branch -D template-upgrade/v<version>
+git checkout -f <your-branch> \
+  && git branch -D template-upgrade/v<version> \
+  && rm -f .fastapi-fullstack.json.pending
 ```
+
+The `-f` is not optional. While conflicts are unresolved a plain `git checkout` refuses
+outright, and once they are resolved it would *carry the staged upgrade onto your own
+branch* instead of discarding it — leaving you with the whole upgrade staged on `main` and
+the branch deleted. `upgrade` prints this exact command when it finishes; use that one.
 
 ---
 
@@ -280,7 +289,7 @@ fastapi-fullstack upgrade recover  [--path DIR]
 | `--dry-run` | Print the report and change nothing. |
 | `--to VERSION` | Upgrade to a specific version instead of the latest. |
 | `--with-new-features` | Prompt to adopt optional features added since your version (off by default). |
-| `--force` | Recreate the `template-upgrade/v…` branch if it already exists. |
+| `--force` | Recreate the `template-upgrade/v…` branch if it already exists, **and** overwrite untracked files the upgrade would land on (without it, a collision aborts with the list). |
 | `--path DIR` | Target project directory (defaults to the current directory). |
 
 ---
@@ -362,4 +371,6 @@ Expected. The render deliberately reuses the original stamp so it doesn't confli
 merge; only the manifest is bumped at `finalize`. Update the footer by hand if you rely on it.
 
 **I want to throw the whole thing away.**
-`git checkout <your-branch> && git branch -D template-upgrade/v<version>`.
+`git checkout -f <your-branch> && git branch -D template-upgrade/v<version> && rm -f
+.fastapi-fullstack.json.pending`. Keep the `-f` and the `rm` — see
+[Undo at any point](#undo-at-any-point).

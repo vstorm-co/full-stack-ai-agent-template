@@ -267,10 +267,15 @@ def _client_git(repo: Path, *args: str, check: bool = True) -> subprocess.Comple
     )
 
 
+def has_uncommitted_changes(repo: Path) -> bool:
+    """True if the client has uncommitted changes to *tracked* files."""
+    status = _client_git(repo, "status", "--porcelain", "--untracked-files=no").stdout
+    return bool(status.strip())
+
+
 def assert_clean_worktree(repo: Path) -> None:
     """Refuse to proceed unless the client's tracked tree is clean."""
-    status = _client_git(repo, "status", "--porcelain", "--untracked-files=no").stdout
-    if status.strip():
+    if has_uncommitted_changes(repo):
         raise RuntimeError(
             "Working tree has uncommitted changes. Commit or stash them first "
             "(the upgrade must be reversible via plain git)."

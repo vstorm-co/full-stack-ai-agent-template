@@ -81,6 +81,29 @@ class TestGuards:
         with pytest.raises(RuntimeError, match="uncommitted changes"):
             run_upgrade(tmp_path, dry_run=False)
 
+    def test_dry_run_warns_that_uncommitted_edits_are_invisible(
+        self,
+        tmp_path: Path,
+        capsys: pytest.CaptureFixture[str],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """OURS is the committed HEAD, so a dry run on a dirty tree ignores the worktree.
+        Silently doing that lets the preview promise zero conflicts that the real run
+        (which requires a clean tree, so the edits get committed first) then produces."""
+        (tmp_path / "README.md").write_text("x", encoding="utf-8")
+        write_manifest(tmp_path, {"project_name": "x"}, package_version="0.1.0")
+        _commit_all(tmp_path)
+        (tmp_path / "README.md").write_text("dirty change", encoding="utf-8")
+
+        def _no_fetch(*_a: object, **_k: object) -> Path:
+            raise TemplateFetchError("offline")
+
+        monkeypatch.setattr("fastapi_gen.upgrade.runner.fetch_template", _no_fetch)
+        with pytest.raises(TemplateFetchError):
+            run_upgrade(tmp_path, dry_run=True)
+
+        assert "not part of this preview" in capsys.readouterr().out
+
     def test_run_recover_writes_candidate(self, tmp_path: Path) -> None:
         from fastapi_gen.upgrade.runner import run_recover
 

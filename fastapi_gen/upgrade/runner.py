@@ -22,6 +22,7 @@ from .merge import (
     assert_clean_worktree,
     cleanup_store,
     current_branch,
+    has_uncommitted_changes,
     materialize,
     merge_trees,
     undo_command,
@@ -162,6 +163,15 @@ def run_upgrade(
                 "Refusing to upgrade from a detached HEAD — check out a branch first "
                 "(the upgrade needs a branch to return to)."
             )
+    elif has_uncommitted_changes(client_repo):
+        # OURS is always the committed HEAD, so a dry run silently ignores whatever is
+        # still in the worktree. Without this the preview can promise zero conflicts and
+        # the real run — which demands a clean tree, so those edits get committed first —
+        # produces them.
+        console.print(
+            "[yellow]⚠ Uncommitted changes are not part of this preview[/] — OURS is your "
+            "committed HEAD. Commit them and re-run the dry run for an accurate report."
+        )
 
     local_template = _find_template_dir()
     upgrades_file = _find_upgrades_file()

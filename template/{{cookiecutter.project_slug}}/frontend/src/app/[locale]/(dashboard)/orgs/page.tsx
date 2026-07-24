@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowRightLeft, Building2, Camera, Check, Plug, Plus, Settings } from "lucide-react";
+import { ArrowRightLeft, Building2, Camera, Check,{% endraw %}{% if cookiecutter.enable_rag %}{% raw %} Plug,{% endraw %}{% endif %}{% raw %} Plus, Settings } from "lucide-react";
 import { toast } from "sonner";
 
 import { CreateOrgDialog } from "@/components/teams";
@@ -151,7 +151,7 @@ export default function OrgsPage() {
                   >
                     <ArrowRightLeft className="h-3.5 w-3.5" />
                     {isActive ? "Current" : "Switch"}
-                  </Button>
+                  </Button>{% endraw %}{% if cookiecutter.enable_rag %}{% raw %}
                   <Button
                     variant="outline"
                     size="sm"
@@ -160,7 +160,7 @@ export default function OrgsPage() {
                   >
                     <Plug className="h-3.5 w-3.5" />
                     Integrations
-                  </Button>
+                  </Button>{% endraw %}{% endif %}{% raw %}
                   <Button
                     variant="outline"
                     size="sm"

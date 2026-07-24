@@ -123,7 +123,7 @@ services:
 {%- if cookiecutter.use_milvus %}
 
   etcd:
-    image: quay.io/coreos/etcd:v3.7.0
+    image: quay.io/coreos/etcd:v3.7.1
     container_name: {{ cookiecutter.project_slug }}_etcd
     command: >
       etcd --advertise-client-urls http://etcd:2379
@@ -162,7 +162,7 @@ services:
     restart: unless-stopped
 
   milvus:
-    image: milvusdb/milvus:v2.6.20
+    image: milvusdb/milvus:v2.6.21
     container_name: {{ cookiecutter.project_slug }}_milvus
     command: ["milvus", "run", "standalone"]
     ports:

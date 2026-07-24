@@ -80,6 +80,48 @@ def test_format_frontend_runs_prettier_and_cleans_up(tmp_path: Path) -> None:
     assert not (frontend / "node_modules").exists()
 
 
+def test_format_frontend_pins_shared_config_and_ignore(tmp_path: Path) -> None:
+    """One config for all three trees, like the shared ruff config.
+
+    Without it Prettier resolves each tree's own .prettierrc — the client's for OURS,
+    the template's for BASE/THEIRS — so every .ts/.tsx file formats differently and
+    reads as a client edit, turning each real template change into a conflict.
+    """
+    tree = tmp_path / "tree"
+    frontend = tree / "frontend"
+    frontend.mkdir(parents=True)
+    (frontend / "app.ts").write_text("a=1\n", encoding="utf-8")
+    config = tmp_path / "client.prettierrc"
+    config.write_text("{}\n", encoding="utf-8")
+    ignore = tmp_path / "client.prettierignore"
+    ignore.write_text("dist\n", encoding="utf-8")
+    nm = _fake_node_modules(tmp_path, '#!/bin/sh\nprintf "%s\\n" "$@" > args.txt\n')
+
+    assert format_frontend(tree, node_modules=nm, config=config, ignore_path=ignore) is True
+
+    args = (frontend / "args.txt").read_text().split()
+    assert args == ["--write", "--config", str(config), "--ignore-path", str(ignore), "."]
+
+
+def test_format_frontend_omits_missing_config(tmp_path: Path) -> None:
+    """A client who deleted their .prettierrc still gets a Prettier pass."""
+    tree = tmp_path / "tree"
+    frontend = tree / "frontend"
+    frontend.mkdir(parents=True)
+    nm = _fake_node_modules(tmp_path, '#!/bin/sh\nprintf "%s\\n" "$@" > args.txt\n')
+
+    assert (
+        format_frontend(
+            tree,
+            node_modules=nm,
+            config=tmp_path / "nope.prettierrc",
+            ignore_path=tmp_path / "nope.prettierignore",
+        )
+        is True
+    )
+    assert (frontend / "args.txt").read_text().split() == ["--write", "."]
+
+
 def test_format_frontend_skips_without_node_modules(tmp_path: Path) -> None:
     tree = tmp_path / "tree"
     (tree / "frontend").mkdir(parents=True)

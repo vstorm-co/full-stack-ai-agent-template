@@ -220,7 +220,8 @@ From here your project self-describes — follow **Scenario 1** (`make upgrade` 
 
 The merge always skips these — they're never read, written, or merged:
 
-- **Secrets**: `.env`, `.env.*`
+- **Secrets**: `.env`, `.env.*` — except the committed samples (`.env.example`, `.env.sample`,
+  `.env.template`), which merge normally so new settings a release adds reach you
 - **Lockfiles**: `uv.lock`, `package-lock.json`, `bun.lock`, `bun.lockb` (re-generate them
   after the upgrade if dependencies changed)
 - `.git/`, `node_modules/`, `.venv/`, build artifacts, `__pycache__/`, caches

@@ -57,7 +57,25 @@ def _is_binary(path: Path) -> bool:
         return True
 
 
-_SKIP_DIRS = frozenset({".git", "node_modules", ".venv", "venv", ".next", "__pycache__"})
+# Mirrors merge._EXCLUDED_DIRS: what the merge never looks at, we never walk either.
+# restore_generated_at() runs over the *client's* whole repo, so leaving build output
+# and tool caches in meant reading every file under .ruff_cache/, dist/ and friends.
+_SKIP_DIRS = frozenset(
+    {
+        ".git",
+        "node_modules",
+        ".venv",
+        "venv",
+        "__pycache__",
+        ".next",
+        ".turbo",
+        "dist",
+        "build",
+        ".mypy_cache",
+        ".ruff_cache",
+        ".pytest_cache",
+    }
+)
 
 
 def _iter_text_files(tree: Path):
@@ -176,13 +194,26 @@ def format_python(tree: Path, *, config: Path | None = None, ruff_bin: Path | No
     return True
 
 
-def format_frontend(tree: Path, *, node_modules: Path | None) -> bool:
+def format_frontend(
+    tree: Path,
+    *,
+    node_modules: Path | None,
+    config: Path | None = None,
+    ignore_path: Path | None = None,
+) -> bool:
     """Best-effort Prettier pass over ``tree/frontend`` using the client's toolchain.
 
     Prettier can't be bundled (it needs Node + the project's plugins, e.g.
     prettier-plugin-tailwindcss), so we borrow the client's already-installed
     ``node_modules`` by symlinking it into the rendered tree, run the local Prettier
     binary, then remove the link. Returns True if Prettier ran.
+
+    ``config`` and ``ignore_path`` are the frontend twin of ``format_python``'s shared
+    ruff config, and matter for the same reason: without them Prettier resolves each
+    tree's *own* ``.prettierrc`` / ``.prettierignore`` — the client's (often a tweaked
+    ``printWidth`` or ``singleQuote``) for OURS but the template's for BASE and THEIRS —
+    so every ``.ts``/``.tsx`` file formats differently between the trees and reads as a
+    client edit, which turns each real template change into a conflict.
     """
     frontend = tree / "frontend"
     if (
@@ -198,13 +229,14 @@ def format_frontend(tree: Path, *, node_modules: Path | None) -> bool:
         link.symlink_to(node_modules.resolve())
     except OSError:
         return False
+    cmd = [str(link / ".bin" / "prettier"), "--write"]
+    if config is not None and config.exists():
+        cmd += ["--config", str(config)]
+    if ignore_path is not None and ignore_path.exists():
+        cmd += ["--ignore-path", str(ignore_path)]
+    cmd.append(".")
     try:
-        subprocess.run(
-            [str(link / ".bin" / "prettier"), "--write", "."],
-            cwd=frontend,
-            capture_output=True,
-            check=False,
-        )
+        subprocess.run(cmd, cwd=frontend, capture_output=True, check=False)
     except OSError:
         return False
     finally:
@@ -220,15 +252,22 @@ def normalize_tree(
     frontend_node_modules: Path | None = None,
     ruff_config: Path | None = None,
     ruff_bin: Path | None = None,
+    prettier_config: Path | None = None,
+    prettier_ignore: Path | None = None,
 ) -> None:
     """Apply the full normalization pass to a tree (in place).
 
     Must be applied *identically* to BASE, OURS and THEIRS so differences cancel —
-    which is why ``ruff_config`` (the one shared config) and ``ruff_bin`` (the one
-    shared binary) are passed the same for all three.
+    which is why ``ruff_config`` / ``prettier_config`` (the one shared config per
+    language) and ``ruff_bin`` (the one shared binary) are passed the same for all three.
     """
     if format_code:
         format_python(tree, config=ruff_config, ruff_bin=ruff_bin)
-        format_frontend(tree, node_modules=frontend_node_modules)
+        format_frontend(
+            tree,
+            node_modules=frontend_node_modules,
+            config=prettier_config,
+            ignore_path=prettier_ignore,
+        )
     strip_generated_at(tree, generated_at)
     normalize_whitespace(tree)

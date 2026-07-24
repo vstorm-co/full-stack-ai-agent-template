@@ -29,6 +29,11 @@ _EXCLUDED_NAMES = frozenset(
         "bun.lock",
         ".fastapi-fullstack.json",
         ".gitattributes",
+        # OS junk. A maintainer who builds the wheel locally ships whatever sits in
+        # template/ (hatch force-includes the directory), and the upgrade would then
+        # add it to every client repo — where their .gitignore covers it.
+        ".DS_Store",
+        "Thumbs.db",
     }
 )
 
@@ -49,6 +54,9 @@ _EXCLUDED_DIRS = frozenset(
     }
 )
 
+# Suffixes that mark a `.env.*` file as a committed *sample* rather than a live env file.
+_ENV_TEMPLATE_SUFFIXES = (".example", ".sample", ".template")
+
 
 def is_excluded(rel_path: str) -> bool:
     """True if a repo-relative path must never enter the merge."""
@@ -58,7 +66,13 @@ def is_excluded(rel_path: str) -> bool:
     name = parts[-1] if parts else rel_path
     if name in _EXCLUDED_NAMES:
         return True
-    return name.startswith(".env.")
+    if not name.startswith(".env."):
+        return False
+    # `.env.example` is the opposite of a secret: it is committed, it is rendered from
+    # the same context in all three trees, and it is where a release announces every new
+    # setting. Excluding it means new env vars never reach the client — silently, since
+    # classify_trees filters on this same predicate, so no report line mentions it.
+    return not name.endswith(_ENV_TEMPLATE_SUFFIXES)
 
 
 _CONFLICT_RECORD = re.compile(rb"^([0-7]{6}) ([0-9a-f]{40}) ([1-3])\t(.*)$", re.DOTALL)
@@ -416,6 +430,14 @@ def _materialize_onto_branch(
 
     # Stage only the merge-scoped paths (adds, edits, deletions) instead of a blanket
     # `add -A`, which would sweep unrelated untracked files onto the upgrade branch.
+    #
+    # `--force` for the same reason `_stage_tree` uses it: `git add` given an *explicit*
+    # pathspec that a .gitignore covers fails the whole call with exit 1 ("The following
+    # paths are ignored…"), which would abort the entire upgrade. That is reachable
+    # whenever the client ignores a path the template ships — including in the very
+    # upgrade that adds the ignore rule, since .gitignore is merged too. The pathspec
+    # list is exact (the merged tree plus what was already tracked), so forcing can only
+    # stage files the merge itself produced.
     to_stage = sorted((merged_files | in_scope_tracked) - symlinks)
     if to_stage:
         payload = ("\0".join(to_stage) + "\0").encode("utf-8", "surrogateescape")
@@ -427,6 +449,7 @@ def _materialize_onto_branch(
                 "--literal-pathspecs",
                 "add",
                 "-A",
+                "--force",
                 "--pathspec-from-file=-",
                 "--pathspec-file-nul",
             ],

@@ -30,6 +30,9 @@ class TestIsExcluded:
             ".git/config",
             "frontend/node_modules/x/index.js",
             "backend/__pycache__/m.pyc",
+            ".DS_Store",
+            ".claude/.DS_Store",
+            "Thumbs.db",
         ],
     )
     def test_excluded(self, path: str) -> None:
@@ -40,6 +43,21 @@ class TestIsExcluded:
         ["backend/app/main.py", "frontend/src/page.tsx", "README.md", "pyproject.toml"],
     )
     def test_not_excluded(self, path: str) -> None:
+        assert not is_excluded(path)
+
+    @pytest.mark.parametrize(
+        "path",
+        [
+            "backend/.env.example",
+            "frontend/.env.example",
+            ".env.sample",
+            "backend/.env.template",
+        ],
+    )
+    def test_env_samples_are_merged(self, path: str) -> None:
+        """`.env.example` is committed, secret-free, and the only place a release
+        announces new settings — excluding it would drop them silently (classify_trees
+        filters on this same predicate, so no report line would mention it either)."""
         assert not is_excluded(path)
 
 
@@ -282,6 +300,34 @@ class TestMaterialize:
 
         assert materialize(result, client, branch="template-upgrade/vY", force=True) == "main"
         assert (client / "f.txt").read_text() == "b\n"
+
+    def test_stages_a_merged_file_the_client_gitignores(
+        self, tmp_path: Path, three_trees: tuple[Path, Path, Path]
+    ) -> None:
+        """A merged file covered by the client's .gitignore must not abort the upgrade.
+
+        `git add` given an explicit pathspec for an ignored path fails the whole call
+        with exit 1, so without --force a single ignored template file (the generated
+        .gitignore covers .DS_Store, and clients add their own rules) kills materialize
+        before anything is staged.
+        """
+        base, ours, theirs = three_trees
+        client = tmp_path / "client"
+        client.mkdir()
+        _write(client, "upd.txt", "one\ntwo\nthree\n")
+        _write(client, ".gitignore", "new_feature.txt\n")
+        _init_client_repo(client)
+
+        result = merge_trees(base, client, theirs)
+        materialize(result, client, branch="template-upgrade/vY")
+
+        staged = subprocess.run(
+            ["git", "-C", str(client), "diff", "--cached", "--name-only"],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.split()
+        assert "new_feature.txt" in staged
 
     def test_rolls_back_on_materialize_failure(
         self, tmp_path: Path, three_trees: tuple[Path, Path, Path], monkeypatch: pytest.MonkeyPatch

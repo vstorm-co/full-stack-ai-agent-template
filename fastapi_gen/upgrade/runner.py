@@ -9,6 +9,8 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
+from packaging.version import InvalidVersion, Version
+
 from ..config import get_generator_version
 from ..generator import _find_template_dir
 from .classify import Classification, classify_trees
@@ -88,6 +90,23 @@ def _rename_pairs(metadata: UpgradeMetadata) -> list[tuple[str, str]]:
     return [(r.from_path, r.to_path) for r in metadata.renames]
 
 
+def _normalize_target(to_version: str) -> str:
+    """Validate ``--to`` and return it in the canonical release form.
+
+    ``_parse_version`` deliberately degrades an unparseable string to ``0`` so a
+    malformed UPGRADES.yaml entry can't crash a run — but applied to user input that
+    turns ``--to nope`` into "Target vnope is older than v0.2.16. Downgrades are not
+    supported." Canonicalizing also drops a typed ``v`` prefix, which would otherwise
+    survive into the PyPI URL and the clone tag and 404 there.
+    """
+    try:
+        return str(Version(to_version))
+    except InvalidVersion as exc:
+        raise UpgradeError(
+            f"Invalid target version {to_version!r}: {exc}. Expected a release like 0.2.16."
+        ) from exc
+
+
 def run_upgrade(
     client_repo: Path,
     *,
@@ -113,7 +132,7 @@ def run_upgrade(
             )
 
     running = get_generator_version()
-    target = to_version or running
+    target = _normalize_target(to_version) if to_version else running
 
     if from_version == target:
         console.print(f"[green]Already at v{target} — nothing to upgrade.[/]")
@@ -201,6 +220,23 @@ def run_upgrade(
             ),
             None,
         )
+        # Same reasoning on the frontend side: one Prettier config (and one ignore file)
+        # for all three trees, so a client-tweaked .prettierrc can't make every .ts/.tsx
+        # file look edited in OURS and turn each template change into a conflict.
+        prettier_config = next(
+            (
+                cand
+                for cand in (
+                    client_repo / "frontend" / ".prettierrc",
+                    client_repo / "frontend" / ".prettierrc.json",
+                    client_repo / "frontend" / "prettier.config.js",
+                    client_repo / "frontend" / "prettier.config.mjs",
+                )
+                if cand.exists()
+            ),
+            None,
+        )
+        prettier_ignore = client_repo / "frontend" / ".prettierignore"
         for tree in (base_dir, theirs_dir, ours_dir):
             normalize_tree(
                 tree,
@@ -209,6 +245,8 @@ def run_upgrade(
                 frontend_node_modules=client_node_modules,
                 ruff_config=ruff_config,
                 ruff_bin=ruff_bin,
+                prettier_config=prettier_config,
+                prettier_ignore=prettier_ignore,
             )
 
         result = merge_trees(base_dir, ours_dir, theirs_dir)

@@ -8,7 +8,7 @@ needed, works even if the repo is private.
 
 Primary path: download the wheel straight from PyPI's JSON API with stdlib only
 (no dependency on ``uv``/``pip`` being present in the runtime). Fallback: shallow
-git clone of the template repo at tag ``vX``.
+git clone of the template repo at the release tag (the bare version, e.g. ``0.2.16``).
 """
 
 from __future__ import annotations

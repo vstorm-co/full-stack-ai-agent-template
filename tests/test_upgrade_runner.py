@@ -50,6 +50,23 @@ class TestGuards:
         with pytest.raises(UpgradeError, match="No pending upgrade"):
             run_finalize(tmp_path)
 
+    def test_unparseable_target_is_rejected_as_invalid(self, tmp_path: Path) -> None:
+        """Not as a downgrade: _parse_version degrades garbage to 0, which would
+        otherwise report 'Target vnope is older than v…' and send the user hunting."""
+        write_manifest(tmp_path, {"project_name": "x"}, package_version="0.1.0")
+        _commit_all(tmp_path)
+        with pytest.raises(UpgradeError, match="Invalid target version"):
+            run_upgrade(tmp_path, to_version="nope")
+
+    def test_v_prefixed_target_is_canonicalized(self, tmp_path: Path) -> None:
+        """`--to v0.1.0` must resolve to the same release as `--to 0.1.0` — a surviving
+        `v` would reach the PyPI URL and the clone tag, and 404 in both."""
+        write_manifest(tmp_path, {"project_name": "x"}, package_version="0.1.0")
+        _commit_all(tmp_path)
+        outcome = run_upgrade(tmp_path, to_version="v0.1.0")
+        assert outcome.to_version == "0.1.0"
+        assert outcome.applied is False
+
     def test_downgrade_is_rejected(self, tmp_path: Path) -> None:
         write_manifest(tmp_path, {"project_name": "x"}, package_version="99.0.0")
         _commit_all(tmp_path)

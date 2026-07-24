@@ -394,7 +394,7 @@ class Settings(BaseSettings):
 {%- if cookiecutter.enable_code_execution %}
 
     CODE_EXECUTION_TIMEOUT_SECS: float = 10.0
-    CODE_EXECUTION_MAX_ALLOCATIONS: int = 50_000_000
+    CODE_EXECUTION_MAX_MEMORY_MB: int = 256
 {%- endif %}
 {%- if cookiecutter.enable_deep_research %}
 

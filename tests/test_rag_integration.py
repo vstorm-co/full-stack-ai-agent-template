@@ -14,6 +14,7 @@ from fastapi_gen.config import (
     BackgroundTaskType,
     DatabaseType,
     EmbeddingProviderType,
+    FrontendType,
     LLMProviderType,
     PdfParserType,
     ProjectConfig,
@@ -157,6 +158,66 @@ class TestNonRAGProjectNoRAGFiles:
         """Test that rag API route does not exist."""
         rag_api = non_rag_project / "backend" / "app" / "api" / "routes" / "v1" / "rag.py"
         assert not rag_api.exists(), "rag.py should not exist when RAG is disabled"
+
+
+class TestNonRAGProjectWithFrontendAndTeams:
+    """Tests that a RAG-free project with Teams + frontend still builds.
+
+    Teams is what makes this combination interesting: the org UI (which is only
+    generated with Teams) owns the sync-source screens, and those are RAG-only.
+    """
+
+    @pytest.fixture(scope="class")
+    def non_rag_project(self, tmp_path_factory: pytest.TempPathFactory) -> Path:
+        """Generate a non-RAG project with the Next.js frontend and Teams enabled."""
+        config = ProjectConfig(
+            project_name="no_rag_teams_project",
+            database=DatabaseType.POSTGRESQL,
+            background_tasks=BackgroundTaskType.CELERY,
+            enable_redis=True,
+            frontend=FrontendType.NEXTJS,
+            enable_teams=True,
+            rag_features=RAGFeatures(enable_rag=False),
+            enable_docker=True,
+        )
+        return generate_project(config, tmp_path_factory.mktemp("no_rag_teams"))
+
+    def test_org_integrations_ui_not_exists(self, non_rag_project: Path) -> None:
+        """The org Integrations screen manages sync sources — RAG only."""
+        frontend_src = non_rag_project / "frontend" / "src"
+        page = frontend_src / "app" / "[locale]" / "(dashboard)" / "orgs" / "[id]" / "integrations"
+        proxy = frontend_src / "app" / "api" / "orgs" / "[id]" / "integrations"
+        assert not page.exists(), "org integrations page should not exist when RAG is disabled"
+        assert not proxy.exists(), "org integrations proxy should not exist when RAG is disabled"
+
+    def test_no_dangling_rag_imports(self, non_rag_project: Path) -> None:
+        """No surviving module may import one the RAG cleanup removed."""
+        removed_modules = ("@/lib/rag-api", "@/components/rag/", "@/hooks/use-org-integrations")
+        offenders = [
+            f"{path.relative_to(non_rag_project)} -> {module}"
+            for path in (non_rag_project / "frontend" / "src").rglob("*.ts*")
+            for module in removed_modules
+            if module in path.read_text()
+        ]
+        assert not offenders, f"imports of removed RAG modules: {offenders}"
+
+    def test_integrations_button_removed_from_orgs_page(self, non_rag_project: Path) -> None:
+        """The button linking to the removed page must go too, or it 404s."""
+        orgs_page = non_rag_project / "frontend/src/app/[locale]/(dashboard)/orgs/page.tsx"
+        assert "ORG_INTEGRATIONS" not in orgs_page.read_text()
+
+    def test_no_empty_generated_files(self, non_rag_project: Path) -> None:
+        """A file gated off by a feature flag renders empty — it should be removed, not shipped."""
+        build_dirs = frozenset({".git", ".next", ".ruff_cache", ".venv", "node_modules"})
+        empty = [
+            str(path.relative_to(non_rag_project))
+            for path in non_rag_project.rglob("*")
+            if path.is_file()
+            and path.name != ".gitkeep"
+            and not build_dirs & set(path.relative_to(non_rag_project).parts)
+            and not path.read_bytes().strip()
+        ]
+        assert not empty, f"empty files left in the generated project: {empty}"
 
 
 class TestRAGWithAIFrameworks:

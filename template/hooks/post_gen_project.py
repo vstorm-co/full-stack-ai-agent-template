@@ -381,6 +381,16 @@ if not enable_rag:
         remove_file(os.path.join(frontend_src, "hooks", "use-knowledge-bases.ts"))
         remove_file(os.path.join(frontend_src, "hooks", "use-org-integrations.ts"))
         remove_file(os.path.join(frontend_src, "types", "knowledge-base.ts"))
+        # The org "Integrations" screen manages RAG sync sources — it imports
+        # @/components/rag + @/lib/rag-api + use-org-integrations (all removed
+        # above) and its proxy calls /api/v1/org/integrations, which the backend
+        # no longer exposes. The button linking to it is gated in orgs/page.tsx.
+        remove_dir(
+            os.path.join(
+                frontend_src, "app", "[locale]", "(dashboard)", "orgs", "[id]", "integrations",
+            ),
+        )
+        remove_dir(os.path.join(frontend_src, "app", "api", "orgs", "[id]", "integrations"))
 else:
     # RAG enabled — remove optional components if not enabled
     rag_dir = os.path.join(backend_app, "services", "rag")
@@ -454,6 +464,19 @@ for root, _dirs, files in os.walk(backend_app):
         filepath = os.path.join(root, fname)
         if is_stub_file(filepath):
             remove_file(filepath)
+
+# Same idea for docs and frontend modules: a file whose whole body sits behind
+# a feature-gate conditional renders to an empty file (not a missing one) when
+# the flag is off, and the .py scan above never sees it.
+for root, dirs, files in os.walk(os.getcwd()):
+    dirs[:] = [d for d in dirs if d not in (".git", ".next", ".venv", "node_modules")]
+    for fname in files:
+        if not fname.endswith((".md", ".mdx", ".ts", ".tsx")):
+            continue
+        filepath = os.path.join(root, fname)
+        with open(filepath) as f:
+            if not f.read().strip():
+                remove_file(filepath)
 
 # --- Worker/Background tasks ---
 # worker/background/ holds in-process handlers (FastAPI BackgroundTasks fallback)

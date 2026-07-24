@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **RAG disabled left a broken frontend** — generating a project with RAG off and Teams on kept the org "Integrations" screen (`orgs/[id]/integrations`) and its API proxy, while the post-gen hook removed every module they import (`@/lib/rag-api`, `@/components/rag/*`, `use-org-integrations`), so `next build` failed on four missing modules. The page and proxy are now removed with the rest of the RAG frontend, and the button linking to them is gated in `orgs/page.tsx` — the backend drops `/api/v1/org/integrations` in that configuration anyway (#128)
+- **Code-execution tool broken against pydantic-monty 0.0.19** — the sandbox dependency was pinned `>=0.0.18`, and 0.0.19 replaced the one-shot `Monty.acreate()` / `run_async()` API with a worker pool (`AsyncMonty` → `checkout()` → `session.feed_run()`) and dropped the `max_allocations` resource limit. Generated projects with `enable_code_execution` therefore failed `ty check` and would have raised `AttributeError` on the first `run_python` call. `code_execution.py` now uses the session API, the pin is `>=0.0.19`, and `CODE_EXECUTION_MAX_ALLOCATIONS` is replaced by `CODE_EXECUTION_MAX_MEMORY_MB` (default 256, mapped to the `max_memory` limit in bytes)
+- **Empty feature-gated files shipped in generated projects** — the post-gen stub sweep only walked `backend/app/**/*.py`, so a doc or frontend module whose whole body sits behind a feature conditional was written out as an empty file instead of being removed: `docs/howto/add-rag-source.md`, `add-sync-connector.md`, `configure-sync-sources.md` with RAG off, plus four dead frontend modules. The sweep now covers `.md`, `.mdx`, `.ts`, and `.tsx` as well (#128)
+
 ## [0.2.16] - 2026-07-17
 
 ### Added

@@ -218,10 +218,12 @@ export function ToolCallCard({ toolCall, defaultExpanded = false }: ToolCallCard
   // (no live connections), so it works in the self-contained export too.
   const demoMode = useDemoMode();
   const mcp = demoMode ? matchCatalogMcpTool(toolCall.name) : null;
-  // Drop the "{server}_" prefix from the label — the MCP badge carries the server name.
-  const displayName = mcp
-    ? toolDisplayName(toolCall.name.slice(mcp.prefix.length + 1))
-    : friendlyName;
+  // Drop the "{server}_" prefix from the label — the MCP badge carries the server
+  // name. A bare prefix (no tool part) would slice to "", so keep the full name.
+  const displayName =
+    mcp && toolCall.name.length > mcp.prefix.length + 1
+      ? toolDisplayName(toolCall.name.slice(mcp.prefix.length + 1))
+      : friendlyName;
 {%- endif %}
 
   return (

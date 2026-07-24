@@ -295,6 +295,17 @@ MATRIX_CONFIGS: dict[str, dict] = {
         frontend=FrontendType.NEXTJS,
         background_tasks=BackgroundTaskType.NONE,
     ),
+    # MCP client: agents/mcp*, the connections service/repo/routes and the
+    # OAuth flow only render under this flag — without a matrix entry none of
+    # that backend code is ever linted or type-checked.
+    "pydantic_ai_mcp_client": dict(
+        database=DatabaseType.POSTGRESQL,
+        ai_framework=AIFrameworkType.PYDANTIC_AI,
+        enable_logfire=False,
+        enable_mcp_client=True,
+        frontend=FrontendType.NEXTJS,
+        background_tasks=BackgroundTaskType.NONE,
+    ),
     "rag_pgvector": dict(
         database=DatabaseType.POSTGRESQL,
         background_tasks=BackgroundTaskType.NONE,

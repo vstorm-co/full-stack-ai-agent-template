@@ -26,5 +26,5 @@ export { useSlashCommands, isBuiltinEnabled, BUILTIN_COMMAND_LIST } from "./use-
 export { useOrgIntegrations } from "./use-org-integrations";
 {%- endif %}
 {%- if cookiecutter.enable_mcp_client %}
-export { useMcpConnections, useMcpToolResolver } from "./use-mcp-connections";
+export { useMcpConnections } from "./use-mcp-connections";
 {%- endif %}

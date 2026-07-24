@@ -58,13 +58,12 @@ class McpConnectionRead(TimestampSchema, BaseSchema):
 
     @classmethod
     def from_model(cls, connection: McpConnection) -> McpConnectionRead:
-        # Authorized once tokens are stored and no consent redirect is pending
-        # (oauth_state is cleared only after a successful token exchange) — this
-        # avoids decrypting the payload just to render the list.
+        # Authorized once the live payload is written, which happens only after
+        # a successful token exchange — this avoids decrypting it just to render
+        # the list. A pending re-authorization lives in oauth_pending_payload
+        # and must not flip a working connection back to "not connected".
         oauth_authorized = (
-            connection.auth_type == "oauth"
-            and connection.oauth_state is None
-            and connection.oauth_payload is not None
+            connection.auth_type == "oauth" and connection.oauth_payload is not None
         )
         return cls(
             id=connection.id,

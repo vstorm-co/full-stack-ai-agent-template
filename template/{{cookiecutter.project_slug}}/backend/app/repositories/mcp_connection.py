@@ -60,6 +60,7 @@ async def create(
     auth_type: str = "bearer",
     oauth_state: str | None = None,
     oauth_payload: str | None = None,
+    oauth_pending_payload: str | None = None,
 ) -> McpConnection:
     connection = McpConnection(
         user_id=user_id,
@@ -71,6 +72,7 @@ async def create(
         auth_type=auth_type,
         oauth_state=oauth_state,
         oauth_payload=oauth_payload,
+        oauth_pending_payload=oauth_pending_payload,
     )
     db.add(connection)
     await db.flush()

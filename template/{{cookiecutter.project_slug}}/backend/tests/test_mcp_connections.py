@@ -5,17 +5,20 @@ from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
+import httpx
 import pytest
 from mcp.shared.auth import OAuthToken
 
 from app.agents import mcp_oauth
 from app.agents.mcp import (
+    McpProbeError,
     McpServerSpec,
     McpToolInfo,
     _make_toolset,
     _mcp_transport,
     _tool_prefix,
     build_mcp_toolsets,
+    probe_mcp_server,
     static_server_specs,
 )
 from app.agents.mcp_oauth import McpOAuthPayload
@@ -43,6 +46,16 @@ async def _acm(value):
     yield value
 
 
+def _allow_any_url(monkeypatch) -> None:
+    """Skip SSRF validation for tests that are about something else (it resolves
+    DNS, so it must not run against made-up hostnames)."""
+
+    async def _passthrough(url: str) -> str:
+        return url
+
+    monkeypatch.setattr(mcp_connection_service, "validate_mcp_url", _passthrough)
+
+
 def _connection(**overrides) -> McpConnection:
     defaults: dict = {
         "id": uuid4(),
@@ -55,6 +68,7 @@ def _connection(**overrides) -> McpConnection:
         "auth_type": "bearer",
         "oauth_state": None,
         "oauth_payload": None,
+        "oauth_pending_payload": None,
         "last_status": None,
         "last_error": None,
         "last_checked_at": None,
@@ -167,6 +181,56 @@ class TestBuildMcpToolsets:
         toolsets = await build_mcp_toolsets(specs)
         assert len(toolsets) == 1
 
+    @pytest.mark.anyio
+    async def test_colliding_tool_prefix_is_dropped(self, monkeypatch):
+        """Two servers sharing a prefix would make pydantic-ai raise on
+        duplicate tool names and kill the turn — the later one is skipped."""
+        probed: list[str] = []
+
+        async def ok_probe(url, headers=None, timeout=None):
+            probed.append(url)
+            return [McpToolInfo(name="t", description="")]
+
+        monkeypatch.setattr("app.agents.mcp.probe_mcp_server", ok_probe)
+        specs = [
+            # Workspace server first — it wins over the user's connection.
+            McpServerSpec(name="github", url="https://workspace.example/mcp"),
+            McpServerSpec(name="GitHub", url="https://user.example/mcp"),
+        ]
+        toolsets = await build_mcp_toolsets(specs)
+        assert len(toolsets) == 1
+        assert probed == ["https://workspace.example/mcp"]
+
+
+class TestProbeErrors:
+    """A dead server must never abort the turn — including when the failure
+    arrives as an exception group out of the anyio task group."""
+
+    @pytest.mark.anyio
+    async def test_exception_group_becomes_probe_error(self, monkeypatch):
+        @contextlib.asynccontextmanager
+        async def failing_transport(url, headers):
+            raise BaseExceptionGroup("unhandled errors in a TaskGroup", [ConnectionError("boom")])
+            yield  # pragma: no cover
+
+        monkeypatch.setattr("app.agents.mcp._mcp_transport", failing_transport)
+        # McpProbeError is an Exception, so `except Exception` callers catch it.
+        with pytest.raises(McpProbeError, match="boom"):
+            await probe_mcp_server("https://example.com/mcp")
+
+    @pytest.mark.anyio
+    async def test_cancellation_is_not_swallowed(self, monkeypatch):
+        import asyncio
+
+        @contextlib.asynccontextmanager
+        async def cancelled_transport(url, headers):
+            raise BaseExceptionGroup("cancelled", [asyncio.CancelledError()])
+            yield  # pragma: no cover
+
+        monkeypatch.setattr("app.agents.mcp._mcp_transport", cancelled_transport)
+        with pytest.raises(BaseExceptionGroup):
+            await probe_mcp_server("https://example.com/mcp")
+
 
 class TestStaticServerSpecs:
     def test_maps_settings_entries(self, monkeypatch):
@@ -220,6 +284,7 @@ def _oauth_connection(payload: McpOAuthPayload, **overrides) -> McpConnection:
 
 def _base_payload(**overrides) -> McpOAuthPayload:
     data = {
+        "server_url": "https://srv/mcp",
         "authorization_endpoint": "https://srv/authorize",
         "token_endpoint": "https://srv/token",
         "client_id": "cid",
@@ -322,7 +387,7 @@ class TestMcpConnectionService:
 
     @pytest.mark.anyio
     async def test_create_encrypts_token(self, service, repo, monkeypatch):
-        monkeypatch.setattr(mcp_connection_service, "validate_webhook_url", lambda url: url)
+        _allow_any_url(monkeypatch)
         data = McpConnectionCreate(
             name="github", url="https://example.com/mcp", auth_token="secret"
         )
@@ -334,7 +399,7 @@ class TestMcpConnectionService:
 
     @pytest.mark.anyio
     async def test_create_without_token_stores_none(self, service, repo, monkeypatch):
-        monkeypatch.setattr(mcp_connection_service, "validate_webhook_url", lambda url: url)
+        _allow_any_url(monkeypatch)
         data = McpConnectionCreate(name="github", url="https://example.com/mcp")
         await service.create(user_id=uuid4(), data=data)
         assert repo.create.call_args.kwargs["auth_token"] is None
@@ -414,7 +479,7 @@ class TestMcpConnectionService:
 
     @pytest.mark.anyio
     async def test_oauth_start_registers_and_persists_pending(self, service, repo, monkeypatch):
-        monkeypatch.setattr(mcp_connection_service, "validate_webhook_url", lambda url: url)
+        _allow_any_url(monkeypatch)
         discovered = mcp_oauth.DiscoveredServer(
             authorization_endpoint="https://srv/authorize",
             token_endpoint="https://srv/token",
@@ -432,13 +497,44 @@ class TestMcpConnectionService:
         assert "code_challenge=" in url and "state=" in url
         kwargs = repo.create.call_args.kwargs
         assert kwargs["auth_type"] == "oauth"
-        assert kwargs["oauth_state"] and kwargs["oauth_payload"]
+        assert kwargs["oauth_state"] and kwargs["oauth_pending_payload"]
+        # Nothing lands in the live payload until the callback succeeds.
+        assert kwargs.get("oauth_payload") is None
         # The persisted payload holds the PKCE verifier but no tokens yet.
         payload = McpOAuthPayload.model_validate_json(
-            decrypt_value(kwargs["oauth_payload"], settings.SECRET_KEY)
+            decrypt_value(kwargs["oauth_pending_payload"], settings.SECRET_KEY)
         )
         assert payload.code_verifier and payload.access_token is None
         assert payload.client_id == "cid"
+
+    @pytest.mark.anyio
+    async def test_oauth_start_keeps_working_tokens_until_consent(
+        self, service, repo, monkeypatch
+    ):
+        """Re-authorizing must not break the connection if the user closes the
+        consent tab — the live tokens (and the URL) stay put until it lands."""
+        _allow_any_url(monkeypatch)
+        live = _oauth_connection(
+            _base_payload(access_token="live-token"), name="linear", url="https://srv/mcp"
+        )
+        repo.get_by_name.return_value = live
+        discovered = mcp_oauth.DiscoveredServer(
+            authorization_endpoint="https://srv/authorize",
+            token_endpoint="https://srv/token",
+            registration_endpoint=None,
+            resource="https://other/mcp",
+            scope=None,
+            metadata=MagicMock(),
+        )
+        monkeypatch.setattr(mcp_oauth, "discover", AsyncMock(return_value=discovered))
+        monkeypatch.setattr(mcp_oauth, "register_client", AsyncMock(return_value=("cid", None)))
+
+        await service.oauth_start(user_id=uuid4(), name="linear", url="https://other/mcp")
+
+        update_data = repo.update.call_args.kwargs["update_data"]
+        assert update_data["oauth_pending_payload"]
+        assert "oauth_payload" not in update_data  # the working tokens survive
+        assert "url" not in update_data  # and so does the URL they belong to
 
     @pytest.mark.anyio
     async def test_oauth_start_rejects_internal_urls(self, service, repo):
@@ -450,8 +546,16 @@ class TestMcpConnectionService:
 
     @pytest.mark.anyio
     async def test_oauth_callback_exchanges_and_clears_state(self, service, repo, monkeypatch):
-        pending = _oauth_connection(
-            _base_payload(code_verifier="verifier"), oauth_state="state-xyz"
+        pending = _connection(
+            auth_type="oauth",
+            url="https://srv/mcp",
+            oauth_state="state-xyz",
+            oauth_pending_payload=encrypt_value(
+                _base_payload(
+                    code_verifier="verifier", server_url="https://moved/mcp"
+                ).model_dump_json(),
+                settings.SECRET_KEY,
+            ),
         )
         repo.get_by_oauth_state = AsyncMock(return_value=pending)
         repo.update.return_value = pending
@@ -462,7 +566,10 @@ class TestMcpConnectionService:
 
         update_data = repo.update.call_args.kwargs["update_data"]
         assert update_data["oauth_state"] is None  # no longer pending
+        assert update_data["oauth_pending_payload"] is None
         assert update_data["last_status"] == "ok"
+        # The URL the tokens were issued for is applied together with them.
+        assert update_data["url"] == "https://moved/mcp"
         payload = McpOAuthPayload.model_validate_json(
             decrypt_value(update_data["oauth_payload"], settings.SECRET_KEY)
         )
@@ -475,6 +582,99 @@ class TestMcpConnectionService:
         with pytest.raises(NotFoundError):
             await service.oauth_callback(state="nope", code="x")
 
+    @pytest.mark.anyio
+    async def test_update_url_drops_oauth_tokens(self, service, repo, monkeypatch):
+        """Tokens are bound to the host they were issued for — moving the URL
+        must not send a provider's access token to a different server."""
+        _allow_any_url(monkeypatch)
+        user_id = uuid4()
+        conn = _oauth_connection(
+            _base_payload(access_token="AT"), user_id=user_id, oauth_state=None
+        )
+        repo.get_by_id.return_value = conn
+
+        await service.update(
+            user_id=user_id,
+            connection_id=conn.id,
+            data=McpConnectionUpdate(url="https://elsewhere.example/mcp"),
+        )
+
+        update_data = repo.update.call_args.kwargs["update_data"]
+        assert update_data["oauth_payload"] is None
+        assert update_data["oauth_pending_payload"] is None
+        assert update_data["oauth_state"] is None
+
+
+class TestOAuthRequestSafety:
+    """Discovery lets the remote server choose most of the URLs we call, so
+    every hop — redirects included — goes through the SSRF policy.
+
+    IP literals are used throughout: the validator short-circuits on those, so
+    the tests never touch DNS.
+    """
+
+    @staticmethod
+    def _client(handler) -> httpx.AsyncClient:
+        return httpx.AsyncClient(
+            transport=httpx.MockTransport(handler), follow_redirects=False
+        )
+
+    @pytest.mark.anyio
+    async def test_redirect_to_internal_host_is_blocked(self):
+        seen: list[str] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            seen.append(str(request.url))
+            return httpx.Response(
+                302, headers={"Location": "http://169.254.169.254/latest/meta-data/"}
+            )
+
+        async with self._client(handler) as client:
+            request = client.build_request("GET", "https://93.184.216.34/.well-known/x")
+            with pytest.raises(mcp_oauth.OAuthError):
+                await mcp_oauth._send(client, request)
+
+        # The first hop was allowed; the metadata address was never requested.
+        assert seen == ["https://93.184.216.34/.well-known/x"]
+
+    @pytest.mark.anyio
+    async def test_redirect_to_public_host_is_followed(self):
+        def handler(request: httpx.Request) -> httpx.Response:
+            if request.url.host == "93.184.216.34":
+                return httpx.Response(302, headers={"Location": "https://93.184.216.35/moved"})
+            return httpx.Response(200, text="ok")
+
+        async with self._client(handler) as client:
+            request = client.build_request("GET", "https://93.184.216.34/start")
+            response = await mcp_oauth._send(client, request)
+
+        assert response.status_code == 200
+
+    @pytest.mark.anyio
+    async def test_redirect_loop_gives_up(self):
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(302, headers={"Location": "https://93.184.216.34/loop"})
+
+        async with self._client(handler) as client:
+            request = client.build_request("GET", "https://93.184.216.34/loop")
+            with pytest.raises(mcp_oauth.OAuthError, match="redirects"):
+                await mcp_oauth._send(client, request)
+
+    @pytest.mark.anyio
+    async def test_token_endpoint_body_is_not_surfaced(self, monkeypatch):
+        """The OAuth error text reaches the user's browser — an internal
+        service's reply must not ride along with it."""
+
+        async def fake_send(client, request):
+            return httpx.Response(500, text="redis: NOAUTH Authentication required", request=request)
+
+        monkeypatch.setattr(mcp_oauth, "_send", fake_send)
+        with pytest.raises(mcp_oauth.OAuthError) as exc_info:
+            await mcp_oauth._token_request("https://93.184.216.34/token", {"grant_type": "x"})
+
+        assert "redis" not in str(exc_info.value)
+        assert "500" in str(exc_info.value)
+
 
 class TestReadSchema:
     def test_token_never_leaves_backend(self):
@@ -484,13 +684,31 @@ class TestReadSchema:
         assert "secret" not in read.model_dump_json()
 
     def test_oauth_authorized_reflects_tokens_and_pending_state(self):
-        # Pending (consent not completed): state set → not authorized.
-        pending = _oauth_connection(_base_payload(code_verifier="v"), oauth_state="s")
+        # First-time consent not completed: only a pending flow → not authorized.
+        pending = _connection(
+            auth_type="oauth",
+            oauth_state="s",
+            oauth_pending_payload=encrypt_value(
+                _base_payload(code_verifier="v").model_dump_json(), settings.SECRET_KEY
+            ),
+        )
         assert McpConnectionRead.from_model(pending).oauth_authorized is False
-        # Completed: tokens present, state cleared → authorized.
+        # Completed: tokens present → authorized.
         done = _oauth_connection(_base_payload(access_token="AT"), oauth_state=None)
         read = McpConnectionRead.from_model(done)
         assert read.oauth_authorized is True
         assert read.auth_type == "oauth"
         # The encrypted payload (with tokens) never appears in the response.
         assert "AT" not in read.model_dump_json()
+
+    def test_reauthorizing_a_live_connection_still_reads_as_connected(self):
+        """A re-authorization in flight must not flash "not connected" in the UI
+        for a connection whose tokens still work."""
+        conn = _oauth_connection(
+            _base_payload(access_token="AT"),
+            oauth_state="new-flow",
+            oauth_pending_payload=encrypt_value(
+                _base_payload(code_verifier="v").model_dump_json(), settings.SECRET_KEY
+            ),
+        )
+        assert McpConnectionRead.from_model(conn).oauth_authorized is True

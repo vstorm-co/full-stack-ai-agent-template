@@ -25,8 +25,29 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from app.core.config import settings
+from app.core.sanitize import validate_webhook_url
 
 logger = logging.getLogger(__name__)
+
+
+class McpProbeError(Exception):
+    """A failed liveness probe, with its root cause already unwrapped.
+
+    The MCP client runs on anyio task groups, so a failure surfaces as a
+    (possibly ``BaseException``-carrying) group that ``except Exception``
+    would miss. :func:`probe_mcp_server` collapses those into this type so
+    every caller can handle a dead server with a plain ``except Exception``.
+    """
+
+
+async def validate_mcp_url(url: str) -> str:
+    """SSRF-check a URL before we talk to it (same policy as webhooks).
+
+    Applies to every URL we request, not just the one the user typed: OAuth
+    discovery hands us endpoints the remote server chose, and those deserve
+    the same check. Runs in a thread because validation resolves DNS.
+    """
+    return await asyncio.to_thread(validate_webhook_url, url)
 
 
 @dataclass(frozen=True)
@@ -91,7 +112,11 @@ async def probe_mcp_server(
     headers: dict[str, str] | None = None,
     timeout: float | None = None,
 ) -> list[McpToolInfo]:
-    """Connect to an MCP server and list its tools. Raises on any failure.
+    """Connect to an MCP server and list its tools.
+
+    Any failure is raised as :class:`McpProbeError` with the root cause already
+    unwrapped, so callers can skip a dead server with ``except Exception``.
+    Cancellation always propagates.
 
     Used both as the pre-flight liveness check before a chat turn and as the
     backing call for the connection "test" endpoint. The transport (streamable
@@ -99,14 +124,30 @@ async def probe_mcp_server(
     """
     from mcp import ClientSession
 
-    async with asyncio.timeout(timeout or settings.MCP_CONNECT_TIMEOUT_SECS):
-        async with (
-            _mcp_transport(url, headers) as (read, write),
-            ClientSession(read, write) as session,
-        ):
-            await session.initialize()
-            result = await session.list_tools()
+    try:
+        async with asyncio.timeout(timeout or settings.MCP_CONNECT_TIMEOUT_SECS):
+            async with (
+                _mcp_transport(url, headers) as (read, write),
+                ClientSession(read, write) as session,
+            ):
+                await session.initialize()
+                result = await session.list_tools()
+    except (Exception, BaseExceptionGroup) as exc:
+        if _carries_base_exception(exc):
+            raise
+        raise McpProbeError(probe_error_message(exc)) from exc
     return [McpToolInfo(name=t.name, description=t.description or "") for t in result.tools]
+
+
+def _carries_base_exception(exc: BaseException) -> bool:
+    """True when *exc* is (or wraps) something that isn't an ``Exception``.
+
+    A group carrying a ``CancelledError`` means the turn was cancelled, not
+    that the server is down — swallowing it would keep the run alive.
+    """
+    if isinstance(exc, BaseExceptionGroup):
+        return any(_carries_base_exception(inner) for inner in exc.exceptions)
+    return not isinstance(exc, Exception)
 
 
 def probe_error_message(exc: BaseException) -> str:
@@ -150,8 +191,33 @@ def _make_toolset(spec: McpServerSpec) -> Any:
     return server.prefixed(_tool_prefix(spec.name))
 
 
+def _dedupe_by_prefix(specs: list[McpServerSpec]) -> list[McpServerSpec]:
+    """Drop specs whose tool prefix an earlier spec already claimed.
+
+    Two servers sharing a prefix emit identical tool names and pydantic-ai
+    raises on duplicates, which aborts the whole turn. Deployment-managed
+    servers come first, so they win over a user connection that happens to
+    pick the same name (e.g. both called "github").
+    """
+    unique: list[McpServerSpec] = []
+    taken: set[str] = set()
+    for spec in specs:
+        prefix = _tool_prefix(spec.name)
+        if prefix in taken:
+            logger.warning(
+                "Skipping MCP server %r: tool prefix %r is already used by another server",
+                spec.name,
+                prefix,
+            )
+            continue
+        taken.add(prefix)
+        unique.append(spec)
+    return unique
+
+
 async def build_mcp_toolsets(specs: list[McpServerSpec]) -> list[Any]:
     """Toolsets for every reachable server in *specs* (probed concurrently)."""
+    specs = _dedupe_by_prefix(specs)
     if not specs:
         return []
 

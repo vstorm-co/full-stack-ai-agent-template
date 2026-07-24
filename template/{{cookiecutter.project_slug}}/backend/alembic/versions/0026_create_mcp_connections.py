@@ -12,8 +12,9 @@ is one remote MCP server attached to the user's assistant.
 is NULL when every tool the server offers is exposed. OAuth 2.1 connections
 (``auth_type = "oauth"``) instead keep the discovered endpoints, registered
 client credentials and access/refresh tokens Fernet-encrypted in
-``oauth_payload``, with ``oauth_state`` holding the CSRF token for an in-flight
-authorization redirect.
+``oauth_payload``. An authorization redirect that is still in flight is staged
+in ``oauth_pending_payload`` and keyed by the CSRF token in ``oauth_state``, so
+re-authorizing never overwrites credentials that still work.
 """
 
 import sqlalchemy as sa
@@ -61,6 +62,7 @@ def upgrade() -> None:
         ),
         sa.Column("oauth_state", sa.String(128), nullable=True),
         sa.Column("oauth_payload", sa.Text(), nullable=True),
+        sa.Column("oauth_pending_payload", sa.Text(), nullable=True),
         sa.Column("last_status", sa.String(16), nullable=True),
         sa.Column("last_error", sa.Text(), nullable=True),
         sa.Column("last_checked_at", sa.DateTime(timezone=True), nullable=True),

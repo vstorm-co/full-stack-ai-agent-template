@@ -18,6 +18,10 @@ We lean on the MCP SDK's ``mcp.client.auth.oauth2`` helpers for discovery
 URL ordering, request building and response parsing so our behaviour matches
 the SDK's own client; the token grant/refresh POSTs are issued here so the
 flow can be split across requests and persisted between them.
+
+Every URL reached from here — discovery candidates, the token endpoint, and
+each redirect hop — is SSRF-checked (see :func:`_send`), because discovery
+means the remote server, not the user, picks most of the addresses we call.
 """
 
 from __future__ import annotations
@@ -27,6 +31,7 @@ from dataclasses import dataclass
 
 import httpx
 from mcp.client.auth import PKCEParameters
+from mcp.client.auth.exceptions import OAuthFlowError
 from mcp.client.auth.oauth2 import (
     build_oauth_authorization_server_metadata_discovery_urls,
     build_protected_resource_metadata_discovery_urls,
@@ -41,12 +46,16 @@ from mcp.client.auth.oauth2 import (
 from mcp.shared.auth import OAuthClientMetadata, OAuthMetadata, OAuthToken
 from pydantic import AnyUrl, BaseModel
 
+from app.agents.mcp import validate_mcp_url
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
 # How long an access token must still be valid to be reused without refreshing.
 TOKEN_EXPIRY_SKEW_SECS = 60.0
+
+# Redirects are followed by hand (see _send) so every hop is SSRF-checked.
+_MAX_REDIRECTS = 5
 
 _HTTP_TIMEOUT = httpx.Timeout(
     settings.MCP_CONNECT_TIMEOUT_SECS, connect=settings.MCP_CONNECT_TIMEOUT_SECS
@@ -55,6 +64,28 @@ _HTTP_TIMEOUT = httpx.Timeout(
 
 class OAuthError(Exception):
     """A recoverable failure in the OAuth flow (surfaced to the user)."""
+
+
+async def _send(client: httpx.AsyncClient, request: httpx.Request) -> httpx.Response:
+    """Send *request*, SSRF-checking every hop, redirects included.
+
+    Discovery and token endpoints are chosen by the remote server, so the URL
+    the user typed is not the URL we end up talking to. The client has
+    redirects turned off and we follow them here, one validated hop at a time —
+    otherwise a server could answer with ``302 http://169.254.169.254/`` and we
+    would fetch it from inside the network.
+    """
+    for _ in range(_MAX_REDIRECTS + 1):
+        try:
+            await validate_mcp_url(str(request.url))
+        except ValueError as exc:
+            logger.warning("Blocked MCP OAuth request to %s: %s", request.url, exc)
+            raise OAuthError("This server pointed the OAuth flow at a blocked address.") from exc
+        response = await client.send(request)
+        if response.next_request is None:
+            return response
+        request = response.next_request
+    raise OAuthError("Too many redirects while talking to this server.")
 
 
 class McpOAuthPayload(BaseModel):
@@ -66,6 +97,10 @@ class McpOAuthPayload(BaseModel):
     expire).
     """
 
+    # The MCP server this flow authorizes against. Applied to the connection
+    # only once tokens arrive, so a re-authorization that points at a new URL
+    # cannot move the connection while the old tokens are still stored.
+    server_url: str
     authorization_endpoint: str
     token_endpoint: str
     registration_endpoint: str | None = None
@@ -111,27 +146,31 @@ async def discover(server_url: str) -> DiscoveredServer:
     metadata (from the ``WWW-Authenticate`` header if present, else well-known
     URIs), then the authorization-server metadata (RFC 8414, OIDC fallbacks).
     """
-    async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT, follow_redirects=True) as client:
+    async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT, follow_redirects=False) as client:
         # 1. Probe the server unauthenticated to surface the WWW-Authenticate hint.
         www_auth_url: str | None = None
         try:
-            probe = await client.post(
-                server_url,
-                headers={"Accept": "application/json, text/event-stream"},
-                json={
-                    "jsonrpc": "2.0",
-                    "id": 1,
-                    "method": "initialize",
-                    "params": {
-                        "protocolVersion": "2025-06-18",
-                        "capabilities": {},
-                        "clientInfo": {"name": settings.PROJECT_NAME, "version": "1.0"},
+            probe = await _send(
+                client,
+                client.build_request(
+                    "POST",
+                    server_url,
+                    headers={"Accept": "application/json, text/event-stream"},
+                    json={
+                        "jsonrpc": "2.0",
+                        "id": 1,
+                        "method": "initialize",
+                        "params": {
+                            "protocolVersion": "2025-06-18",
+                            "capabilities": {},
+                            "clientInfo": {"name": settings.PROJECT_NAME, "version": "1.0"},
+                        },
                     },
-                },
+                ),
             )
             www_auth_url = extract_resource_metadata_from_www_auth(probe)
-        except httpx.HTTPError:
-            # Probe failed outright — fall back to well-known discovery below.
+        except (httpx.HTTPError, OAuthError):
+            # Probe failed or was blocked — fall back to well-known discovery below.
             pass
 
         # 2. Protected-resource metadata → the authorization server URL.
@@ -140,25 +179,27 @@ async def discover(server_url: str) -> DiscoveredServer:
         for url in build_protected_resource_metadata_discovery_urls(www_auth_url, server_url):
             try:
                 prm = await handle_protected_resource_response(
-                    await client.send(create_oauth_metadata_request(url))
+                    await _send(client, create_oauth_metadata_request(url))
                 )
-            except httpx.HTTPError:
+            except (httpx.HTTPError, OAuthError):
                 continue
             if prm and prm.authorization_servers:
                 auth_server_url = str(prm.authorization_servers[0])
                 prm_scopes = prm.scopes_supported
                 break
 
-        # 3. Authorization-server metadata (endpoints, PKCE support).
+        # 3. Authorization-server metadata (endpoints, PKCE support). Both the
+        #    candidate URLs and auth_server_url come from the server's own
+        #    metadata, so _send validates each one before it is requested.
         asm: OAuthMetadata | None = None
         for url in build_oauth_authorization_server_metadata_discovery_urls(
             auth_server_url, server_url
         ):
             try:
                 keep_going, candidate = await handle_auth_metadata_response(
-                    await client.send(create_oauth_metadata_request(url))
+                    await _send(client, create_oauth_metadata_request(url))
                 )
-            except httpx.HTTPError:
+            except (httpx.HTTPError, OAuthError):
                 continue
             if candidate is not None:
                 asm = candidate
@@ -171,6 +212,18 @@ async def discover(server_url: str) -> DiscoveredServer:
                 "This server did not advertise OAuth metadata. It may not support "
                 "OAuth, or may require a static token instead."
             )
+
+        # The consent URL is handed to the user's browser rather than fetched
+        # here, so it never passes through _send — check it now.
+        try:
+            await validate_mcp_url(str(asm.authorization_endpoint))
+        except ValueError as exc:
+            logger.warning(
+                "Blocked MCP OAuth authorization endpoint %s: %s", asm.authorization_endpoint, exc
+            )
+            raise OAuthError(
+                "This server pointed the OAuth flow at a blocked address."
+            ) from exc
 
         scope = asm.scopes_supported or prm_scopes
         return DiscoveredServer(
@@ -195,11 +248,16 @@ async def register_client(server: DiscoveredServer, redirect_uri: str) -> tuple[
     request = create_client_registration_request(
         server.metadata, metadata, server.authorization_endpoint
     )
-    async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT, follow_redirects=True) as client:
+    async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT, follow_redirects=False) as client:
         try:
-            info = await handle_registration_response(await client.send(request))
+            info = await handle_registration_response(await _send(client, request))
         except httpx.HTTPError as exc:
             raise OAuthError(f"Dynamic client registration failed: {exc}") from exc
+        except OAuthFlowError as exc:
+            # The SDK puts the server's response body in the message — keep it
+            # in the log, hand the user a fixed string.
+            logger.warning("MCP dynamic client registration failed at %s: %s", request.url, exc)
+            raise OAuthError("This server rejected the client registration request.") from exc
     if not info.client_id:
         raise OAuthError("The server did not return a client_id during registration.")
     return info.client_id, info.client_secret
@@ -283,17 +341,29 @@ async def refresh_tokens(
 
 
 async def _token_request(token_endpoint: str, data: dict[str, str]) -> OAuthToken:
-    async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT, follow_redirects=True) as client:
+    async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT, follow_redirects=False) as client:
         try:
-            response = await client.post(
-                token_endpoint,
-                data=data,
-                headers={"Content-Type": "application/x-www-form-urlencoded"},
+            response = await _send(
+                client,
+                client.build_request(
+                    "POST",
+                    token_endpoint,
+                    data=data,
+                    headers={"Content-Type": "application/x-www-form-urlencoded"},
+                ),
             )
         except httpx.HTTPError as exc:
             raise OAuthError(f"Token request failed: {exc}") from exc
     if response.status_code != 200:
-        raise OAuthError(f"Token endpoint returned {response.status_code}: {response.text[:200]}")
+        # The body is whatever the endpoint chose to return, and this message
+        # ends up in the user's browser — log the detail, show the status.
+        logger.warning(
+            "MCP token endpoint %s returned %s: %s",
+            token_endpoint,
+            response.status_code,
+            response.text[:200],
+        )
+        raise OAuthError(f"Token endpoint returned {response.status_code}.")
     try:
         return OAuthToken.model_validate_json(response.content)
     except ValueError as exc:

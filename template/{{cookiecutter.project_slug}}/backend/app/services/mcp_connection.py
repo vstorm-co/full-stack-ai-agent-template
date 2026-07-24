@@ -11,7 +11,6 @@ service owns:
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import secrets
 from datetime import UTC, datetime
@@ -30,12 +29,12 @@ from app.agents.mcp import (
     probe_error_message,
     probe_mcp_server,
     static_server_specs,
+    validate_mcp_url,
 )
 from app.agents.mcp_oauth import McpOAuthPayload, OAuthError
 from app.core.config import settings
 from app.core.crypto import decrypt_value, encrypt_value
 from app.core.exceptions import AlreadyExistsError, NotFoundError
-from app.core.sanitize import validate_webhook_url
 from app.db.models.mcp_connection import McpConnection
 from app.db.session import get_db_context
 from app.repositories import mcp_connection_repo
@@ -66,14 +65,6 @@ def _apply_token(payload: McpOAuthPayload, token: OAuthToken) -> McpOAuthPayload
             "code_verifier": None,
         }
     )
-
-
-async def _validate_url(url: str) -> str:
-    """SSRF-check a user-supplied MCP server URL (same policy as webhooks).
-
-    Runs in a thread because validation resolves DNS (blocking I/O).
-    """
-    return await asyncio.to_thread(validate_webhook_url, url)
 
 
 async def _oauth_access_token(db: AsyncSession, connection: McpConnection) -> str | None:
@@ -148,7 +139,7 @@ class McpConnectionService:
         return await mcp_connection_repo.list_for_user(self.db, user_id=user_id)
 
     async def create(self, *, user_id: UUID, data: McpConnectionCreate) -> McpConnection:
-        url = await _validate_url(data.url)
+        url = await validate_mcp_url(data.url)
         existing = await mcp_connection_repo.get_by_name(self.db, user_id=user_id, name=data.name)
         if existing is not None:
             raise AlreadyExistsError(
@@ -181,7 +172,7 @@ class McpConnectionService:
         )
 
         if "url" in update_data:
-            update_data["url"] = await _validate_url(update_data["url"])
+            update_data["url"] = await validate_mcp_url(update_data["url"])
 
         if "name" in update_data and update_data["name"] != db_connection.name:
             collision = await mcp_connection_repo.get_by_name(
@@ -206,6 +197,14 @@ class McpConnectionService:
             update_data.setdefault("last_status", None)
             update_data.setdefault("last_error", None)
             update_data.setdefault("last_checked_at", None)
+
+        # OAuth tokens are bound to the resource they were issued for — never
+        # carry them over to a different host. The user re-authorizes instead.
+        moved = "url" in update_data and update_data["url"] != db_connection.url
+        if moved and db_connection.auth_type == "oauth":
+            update_data["oauth_payload"] = None
+            update_data["oauth_pending_payload"] = None
+            update_data["oauth_state"] = None
 
         if not update_data:
             return db_connection
@@ -247,17 +246,21 @@ class McpConnectionService:
         """Begin the OAuth authorization-code flow for a server.
 
         Discovers the authorization server, dynamically registers this app,
-        stores the flow state (endpoints, client creds, PKCE verifier) on a
-        pending connection row, and returns the provider consent URL. Creating
-        again with the same name re-authorizes the existing OAuth connection.
+        stores the flow state (endpoints, client creds, PKCE verifier) in
+        ``oauth_pending_payload``, and returns the provider consent URL.
+        Starting again with the same name re-authorizes the existing OAuth
+        connection: the live tokens in ``oauth_payload`` are left untouched
+        until the callback succeeds, so abandoning the consent screen leaves a
+        working connection working.
         """
-        url = await _validate_url(url)
+        url = await validate_mcp_url(url)
         server = await mcp_oauth.discover(url)  # raises OAuthError if unsupported
         redirect_uri = _oauth_redirect_uri()
         client_id, client_secret = await mcp_oauth.register_client(server, redirect_uri)
         pkce = mcp_oauth.new_pkce()
         state = secrets.token_urlsafe(32)
         payload = McpOAuthPayload(
+            server_url=url,
             authorization_endpoint=server.authorization_endpoint,
             token_endpoint=server.token_endpoint,
             registration_endpoint=server.registration_endpoint,
@@ -277,18 +280,15 @@ class McpConnectionService:
                     message="A connection with this name already exists",
                     details={"name": name},
                 )
+            # Only the pending flow is written — the live tokens and the URL
+            # they belong to move over in oauth_callback, once consent lands.
             await mcp_connection_repo.update(
                 self.db,
                 db_connection=existing,
                 update_data={
-                    "url": url,
-                    "auth_type": "oauth",
                     "is_enabled": True,
                     "oauth_state": state,
-                    "oauth_payload": enc,
-                    "last_status": None,
-                    "last_error": None,
-                    "last_checked_at": None,
+                    "oauth_pending_payload": enc,
                 },
             )
         else:
@@ -302,7 +302,7 @@ class McpConnectionService:
                 is_enabled=True,
                 auth_type="oauth",
                 oauth_state=state,
-                oauth_payload=enc,
+                oauth_pending_payload=enc,
             )
         return mcp_oauth.authorization_url(
             server,
@@ -317,13 +317,14 @@ class McpConnectionService:
 
         Authenticated by *state* (an unguessable CSRF token we issued), so this
         needs no user session — the provider redirect lands here without our
-        cookies. Clears ``oauth_state`` so the connection reads as authorized.
+        cookies. The pending flow is promoted to the live payload only now, so
+        a flow that is never completed leaves the previous tokens in place.
         """
         connection = await mcp_connection_repo.get_by_oauth_state(self.db, state)
-        if connection is None or not connection.oauth_payload:
+        if connection is None or not connection.oauth_pending_payload:
             raise NotFoundError(message="OAuth session not found or already completed")
         payload = McpOAuthPayload.model_validate_json(
-            decrypt_value(connection.oauth_payload, settings.SECRET_KEY)
+            decrypt_value(connection.oauth_pending_payload, settings.SECRET_KEY)
         )
         if not payload.code_verifier:
             raise OAuthError("This authorization session has expired — start again.")
@@ -341,7 +342,10 @@ class McpConnectionService:
             self.db,
             db_connection=connection,
             update_data={
+                # The URL moves together with the tokens issued for it.
+                "url": payload.server_url,
                 "oauth_payload": encrypt_value(payload.model_dump_json(), settings.SECRET_KEY),
+                "oauth_pending_payload": None,
                 "oauth_state": None,
                 "last_status": "ok",
                 "last_error": None,

@@ -12,8 +12,10 @@ offers; otherwise it's the list of unprefixed tool names they picked.
 ``"oauth"`` (the OAuth 2.1 authorization-code flow, RFC 9728 / 8414 /
 7591 + PKCE). For OAuth connections the discovered endpoints, registered
 client credentials and access/refresh tokens live Fernet-encrypted in
-``oauth_payload`` (a JSON blob), and ``oauth_state`` holds the CSRF token
-for the in-flight authorization redirect (cleared once tokens arrive).
+``oauth_payload`` (a JSON blob). An authorization redirect that is still
+in flight is staged separately in ``oauth_pending_payload`` (keyed by the
+CSRF token in ``oauth_state``) and only replaces ``oauth_payload`` once
+the callback brings back real tokens.
 """
 
 from __future__ import annotations
@@ -55,8 +57,13 @@ class McpConnection(Base, TimestampMixin):
     auth_type: Mapped[str] = mapped_column(String(16), nullable=False, default="bearer")
     # CSRF token for an in-flight OAuth authorization redirect; NULL once done.
     oauth_state: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
-    # Fernet-encrypted JSON: endpoints, client creds, PKCE verifier, tokens.
+    # Fernet-encrypted JSON: endpoints, client creds, tokens. Written only by a
+    # completed flow, so a connection that has this is usable right now.
     oauth_payload: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Same shape, for a consent redirect that is still in flight (endpoints,
+    # client creds, PKCE verifier, no tokens). Kept apart from oauth_payload so
+    # re-authorizing never destroys credentials that still work.
+    oauth_pending_payload: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Result of the most recent connectivity check ("ok" / "error").
     last_status: Mapped[str | None] = mapped_column(String(16), nullable=True)

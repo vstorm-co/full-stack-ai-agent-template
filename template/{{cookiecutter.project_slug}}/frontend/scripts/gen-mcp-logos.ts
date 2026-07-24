@@ -34,6 +34,7 @@ async function fetchDataUri(domain: string): Promise<string | null> {
 
 const domains = [...new Set(MCP_CATALOG.map((e) => e.domain))].sort();
 const logos: Record<string, string> = {};
+const failed: string[] = [];
 for (const domain of domains) {
   const uri = await fetchDataUri(domain);
   if (uri) {
@@ -41,6 +42,7 @@ for (const domain of domains) {
     console.log(`  ✓ ${domain} (${Math.round(uri.length / 1024)} KB)`);
   } else {
     console.warn(`  ✗ ${domain} — skipped (fetch failed)`);
+    failed.push(domain);
   }
 }
 
@@ -57,3 +59,11 @@ const body =
 
 await writeFile(OUT, body, "utf8");
 console.log(`\nWrote ${Object.keys(logos).length} logos → ${OUT}`);
+
+if (failed.length > 0) {
+  // A missing logo falls back to the live favicon service at render time, so
+  // the export would quietly phone home for that badge. Fail instead of
+  // shipping a half-baked file — re-run once the fetch works.
+  console.error(`\n${failed.length} logo(s) missing: ${failed.join(", ")} — re-run to fix.`);
+  process.exit(1);
+}

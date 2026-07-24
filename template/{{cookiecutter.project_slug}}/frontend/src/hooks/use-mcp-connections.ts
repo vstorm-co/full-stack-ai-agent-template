@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { qk } from "@/lib/query-keys";
@@ -8,8 +8,6 @@ import {
   createMcpConnection,
   deleteMcpConnection,
   listMcpConnections,
-  listWorkspaceMcpServers,
-  mcpToolPrefix,
   testMcpConnection,
   updateMcpConnection,
   type McpConnectionRecord,
@@ -118,48 +116,4 @@ export function useMcpConnections(): UseMcpConnectionsResult {
   );
 
   return { connections, isLoading, error, refresh, create, update, remove, test };
-}
-
-/**
- * Resolves a tool-call name to the MCP server it came from, or null for
- * built-in tools. Used to badge MCP-backed tool calls in the chat.
- *
- * Matching mirrors the backend prefix scheme (`{server}_{tool}`) using the
- * names of the user's enabled connections plus workspace servers — the same
- * names the agent used to build the prefixes, so this is authoritative for
- * the current user's own conversations.
- */
-export function useMcpToolResolver(): (toolName: string) => string | null {
-  const { data: connections = [] } = useQuery({
-    queryKey: qk.mcpConnections.list(),
-    queryFn: listMcpConnections,
-    staleTime: 60_000,
-  });
-  const { data: workspace = [] } = useQuery({
-    queryKey: qk.mcpConnections.workspace(),
-    queryFn: listWorkspaceMcpServers,
-    staleTime: 60_000,
-  });
-
-  // Longest prefix first so a more specific server wins over a shorter one
-  // (e.g. "github_work" before "github").
-  const byPrefix = useMemo(() => {
-    const names = [
-      ...connections.filter((c) => c.is_enabled).map((c) => c.name),
-      ...workspace.map((w) => w.name),
-    ];
-    return names
-      .map((name) => ({ name, prefix: mcpToolPrefix(name) }))
-      .sort((a, b) => b.prefix.length - a.prefix.length);
-  }, [connections, workspace]);
-
-  return useCallback(
-    (toolName: string) => {
-      for (const { name, prefix } of byPrefix) {
-        if (toolName === prefix || toolName.startsWith(`${prefix}_`)) return name;
-      }
-      return null;
-    },
-    [byPrefix],
-  );
 }

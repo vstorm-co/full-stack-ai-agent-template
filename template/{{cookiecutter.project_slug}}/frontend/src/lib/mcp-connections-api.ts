@@ -50,19 +50,6 @@ export interface WorkspaceMcpServer {
   allowed_tools: string[] | null;
 }
 
-/**
- * Connection name → tool-name prefix, mirroring the backend's `_tool_prefix`
- * (app/agents/mcp.py). The agent exposes each MCP tool as `{prefix}_{tool}`,
- * so the UI can recognise which tool calls came from an MCP server.
- */
-export function mcpToolPrefix(name: string): string {
-  const slug = name
-    .toLowerCase()
-    .replace(/[^a-z0-9_]/g, "_")
-    .replace(/^_+|_+$/g, "");
-  return slug || "mcp";
-}
-
 const ROOT = "/me/mcp-connections";
 
 export async function listWorkspaceMcpServers(): Promise<WorkspaceMcpServer[]> {

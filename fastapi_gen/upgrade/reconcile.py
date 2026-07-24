@@ -71,6 +71,7 @@ def default_confirm(message: str, default: bool) -> bool:
 
 def reconcile_context(
     context: dict[str, Any],
+    source_template: Path,
     target_template: Path,
     metadata: UpgradeMetadata,
     *,
@@ -81,6 +82,8 @@ def reconcile_context(
 
     Args:
         context: The client's recorded context (from the manifest).
+        source_template: The project's *current* version template dir — its keys
+            define what "we already had an answer for" means.
         target_template: The target version's template dir (source of new keys/defaults).
         metadata: Composed UPGRADES.yaml metadata for the version range.
         with_new_features: If False (default), new feature toggles are forced OFF and
@@ -93,7 +96,19 @@ def reconcile_context(
 
     report.variable_renames_applied = apply_variable_renames(ctx, metadata.variable_renames)
 
+    source_defaults = _template_defaults(source_template)
     defaults = _template_defaults(target_template)
+
+    # "We have no answer" is not the same as "the target introduced this key". A
+    # recovered manifest carries only the handful of keys recovery can infer from the
+    # file layout, so every other key would look new and be forced off — THEIRS would
+    # render without the client's auth, database and i18n, and the merge would read
+    # that as "the template deleted all of it". Fill the gaps with the *source*
+    # version's defaults, which is exactly what BASE renders with, so the two agree
+    # and the merge sees no change.
+    for key, value in source_defaults.items():
+        ctx.setdefault(key, value)
+
     # Any *boolean* toggle the target introduced (enable_* or use_*, or a bare bool
     # flag) must be forced off / reported — otherwise a new toggle defaulting to true
     # silently turns the upgrade into a product migration.

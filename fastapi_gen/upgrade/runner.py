@@ -157,6 +157,7 @@ def run_upgrade(
 
     theirs_context, reconcile_report = reconcile_context(
         context,
+        base_template,
         theirs_template,
         metadata,
         with_new_features=with_new_features,

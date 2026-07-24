@@ -89,9 +89,9 @@ class TestBuildManifest:
         ):
             assert field in m
 
-    def test_template_ref_defaults_to_version_tag(self) -> None:
+    def test_template_ref_defaults_to_the_release_tag(self) -> None:
         m = build_manifest({}, package_version="0.2.14")
-        assert m["template_ref"] == "v0.2.14"
+        assert m["template_ref"] == "0.2.14"
         assert m["package_version"] == "0.2.14"
 
     def test_explicit_ref_and_commit_are_kept(self) -> None:

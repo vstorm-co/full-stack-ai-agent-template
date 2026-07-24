@@ -39,6 +39,28 @@ class TestUpgradeCliWiring:
         assert result.exit_code == 0
         assert (tmp_path / ".fastapi-fullstack.json.candidate").exists()
 
+    @pytest.mark.parametrize(
+        ("option", "value"),
+        [
+            ("--path", "."),
+            ("--to", "9.9.9"),
+            ("--dry-run", None),
+            ("--with-new-features", None),
+            ("--force", None),
+        ],
+    )
+    def test_group_option_after_subcommand_is_rejected(
+        self, runner: CliRunner, option: str, value: str | None
+    ) -> None:
+        """A group option typed after the subcommand silently applies to the group,
+        not the subcommand — `upgrade --path X finalize` would finalize the current
+        directory instead of X. Refuse rather than act on the wrong project."""
+        typed = [option] if value is None else [option, value]
+        result = runner.invoke(cli, ["upgrade", *typed, "finalize"])
+        assert result.exit_code != 0
+        assert option in result.output
+        assert "finalize" in result.output
+
     def test_upgrade_without_manifest_reports_error(
         self, runner: CliRunner, tmp_path: Path
     ) -> None:

@@ -209,6 +209,33 @@ class TestMaterialize:
         ).stdout
         assert "vendor/sub" not in status
 
+    def test_global_export_ignore_does_not_drop_files(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """`git archive` consults the *global* attributes file even for the throwaway
+        store, so a developer with `export-ignore` set there would silently lose the
+        file from the upgrade — a new file wouldn't even land on disk."""
+        attributes = tmp_path / "global-attrs"
+        attributes.write_text("new_feature.txt export-ignore\n", encoding="utf-8")
+        global_config = tmp_path / "gitconfig"
+        global_config.write_text(f"[core]\n\tattributesFile = {attributes}\n", encoding="utf-8")
+        monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(global_config))
+
+        base, theirs = tmp_path / "base", tmp_path / "theirs"
+        client = tmp_path / "client"
+        for t in (base, theirs, client):
+            t.mkdir()
+        _write(base, "keep.txt", "same\n")
+        _write(client, "keep.txt", "same\n")
+        _write(theirs, "keep.txt", "same\n")
+        _write(theirs, "new_feature.txt", "shiny\n")
+        _init_client_repo(client)
+
+        result = merge_trees(base, client, theirs)
+        materialize(result, client, branch="template-upgrade/vY")
+
+        assert (client / "new_feature.txt").exists()
+
     def test_tracked_files_handles_unicode(self, tmp_path: Path) -> None:
         """ls-tree -z returns real paths — without it, non-ASCII names are C-quoted."""
         client = tmp_path / "client"

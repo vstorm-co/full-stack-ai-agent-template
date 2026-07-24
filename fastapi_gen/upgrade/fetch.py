@@ -211,21 +211,26 @@ def _fetch_from_pypi(version: str, dest: Path, *, timeout: float = 30.0) -> Path
 
 
 def _fetch_from_git(version: str, dest: Path) -> Path:
-    """Fallback: shallow-clone the template repo at tag ``vX``."""
+    """Fallback: shallow-clone the template repo at the release tag.
+
+    Release tags are the bare version (``0.2.16``), not ``v0.2.16`` — cloning the
+    prefixed name fails with "Remote branch not found", which would make this
+    fallback unusable exactly when PyPI is down.
+    """
     git = shutil.which("git")
     if not git:
         raise TemplateFetchError("git not available for template-repo fallback.")
     _secure_mkdir(dest)
     clone_dir = dest / "repo"
     result = subprocess.run(
-        [git, "clone", "--depth", "1", "--branch", f"v{version}", TEMPLATE_URL, str(clone_dir)],
+        [git, "clone", "--depth", "1", "--branch", version, TEMPLATE_URL, str(clone_dir)],
         capture_output=True,
         text=True,
         check=False,
     )
     if result.returncode != 0:
         raise TemplateFetchError(
-            f"git clone of {TEMPLATE_URL}@v{version} failed: {result.stderr.strip()}"
+            f"git clone of {TEMPLATE_URL}@{version} failed: {result.stderr.strip()}"
         )
     return _validate_template_dir(clone_dir / "template")
 

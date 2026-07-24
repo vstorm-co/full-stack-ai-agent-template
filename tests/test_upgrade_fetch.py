@@ -236,8 +236,10 @@ class TestFetchFromGit:
 
     def test_success(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(fetch_mod.shutil, "which", lambda _: "/usr/bin/git")
+        argv: list[str] = []
 
         def _clone(cmd: list[str], **_k: object) -> SimpleNamespace:
+            argv.extend(cmd)
             template = Path(cmd[-1]) / "template"
             template.mkdir(parents=True)
             (template / "cookiecutter.json").write_text("{}", encoding="utf-8")
@@ -246,6 +248,9 @@ class TestFetchFromGit:
         monkeypatch.setattr(fetch_mod.subprocess, "run", _clone)
         result = fetch_mod._fetch_from_git("1.0.0", tmp_path / "d")
         assert (result / "cookiecutter.json").exists()
+        # Release tags are the bare version — "v1.0.0" does not exist, and cloning
+        # it would make the whole PyPI fallback unusable.
+        assert argv[argv.index("--branch") + 1] == "1.0.0"
 
 
 class TestFetchTemplateCache:

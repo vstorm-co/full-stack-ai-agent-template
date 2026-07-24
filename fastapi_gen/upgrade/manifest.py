@@ -90,12 +90,13 @@ def build_manifest(
             project. Defaults to the currently-installed version. This is what the
             upgrade tool fetches from PyPI to render BASE.
         template_ref: The git tag/sha the template was rendered from. Defaults to
-            ``v{package_version}`` (the release-tag convention) when not supplied.
+            ``package_version`` — release tags are the bare version (``0.2.16``),
+            so a ``v``-prefixed ref would point at a tag that does not exist.
         commit: The template git commit sha, if known (unknown from an installed
             package — left ``None``).
     """
     pkg_version = package_version or get_generator_version()
-    ref = template_ref or f"v{pkg_version}"
+    ref = template_ref or pkg_version
     safe_context = redact_secrets(context)
 
     return {

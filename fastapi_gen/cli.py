@@ -4,6 +4,7 @@ import subprocess
 from pathlib import Path
 
 import click
+from click.core import ParameterSource
 from rich.console import Console
 
 from . import __version__
@@ -1500,7 +1501,11 @@ def _git_error_message(exc: subprocess.CalledProcessError) -> str:
     is_flag=True,
     help="Prompt to adopt optional features introduced since your version.",
 )
-@click.option("--force", is_flag=True, help="Recreate the upgrade branch if it already exists.")
+@click.option(
+    "--force",
+    is_flag=True,
+    help="Recreate the upgrade branch if it exists, and overwrite colliding untracked files.",
+)
 @click.pass_context
 def upgrade(
     ctx: click.Context,
@@ -1516,9 +1521,14 @@ def upgrade(
     upgrade; ``upgrade finalize`` bumps the manifest once conflicts are resolved.
     """
     if ctx.invoked_subcommand is not None:
+        # --path has a default, so "was it typed?" needs click's parameter source
+        # rather than a None check — otherwise `upgrade --path X finalize` silently
+        # finalizes the current directory instead of X.
+        path_given = ctx.get_parameter_source("project_path") is not ParameterSource.DEFAULT
         misplaced = [
             name
             for name, given in (
+                ("--path", path_given),
                 ("--to", to_version is not None),
                 ("--dry-run", dry_run),
                 ("--with-new-features", with_new_features),

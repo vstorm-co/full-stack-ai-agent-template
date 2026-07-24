@@ -242,7 +242,7 @@ commit it.
 ```json
 {
   "template": "https://github.com/vstorm-co/full-stack-ai-agent-template",
-  "template_ref": "v0.2.14",
+  "template_ref": "0.2.14",
   "package_version": "0.2.14",
   "generated_at": "2026-07-01T10:00:00Z",
   "context_hash": "sha256:…",

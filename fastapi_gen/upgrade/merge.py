@@ -390,8 +390,20 @@ def _materialize_onto_branch(
         elif target.exists():
             target.unlink()
 
+    # _SAFE_CONFIG is not optional here: `git archive` honors the *global* attributes
+    # file even for this throwaway store, so a stray `export-ignore` would silently
+    # drop merged files (the template update then looks "already applied", and a
+    # brand-new file makes the `add --pathspec-from-file` below fail), and
+    # `export-subst` would rewrite `$Format:…$` content.
     archive = subprocess.run(
-        ["git", f"--git-dir={store}", "archive", "--format=tar", result.merged_tree],
+        [
+            "git",
+            f"--git-dir={store}",
+            *_SAFE_CONFIG,
+            "archive",
+            "--format=tar",
+            result.merged_tree,
+        ],
         capture_output=True,
         check=True,
     ).stdout

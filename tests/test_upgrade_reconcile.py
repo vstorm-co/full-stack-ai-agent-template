@@ -11,8 +11,8 @@ from fastapi_gen.upgrade.reconcile import (
 )
 
 
-def _template(tmp_path: Path, defaults: dict) -> Path:
-    t = tmp_path / "template"
+def _template(tmp_path: Path, defaults: dict, name: str = "template") -> Path:
+    t = tmp_path / name
     t.mkdir()
     (t / "cookiecutter.json").write_text(json.dumps(defaults), encoding="utf-8")
     return t
@@ -36,32 +36,69 @@ class TestApplyVariableRenames:
 
 class TestReconcileNewFeatures:
     def test_new_feature_off_by_default(self, tmp_path: Path) -> None:
-        template = _template(tmp_path, {"project_name": "x", "enable_charts": True})
+        source = _template(tmp_path, {"project_name": "x"}, name="source")
+        target = _template(tmp_path, {"project_name": "x", "enable_charts": True})
         ctx = {"project_name": "acme"}
-        result_ctx, report = reconcile_context(ctx, template, UpgradeMetadata())
+        result_ctx, report = reconcile_context(ctx, source, target, UpgradeMetadata())
         assert result_ctx["enable_charts"] is False
         assert report.new_features_available == ["enable_charts"]
         assert report.new_features_accepted == []
 
     def test_prompts_and_accepts_with_flag(self, tmp_path: Path) -> None:
-        template = _template(tmp_path, {"enable_charts": True, "enable_deep_research": False})
-        answers = {"enable_charts": True, "enable_deep_research": False}
+        source = _template(tmp_path, {}, name="source")
+        target = _template(tmp_path, {"enable_charts": True, "enable_deep_research": False})
 
-        def confirm(_message: str, _default: bool, *, _a=answers) -> bool:
+        def confirm(_message: str, _default: bool) -> bool:
             return "charts" in _message
 
         result_ctx, report = reconcile_context(
-            {}, template, UpgradeMetadata(), with_new_features=True, confirm=confirm
+            {}, source, target, UpgradeMetadata(), with_new_features=True, confirm=confirm
         )
         assert result_ctx["enable_charts"] is True
         assert result_ctx["enable_deep_research"] is False
         assert report.new_features_accepted == ["enable_charts"]
 
     def test_existing_feature_not_treated_as_new(self, tmp_path: Path) -> None:
-        template = _template(tmp_path, {"enable_charts": True})
+        source = _template(tmp_path, {"enable_charts": True}, name="source")
+        target = _template(tmp_path, {"enable_charts": True})
         ctx = {"enable_charts": True}
-        _result_ctx, report = reconcile_context(ctx, template, UpgradeMetadata())
+        _result_ctx, report = reconcile_context(ctx, source, target, UpgradeMetadata())
         assert report.new_features_available == []
+
+
+class TestReconcileIncompleteContext:
+    """A recovered manifest carries only the keys recovery could infer from the
+    file layout. Everything else must fall back to the source version's default —
+    treating it as a brand-new feature and forcing it off would render THEIRS
+    without the client's auth/database/i18n, and the merge would delete all of it."""
+
+    def test_unanswered_key_falls_back_to_the_source_default(self, tmp_path: Path) -> None:
+        source = _template(
+            tmp_path,
+            {"use_database": True, "use_auth": True, "enable_i18n": True},
+            name="source",
+        )
+        target = _template(
+            tmp_path,
+            {"use_database": True, "use_auth": True, "enable_i18n": True, "enable_charts": True},
+        )
+        # Only what recovery detected — the rest is unknown, not "new".
+        ctx = {"use_database": True}
+
+        result_ctx, report = reconcile_context(ctx, source, target, UpgradeMetadata())
+
+        assert result_ctx["use_auth"] is True
+        assert result_ctx["enable_i18n"] is True
+        assert report.new_features_available == ["enable_charts"]
+        assert result_ctx["enable_charts"] is False
+
+    def test_recorded_answer_wins_over_the_default(self, tmp_path: Path) -> None:
+        source = _template(tmp_path, {"enable_i18n": True}, name="source")
+        target = _template(tmp_path, {"enable_i18n": True})
+        result_ctx, _report = reconcile_context(
+            {"enable_i18n": False}, source, target, UpgradeMetadata()
+        )
+        assert result_ctx["enable_i18n"] is False
 
 
 def test_default_confirm_delegates_to_wizard_helper(monkeypatch) -> None:

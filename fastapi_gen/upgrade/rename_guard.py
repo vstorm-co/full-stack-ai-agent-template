@@ -74,7 +74,21 @@ def detect_moves(
             new_text = new_files[new_path]
             if len(new_text) < _MIN_MATCH_LEN:
                 continue
-            ratio = difflib.SequenceMatcher(None, old_text, new_text).ratio()
+            # ratio() is quadratic in file size and this loop is len(deleted) x
+            # len(added), so a release that reshuffles a directory would turn the
+            # guard into a multi-minute CI job. Both filters below are upper bounds
+            # on the real ratio, so skipping on them changes the cost, never the
+            # result. The length bound is difflib's own real_quick_ratio, computed
+            # before the matcher exists (construction indexes the whole second
+            # string). A naive min/max length ratio would be too aggressive and
+            # could drop a genuine move.
+            total = len(old_text) + len(new_text)
+            if 2 * min(len(old_text), len(new_text)) < threshold * total:
+                continue
+            matcher = difflib.SequenceMatcher(None, old_text, new_text)
+            if matcher.quick_ratio() < threshold:
+                continue
+            ratio = matcher.ratio()
             if ratio > best_ratio:
                 best_ratio, best_new = ratio, new_path
         if best_new is not None and best_ratio >= threshold:

@@ -186,7 +186,10 @@ def apply_renames(tree_dir: Path, renames: list[tuple[str, str]]) -> None:
             dst = tree_dir / to_path.rstrip("/")
             if src.is_dir():
                 dst.parent.mkdir(parents=True, exist_ok=True)
-                for item in src.rglob("*"):
+                # Materialize the scan: rglob walks lazily via scandir, and moving files
+                # out from under it can drop entries — silently leaving part of a renamed
+                # directory behind, which is the exact edit loss this function prevents.
+                for item in list(src.rglob("*")):
                     if item.is_file():
                         rel = item.relative_to(src)
                         target = dst / rel

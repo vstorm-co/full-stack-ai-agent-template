@@ -170,6 +170,12 @@ def apply_renames(tree_dir: Path, renames: list[tuple[str, str]]) -> None:
     all three trees agree on the new path and the merge becomes an ordinary content
     3-way instead of a delete+add that silently drops the client's edits.
 
+    A move whose destination is already occupied is skipped, not applied: ``shutil.move``
+    replaces the target, so in OURS a client who happened to create their own file at the
+    path the template later renamed *into* would lose it outright — no conflict, no report
+    line, just the template's content in its place. Skipping degrades that one path to the
+    ordinary add/add the merge already knows how to surface.
+
     Args:
         renames: (from_path, to_path) pairs; a trailing ``/`` on ``from_path`` moves
             a whole directory subtree.
@@ -184,15 +190,40 @@ def apply_renames(tree_dir: Path, renames: list[tuple[str, str]]) -> None:
                     if item.is_file():
                         rel = item.relative_to(src)
                         target = dst / rel
+                        if _skip_occupied(target, from_path, to_path):
+                            continue
                         target.parent.mkdir(parents=True, exist_ok=True)
                         shutil.move(str(item), str(target))
-                shutil.rmtree(src, ignore_errors=True)
+                # Only drop the source once it is genuinely empty. Removing it wholesale
+                # would delete whatever the loop above skipped, turning a preserved file
+                # back into a silent loss.
+                if not any(p.is_file() for p in src.rglob("*")):
+                    shutil.rmtree(src, ignore_errors=True)
         else:
             src = tree_dir / from_path
             if src.is_file():
                 dst = tree_dir / to_path
+                if _skip_occupied(dst, from_path, to_path):
+                    continue
                 dst.parent.mkdir(parents=True, exist_ok=True)
                 shutil.move(str(src), str(dst))
+
+
+def _skip_occupied(target: Path, from_path: str, to_path: str) -> bool:
+    """True (and warns) if ``target`` already exists, so the caller must not move onto it."""
+    # is_symlink() as well: exists() follows the link, so a *broken* symlink reads as
+    # absent and the move would silently replace it.
+    if not target.exists() and not target.is_symlink():
+        return False
+    # Lazy import — report → classify → merge is a module cycle.
+    from .report import console
+
+    console.print(
+        f"[yellow]⚠ Skipping recorded rename[/] {from_path} → {to_path}: "
+        f"{target.name} already exists. Your version of that file is kept; the template's "
+        "will show up as a separate change to review."
+    )
+    return True
 
 
 def _commit_tree(git_dir: Path, tree: str, parent: str | None = None) -> str:

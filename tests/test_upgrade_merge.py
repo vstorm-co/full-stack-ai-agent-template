@@ -375,3 +375,37 @@ class TestApplyRenames:
         assert not (tree / "old_dir").exists()
         assert (tree / "renamed.py").read_text() == "S"
         assert not (tree / "single.py").exists()
+
+    def test_does_not_overwrite_a_file_the_client_already_has_there(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """shutil.move replaces its target. Applied to OURS, a recorded rename whose
+        destination the client already occupies would wipe their file with the template's
+        content — silently, since the merge then sees one agreed path and no conflict."""
+        tree = tmp_path / "tree"
+        tree.mkdir()
+        (tree / "old.py").write_text("TEMPLATE", encoding="utf-8")
+        (tree / "new.py").write_text("CLIENT", encoding="utf-8")
+
+        apply_renames(tree, [("old.py", "new.py")])
+
+        assert (tree / "new.py").read_text() == "CLIENT"
+        assert (tree / "old.py").read_text() == "TEMPLATE"
+        assert "Skipping recorded rename" in capsys.readouterr().out
+
+    def test_does_not_overwrite_inside_a_renamed_dir(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        tree = tmp_path / "tree"
+        (tree / "old_dir").mkdir(parents=True)
+        (tree / "old_dir" / "a.py").write_text("TEMPLATE", encoding="utf-8")
+        (tree / "new_dir").mkdir()
+        (tree / "new_dir" / "a.py").write_text("CLIENT", encoding="utf-8")
+
+        apply_renames(tree, [("old_dir/", "new_dir/")])
+
+        assert (tree / "new_dir" / "a.py").read_text() == "CLIENT"
+        # The skipped file must survive too — rmtree'ing the source would delete it and
+        # turn the preserved copy back into a silent loss.
+        assert (tree / "old_dir" / "a.py").read_text() == "TEMPLATE"
+        assert "Skipping recorded rename" in capsys.readouterr().out

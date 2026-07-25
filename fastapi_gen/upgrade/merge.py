@@ -19,6 +19,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from .normalize import _GENERATED_AT_PLACEHOLDER, restore_generated_at
+from .normalize import SKIP_DIRS as _EXCLUDED_DIRS
 
 _EXCLUDED_NAMES = frozenset(
     {
@@ -34,23 +35,6 @@ _EXCLUDED_NAMES = frozenset(
         # add it to every client repo — where their .gitignore covers it.
         ".DS_Store",
         "Thumbs.db",
-    }
-)
-
-_EXCLUDED_DIRS = frozenset(
-    {
-        ".git",
-        "node_modules",
-        ".venv",
-        "venv",
-        "__pycache__",
-        ".next",
-        ".turbo",
-        "dist",
-        "build",
-        ".mypy_cache",
-        ".ruff_cache",
-        ".pytest_cache",
     }
 )
 
@@ -437,7 +421,12 @@ def _materialize_onto_branch(
         raise RuntimeError(
             "These untracked files would be overwritten by the upgrade:\n"
             + "\n".join(f"  {c}" for c in collisions)
-            + "\nCommit, stash, or remove them first (or re-run with --force)."
+            # Not "stash": the check above exists to catch files that are untracked *and*
+            # gitignored, and `git stash` skips untracked files entirely while `-u` still
+            # skips ignored ones — following that advice would report nothing to save and
+            # land the user back on this same error.
+            + "\nMove or delete them first (`git stash` won't help — it skips untracked "
+            "and ignored files), or re-run with --force to overwrite them."
         )
 
     # Delete stale paths *before* extraction: doing it after would let a case-only

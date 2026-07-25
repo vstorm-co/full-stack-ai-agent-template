@@ -56,6 +56,20 @@ class TestRenderTemplate:
         assert not (out / "backend" / "uv.lock").exists()
 
 
+class TestShimDir:
+    def test_shim_dir_is_registered_for_cleanup(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """The shim dir is rebuilt every run, so it must not accumulate in /tmp."""
+        registered: list[tuple[object, ...]] = []
+        monkeypatch.setattr(render_mod, "_shim_dir_cache", None)
+        monkeypatch.setattr(render_mod.atexit, "register", lambda *a: registered.append(a))
+
+        shim_dir = render_mod._ensure_shim_dir()
+
+        assert (Path(shim_dir) / "bun").exists()
+        assert registered == [(render_mod.shutil.rmtree, shim_dir, True)]
+        render_mod.shutil.rmtree(shim_dir, ignore_errors=True)
+
+
 class TestRenderErrors:
     def test_error_on_nonzero_exit(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(

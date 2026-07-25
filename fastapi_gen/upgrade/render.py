@@ -18,8 +18,10 @@ skip the env-ops block outright.
 
 from __future__ import annotations
 
+import atexit
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -58,6 +60,9 @@ def _ensure_shim_dir() -> str:
         shim = Path(shim_dir) / tool
         shim.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
         shim.chmod(0o755)
+    # Cached for the process, not beyond it: unlike the template cache this is rebuilt on
+    # every run anyway, so without this each `upgrade` would leave a shim dir in /tmp.
+    atexit.register(shutil.rmtree, shim_dir, True)
     _shim_dir_cache = shim_dir
     return shim_dir
 

@@ -208,6 +208,48 @@ def test_restore_generated_at_replaces_placeholder(tmp_path: Path) -> None:
     assert f.read_text(encoding="utf-8") == "# Create Date: 2020-01-02 03:04:05\n"
 
 
+@pytest.mark.parametrize("parent", ["build", "dist", "venv", "node_modules"])
+def test_skip_dirs_only_match_inside_the_tree(tmp_path: Path, parent: str) -> None:
+    """A skip-list name in an *ancestor* directory must not veto the whole tree.
+
+    rglob yields absolute paths, so matching the skip-list against the full path let a
+    project at ~/build/myapp (or a Docker WORKDIR /build, or a CI checkout under
+    /builds/) skip normalization entirely. That failed asymmetrically: the rendered
+    trees live under /tmp and were still stripped, so restore_generated_at() over the
+    client's repo silently no-op'd and the placeholder shipped into their migrations.
+    """
+    tree = tmp_path / parent / "myapp"
+    migration = tree / "backend" / "alembic" / "versions" / "0000_init.py"
+    migration.parent.mkdir(parents=True)
+    migration.write_text(f"# Create Date: {_GENERATED_AT_PLACEHOLDER}\n", encoding="utf-8")
+
+    restore_generated_at(tree, "2020-01-02 03:04:05")
+
+    assert migration.read_text(encoding="utf-8") == "# Create Date: 2020-01-02 03:04:05\n"
+
+
+def test_skip_dirs_still_match_inside_the_tree(tmp_path: Path) -> None:
+    """The exclusion itself must keep working for real build output under the tree."""
+    excluded = tmp_path / "frontend" / "node_modules" / "pkg" / "index.ts"
+    excluded.parent.mkdir(parents=True)
+    excluded.write_text(f"// {_GENERATED_AT_PLACEHOLDER}\n", encoding="utf-8")
+
+    restore_generated_at(tmp_path, "2020-01-02 03:04:05")
+
+    assert _GENERATED_AT_PLACEHOLDER in excluded.read_text(encoding="utf-8")
+
+
+def test_merge_shares_the_single_skip_dir_set() -> None:
+    """merge.is_excluded and normalize must never drift apart on what to skip.
+
+    A dir the merge walks but normalize skips keeps its files unformatted in all three
+    trees, so every template change there degrades into a conflict.
+    """
+    from fastapi_gen.upgrade import merge as merge_mod
+
+    assert merge_mod._EXCLUDED_DIRS is normalize_mod.SKIP_DIRS
+
+
 def test_is_binary_returns_true_on_oserror(tmp_path: Path) -> None:
     assert normalize_mod._is_binary(tmp_path) is True  # opening a dir raises → defensive True
 

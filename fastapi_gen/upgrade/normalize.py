@@ -57,10 +57,13 @@ def _is_binary(path: Path) -> bool:
         return True
 
 
-# Mirrors merge._EXCLUDED_DIRS: what the merge never looks at, we never walk either.
-# restore_generated_at() runs over the *client's* whole repo, so leaving build output
-# and tool caches in meant reading every file under .ruff_cache/, dist/ and friends.
-_SKIP_DIRS = frozenset(
+# The single source of truth for "never look inside this directory" — merge.py imports
+# it as its own exclusion set, because the two must agree in both directions: a dir the
+# merge walks but we skip keeps its files unformatted in all three trees, so every
+# template change there degrades into a conflict; a dir we walk but the merge skips is
+# pure I/O (restore_generated_at() runs over the client's *whole* repo, so leaving build
+# output in meant reading every file under .ruff_cache/, dist/ and friends).
+SKIP_DIRS = frozenset(
     {
         ".git",
         "node_modules",
@@ -79,8 +82,14 @@ _SKIP_DIRS = frozenset(
 
 
 def _iter_text_files(tree: Path):
+    # relative_to(tree), not path.parts: rglob yields absolute paths, so matching the
+    # skip-list against the whole path lets an *ancestor* of the tree veto everything
+    # inside it — a project at ~/build/myapp, a Docker WORKDIR /build or a CI checkout
+    # under /builds/ would be skipped wholesale. That fails asymmetrically and silently:
+    # the rendered trees live under /tmp and still get stripped, but restore_generated_at()
+    # over the client's repo becomes a no-op, so the placeholder ships into their files.
     for path in tree.rglob("*"):
-        if _SKIP_DIRS.intersection(path.parts):
+        if SKIP_DIRS.intersection(path.relative_to(tree).parts):
             continue
         if path.is_file() and not path.is_symlink() and not _is_binary(path):
             yield path

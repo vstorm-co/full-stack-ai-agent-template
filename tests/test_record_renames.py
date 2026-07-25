@@ -139,6 +139,58 @@ def test_coverage_main_honours_versioned_waiver(tmp_path, monkeypatch) -> None:
     assert cc.main([]) == 0
 
 
+def test_coverage_main_fails_closed_when_the_baseline_wheel_is_missing(
+    tmp_path, monkeypatch, capsys
+) -> None:
+    """A 404 fetching the *wheel* of a published version is infrastructure, not a
+    missing baseline — treating it as one skips the guard in exactly the case it exists
+    to block."""
+    monkeypatch.setattr(cc, "_find_template_dir", lambda: _make_template(tmp_path, {"a.py": "x"}))
+    monkeypatch.setattr(cc, "latest_pypi_version", lambda **_: "0.1.0")
+
+    def _boom(*_a, **_k):
+        raise TemplateFetchError("HTTP Error 404: Not Found")
+
+    monkeypatch.setattr(cc, "fetch_template", _boom)
+
+    assert cc.main([]) == 2
+    assert "::error::" in capsys.readouterr().out
+
+
+def test_coverage_main_refuses_to_suggest_a_stale_version(tmp_path, monkeypatch, capsys) -> None:
+    """Mid-cycle the working tree still reports the published version, and a block
+    recorded there is filtered right back out by the half-open (from, to] range."""
+    old = _make_template(tmp_path / "old", {"backend/app/old.py": _SHARED})
+    new = _make_template(tmp_path / "new", {"backend/app/new.py": _SHARED})
+    monkeypatch.setattr(cc, "_find_template_dir", lambda: new)
+    monkeypatch.setattr(cc, "latest_pypi_version", lambda **_: "0.1.0")
+    monkeypatch.setattr(cc, "fetch_template", lambda *_a, **_k: old)
+    monkeypatch.setattr(cc, "load_upgrades_file", lambda _p: [])
+    monkeypatch.setattr(cc, "_known_renames", lambda _r: {})
+    monkeypatch.setattr(cc, "get_generator_version", lambda: "0.1.0")
+
+    assert cc.main([]) == 1
+    out = capsys.readouterr().out
+    assert '- version: "<next-release>"' in out
+    assert '- version: "0.1.0"' not in out
+
+
+def test_coverage_main_suggests_the_running_version_once_bumped(
+    tmp_path, monkeypatch, capsys
+) -> None:
+    old = _make_template(tmp_path / "old", {"backend/app/old.py": _SHARED})
+    new = _make_template(tmp_path / "new", {"backend/app/new.py": _SHARED})
+    monkeypatch.setattr(cc, "_find_template_dir", lambda: new)
+    monkeypatch.setattr(cc, "latest_pypi_version", lambda **_: "0.1.0")
+    monkeypatch.setattr(cc, "fetch_template", lambda *_a, **_k: old)
+    monkeypatch.setattr(cc, "load_upgrades_file", lambda _p: [])
+    monkeypatch.setattr(cc, "_known_renames", lambda _r: {})
+    monkeypatch.setattr(cc, "get_generator_version", lambda: "0.2.0")
+
+    assert cc.main([]) == 1
+    assert '- version: "0.2.0"' in capsys.readouterr().out
+
+
 # --- record_renames.main() --------------------------------------------------------
 
 

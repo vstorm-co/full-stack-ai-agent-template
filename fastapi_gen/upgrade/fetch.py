@@ -143,30 +143,29 @@ def _pypi_metadata(version: str, *, timeout: float = 30.0) -> dict:
         ) from exc
 
 
-def _pypi_wheel_url(version: str, *, timeout: float = 30.0) -> str:
-    """Return the download URL of the wheel for ``version`` from PyPI."""
+def _wheel_entry(version: str, *, timeout: float = 30.0) -> dict:
+    """Return PyPI's release-file entry for ``version``'s wheel (url + digests).
+
+    One metadata request, not two. Asking again for the digest meant a transient blip on
+    the second call silently downgraded the download to *unverified* — the one failure
+    mode an integrity check must not have.
+    """
     data = _pypi_metadata(version, timeout=timeout)
     for entry in data.get("urls", []):
         if entry.get("packagetype") == "bdist_wheel" and entry.get("url"):
-            return str(entry["url"])
+            return dict(entry)
     raise TemplateFetchError(f"No wheel found on PyPI for {GENERATOR_NAME}=={version}.")
 
 
-def _wheel_sha256(version: str, wheel_url: str, *, timeout: float = 30.0) -> str | None:
-    """Best-effort: the expected sha256 for ``wheel_url`` from PyPI (``None`` if unknown)."""
-    try:
-        data = _pypi_metadata(version, timeout=timeout)
-    except TemplateFetchError:
-        return None
-    for entry in data.get("urls", []):
-        if entry.get("url") == wheel_url:
-            return entry.get("digests", {}).get("sha256")
-    return None
+def _pypi_wheel_url(version: str, *, timeout: float = 30.0) -> str:
+    """Return the download URL of the wheel for ``version`` from PyPI."""
+    return str(_wheel_entry(version, timeout=timeout)["url"])
 
 
 def _fetch_from_pypi(version: str, dest: Path, *, timeout: float = 30.0) -> Path:
     """Download the wheel for ``version`` and extract its bundled template into ``dest``."""
-    wheel_url = _pypi_wheel_url(version, timeout=timeout)
+    entry = _wheel_entry(version, timeout=timeout)
+    wheel_url = str(entry["url"])
     _secure_mkdir(dest)
     wheel_path = dest / "package.whl"
     try:
@@ -175,7 +174,7 @@ def _fetch_from_pypi(version: str, dest: Path, *, timeout: float = 30.0) -> Path
     except Exception as exc:
         raise TemplateFetchError(f"Failed to download wheel for {version}: {exc}") from exc
 
-    expected = _wheel_sha256(version, wheel_url, timeout=timeout)
+    expected = entry.get("digests", {}).get("sha256")
     if expected and hashlib.sha256(wheel_bytes).hexdigest() != expected:
         raise TemplateFetchError(
             f"Wheel for {version} failed sha256 verification against PyPI's digest."

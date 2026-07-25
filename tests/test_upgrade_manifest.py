@@ -184,3 +184,20 @@ class TestReadManifestErrors:
         )
         with pytest.raises(ValueError, match="missing required keys"):
             read_manifest(tmp_path)
+
+    def test_non_object_context_raises_value_error(self, tmp_path: Path) -> None:
+        """Present-but-wrong-shape gets past the presence check, and every consumer
+        indexes into `context` — reconcile does dict(context), the renderer does .get."""
+        (tmp_path / MANIFEST_FILENAME).write_text(
+            json.dumps(
+                {
+                    "package_version": "1.0.0",
+                    "template_ref": "1.0.0",
+                    "context_hash": "sha256:x",
+                    "context": ["enable_rag"],
+                }
+            ),
+            encoding="utf-8",
+        )
+        with pytest.raises(ValueError, match="non-object 'context'"):
+            read_manifest(tmp_path)

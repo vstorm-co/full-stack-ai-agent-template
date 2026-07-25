@@ -420,7 +420,14 @@ def _materialize_onto_branch(
 ) -> None:
     merged_files = _tree_files(store, result.merged_tree)
     in_scope_tracked = {f for f in _tracked_files(client_repo, base_ref) if not is_excluded(f)}
-    symlinks = _tracked_symlinks(client_repo, base_ref) | {
+    # Two sets, not one: they are needed at different sites and conflating them drops a
+    # merged file. `tracked_symlinks` is the "never deleted, never restaged" guarantee.
+    # `untracked_symlinks` only buys an exemption from the collision guard below — the
+    # link is replaced by the file the template ships, which then has to be staged like
+    # any other new file. Subtracting it from `to_stage` too meant the file landed on
+    # disk and never reached the branch.
+    tracked_symlinks = _tracked_symlinks(client_repo, base_ref)
+    untracked_symlinks = {
         p for p in _untracked_files(client_repo) if (client_repo / p).is_symlink()
     }
 
@@ -429,9 +436,13 @@ def _materialize_onto_branch(
     # overwrite it with no warning (the rollback in materialize() restores tracked files
     # only, so it never comes back). Anything in the merged tree that HEAD does not track
     # but that exists on disk is a collision, ignored or not. Bounded by merged_files, so
-    # this never enumerates node_modules.
+    # this never enumerates node_modules. lexists, not exists: a *broken* symlink reads as
+    # absent to exists() but is still a real entry that tar would replace, and one that
+    # `ls-files --others` never reported because .gitignore covered it.
     collisions = sorted(
-        rel for rel in merged_files - in_scope_tracked - symlinks if (client_repo / rel).exists()
+        rel
+        for rel in merged_files - in_scope_tracked - untracked_symlinks
+        if os.path.lexists(client_repo / rel)
     )
     if collisions and not force:
         raise RuntimeError(
@@ -448,7 +459,7 @@ def _materialize_onto_branch(
     # Delete stale paths *before* extraction: doing it after would let a case-only
     # rename (Readme.md → README.md, same inode on case-insensitive filesystems)
     # unlink the freshly-written file, and a file→dir change raise IsADirectoryError.
-    stale = sorted(in_scope_tracked - merged_files - symlinks)
+    stale = sorted(in_scope_tracked - merged_files - tracked_symlinks)
     for rel in stale:
         target = client_repo / rel
         if target.is_symlink():
@@ -476,7 +487,11 @@ def _materialize_onto_branch(
         capture_output=True,
         check=True,
     ).stdout
-    subprocess.run(["tar", "-x", "-C", str(client_repo)], input=archive, check=True)
+    # `-f -` is not decoration: with no `-f`, tar reads the archive named by $TAPE (or a
+    # compiled-in default device). A shell that exports TAPE turns this into a silent
+    # no-op — exit 0, nothing extracted — and the upgrade then stages the *old* content
+    # as if the merge had produced it.
+    subprocess.run(["tar", "-x", "-f", "-", "-C", str(client_repo)], input=archive, check=True)
 
     # Restore the real generated_at stamp on the worktree *before* staging, so the
     # index never carries the <normalized-generated-at> placeholder into a commit.
@@ -493,7 +508,7 @@ def _materialize_onto_branch(
     # upgrade that adds the ignore rule, since .gitignore is merged too. The pathspec
     # list is exact (the merged tree plus what was already tracked), so forcing can only
     # stage files the merge itself produced.
-    to_stage = sorted((merged_files | in_scope_tracked) - symlinks)
+    to_stage = sorted((merged_files | in_scope_tracked) - tracked_symlinks)
     if to_stage:
         payload = ("\0".join(to_stage) + "\0").encode("utf-8", "surrogateescape")
         subprocess.run(

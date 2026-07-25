@@ -68,13 +68,40 @@ def _in_range(version: str, from_version: str, to_version: str) -> bool:
 
 
 def load_upgrades_file(path: Path) -> list[dict]:
-    """Parse UPGRADES.yaml into an ascending-by-version list of release blocks."""
+    """Parse UPGRADES.yaml into an ascending-by-version list of release blocks.
+
+    Raises:
+        ValueError: If the file is not a list of well-formed release blocks.
+    """
     if not path.exists():
         return []
     data = yaml.safe_load(path.read_text(encoding="utf-8")) or []
     if not isinstance(data, list):
         raise ValueError(f"{path} must contain a list of release blocks.")
-    return sorted(data, key=lambda b: _parse_version(str(b.get("version", "0"))))
+    blocks: list[dict] = []
+    for raw in data:
+        if not isinstance(raw, dict):
+            raise ValueError(f"{path}: every release block must be a mapping, got {raw!r}.")
+        _validate_block(path, raw)
+        blocks.append(raw)
+    return sorted(blocks, key=lambda b: _parse_version(str(b.get("version", "0"))))
+
+
+def _validate_block(path: Path, block: dict) -> None:
+    """Reject a malformed release block here, at the one place the file is read.
+
+    UPGRADES.yaml is hand-curated, and three separate consumers walk these blocks
+    (:func:`compose_metadata` plus the two release scripts). Each indexes ``r["from"]``
+    / ``r["to"]`` directly, so a typo'd or half-written entry would surface as a bare
+    ``KeyError`` from whichever one happened to run — with nothing naming the file.
+    """
+    for key in ("renames", "variable_renames"):
+        for entry in block.get(key) or []:
+            if not isinstance(entry, dict) or "from" not in entry or "to" not in entry:
+                raise ValueError(
+                    f"{path}: every `{key}` entry needs both `from:` and `to:` — "
+                    f"got {entry!r} in block {block.get('version', '?')!r}."
+                )
 
 
 def compose_metadata(

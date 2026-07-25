@@ -144,7 +144,9 @@ class TestFetchFromPypi:
             fetch_mod._validate_template_dir(tmp_path)
 
     def test_download_failure(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr(fetch_mod, "_pypi_wheel_url", lambda *_a, **_k: "https://x/pkg.whl")
+        monkeypatch.setattr(
+            fetch_mod, "_wheel_entry", lambda *_a, **_k: {"url": "https://x/pkg.whl"}
+        )
 
         def _boom(*_a: object, **_k: object) -> None:
             raise OSError("network down")
@@ -154,7 +156,9 @@ class TestFetchFromPypi:
             fetch_mod._fetch_from_pypi("1.0.0", tmp_path)
 
     def test_extracts_template(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr(fetch_mod, "_pypi_wheel_url", lambda *_a, **_k: "https://x/pkg.whl")
+        monkeypatch.setattr(
+            fetch_mod, "_wheel_entry", lambda *_a, **_k: {"url": "https://x/pkg.whl"}
+        )
         resp = MagicMock()
         resp.read.return_value = _wheel_bytes(include_template=True)
         resp.__enter__.return_value = resp
@@ -163,7 +167,9 @@ class TestFetchFromPypi:
         assert (result / "cookiecutter.json").exists()
 
     def test_wheel_without_template(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr(fetch_mod, "_pypi_wheel_url", lambda *_a, **_k: "https://x/pkg.whl")
+        monkeypatch.setattr(
+            fetch_mod, "_wheel_entry", lambda *_a, **_k: {"url": "https://x/pkg.whl"}
+        )
         resp = MagicMock()
         resp.read.return_value = _wheel_bytes(include_template=False)
         resp.__enter__.return_value = resp
@@ -186,34 +192,78 @@ class TestSecureMkdir:
         assert target.is_dir()
 
 
-class TestWheelSha256:
-    def test_returns_none_on_metadata_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
+class TestWheelEntry:
+    def test_propagates_metadata_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
         def _boom(*_a: object, **_k: object) -> None:
             raise TemplateFetchError("no pypi")
 
         monkeypatch.setattr(fetch_mod, "_pypi_metadata", _boom)
-        assert fetch_mod._wheel_sha256("1.0.0", "https://x/pkg.whl") is None
+        with pytest.raises(TemplateFetchError, match="no pypi"):
+            fetch_mod._wheel_entry("1.0.0")
 
-    def test_returns_digest_for_matching_url(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        meta = {"urls": [{"url": "https://x/pkg.whl", "digests": {"sha256": "abc123"}}]}
+    def test_returns_the_wheel_entry_with_its_digest(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        meta = {
+            "urls": [
+                {"packagetype": "sdist", "url": "https://x/pkg.tar.gz"},
+                {
+                    "packagetype": "bdist_wheel",
+                    "url": "https://x/pkg.whl",
+                    "digests": {"sha256": "abc123"},
+                },
+            ]
+        }
         monkeypatch.setattr(fetch_mod, "_pypi_metadata", lambda *_a, **_k: meta)
-        assert fetch_mod._wheel_sha256("1.0.0", "https://x/pkg.whl") == "abc123"
+        entry = fetch_mod._wheel_entry("1.0.0")
+        assert entry["url"] == "https://x/pkg.whl"
+        assert entry["digests"]["sha256"] == "abc123"
 
-    def test_returns_none_when_url_absent(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_raises_when_no_wheel_is_published(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(fetch_mod, "_pypi_metadata", lambda *_a, **_k: {"urls": []})
-        assert fetch_mod._wheel_sha256("1.0.0", "https://x/pkg.whl") is None
+        with pytest.raises(TemplateFetchError, match="No wheel found"):
+            fetch_mod._wheel_entry("1.0.0")
+
+    def test_one_metadata_request_carries_the_digest(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A second metadata request could fail and silently skip verification."""
+        calls: list[str] = []
+        wheel = _wheel_bytes(include_template=True)
+
+        def _meta(version: str, **_k: object) -> dict:
+            calls.append(version)
+            return {
+                "urls": [
+                    {
+                        "packagetype": "bdist_wheel",
+                        "url": "https://x/pkg.whl",
+                        "digests": {"sha256": "deadbeef"},
+                    }
+                ]
+            }
+
+        monkeypatch.setattr(fetch_mod, "_pypi_metadata", _meta)
+        resp = MagicMock()
+        resp.read.return_value = wheel
+        resp.__enter__.return_value = resp
+        monkeypatch.setattr(fetch_mod.urllib.request, "urlopen", lambda *_a, **_k: resp)
+        with pytest.raises(TemplateFetchError, match="failed sha256 verification"):
+            fetch_mod._fetch_from_pypi("1.0.0", tmp_path)
+        assert calls == ["1.0.0"]
 
 
 class TestFetchFromPypiDigest:
     def test_rejects_wheel_with_wrong_digest(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.setattr(fetch_mod, "_pypi_wheel_url", lambda *_a, **_k: "https://x/pkg.whl")
+        monkeypatch.setattr(
+            fetch_mod,
+            "_wheel_entry",
+            lambda *_a, **_k: {"url": "https://x/pkg.whl", "digests": {"sha256": "deadbeef"}},
+        )
         resp = MagicMock()
         resp.read.return_value = _wheel_bytes(include_template=True)
         resp.__enter__.return_value = resp
         monkeypatch.setattr(fetch_mod.urllib.request, "urlopen", lambda *_a, **_k: resp)
-        monkeypatch.setattr(fetch_mod, "_wheel_sha256", lambda *_a, **_k: "deadbeef")
         with pytest.raises(TemplateFetchError, match="failed sha256 verification"):
             fetch_mod._fetch_from_pypi("1.0.0", tmp_path)
 

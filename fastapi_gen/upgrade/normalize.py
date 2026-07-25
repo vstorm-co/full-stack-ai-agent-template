@@ -253,6 +253,12 @@ def format_frontend(
     ``printWidth`` or ``singleQuote``) for OURS but the template's for BASE and THEIRS —
     so every ``.ts``/``.tsx`` file formats differently between the trees and reads as a
     client edit, which turns each real template change into a conflict.
+
+    A non-zero Prettier exit is surfaced as a warning for the same reason
+    :func:`format_python` does it: Prettier still formats what it can parse, so one tree
+    that hits an unparseable file comes out formatted differently from the other two —
+    and returning ``True`` (Prettier *did* run) means the caller's evenness check can't
+    see it either.
     """
     frontend = tree / "frontend"
     if not frontend.is_dir():
@@ -283,12 +289,20 @@ def format_frontend(
         cmd += ["--ignore-path", str(ignore_path)]
     cmd.append(".")
     try:
-        subprocess.run(cmd, cwd=frontend, capture_output=True, check=False)
+        proc = subprocess.run(cmd, cwd=frontend, capture_output=True, check=False)
     except OSError:
         return False
     finally:
         if borrowed:
             link.unlink()
+    if proc.returncode != 0:
+        # Lazy import — report → classify → merge → normalize is a module cycle.
+        from .report import console
+
+        console.print(
+            f"[yellow]⚠ Prettier exited {proc.returncode} on {frontend}[/] — formatting "
+            "may be uneven across trees, which can add spurious merge conflicts."
+        )
     return True
 
 

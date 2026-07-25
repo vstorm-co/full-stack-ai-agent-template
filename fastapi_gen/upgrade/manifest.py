@@ -180,4 +180,13 @@ def read_manifest(project_path: Path) -> dict[str, Any]:
             f"Manifest {manifest_path} is missing required keys: {sorted(missing)}. "
             "Run recovery to rebuild it."
         )
+    # `context` earns its own check: it is the one key every consumer indexes into
+    # (reconcile does dict(context), the renderer does context.get), so a hand-edit that
+    # turns it into a list or a string gets past the presence check above and surfaces as
+    # a bare TypeError several modules downstream.
+    if not isinstance(data["context"], dict):
+        raise ValueError(
+            f"Manifest {manifest_path} has a non-object 'context' "
+            f"({type(data['context']).__name__}). Run recovery to rebuild it."
+        )
     return data

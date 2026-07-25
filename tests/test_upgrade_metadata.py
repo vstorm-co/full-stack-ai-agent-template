@@ -95,3 +95,42 @@ def test_parse_version_falls_back_on_garbage() -> None:
     from fastapi_gen.upgrade.metadata import _parse_version
 
     assert str(_parse_version("not-a-version")) == "0"
+
+
+class TestMalformedUpgradesFile:
+    """Three consumers index r["from"] / r["to"] directly, so the single load point is
+    where a hand-edit typo has to be caught — otherwise it surfaces as a bare KeyError
+    from whichever release script happens to run."""
+
+    def test_rejects_a_non_mapping_block(self, tmp_path: Path) -> None:
+        path = tmp_path / "UPGRADES.yaml"
+        path.write_text('- "0.2.15"\n', encoding="utf-8")
+        with pytest.raises(ValueError, match="must be a mapping"):
+            load_upgrades_file(path)
+
+    def test_rejects_a_rename_missing_a_side(self, tmp_path: Path) -> None:
+        path = tmp_path / "UPGRADES.yaml"
+        path.write_text(
+            '- version: "0.2.15"\n  renames:\n    - from: "a.py"\n', encoding="utf-8"
+        )
+        with pytest.raises(ValueError, match="needs both `from:` and `to:`"):
+            load_upgrades_file(path)
+
+    def test_rejects_a_variable_rename_missing_a_side(self, tmp_path: Path) -> None:
+        path = tmp_path / "UPGRADES.yaml"
+        path.write_text(
+            '- version: "0.2.15"\n  variable_renames:\n    - to: "vector_store"\n',
+            encoding="utf-8",
+        )
+        with pytest.raises(ValueError, match="needs both `from:` and `to:`"):
+            load_upgrades_file(path)
+
+    def test_accepts_the_documented_schema(self, tmp_path: Path) -> None:
+        path = tmp_path / "UPGRADES.yaml"
+        path.write_text(
+            '- version: "0.2.15"\n'
+            '  renames:\n    - from: "a.py"\n      to: "b.py"\n'
+            '  variable_renames:\n    - from: "x"\n      to: "y"\n',
+            encoding="utf-8",
+        )
+        assert load_upgrades_file(path)[0]["version"] == "0.2.15"

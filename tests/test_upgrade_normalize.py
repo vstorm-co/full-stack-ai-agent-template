@@ -185,6 +185,23 @@ def test_format_frontend_omits_missing_config(tmp_path: Path) -> None:
     assert (frontend / "args.txt").read_text().split() == ["--write", "."]
 
 
+def test_format_frontend_warns_when_prettier_fails(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Prettier formats what it can parse and exits non-zero on the rest, so a tree that
+    hits an unparseable file comes out formatted differently from the other two — and
+    the return value (Prettier *did* run) can't carry that."""
+    nm = tmp_path / "nm"
+    (nm / ".bin").mkdir(parents=True)
+    (nm / ".bin" / "prettier").write_text("#!/bin/sh\nexit 2\n", encoding="utf-8")
+    (nm / ".bin" / "prettier").chmod(0o755)
+    tree = tmp_path / "tree"
+    (tree / "frontend").mkdir(parents=True)
+
+    assert format_frontend(tree, node_modules=nm) is True
+    assert "Prettier exited 2" in capsys.readouterr().out
+
+
 def test_format_frontend_skips_without_node_modules(tmp_path: Path) -> None:
     tree = tmp_path / "tree"
     (tree / "frontend").mkdir(parents=True)

@@ -1,5 +1,6 @@
 """Tests for fastapi_gen.upgrade.merge — the 3-way merge engine."""
 
+import os
 import subprocess
 from pathlib import Path
 
@@ -122,6 +123,105 @@ def _init_client_repo(worktree: Path) -> None:
     subprocess.run(["git", "-C", str(worktree), "config", "user.name", "t"], check=True)
     subprocess.run(["git", "-C", str(worktree), "add", "-A"], check=True)
     subprocess.run(["git", "-C", str(worktree), "commit", "-q", "-m", "init"], check=True)
+
+
+class TestMaterializeEnvironment:
+    def _client_from(self, tmp_path: Path, ours: Path) -> Path:
+        client = tmp_path / "client"
+        client.mkdir()
+        for p in ours.rglob("*"):
+            if p.is_file():
+                rel = p.relative_to(ours)
+                (client / rel).parent.mkdir(parents=True, exist_ok=True)
+                (client / rel).write_text(p.read_text(), encoding="utf-8")
+        _init_client_repo(client)
+        return client
+
+    def test_extraction_ignores_a_hostile_tape_variable(
+        self,
+        tmp_path: Path,
+        three_trees: tuple[Path, Path, Path],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """`tar -x` with no `-f` reads $TAPE instead of stdin — silently extracting
+        nothing and exiting 0, so the merged tree never reaches the worktree."""
+        base, ours, theirs = three_trees
+        client = self._client_from(tmp_path, ours)
+        monkeypatch.setenv("TAPE", os.devnull)
+
+        result = merge_trees(base, client, theirs)
+        materialize(result, client, branch="template-upgrade/vTAPE")
+
+        assert (client / "new_feature.txt").read_text() == "shiny\n"
+        assert "TWO-NEW" in (client / "upd.txt").read_text()
+
+    def test_broken_ignored_symlink_is_reported_as_a_collision(
+        self, tmp_path: Path, three_trees: tuple[Path, Path, Path]
+    ) -> None:
+        """exists() follows the link, so a dangling one reads as absent — and .gitignore
+        keeps it out of `ls-files --others`, so nothing else would catch it either."""
+        base, ours, theirs = three_trees
+        client = self._client_from(tmp_path, ours)
+        (client / ".gitignore").write_text("new_feature.txt\n", encoding="utf-8")
+        subprocess.run(["git", "-C", str(client), "add", "-A"], check=True)
+        subprocess.run(["git", "-C", str(client), "commit", "-q", "-m", "ignore"], check=True)
+        (client / "new_feature.txt").symlink_to(client / "nowhere")
+
+        result = merge_trees(base, client, theirs)
+        with pytest.raises(RuntimeError, match="untracked files would be overwritten"):
+            materialize(result, client, branch="template-upgrade/vSYM")
+
+
+class TestMaterializeSymlinks:
+    def _client_from(self, tmp_path: Path, ours: Path) -> Path:
+        client = tmp_path / "client"
+        client.mkdir()
+        for p in ours.rglob("*"):
+            if p.is_file():
+                rel = p.relative_to(ours)
+                (client / rel).parent.mkdir(parents=True, exist_ok=True)
+                (client / rel).write_text(p.read_text(), encoding="utf-8")
+        _init_client_repo(client)
+        return client
+
+    def test_file_replacing_an_untracked_symlink_is_staged(
+        self, tmp_path: Path, three_trees: tuple[Path, Path, Path]
+    ) -> None:
+        """The untracked-symlink exemption belongs to the collision guard only. Applying
+        it to the staging set too left the template's new file on disk but off the
+        branch — a silently partial upgrade."""
+        base, ours, theirs = three_trees
+        client = self._client_from(tmp_path, ours)
+        outside = tmp_path / "outside.txt"
+        outside.write_text("linked\n", encoding="utf-8")
+        (client / "new_feature.txt").symlink_to(outside)
+
+        result = merge_trees(base, client, theirs)
+        materialize(result, client, branch="template-upgrade/vLINK")
+
+        assert not (client / "new_feature.txt").is_symlink()
+        assert (client / "new_feature.txt").read_text() == "shiny\n"
+        staged = subprocess.run(
+            ["git", "-C", str(client), "diff", "--cached", "--name-only"],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.split()
+        assert "new_feature.txt" in staged
+
+    def test_tracked_symlink_is_never_deleted(
+        self, tmp_path: Path, three_trees: tuple[Path, Path, Path]
+    ) -> None:
+        base, ours, theirs = three_trees
+        client = self._client_from(tmp_path, ours)
+        (client / "link.txt").symlink_to(client / "upd.txt")
+        subprocess.run(["git", "-C", str(client), "add", "-A"], check=True)
+        subprocess.run(["git", "-C", str(client), "commit", "-q", "-m", "link"], check=True)
+
+        result = merge_trees(base, client, theirs)
+        materialize(result, client, branch="template-upgrade/vKEEP")
+
+        assert (client / "link.txt").is_symlink()
 
 
 class TestMaterialize:

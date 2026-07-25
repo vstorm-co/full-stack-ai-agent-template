@@ -297,12 +297,15 @@ MATRIX_CONFIGS: dict[str, dict] = {
     ),
     # MCP client: agents/mcp*, the connections service/repo/routes and the
     # OAuth flow only render under this flag — without a matrix entry none of
-    # that backend code is ever linted or type-checked.
+    # that backend code is ever linted or type-checked. Slack is on because
+    # agent_invocation.py is the second place the agent gets MCP toolsets and
+    # it only renders for a channel build.
     "pydantic_ai_mcp_client": dict(
         database=DatabaseType.POSTGRESQL,
         ai_framework=AIFrameworkType.PYDANTIC_AI,
         enable_logfire=False,
         enable_mcp_client=True,
+        use_slack=True,
         frontend=FrontendType.NEXTJS,
         background_tasks=BackgroundTaskType.NONE,
     ),

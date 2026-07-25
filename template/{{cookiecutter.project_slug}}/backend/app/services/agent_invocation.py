@@ -18,6 +18,9 @@ from app.repositories import knowledge_base_repo
 from app.agents.assistant import Deps, get_agent
 from app.services.agent import build_message_history
 {%- endif %}
+{%- if cookiecutter.enable_mcp_client %}
+from app.services.mcp_connection import build_toolsets_for_user
+{%- endif %}
 {%- if cookiecutter.use_pydantic_deep %}
 from app.agents.pydantic_deep_assistant import PydanticDeepAssistant, PydanticDeepContext
 {%- endif %}
@@ -147,7 +150,15 @@ class AgentInvocationService:
         """Invoke PydanticAI agent and extract tool events from result messages."""
 
         model_name: str | None = kwargs.get("model_override")
+{%- if cookiecutter.enable_mcp_client %}
+        # Channel messages run the same agent as the web chat, so the user's
+        # Settings → Integrations servers apply here too. Traffic with no mapped
+        # account still gets the deployment-managed MCP_SERVERS.
+        mcp_toolsets = await build_toolsets_for_user(kwargs.get("user_id"))
+        assistant = get_agent(model_name=model_name, extra_toolsets=mcp_toolsets)
+{%- else %}
         assistant = get_agent(model_name=model_name)
+{%- endif %}
 
         model_history = build_message_history(history)
         deps = Deps(kb_collection_names=kwargs.get("kb_collection_names") or [])

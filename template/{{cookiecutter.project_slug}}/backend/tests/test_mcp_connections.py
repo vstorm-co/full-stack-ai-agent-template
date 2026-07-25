@@ -8,6 +8,7 @@ from uuid import uuid4
 import httpx
 import pytest
 from mcp.shared.auth import OAuthToken
+from pydantic import ValidationError
 
 from app.agents import mcp_oauth
 from app.agents.mcp import (
@@ -256,6 +257,51 @@ class TestStaticServerSpecs:
             )
         ]
 
+    def test_name_must_be_a_slug(self):
+        """The name becomes the tool prefix, so anything outside the slug rule
+        would silently collapse two servers onto one prefix."""
+        with pytest.raises(ValidationError):
+            McpServerConfig(name="My Server!", url="https://example.com/mcp")
+
+    def test_duplicate_names_are_rejected_at_startup(self):
+        """Two servers with one name means one of them never reaches a chat
+        turn. Fail at boot rather than at runtime, where nobody would see it."""
+        with pytest.raises(ValidationError, match="duplicate server names"):
+            type(settings)(
+                MCP_SERVERS=[
+                    McpServerConfig(name="github", url="https://a.example/mcp"),
+                    McpServerConfig(name="github", url="https://b.example/mcp"),
+                ]
+            )
+
+
+class TestToolsetsForUser:
+    @pytest.mark.anyio
+    async def test_no_user_still_gets_workspace_servers(self, monkeypatch):
+        """Channel traffic that isn't mapped to an account: the deployment's
+        MCP_SERVERS still apply, and no database session is opened for the
+        per-user connections that can't exist."""
+
+        def _no_db():  # pragma: no cover - only called if the guard regresses
+            raise AssertionError("build_toolsets_for_user(None) must not open a session")
+
+        monkeypatch.setattr(
+            mcp_connection_service,
+            "static_server_specs",
+            lambda: [McpServerSpec(name="workspace", url="https://example.com/mcp")],
+        )
+        monkeypatch.setattr(mcp_connection_service, "get_db_context", _no_db)
+        seen: list[list[McpServerSpec]] = []
+
+        async def fake_build(specs: list[McpServerSpec]) -> list[str]:
+            seen.append(specs)
+            return ["toolset"]
+
+        monkeypatch.setattr(mcp_connection_service, "build_mcp_toolsets", fake_build)
+
+        assert await mcp_connection_service.build_toolsets_for_user(None) == ["toolset"]
+        assert [spec.name for spec in seen[0]] == ["workspace"]
+
 
 class TestAuthHeaders:
     @pytest.mark.anyio
@@ -285,6 +331,7 @@ def _oauth_connection(payload: McpOAuthPayload, **overrides) -> McpConnection:
 def _base_payload(**overrides) -> McpOAuthPayload:
     data = {
         "server_url": "https://srv/mcp",
+        "started_at": datetime.now(UTC).timestamp(),
         "authorization_endpoint": "https://srv/authorize",
         "token_endpoint": "https://srv/token",
         "client_id": "cid",
@@ -339,12 +386,18 @@ class TestOAuthTokens:
         fresh = OAuthToken(access_token="fresh-token", refresh_token="rt2", expires_in=3600)
         refresh_mock = AsyncMock(return_value=fresh)
         monkeypatch.setattr(mcp_oauth, "refresh_tokens", refresh_mock)
+        lock_mock = AsyncMock(return_value=conn)
+        monkeypatch.setattr(
+            mcp_connection_service.mcp_connection_repo, "get_by_id_for_update", lock_mock
+        )
         update_mock = AsyncMock()
         monkeypatch.setattr(mcp_connection_service.mcp_connection_repo, "update", update_mock)
 
         headers = await _resolve_auth_headers(AsyncMock(), conn)
         assert headers == {"Authorization": "Bearer fresh-token"}
         refresh_mock.assert_awaited_once()
+        # The refresh token is only ever spent while holding the row lock.
+        lock_mock.assert_awaited_once()
         # The refreshed token was persisted back (re-encrypted).
         stored = update_mock.call_args.kwargs["update_data"]["oauth_payload"]
         assert (
@@ -353,6 +406,39 @@ class TestOAuthTokens:
             ).access_token
             == "fresh-token"
         )
+
+    @pytest.mark.anyio
+    async def test_concurrent_turn_reuses_the_token_the_winner_stored(self, monkeypatch):
+        """Two turns can hit an expired token at once. The one that loses the
+        row lock must re-read the row and use the fresh token, not spend the
+        refresh token a second time — providers that rotate it would invalidate
+        the winner's copy and quietly kill the connection."""
+        stale = _oauth_connection(
+            _base_payload(access_token="stale", refresh_token="rt", expires_at=0.0)
+        )
+        # What the winner committed while we waited on the lock.
+        refreshed = _oauth_connection(
+            _base_payload(
+                access_token="fresh-token",
+                refresh_token="rt2",
+                expires_at=datetime.now(UTC).timestamp() + 3600,
+            )
+        )
+        refresh_mock = AsyncMock()
+        monkeypatch.setattr(mcp_oauth, "refresh_tokens", refresh_mock)
+        monkeypatch.setattr(
+            mcp_connection_service.mcp_connection_repo,
+            "get_by_id_for_update",
+            AsyncMock(return_value=refreshed),
+        )
+        update_mock = AsyncMock()
+        monkeypatch.setattr(mcp_connection_service.mcp_connection_repo, "update", update_mock)
+
+        headers = await _resolve_auth_headers(AsyncMock(), stale)
+
+        assert headers == {"Authorization": "Bearer fresh-token"}
+        refresh_mock.assert_not_awaited()
+        update_mock.assert_not_awaited()
 
     @pytest.mark.anyio
     async def test_expired_token_without_refresh_yields_none(self):
@@ -506,6 +592,8 @@ class TestMcpConnectionService:
         )
         assert payload.code_verifier and payload.access_token is None
         assert payload.client_id == "cid"
+        # Stamped so the callback can refuse a flow the user never finished.
+        assert datetime.now(UTC).timestamp() - payload.started_at < mcp_oauth.FLOW_TTL_SECS
 
     @pytest.mark.anyio
     async def test_oauth_start_keeps_working_tokens_until_consent(
@@ -581,6 +669,44 @@ class TestMcpConnectionService:
         repo.get_by_oauth_state = AsyncMock(return_value=None)
         with pytest.raises(NotFoundError):
             await service.oauth_callback(state="nope", code="x")
+
+    @pytest.mark.anyio
+    async def test_oauth_callback_rejects_an_expired_flow(self, service, repo, monkeypatch):
+        """The state token is the only thing authenticating this endpoint, and
+        it travels through the provider and the browser's history — a consent
+        redirect the user never finished must stop being redeemable."""
+        started = datetime.now(UTC).timestamp() - mcp_oauth.FLOW_TTL_SECS - 1
+        stale = _connection(
+            auth_type="oauth",
+            oauth_state="state-old",
+            oauth_pending_payload=encrypt_value(
+                _base_payload(code_verifier="verifier", started_at=started).model_dump_json(),
+                settings.SECRET_KEY,
+            ),
+        )
+        repo.get_by_oauth_state = AsyncMock(return_value=stale)
+        exchange_mock = AsyncMock()
+        monkeypatch.setattr(mcp_oauth, "exchange_code", exchange_mock)
+
+        with pytest.raises(mcp_oauth.OAuthError, match="expired"):
+            await service.oauth_callback(state="state-old", code="the-code")
+
+        exchange_mock.assert_not_awaited()
+        repo.update.assert_not_called()
+
+    @pytest.mark.anyio
+    async def test_oauth_callback_on_unreadable_payload_asks_to_start_again(self, service, repo):
+        """A rotated SECRET_KEY makes the pending payload undecryptable. That's
+        a dead flow the user restarts, not a 500."""
+        stale = _connection(
+            auth_type="oauth",
+            oauth_state="state-broken",
+            oauth_pending_payload="enc:not-valid-ciphertext",
+        )
+        repo.get_by_oauth_state = AsyncMock(return_value=stale)
+
+        with pytest.raises(mcp_oauth.OAuthError, match="no longer valid"):
+            await service.oauth_callback(state="state-broken", code="the-code")
 
     @pytest.mark.anyio
     async def test_update_url_drops_oauth_tokens(self, service, repo, monkeypatch):

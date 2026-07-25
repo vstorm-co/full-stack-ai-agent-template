@@ -12,17 +12,24 @@ from pydantic import field_validator, model_validator{% if cookiecutter.use_jwt 
 {% endif -%}
 from pydantic_settings import BaseSettings, SettingsConfigDict
 {%- if cookiecutter.enable_mcp_client %}
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 {%- endif %}
 
 
 {%- if cookiecutter.enable_mcp_client %}
 
 
+# Same slug rule as a user connection (app/schemas/mcp_connection.py). The name
+# becomes the server's tool prefix in the agent, so an unconstrained name could
+# collapse two servers onto one prefix — and the second would then be dropped
+# from every chat turn. Reject it at startup instead.
+MCP_SERVER_NAME_PATTERN = r"^[a-z0-9][a-z0-9-]{0,31}$"
+
+
 class McpServerConfig(BaseModel):
     """One deployment-managed MCP server (see MCP_SERVERS below)."""
 
-    name: str
+    name: str = Field(pattern=MCP_SERVER_NAME_PATTERN)
     url: str
     headers: dict[str, str] = {}
     # None = expose every tool the server offers.
@@ -407,13 +414,24 @@ class Settings(BaseSettings):
     # Deployment-managed MCP servers, always attached to the agent (on top of
     # the per-user connections configured in Settings → Integrations).
     # JSON list, e.g.:
-    #   MCP_SERVERS='[{"name":"github","url":"https://api.githubcopilot.com/mcp/",
+    #   MCP_SERVERS='[{"name":"github-internal","url":"https://api.githubcopilot.com/mcp/",
     #                  "headers":{"Authorization":"Bearer ..."},
     #                  "allowed_tools":["search_issues"]}]'
     MCP_SERVERS: list[McpServerConfig] = []
     # Per-server budget for the pre-flight tools/list ping; unreachable servers
     # are skipped for the turn instead of failing the chat.
     MCP_CONNECT_TIMEOUT_SECS: float = 3.0
+
+    @field_validator("MCP_SERVERS")
+    @classmethod
+    def validate_mcp_server_names(cls, v: list[McpServerConfig]) -> list[McpServerConfig]:
+        """Reject duplicate names: they share a tool prefix, and the agent can
+        only attach one server per prefix — the rest would vanish silently."""
+        names = [server.name for server in v]
+        duplicates = sorted({name for name in names if names.count(name) > 1})
+        if duplicates:
+            raise ValueError(f"MCP_SERVERS has duplicate server names: {', '.join(duplicates)}")
+        return v
 {%- endif %}
 {%- if cookiecutter.use_deepagents %}
 

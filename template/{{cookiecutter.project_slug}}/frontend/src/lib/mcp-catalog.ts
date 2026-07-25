@@ -27,7 +27,7 @@ export interface McpCatalogEntry {
   /** Which section heading this card appears under. */
   category: McpCatalogCategory;
   title: string;
-  /** Brand domain used to fetch the color logo (see {@link logoUrl}). */
+  /** Brand domain the color logo is keyed by (see {@link logoDataUri}). */
   domain: string;
   description: string;
   /**
@@ -54,24 +54,26 @@ export function catalogBaseUrl(url: string): string {
 }
 
 /**
- * Color logo for a brand domain via Google's favicon service — tokenless and
- * served over HTTPS. Returns the brand mark; the card falls back to an initial
- * avatar if the request fails. `sz=128` keeps it crisp when scaled to the avatar.
+ * Last-resort logo source: Google's favicon service, tokenless and over HTTPS.
+ * Only reached for a domain missing from {@link MCP_LOGOS} — every catalog
+ * entry should be baked in, so hitting this means `bun run gen:mcp-logos`
+ * needs a re-run. Not exported: nothing should request it on purpose.
  */
-export function logoUrl(domain: string): string {
+function faviconServiceUrl(domain: string): string {
   return `https://www.google.com/s2/favicons?sz=128&domain=${encodeURIComponent(domain)}`;
 }
 
 /**
- * Brand logo for a catalog domain, preferring the baked-in data URI
- * ({@link MCP_LOGOS}) so it renders OFFLINE in the self-contained demo export.
- * Falls back to the live favicon service for domains not baked (regenerate the
- * map with `bun run gen:mcp-logos` after adding a catalog entry). Used by the
- * demo-only MCP badge; the Settings marketplace keeps {@link logoUrl} (always
- * online, higher-res).
+ * Brand logo for a catalog domain, as a baked-in data URI ({@link MCP_LOGOS}).
+ *
+ * Used everywhere a catalog logo is shown — the Settings marketplace and the
+ * demo-only MCP badge alike. Baked rather than fetched for two reasons: the
+ * self-contained export has no network, and a live app shouldn't tell a third
+ * party which plugins its users are looking at. Regenerate the map with
+ * `bun run gen:mcp-logos` after adding a catalog entry.
  */
 export function logoDataUri(domain: string): string {
-  return MCP_LOGOS[domain] ?? logoUrl(domain);
+  return MCP_LOGOS[domain] ?? faviconServiceUrl(domain);
 }
 
 /** Catalog id / connection name → tool prefix (mirrors the backend `_tool_prefix`). */

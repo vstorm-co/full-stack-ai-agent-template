@@ -67,29 +67,53 @@ def _apply_token(payload: McpOAuthPayload, token: OAuthToken) -> McpOAuthPayload
     )
 
 
-async def _oauth_access_token(db: AsyncSession, connection: McpConnection) -> str | None:
-    """A currently-valid access token for an OAuth connection, refreshing and
-    persisting if needed. None when the connection isn't authorized yet, its
-    token expired with no refresh path, or the payload can't be decrypted."""
-    if not connection.oauth_payload:
+def _decode_payload(encrypted: str | None, connection_name: str) -> McpOAuthPayload | None:
+    """Decrypt a stored OAuth payload, or None if it can't be read.
+
+    An unreadable payload means the SECRET_KEY was rotated (or the row was
+    tampered with). That's a dead connection the user has to re-authorize, not
+    a reason to fail the chat turn.
+    """
+    if not encrypted:
         return None
     try:
-        payload = McpOAuthPayload.model_validate_json(
-            decrypt_value(connection.oauth_payload, settings.SECRET_KEY)
-        )
+        return McpOAuthPayload.model_validate_json(decrypt_value(encrypted, settings.SECRET_KEY))
     except Exception:
-        logger.warning("Cannot decrypt OAuth payload for MCP connection %r", connection.name)
+        logger.warning("Cannot decrypt OAuth payload for MCP connection %r", connection_name)
         return None
-    if not payload.access_token:
-        return None  # awaiting consent
-    fresh_enough = (
+
+
+def _token_is_fresh(payload: McpOAuthPayload) -> bool:
+    """True when the stored access token is good for at least the skew window."""
+    return (
         payload.expires_at is None
         or _now_epoch() < payload.expires_at - mcp_oauth.TOKEN_EXPIRY_SKEW_SECS
     )
-    if fresh_enough:
-        return payload.access_token
+
+
+async def _refresh_under_lock(db: AsyncSession, connection: McpConnection) -> str | None:
+    """Spend the refresh token for *connection* while holding its row lock.
+
+    Two chat turns for the same user can reach an expired token at the same
+    moment. Providers that rotate refresh tokens invalidate whichever copy is
+    redeemed second, and the connection then stops working with no visible
+    cause. The lock makes the loser wait, re-read the row, and find the token
+    the winner already stored.
+
+    A turn can end up holding several of these at once; they're always taken in
+    ``list_for_user`` order (created_at ascending), so two turns can't deadlock
+    by grabbing the same pair of rows in opposite orders.
+    """
+    locked = await mcp_connection_repo.get_by_id_for_update(db, connection.id)
+    if locked is None:
+        return None
+    payload = _decode_payload(locked.oauth_payload, connection.name)
+    if payload is None or not payload.access_token:
+        return None
+    if _token_is_fresh(payload):
+        return payload.access_token  # another turn refreshed while we waited
     if not payload.refresh_token:
-        return None  # expired, no refresh token → user must re-authorize
+        return None
     try:
         token = await mcp_oauth.refresh_tokens(
             token_endpoint=payload.token_endpoint,
@@ -105,12 +129,26 @@ async def _oauth_access_token(db: AsyncSession, connection: McpConnection) -> st
     payload = _apply_token(payload, token)
     await mcp_connection_repo.update(
         db,
-        db_connection=connection,
+        db_connection=locked,
         update_data={
             "oauth_payload": encrypt_value(payload.model_dump_json(), settings.SECRET_KEY)
         },
     )
     return payload.access_token
+
+
+async def _oauth_access_token(db: AsyncSession, connection: McpConnection) -> str | None:
+    """A currently-valid access token for an OAuth connection, refreshing and
+    persisting if needed. None when the connection isn't authorized yet, its
+    token expired with no refresh path, or the payload can't be decrypted."""
+    payload = _decode_payload(connection.oauth_payload, connection.name)
+    if payload is None or not payload.access_token:
+        return None  # not authorized yet, or an unreadable payload
+    if _token_is_fresh(payload):
+        return payload.access_token
+    if not payload.refresh_token:
+        return None  # expired, no refresh token → user must re-authorize
+    return await _refresh_under_lock(db, connection)
 
 
 async def _resolve_auth_headers(
@@ -251,7 +289,8 @@ class McpConnectionService:
         Starting again with the same name re-authorizes the existing OAuth
         connection: the live tokens in ``oauth_payload`` are left untouched
         until the callback succeeds, so abandoning the consent screen leaves a
-        working connection working.
+        working connection working. The pending flow stops being redeemable
+        after ``mcp_oauth.FLOW_TTL_SECS``.
         """
         url = await validate_mcp_url(url)
         server = await mcp_oauth.discover(url)  # raises OAuthError if unsupported
@@ -261,6 +300,7 @@ class McpConnectionService:
         state = secrets.token_urlsafe(32)
         payload = McpOAuthPayload(
             server_url=url,
+            started_at=_now_epoch(),
             authorization_endpoint=server.authorization_endpoint,
             token_endpoint=server.token_endpoint,
             registration_endpoint=server.registration_endpoint,
@@ -323,10 +363,10 @@ class McpConnectionService:
         connection = await mcp_connection_repo.get_by_oauth_state(self.db, state)
         if connection is None or not connection.oauth_pending_payload:
             raise NotFoundError(message="OAuth session not found or already completed")
-        payload = McpOAuthPayload.model_validate_json(
-            decrypt_value(connection.oauth_pending_payload, settings.SECRET_KEY)
-        )
-        if not payload.code_verifier:
+        payload = _decode_payload(connection.oauth_pending_payload, connection.name)
+        if payload is None or not payload.code_verifier:
+            raise OAuthError("This authorization session is no longer valid — start again.")
+        if _now_epoch() - payload.started_at > mcp_oauth.FLOW_TTL_SECS:
             raise OAuthError("This authorization session has expired — start again.")
         token = await mcp_oauth.exchange_code(
             token_endpoint=payload.token_endpoint,
@@ -363,27 +403,35 @@ class McpConnectionService:
         return db_connection
 
 
-async def build_toolsets_for_user(user_id: UUID) -> list[Any]:
+async def build_toolsets_for_user(user_id: UUID | None) -> list[Any]:
     """Agent toolsets for one chat turn: static MCP_SERVERS + the user's
-    enabled connections. Unreachable servers are skipped, never fatal."""
+    enabled connections. Unreachable servers are skipped, never fatal.
+
+    ``user_id`` is None for channel traffic that isn't mapped to an account;
+    the deployment-managed servers still apply, there are just no per-user
+    connections to add.
+    """
     specs = static_server_specs()
-    async with get_db_context() as db:
-        connections, _ = await mcp_connection_repo.list_for_user(
-            db, user_id=user_id, enabled_only=True
-        )
-        for connection in connections:
-            headers = await _resolve_auth_headers(db, connection)
-            if headers is None:
-                # OAuth not authorized / expired, or an undecryptable bearer token
-                # (e.g. SECRET_KEY rotated) — skip, never crash the chat turn.
-                logger.info("Skipping MCP connection %r: no usable credentials", connection.name)
-                continue
-            specs.append(
-                McpServerSpec(
-                    name=connection.name,
-                    url=connection.url,
-                    headers=headers,
-                    allowed_tools=connection.allowed_tools,
-                )
+    if user_id is not None:
+        async with get_db_context() as db:
+            connections, _ = await mcp_connection_repo.list_for_user(
+                db, user_id=user_id, enabled_only=True
             )
+            for connection in connections:
+                headers = await _resolve_auth_headers(db, connection)
+                if headers is None:
+                    # OAuth not authorized / expired, or an undecryptable bearer
+                    # token (e.g. SECRET_KEY rotated) — skip, never crash the turn.
+                    logger.info(
+                        "Skipping MCP connection %r: no usable credentials", connection.name
+                    )
+                    continue
+                specs.append(
+                    McpServerSpec(
+                        name=connection.name,
+                        url=connection.url,
+                        headers=headers,
+                        allowed_tools=connection.allowed_tools,
+                    )
+                )
     return await build_mcp_toolsets(specs)

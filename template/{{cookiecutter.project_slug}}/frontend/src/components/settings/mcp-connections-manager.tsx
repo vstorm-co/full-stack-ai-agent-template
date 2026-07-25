@@ -30,7 +30,7 @@ import { ApiError } from "@/lib/api-client";
 import { useMcpConnections } from "@/hooks";
 import {
   catalogBaseUrl,
-  logoUrl,
+  logoDataUri,
   MCP_CATALOG,
   MCP_CATEGORIES,
   type McpCatalogEntry,
@@ -62,10 +62,11 @@ function PluginLogo({ entry }: { entry: McpCatalogEntry }) {
     );
   }
   return (
-    // Plain <img> (not next/image) so no remote-domain config is needed for a favicon-sized asset.
-    // eslint-disable-next-line @next/next/no-img-element, jsx-a11y/no-noninteractive-element-interactions
+    // Plain <img> (not next/image) — the source is an inlined data URI, so
+    // there's nothing for the image optimizer to fetch or cache.
+    // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={logoUrl(entry.domain)}
+      src={logoDataUri(entry.domain)}
       alt=""
       width={22}
       height={22}
@@ -109,6 +110,7 @@ export function McpConnectionsManager() {
     queryKey: qk.mcpConnections.workspace(),
     queryFn: listWorkspaceMcpServers,
   });
+  const workspaceNames = new Set(workspaceServers.map((server) => server.name));
 
   // Surface the result of an OAuth redirect (see the /oauth/callback route),
   // then strip the query params so a page refresh doesn't re-toast.
@@ -197,9 +199,11 @@ export function McpConnectionsManager() {
         setEditingId(null);
         void handleEditTools(created);
       } else if (editingId) {
+        // Send only what actually changed — re-sending the same URL would reset
+        // the connection's last-checked status for no reason.
         await update(editingId, {
-          name,
-          url,
+          ...(name !== editing?.name ? { name } : {}),
+          ...(url !== editing?.url ? { url } : {}),
           // Omit auth_token to keep the stored one; "" clears it.
           ...(token ? { auth_token: token } : clearToken ? { auth_token: "" } : {}),
         });
@@ -422,6 +426,10 @@ export function McpConnectionsManager() {
                     {entries.map((entry) => {
                       const existing = connectionFor(entry);
                       const busy = connectingId === entry.id;
+                      // A workspace server claims the tool prefix this entry
+                      // would use, so a personal connection under the same name
+                      // would be dropped from every turn. Say so instead.
+                      const shadowed = workspaceNames.has(entry.id);
                       // An OAuth connection that hasn't finished consent isn't
                       // really connected yet — offer to finish signing in.
                       const needsAuth =
@@ -454,7 +462,12 @@ export function McpConnectionsManager() {
                                     ? "Your personal link"
                                     : "Token required"}
                             </span>
-                            {existing && !needsAuth ? (
+                            {shadowed ? (
+                              <span className="text-foreground/65 inline-flex items-center gap-1 text-xs font-medium">
+                                <Building2 className="text-foreground/45 h-3.5 w-3.5" />
+                                Provided by your workspace
+                              </span>
+                            ) : existing && !needsAuth ? (
                               <span className="text-foreground/65 inline-flex items-center gap-1 text-xs font-medium">
                                 <Check className="h-3.5 w-3.5 text-emerald-500" />
                                 Connected

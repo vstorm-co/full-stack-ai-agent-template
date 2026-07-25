@@ -7,12 +7,32 @@ from uuid import UUID
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import lazyload
 
 from app.db.models.mcp_connection import McpConnection
 
 
 async def get_by_id(db: AsyncSession, connection_id: UUID) -> McpConnection | None:
     result = await db.execute(select(McpConnection).where(McpConnection.id == connection_id))
+    return result.scalar_one_or_none()
+
+
+async def get_by_id_for_update(db: AsyncSession, connection_id: UUID) -> McpConnection | None:
+    """Fetch a connection and lock the row (``SELECT ... FOR UPDATE``).
+
+    Used before spending an OAuth refresh token, so two concurrent chat turns
+    can't both redeem it. ``lazyload`` drops the model's eager join on ``users``
+    (PostgreSQL refuses ``FOR UPDATE`` on the nullable side of an outer join),
+    and ``populate_existing`` re-reads the columns so the caller sees what the
+    other transaction committed rather than the stale identity-map copy.
+    """
+    result = await db.execute(
+        select(McpConnection)
+        .where(McpConnection.id == connection_id)
+        .options(lazyload(McpConnection.user))
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
     return result.scalar_one_or_none()
 
 

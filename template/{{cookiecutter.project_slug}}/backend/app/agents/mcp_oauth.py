@@ -54,6 +54,12 @@ logger = logging.getLogger(__name__)
 # How long an access token must still be valid to be reused without refreshing.
 TOKEN_EXPIRY_SKEW_SECS = 60.0
 
+# How long a consent redirect stays redeemable. The ``state`` token is the only
+# thing authenticating the callback, and it travels through the provider and the
+# browser's history — so a flow the user never finished must stop working rather
+# than sit in the database indefinitely.
+FLOW_TTL_SECS = 600.0
+
 # Redirects are followed by hand (see _send) so every hop is SSRF-checked.
 _MAX_REDIRECTS = 5
 
@@ -101,6 +107,8 @@ class McpOAuthPayload(BaseModel):
     # only once tokens arrive, so a re-authorization that points at a new URL
     # cannot move the connection while the old tokens are still stored.
     server_url: str
+    # Epoch seconds when the consent redirect was issued — see FLOW_TTL_SECS.
+    started_at: float
     authorization_endpoint: str
     token_endpoint: str
     registration_endpoint: str | None = None

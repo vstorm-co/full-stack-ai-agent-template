@@ -1189,6 +1189,100 @@ jobs:
           SECRET_KEY: test-secret-key-for-ci-that-is-long-enough
         run: uv run pytest -v
 
+  generate-pg-mcp-client:
+    name: Template - PostgreSQL + MCP Client
+    needs: [lint, type-check]
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install generator
+        run: uv sync
+
+      # --slack renders app/services/agent_invocation.py, the second place the
+      # PydanticAI agent is built — it attaches the user's MCP toolsets too.
+      - name: Generate project with the MCP client
+        run: |
+          mkdir -p /tmp/projects
+          uv run fastapi-fullstack create test_mcp_client \
+            --database postgresql \
+            --ai-framework pydantic_ai \
+            --frontend nextjs \
+            --slack \
+            --mcp-client \
+            -o /tmp/projects
+
+      - name: Install backend
+        working-directory: /tmp/projects/test_mcp_client/backend
+        run: uv sync --dev
+
+      - name: Run linting
+        working-directory: /tmp/projects/test_mcp_client/backend
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+
+      - name: Run type check
+        working-directory: /tmp/projects/test_mcp_client/backend
+        run: uv run ty check
+
+      - name: Run tests
+        working-directory: /tmp/projects/test_mcp_client/backend
+        env:
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+          SECRET_KEY: test-secret-key-for-ci-that-is-long-enough
+        run: uv run pytest -v
+
+      - name: Install frontend dependencies
+        working-directory: /tmp/projects/test_mcp_client/frontend
+        run: bun install
+
+      - name: Run frontend lint
+        working-directory: /tmp/projects/test_mcp_client/frontend
+        run: bun run lint
+
+      - name: Run frontend type check
+        working-directory: /tmp/projects/test_mcp_client/frontend
+        run: bun run type-check
+
+      - name: Run frontend unit tests
+        working-directory: /tmp/projects/test_mcp_client/frontend
+        run: bun run test:run
+
   generate-pg-monitoring:
     name: Template - PostgreSQL + ARQ + Sentry + Prometheus + Caching
     needs: [lint, type-check]

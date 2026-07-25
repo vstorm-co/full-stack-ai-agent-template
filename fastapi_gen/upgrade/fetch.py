@@ -258,7 +258,14 @@ def fetch_template(
     try:
         Version(version)
     except InvalidVersion as exc:
-        raise TemplateFetchError(f"Invalid target version {version!r}: {exc}") from exc
+        # Deliberately not "target version": this also fetches BASE, whose version comes
+        # from the manifest. After a recovery that couldn't read the README footer that
+        # value is "UNKNOWN", and blaming --to sends the user looking at a flag they
+        # never passed.
+        raise TemplateFetchError(
+            f"Cannot fetch template version {version!r}: {exc}. Expected a release like "
+            "0.2.16 — check `package_version` in .fastapi-fullstack.json, or pass --to."
+        ) from exc
 
     if local_template is not None and running_version is not None and version == running_version:
         return _validate_template_dir(local_template)

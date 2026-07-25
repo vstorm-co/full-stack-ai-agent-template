@@ -42,6 +42,10 @@ merge like any other change.
 
 ## Prerequisites
 
+- The project must be the **root of its own git repository** (`git rev-parse --show-toplevel`
+  points at the project directory). The upgrade merges whole trees, and a project sitting in a
+  subdirectory of a larger repo would be compared against paths that mean something different
+  on each side. The upgrade refuses to run in that case rather than produce a wrong merge.
 - A **clean git working tree** (commit or stash your work first). The upgrade refuses to run
   otherwise, so it's always reversible. `--dry-run` is the exception: it runs on a dirty tree
   but compares against your committed `HEAD`, so uncommitted edits are not in the preview
@@ -88,10 +92,11 @@ Auto-updates (template changed, you didn't) (12)
 Auto-merged (both changed, merged cleanly) (2)
 Kept your changes (template unchanged) (5)
 Conflicts (need manual resolution) (1)
+You deleted these (staying deleted) (2)  ← files you removed; the template still ships them
 Your files (left untouched) (8)       ← files only you created
 
 Manual steps after merge
-  • Run `alembic upgrade head` (new migrations were added).
+  • Run `make db-upgrade` (new migrations were added).
   • Re-run `uv lock` / `bun install` if dependencies changed.
 ```
 
@@ -230,6 +235,8 @@ From here your project self-describes — follow **Scenario 1** (`make upgrade` 
 | **Conflicts** | Both changed the same lines / added the same file differently. | Left with conflict markers for you. |
 | **Your files** | Files only you created. | Never touched. |
 | **Removed by template** | The template deleted a file you hadn't changed. | Proposed for deletion. |
+| **You deleted these** | You removed a file the template still ships and hasn't changed. | Stays deleted — nothing to do. |
+| **Other changes** | Anything the matrix above doesn't cover. | Review the branch. Should be rare — worth reporting if you see it. |
 
 ---
 
@@ -243,7 +250,13 @@ The merge always skips these — they're never read, written, or merged:
   after the upgrade if dependencies changed)
 - `.git/`, `node_modules/`, `.venv/`, build artifacts, `__pycache__/`, caches
 - `.gitattributes` and git submodules
-- The manifest itself (`.fastapi-fullstack.json`) — it's bumped only by `upgrade finalize`
+- OS junk: `.DS_Store`, `Thumbs.db`
+- **Symlinks**, yours and the template's. A tracked symlink is never deleted or restaged, and
+  the template can't deliver one. The one exception worth knowing: an *untracked* symlink
+  sitting exactly where the upgrade writes a file is replaced by that file (nothing is written
+  through the link — but the link is gone). Move it aside first if you need it.
+- The manifest itself (`.fastapi-fullstack.json`) — it's bumped only by `upgrade finalize`.
+  Its scratch files (`.pending`, `.candidate`) are gitignored in new projects
 
 Alembic migrations are **not** excluded — they merge like any other file. What they get is
 their own report sections, because the failure mode is different: **new** migrations are added
@@ -373,6 +386,16 @@ Your project predates manifests — follow **Scenario 2**.
 
 **"Working tree has uncommitted changes."**
 Commit or stash first. The upgrade requires a clean tree so it stays reversible.
+
+**"… is not the root of its git repository."**
+Your project sits in a subdirectory of a bigger repo. The merge compares whole trees, and the
+two sides disagree about what a path means unless the project is the repo root — so the tool
+refuses rather than produce a wrong merge. Give the project its own repository.
+
+**"frontend formatting was uneven."**
+A formatter ran on some of the three trees but not all of them, so files it owns will look
+edited when they aren't. The usual cause is a committed `frontend/node_modules` in your repo —
+remove it from git tracking (it's gitignored in new projects) and re-run.
 
 **"Unresolved merge conflicts remain" when finalizing.**
 Resolve the remaining conflicts and `git add` them, then run `upgrade finalize` again.

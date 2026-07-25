@@ -175,7 +175,7 @@ upgrade-new-features:
 	uvx fastapi-fullstack@latest upgrade --with-new-features $(ARGS)
 
 upgrade-finalize:
-	uvx fastapi-fullstack@latest upgrade finalize
+	uvx fastapi-fullstack@latest upgrade finalize $(ARGS)
 
 # === Code Quality ===
 format:

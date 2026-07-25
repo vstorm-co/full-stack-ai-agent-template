@@ -14,9 +14,15 @@ from fastapi_gen.config import (
 )
 from fastapi_gen.upgrade.fetch import TemplateFetchError, fetch_template
 from fastapi_gen.upgrade.manifest import MANIFEST_FILENAME, write_manifest
-from fastapi_gen.upgrade.normalize import format_python
+from fastapi_gen.upgrade.normalize import FormattersRun, format_python
 from fastapi_gen.upgrade.render import render_template
-from fastapi_gen.upgrade.runner import UpgradeError, run_finalize, run_upgrade
+from fastapi_gen.upgrade.runner import (
+    UpgradeError,
+    _warn_uneven_formatting,
+    assert_repo_root,
+    run_finalize,
+    run_upgrade,
+)
 
 
 def _git(repo: Path, *args: str) -> None:
@@ -141,7 +147,9 @@ class TestGuards:
         _git(tmp_path, "add", "-A")
         _git(tmp_path, "commit", "-q", "-m", "main")
         subprocess.run(["git", "-C", str(tmp_path), "merge", "other"], capture_output=True)
-        (tmp_path / (MANIFEST_FILENAME + ".pending")).write_text("{}", encoding="utf-8")
+        (tmp_path / (MANIFEST_FILENAME + ".pending")).write_text(
+            '{"package_version": "0.2.0"}', encoding="utf-8"
+        )
         with pytest.raises(UpgradeError, match="Unresolved merge conflicts"):
             run_finalize(tmp_path)
 
@@ -222,3 +230,67 @@ class TestSelfUpgradeEndToEnd:
         ).stdout
         assert head_before == head_after
         assert not (client / (MANIFEST_FILENAME + ".pending")).exists()
+
+
+class TestRepoRootGuard:
+    def test_project_below_the_repo_root_is_refused(self, tmp_path: Path) -> None:
+        # `checkout-index` (OURS) emits repo-root-relative paths while `ls-tree -C sub`
+        # emits cwd-relative ones, so from a subdirectory OURS shares no path with the
+        # rendered BASE/THEIRS: every template file reads as a client deletion and the
+        # merge deletes the client's real project. Refuse before any of that runs.
+        project = tmp_path / "myapp"
+        (project / "backend").mkdir(parents=True)
+        (project / "backend" / "main.py").write_text("x = 1\n", encoding="utf-8")
+        write_manifest(project, {"project_name": "myapp"}, package_version="0.0.1")
+        _commit_all(tmp_path)
+
+        with pytest.raises(UpgradeError, match="not the root of its git repository"):
+            run_upgrade(project)
+
+    def test_dry_run_is_refused_too(self, tmp_path: Path) -> None:
+        # A preview built from mismatched paths reports the same phantom deletions.
+        project = tmp_path / "myapp"
+        project.mkdir()
+        write_manifest(project, {"project_name": "myapp"}, package_version="0.0.1")
+        _commit_all(tmp_path)
+
+        with pytest.raises(UpgradeError, match="not the root of its git repository"):
+            run_upgrade(project, dry_run=True)
+
+    def test_repo_root_itself_passes(self, tmp_path: Path) -> None:
+        (tmp_path / "README.md").write_text("x", encoding="utf-8")
+        _commit_all(tmp_path)
+        assert_repo_root(tmp_path)
+
+
+class TestUnevenFormattingWarning:
+    def test_warns_when_a_formatter_skipped_one_tree(self, capsys) -> None:
+        _warn_uneven_formatting(
+            {
+                "BASE": FormattersRun(python=True, frontend=True),
+                "THEIRS": FormattersRun(python=True, frontend=True),
+                "OURS": FormattersRun(python=True, frontend=False),
+            }
+        )
+        out = capsys.readouterr().out
+        assert "frontend formatting was uneven" in out
+        assert "OURS" in out
+
+    def test_silent_when_all_three_agree(self, capsys) -> None:
+        run = FormattersRun(python=True, frontend=False)
+        _warn_uneven_formatting({"BASE": run, "THEIRS": run, "OURS": run})
+        assert capsys.readouterr().out == ""
+
+
+class TestFinalizeGuards:
+    def test_corrupt_pending_is_a_clean_error(self, tmp_path: Path) -> None:
+        (tmp_path / (MANIFEST_FILENAME + ".pending")).write_text("{nope", encoding="utf-8")
+        with pytest.raises(UpgradeError, match="Corrupt pending manifest"):
+            run_finalize(tmp_path)
+
+    def test_pending_without_package_version_is_a_clean_error(self, tmp_path: Path) -> None:
+        # Checked before the branch guard promotes anything, so the user never gets a
+        # bare KeyError after being told the finalize succeeded.
+        (tmp_path / (MANIFEST_FILENAME + ".pending")).write_text("{}", encoding="utf-8")
+        with pytest.raises(UpgradeError, match="missing 'package_version'"):
+            run_finalize(tmp_path)

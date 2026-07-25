@@ -56,6 +56,7 @@ def print_report(
     _section("Auto-merged (both changed, merged cleanly)", classification.auto_merged, "green")
     _section("Already converged", classification.converged, "dim")
     _section("Removed by template", classification.removed, "yellow")
+    _section("You deleted these (staying deleted)", classification.client_deleted, "dim")
     _section("Removed on purpose (documented)", metadata.removed, "dim")
     _section("Conflicts (need manual resolution)", classification.conflicts, "bold red")
     _section("Other changes (review on the branch)", classification.other, "yellow")

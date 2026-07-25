@@ -164,3 +164,52 @@ def test_record_main_dry_run_prints_block(tmp_path, monkeypatch, capsys) -> None
     out = capsys.readouterr().out
     assert rc == 0
     assert "backend/app/old.py" in out and "backend/app/new.py" in out
+
+def test_coverage_main_flags_stale_directory_rename(tmp_path, monkeypatch) -> None:
+    old = _make_template(tmp_path / "old", {"old/x.py": _SHARED})
+    new = _make_template(tmp_path / "new", {"new/x.py": _SHARED})
+    monkeypatch.setattr(cc, "_find_template_dir", lambda: new)
+    monkeypatch.setattr(cc, "latest_pypi_version", lambda **_: "9.9.9")
+    monkeypatch.setattr(cc, "fetch_template", lambda *_a, **_k: old)
+    monkeypatch.setattr(cc, "load_upgrades_file", lambda _p: [])
+    # Recorded under a version <= the baseline: the half-open (from, to] range drops it
+    # at upgrade time, so a whole subtree of client edits would silently degrade to
+    # delete+add. The file's own paths are in no entry — only the directory key is.
+    monkeypatch.setattr(cc, "_known_renames", lambda _r: {("old/", "new/"): "0.1.0"})
+
+    assert cc.main([]) == 1
+
+
+def test_coverage_main_accepts_fresh_directory_rename(tmp_path, monkeypatch) -> None:
+    old = _make_template(tmp_path / "old", {"old/x.py": _SHARED})
+    new = _make_template(tmp_path / "new", {"new/x.py": _SHARED})
+    monkeypatch.setattr(cc, "_find_template_dir", lambda: new)
+    monkeypatch.setattr(cc, "latest_pypi_version", lambda **_: "0.1.0")
+    monkeypatch.setattr(cc, "fetch_template", lambda *_a, **_k: old)
+    monkeypatch.setattr(cc, "load_upgrades_file", lambda _p: [])
+    monkeypatch.setattr(cc, "_known_renames", lambda _r: {("old/", "new/"): "9.9.9"})
+
+    assert cc.main([]) == 0
+
+
+def test_record_main_honours_versioned_waiver(tmp_path, monkeypatch, capsys) -> None:
+    old = _make_template(tmp_path / "old", {"backend/app/old.py": _SHARED})
+    new = _make_template(tmp_path / "new", {"backend/app/new.py": _SHARED})
+    monkeypatch.setattr(rr, "_find_template_dir", lambda: new)
+    monkeypatch.setattr(rr, "fetch_template", lambda *_a, **_k: old)
+    # CI already honours `removed:`. If the recorder didn't, it would write the waived
+    # pair back as a rename — CI would then pass because the move is "covered", and the
+    # upgrade would move the client's copy of a deleted file onto an unrelated path.
+    monkeypatch.setattr(
+        rr,
+        "load_upgrades_file",
+        lambda _p: [{"version": "0.1.0", "removed": ["backend/app/old.py"]}],
+    )
+    written: list[Path] = []
+    monkeypatch.setattr(rr, "_write_upgrades", lambda path, _blocks: written.append(path))
+
+    rc = rr.main(["--old", "0.1.0", "--version", "9.9.9"])
+
+    assert rc == 0
+    assert written == []
+    assert "No new moves to record" in capsys.readouterr().out

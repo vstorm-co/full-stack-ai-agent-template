@@ -163,3 +163,11 @@ def test_report_new_features_accepted() -> None:
         ReconcileReport(new_features_available=["enable_x"], new_features_accepted=["enable_x"]),
     )
     assert "accepted" in out
+
+
+def test_client_deleted_files_get_their_own_line() -> None:
+    out = _print_classification(Classification(client_deleted=["backend/app/unwanted.py"]))
+    assert "You deleted these (staying deleted)" in out
+    assert "backend/app/unwanted.py" in out
+    # Must not read as a problem: the "review on the branch" bucket stays empty.
+    assert "Other changes" not in out

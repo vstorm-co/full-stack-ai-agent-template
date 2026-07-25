@@ -17,6 +17,7 @@ from __future__ import annotations
 import shutil
 import subprocess
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 
 _GENERATED_AT_PLACEHOLDER = "<normalized-generated-at>"
@@ -274,6 +275,14 @@ def format_frontend(
     return True
 
 
+@dataclass(frozen=True, slots=True)
+class FormattersRun:
+    """Which formatters actually ran over a tree during normalization."""
+
+    python: bool
+    frontend: bool
+
+
 def normalize_tree(
     tree: Path,
     *,
@@ -285,7 +294,7 @@ def normalize_tree(
     prettier_config: Path | None = None,
     prettier_ignore: Path | None = None,
     rendered: bool = False,
-) -> None:
+) -> FormattersRun:
     """Apply the full normalization pass to a tree (in place).
 
     Must be applied *identically* to BASE, OURS and THEIRS so differences cancel —
@@ -295,14 +304,28 @@ def normalize_tree(
     ``rendered`` is the one deliberate asymmetry: a freshly rendered tree (BASE/THEIRS)
     has not been through the post-gen hook's ``ruff check --fix``, while OURS was
     autofixed at generation time. See :func:`format_python`.
+
+    Returns which formatters actually ran, so the caller can check they ran on *all*
+    three trees. That is the invariant the merge rests on and it can genuinely break
+    per-tree: :func:`format_frontend` bails out when the tree already contains
+    ``frontend/node_modules``, which is true for OURS whenever the client committed
+    theirs and never true for the freshly rendered BASE/THEIRS. Prettier would then
+    run on two trees out of three and every ``.tsx`` file would read as a client edit.
     """
-    if format_code:
-        format_python(tree, config=ruff_config, ruff_bin=ruff_bin, autofix=rendered)
-        format_frontend(
+    if not format_code:
+        strip_generated_at(tree, generated_at)
+        normalize_whitespace(tree)
+        return FormattersRun(python=False, frontend=False)
+
+    ran = FormattersRun(
+        python=format_python(tree, config=ruff_config, ruff_bin=ruff_bin, autofix=rendered),
+        frontend=format_frontend(
             tree,
             node_modules=frontend_node_modules,
             config=prettier_config,
             ignore_path=prettier_ignore,
-        )
+        ),
+    )
     strip_generated_at(tree, generated_at)
     normalize_whitespace(tree)
+    return ran

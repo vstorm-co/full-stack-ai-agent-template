@@ -42,7 +42,6 @@ def test_classify_matrix(tmp_path: Path) -> None:
     assert result.new_migrations == ["backend/alembic/versions/0099_x.py"]
     assert result.client_only == ["mine.txt"]
     assert result.removed == ["gone.txt"]
-    assert result.has_changes
 
 
 def test_template_edit_to_an_existing_migration_is_reported_separately(tmp_path: Path) -> None:
@@ -65,7 +64,6 @@ def test_template_edit_to_an_existing_migration_is_reported_separately(tmp_path:
 
     assert result.changed_migrations == [mig]
     assert result.auto_updated == ["backend/app/main.py"]
-    assert result.has_changes
 
 
 def test_both_edited_an_existing_migration_is_reported_separately(tmp_path: Path) -> None:
@@ -161,15 +159,15 @@ def test_add_add_differing_clean_is_auto_merged(tmp_path: Path) -> None:
     assert result.auto_merged == ["f.txt"]
 
 
-def test_uncategorized_state_lands_in_other(tmp_path: Path) -> None:
-    """Client-deleted-while-template-kept has no dedicated bucket — must not vanish."""
+def test_client_deleted_while_template_kept_has_its_own_bucket(tmp_path: Path) -> None:
+    """It used to land in "other", which reads as a problem for a genuine no-op."""
     base, ours, theirs = tmp_path / "b", tmp_path / "o", tmp_path / "t"
     for t in (base, ours, theirs):
         t.mkdir()
     _row(base, ours, theirs, "f.txt", "x", "", "x")
     result = classify_trees(base, ours, theirs, conflicted_paths=set())
-    assert result.other == ["f.txt"]
-    assert result.has_changes
+    assert result.client_deleted == ["f.txt"]
+    assert result.other == []
 
 
 def test_client_modified_file_template_deleted_is_auto_merged(tmp_path: Path) -> None:
@@ -179,3 +177,83 @@ def test_client_modified_file_template_deleted_is_auto_merged(tmp_path: Path) ->
     _row(base, ours, theirs, "f.txt", "x", "y", "")
     result = classify_trees(base, ours, theirs, conflicted_paths=set())
     assert result.auto_merged == ["f.txt"]
+
+
+def test_client_deleted_a_file_the_template_still_ships(tmp_path: Path) -> None:
+    # Common: the user removes a module they don't want. git keeps it deleted, and the
+    # old code dumped it into "Other changes (review on the branch)" — which reads as
+    # "the upgrade lost my file" for something that needs no action at all.
+    base, ours, theirs = tmp_path / "b", tmp_path / "o", tmp_path / "t"
+    for t in (base, ours, theirs):
+        t.mkdir()
+    _row(base, ours, theirs, "dropped.py", "same\n", "", "same\n")
+
+    result = classify_trees(base, ours, theirs, set())
+
+    assert result.client_deleted == ["dropped.py"]
+    assert result.other == []
+
+
+def test_client_and_template_both_deleted_is_converged(tmp_path: Path) -> None:
+    base, ours, theirs = tmp_path / "b", tmp_path / "o", tmp_path / "t"
+    for t in (base, ours, theirs):
+        t.mkdir()
+    _row(base, ours, theirs, "gone.py", "old\n", "", "")
+
+    result = classify_trees(base, ours, theirs, set())
+
+    assert result.converged == ["gone.py"]
+    assert result.other == []
+
+
+def test_client_deleted_but_template_changed_is_not_silently_dropped(tmp_path: Path) -> None:
+    # A template-side change here is a modify/delete conflict in practice; if the merge
+    # somehow resolved it, the file still has to be reviewed rather than called a no-op.
+    base, ours, theirs = tmp_path / "b", tmp_path / "o", tmp_path / "t"
+    for t in (base, ours, theirs):
+        t.mkdir()
+    _row(base, ours, theirs, "touched.py", "old\n", "", "new\n")
+
+    result = classify_trees(base, ours, theirs, set())
+
+    assert result.client_deleted == []
+    assert result.auto_merged == ["touched.py"]
+
+
+def test_the_matrix_is_exhaustive(tmp_path: Path) -> None:
+    """Every reachable (base, ours, theirs) membership lands in a named bucket.
+
+    `other` is a defensive catch-all, not a real outcome: a path always comes from the
+    union of the three trees, so the all-absent state can't occur and the other seven
+    are handled. If an edit ever opens a hole this fails instead of quietly telling a
+    user to "review on the branch".
+    """
+    base, ours, theirs = tmp_path / "b", tmp_path / "o", tmp_path / "t"
+    for t in (base, ours, theirs):
+        t.mkdir()
+
+    for index, (b, o, x) in enumerate(
+        [
+            ("", "", "t"),
+            ("", "o", ""),
+            ("", "o", "t"),
+            ("b", "", ""),
+            ("b", "", "t"),
+            ("b", "o", ""),
+            ("b", "o", "t"),
+        ]
+    ):
+        # Distinct content per tree so no state collapses into "identical everywhere".
+        _row(
+            base,
+            ours,
+            theirs,
+            f"f{index}.txt",
+            b and f"{b}{index}",
+            o and f"{o}{index}",
+            x and f"{x}{index}",
+        )
+
+    result = classify_trees(base, ours, theirs, conflicted_paths=set())
+
+    assert result.other == []

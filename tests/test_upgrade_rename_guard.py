@@ -5,8 +5,11 @@ from pathlib import Path
 import pytest
 
 from fastapi_gen.upgrade.rename_guard import (
+    Move,
     _strip_slug,
+    covering_rename,
     detect_moves,
+    recorded_waivers,
     template_files,
     uncovered_moves,
 )
@@ -94,3 +97,35 @@ class TestTemplateFiles:
 
         monkeypatch.setattr(Path, "read_text", _boom)
         assert template_files(tmp_path) == {}
+
+
+class TestCoveringRename:
+    def test_exact_entry_is_returned(self) -> None:
+        known = {("a/old.py", "a/new.py")}
+        assert covering_rename(Move("a/old.py", "a/new.py", 1.0), known) == ("a/old.py", "a/new.py")
+
+    def test_directory_entry_is_returned_for_a_file_under_it(self) -> None:
+        # The point of returning the entry rather than a bool: the file's own paths
+        # are nowhere in UPGRADES.yaml, so only the directory key can carry its version.
+        known = {("old/", "new/")}
+        assert covering_rename(Move("old/x.py", "new/x.py", 1.0), known) == ("old/", "new/")
+
+    def test_uncovered_move_returns_none(self) -> None:
+        assert covering_rename(Move("a.py", "b.py", 1.0), {("c/", "d/")}) is None
+
+    def test_pick_is_deterministic_across_several_matching_dir_entries(self) -> None:
+        known = {("old/", "new/"), ("old/sub/", "new/sub/")}
+        move = Move("old/sub/x.py", "new/sub/x.py", 1.0)
+        assert covering_rename(move, known) == ("old/", "new/")
+
+
+class TestRecordedWaivers:
+    def test_collects_removed_and_waived_across_blocks(self) -> None:
+        blocks = [
+            {"version": "0.1.0", "removed": ["a.py"]},
+            {"version": "0.2.0", "waived": ["b.py"], "removed": None},
+        ]
+        assert recorded_waivers(blocks) == {"a.py", "b.py"}
+
+    def test_no_waiver_keys_is_empty(self) -> None:
+        assert recorded_waivers([{"version": "0.1.0"}]) == set()

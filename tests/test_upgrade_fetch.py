@@ -271,3 +271,14 @@ class TestFetchTemplateCache:
         monkeypatch.setattr(fetch_mod, "_fetch_from_pypi", lambda *_a, **_k: sentinel)
         assert fetch_template("9.9.9") == sentinel
         assert not (cache / "stale").exists()
+
+
+def test_unparseable_version_error_does_not_blame_the_target_flag() -> None:
+    # BASE is fetched with the manifest's package_version, which is "UNKNOWN" after a
+    # recovery that couldn't read the README footer. Saying "target version" sends the
+    # user looking at a --to they never passed.
+    with pytest.raises(TemplateFetchError) as exc:
+        fetch_template("UNKNOWN")
+    message = str(exc.value)
+    assert "target" not in message
+    assert ".fastapi-fullstack.json" in message

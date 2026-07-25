@@ -105,4 +105,11 @@ Thumbs.db
 frontend/demo-export/dist/
 {%- endif %}
 
+# Template upgrade scratch files. `.fastapi-fullstack.json` itself IS committed —
+# these two are transient: the guide says to commit your resolved conflicts, and a
+# blanket `git add -A` would otherwise sweep the pending manifest into that commit,
+# only for `upgrade finalize` to delete it again a minute later.
+.fastapi-fullstack.json.pending
+.fastapi-fullstack.json.candidate
+
 # Project specific

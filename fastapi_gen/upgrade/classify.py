@@ -42,23 +42,10 @@ class Classification:
     new_migrations: list[str] = field(default_factory=list)
     changed_migrations: list[str] = field(default_factory=list)
     removed: list[str] = field(default_factory=list)
+    client_deleted: list[str] = field(default_factory=list)
     client_only: list[str] = field(default_factory=list)
     unchanged: list[str] = field(default_factory=list)
     other: list[str] = field(default_factory=list)
-
-    @property
-    def has_changes(self) -> bool:
-        return bool(
-            self.auto_updated
-            or self.converged
-            or self.auto_merged
-            or self.conflicts
-            or self.other
-            or self.new_files
-            or self.new_migrations
-            or self.changed_migrations
-            or self.removed
-        )
 
 
 def classify_trees(
@@ -112,7 +99,27 @@ def classify_trees(
                 result.converged.append(path)
             else:
                 (result.changed_migrations if is_migration else result.auto_merged).append(path)
+        elif in_base and not in_ours and not in_theirs:
+            # Client and template both dropped it. Nothing to do, and nothing to read —
+            # it only ever showed up under "Other changes (review on the branch)", which
+            # sent the reader hunting for a problem that doesn't exist.
+            result.converged.append(path)
+        elif in_base and not in_ours and in_theirs:
+            # The client deleted a file the template still ships. If the template didn't
+            # touch it, git keeps it deleted and there is genuinely nothing to review —
+            # but it is worth naming, because the alternative reading ("the upgrade lost
+            # my file") is exactly what a user fears. A template-side change here is a
+            # modify/delete conflict, so it never reaches this branch.
+            if base[path] == theirs[path]:
+                result.client_deleted.append(path)
+            else:
+                result.auto_merged.append(path)
         else:
+            # Unreachable: `path` comes from the union of the three trees, so at least
+            # one membership flag is set and the branches above cover all seven states
+            # (test_the_matrix_is_exhaustive pins that). Kept as a catch-all so a future
+            # edit that opens a hole surfaces the path in the report instead of dropping
+            # it silently — the one failure mode a classifier must not have.
             result.other.append(path)
 
     return result

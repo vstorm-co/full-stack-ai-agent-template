@@ -298,3 +298,41 @@ def test_ruff_cmd_none_when_module_missing(monkeypatch: pytest.MonkeyPatch) -> N
         normalize_mod.subprocess, "run", lambda *_a, **_k: SimpleNamespace(returncode=1)
     )
     assert _ruff_cmd() is None
+
+
+def test_normalize_tree_reports_which_formatters_ran(tmp_path: Path) -> None:
+    # The merge is only sound if all three trees are formatted the same way, so the
+    # caller has to be able to see that a formatter skipped one of them.
+    tree = tmp_path / "t"
+    (tree / "backend").mkdir(parents=True)
+    (tree / "backend" / "m.py").write_text("x = 1\n", encoding="utf-8")
+
+    ran = normalize_tree(tree, format_code=True)
+
+    assert ran.python is True
+    assert ran.frontend is False  # no node_modules handed in
+
+
+def test_normalize_tree_reports_nothing_ran_when_formatting_is_off(tmp_path: Path) -> None:
+    tree = tmp_path / "t"
+    tree.mkdir()
+    ran = normalize_tree(tree, format_code=False)
+    assert (ran.python, ran.frontend) == (False, False)
+
+
+def test_normalize_tree_reports_frontend_skipped_on_a_committed_node_modules(
+    tmp_path: Path,
+) -> None:
+    # The asymmetry that motivated the signal: OURS carries a committed node_modules, so
+    # format_frontend bails there while the rendered BASE/THEIRS get Prettier.
+    client_modules = tmp_path / "client" / "node_modules"
+    (client_modules / ".bin").mkdir(parents=True)
+    (client_modules / ".bin" / "prettier").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    (client_modules / ".bin" / "prettier").chmod(0o755)
+
+    tree = tmp_path / "ours"
+    (tree / "frontend" / "node_modules").mkdir(parents=True)
+
+    ran = normalize_tree(tree, format_code=True, frontend_node_modules=client_modules)
+
+    assert ran.frontend is False

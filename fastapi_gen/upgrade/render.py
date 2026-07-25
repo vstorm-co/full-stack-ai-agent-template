@@ -14,6 +14,12 @@ an instant success that does nothing. The hook's *structural* cleanup (removing
 files for disabled features) still runs normally — that shapes the tree correctly.
 We also set ``FASTAPI_FULLSTACK_RENDER_ONLY=1`` so future template versions can
 skip the env-ops block outright.
+
+On Windows the shims are inert: ``shutil.which`` honors ``PATHEXT``, so an extensionless
+``uv`` file is never found and a historical hook shells out to the real tools. That costs
+time and network, not correctness — normalization re-runs the same ruff and Prettier over
+all three trees afterwards, so they still end up formatted identically. Templates carrying
+``FASTAPI_FULLSTACK_RENDER_ONLY`` support skip the block on every platform.
 """
 
 from __future__ import annotations

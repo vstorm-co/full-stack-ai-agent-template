@@ -28,7 +28,7 @@ from .merge import (
     undo_command,
 )
 from .metadata import UpgradeMetadata, _parse_version, load_metadata
-from .normalize import normalize_tree
+from .normalize import FormattersRun, normalize_tree
 from .reconcile import ConfirmFn, ReconcileReport, reconcile_context
 from .report import console, print_report
 
@@ -91,6 +91,32 @@ def _rename_pairs(metadata: UpgradeMetadata) -> list[tuple[str, str]]:
     return [(r.from_path, r.to_path) for r in metadata.renames]
 
 
+def assert_repo_root(client_repo: Path) -> None:
+    """Refuse to run unless ``client_repo`` is the root of its git repository.
+
+    The two sides of the merge disagree about what a path *means* anywhere else.
+    :func:`_extract_head` builds OURS with ``checkout-index``, which emits **index**
+    paths — always relative to the repository root. ``merge._tracked_files`` runs
+    ``ls-tree`` through ``git -C <dir>``, which emits paths relative to that
+    directory. From a subdirectory the two never match, and neither matches the
+    rendered BASE/THEIRS: every template file then reads as a client deletion, so
+    the merged tree drops it and ``materialize`` deletes the client's real files as
+    "removed by the template" — with no error and a report that says so.
+    """
+    toplevel = subprocess.run(
+        ["git", "-C", str(client_repo), "rev-parse", "--show-toplevel"],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    if Path(toplevel).resolve() != client_repo.resolve():
+        raise UpgradeError(
+            f"{client_repo} is not the root of its git repository ({toplevel}). "
+            "The upgrade merges whole trees, so the project must be the repository root. "
+            "Give the project its own repository, or run the upgrade from the root."
+        )
+
+
 def _normalize_target(to_version: str) -> str:
     """Validate ``--to`` and return it in the canonical release form.
 
@@ -106,6 +132,26 @@ def _normalize_target(to_version: str) -> str:
         raise UpgradeError(
             f"Invalid target version {to_version!r}: {exc}. Expected a release like 0.2.16."
         ) from exc
+
+
+def _warn_uneven_formatting(formatters: dict[str, FormattersRun]) -> None:
+    """Warn when a formatter ran on some trees but not all three.
+
+    The merge only sees real content differences if BASE, OURS and THEIRS are
+    formatted identically, so a formatter that skips one tree turns every file it
+    owns into a phantom client edit. It fails silently otherwise: the report just
+    fills with "Kept your changes" and the next release conflicts on those files.
+    """
+    for language in ("python", "frontend"):
+        ran = {label: getattr(run, language) for label, run in formatters.items()}
+        if len(set(ran.values())) < 2:
+            continue
+        skipped = sorted(label for label, ok in ran.items() if not ok)
+        console.print(
+            f"[yellow]⚠ {language} formatting was uneven[/] — skipped on "
+            f"{', '.join(skipped)} but applied to the other tree(s). Those files will "
+            "look edited when they are not, so expect spurious differences and conflicts."
+        )
 
 
 def run_upgrade(
@@ -155,6 +201,10 @@ def run_upgrade(
             "and lose your edits. Run the newer generator instead:\n"
             "  uvx fastapi-fullstack@latest upgrade"
         )
+
+    # Before the dry-run split: a preview built from mismatched paths is just as wrong
+    # as the real run, it just reports the damage instead of doing it.
+    assert_repo_root(client_repo)
 
     if not dry_run:
         assert_clean_worktree(client_repo)
@@ -247,8 +297,13 @@ def run_upgrade(
             None,
         )
         prettier_ignore = client_repo / "frontend" / ".prettierignore"
-        for tree, rendered in ((base_dir, True), (theirs_dir, True), (ours_dir, False)):
-            normalize_tree(
+        formatters: dict[str, FormattersRun] = {}
+        for label, tree, rendered in (
+            ("BASE", base_dir, True),
+            ("THEIRS", theirs_dir, True),
+            ("OURS", ours_dir, False),
+        ):
+            formatters[label] = normalize_tree(
                 tree,
                 generated_at=generated_at,
                 format_code=True,
@@ -259,6 +314,7 @@ def run_upgrade(
                 prettier_ignore=prettier_ignore,
                 rendered=rendered,
             )
+        _warn_uneven_formatting(formatters)
 
         result = merge_trees(base_dir, ours_dir, theirs_dir)
         classification = classify_trees(
@@ -373,7 +429,20 @@ def run_finalize(client_repo: Path) -> str:
     if not pending_path.exists():
         raise UpgradeError("No pending upgrade found. Run `upgrade` first (nothing to finalize).")
 
-    pending = json.loads(pending_path.read_text(encoding="utf-8"))
+    try:
+        pending = json.loads(pending_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise UpgradeError(
+            f"Corrupt pending manifest {pending_path.name}: {exc}. Delete it and re-run "
+            "`upgrade` (the upgrade branch itself is unaffected)."
+        ) from exc
+    # Checked up front rather than at the promotion below: by then the branch guard has
+    # already passed and the user would get a bare KeyError after being told it worked.
+    if not isinstance(pending, dict) or "package_version" not in pending:
+        raise UpgradeError(
+            f"{pending_path.name} is missing 'package_version'. Delete it and re-run "
+            "`upgrade` (the upgrade branch itself is unaffected)."
+        )
     expected_branch = pending.get(_UPGRADE_BRANCH_KEY)
     on_branch = current_branch(client_repo)
     if expected_branch and on_branch != expected_branch:

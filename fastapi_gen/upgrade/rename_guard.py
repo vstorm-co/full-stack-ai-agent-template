@@ -97,6 +97,20 @@ def detect_moves(
     return moves
 
 
+def recorded_waivers(blocks: list[dict]) -> set[str]:
+    """Paths a maintainer declared an *intentional* delete+add, not a rename.
+
+    Read from the ``removed:`` / ``waived:`` keys of the UPGRADES.yaml blocks. Both
+    the CI guard and the recorder must consult this: if only the guard did, a waived
+    pair would be re-detected by ``record_renames`` and written back as a rename —
+    CI would then pass because the move is "covered", and the upgrade would move the
+    client's copy of a genuinely-deleted file onto an unrelated path.
+    """
+    return {
+        path for block in blocks for key in ("removed", "waived") for path in (block.get(key) or [])
+    }
+
+
 def format_renames_block(version: str, moves: list[Move]) -> str:
     """Render moves as a ready-to-paste ``UPGRADES.yaml`` release block."""
     lines = [f'- version: "{version}"', "  renames:"]
@@ -106,30 +120,37 @@ def format_renames_block(version: str, moves: list[Move]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def covering_rename(move: Move, known_renames: set[tuple[str, str]]) -> tuple[str, str] | None:
+    """The UPGRADES.yaml renames entry that covers ``move``, or ``None``.
+
+    A directory rename ``a/ → b/`` covers any file move whose paths sit under those
+    prefixes. Callers need the entry itself, not just a yes/no: the version a move is
+    recorded under lives on that entry, and for a directory rename it is not keyed by
+    the file's own paths. ``sorted`` keeps the pick deterministic when several
+    directory entries match.
+    """
+    if (move.from_path, move.to_path) in known_renames:
+        return (move.from_path, move.to_path)
+    for frm, to in sorted(known_renames):
+        if (
+            frm.endswith("/")
+            and to.endswith("/")
+            and move.from_path.startswith(frm)
+            and move.to_path.startswith(to)
+        ):
+            return (frm, to)
+    return None
+
+
 def uncovered_moves(
     moves: list[Move],
     known_renames: set[tuple[str, str]],
     waivers: set[str] | None = None,
 ) -> list[Move]:
-    """Return moves lacking a matching UPGRADES.yaml rename entry or waiver.
-
-    A directory rename ``a/ → b/`` in ``known_renames`` covers any file move whose
-    paths sit under those prefixes.
-    """
+    """Return moves lacking a matching UPGRADES.yaml rename entry or waiver."""
     waivers = waivers or set()
-    uncovered: list[Move] = []
-    for move in moves:
-        if move.from_path in waivers:
-            continue
-        if (move.from_path, move.to_path) in known_renames:
-            continue
-        if any(
-            frm.endswith("/")
-            and to.endswith("/")
-            and move.from_path.startswith(frm)
-            and move.to_path.startswith(to)
-            for frm, to in known_renames
-        ):
-            continue
-        uncovered.append(move)
-    return uncovered
+    return [
+        move
+        for move in moves
+        if move.from_path not in waivers and covering_rename(move, known_renames) is None
+    ]

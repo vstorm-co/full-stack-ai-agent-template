@@ -22,8 +22,11 @@ from fastapi_gen.upgrade.fetch import TemplateFetchError, fetch_template, latest
 from fastapi_gen.upgrade.metadata import UPGRADES_FILENAME, _parse_version, load_upgrades_file
 from fastapi_gen.upgrade.rename_guard import (
     DEFAULT_THRESHOLD,
+    Move,
+    covering_rename,
     detect_moves,
     format_renames_block,
+    recorded_waivers,
     template_files,
     uncovered_moves,
 )
@@ -71,23 +74,22 @@ def main(argv: list[str] | None = None) -> int:
     )
     known = _known_renames(repo_root)
     blocks = load_upgrades_file(repo_root / UPGRADES_FILENAME)
-    repo_waivers = {
-        path for block in blocks for key in ("removed", "waived") for path in (block.get(key) or [])
-    }
-    waived = set(args.waive) | repo_waivers
+    waived = set(args.waive) | recorded_waivers(blocks)
     uncovered = uncovered_moves(moves, set(known), waived)
 
     # Presence in the YAML isn't enough: a rename recorded under a version <= the
     # baseline is filtered out by the half-open (from, to] range at upgrade time.
+    # Look the version up via the *covering* entry, not the move's own paths — a
+    # directory rename `a/ → b/` covers files that are keyed by neither, and it is
+    # the higher-stakes case: one stale entry loses client edits across a whole subtree.
     baseline = _parse_version(old_version)
-    stale = [
-        (m, known[(m.from_path, m.to_path)])
-        for m in moves
-        if m not in uncovered
-        and m.from_path not in waived
-        and (m.from_path, m.to_path) in known
-        and _parse_version(known[(m.from_path, m.to_path)]) <= baseline
-    ]
+    stale: list[tuple[Move, str]] = []
+    for move in moves:
+        if move in uncovered or move.from_path in waived:
+            continue
+        key = covering_rename(move, set(known))
+        if key is not None and _parse_version(known[key]) <= baseline:
+            stale.append((move, known[key]))
 
     if not uncovered and not stale:
         print(f"Rename guard OK — {len(moves)} move(s) detected, all covered.")

@@ -28,6 +28,7 @@ from fastapi_gen.upgrade.rename_guard import (
     DEFAULT_THRESHOLD,
     detect_moves,
     format_renames_block,
+    recorded_waivers,
     template_files,
     uncovered_moves,
 )
@@ -111,7 +112,8 @@ def main(argv: list[str] | None = None) -> int:
         threshold=args.threshold,
     )
     blocks = load_upgrades_file(upgrades_path)
-    new_moves = uncovered_moves(moves, _known_renames(blocks), set(args.waive))
+    waived = set(args.waive) | recorded_waivers(blocks)
+    new_moves = uncovered_moves(moves, _known_renames(blocks), waived)
 
     if not new_moves:
         print(f"No new moves to record ({len(moves)} detected, all already covered).")

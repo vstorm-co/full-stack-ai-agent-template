@@ -1537,9 +1537,19 @@ def upgrade(
             if given
         ]
         if misplaced:
+            # --path needs the opposite advice to the rest: the subcommands carry their
+            # own --path, so it moves *after* the subcommand. Telling the user to put it
+            # before (where they already had it, since that is what lands here) sends
+            # them in a circle, and dropping it would finalize the wrong directory.
+            fix = (
+                f"Use `upgrade {ctx.invoked_subcommand} --path ...` — the subcommand has "
+                "its own --path."
+                if misplaced == ["--path"]
+                else "Drop it, or run `upgrade` without a subcommand."
+            )
             raise click.UsageError(
                 f"{', '.join(misplaced)} applies to `upgrade`, not "
-                f"`upgrade {ctx.invoked_subcommand}`. Put it before the subcommand or drop it."
+                f"`upgrade {ctx.invoked_subcommand}`. {fix}"
             )
         return
 

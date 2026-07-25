@@ -14,6 +14,7 @@ from fastapi_gen.config import (
 )
 from fastapi_gen.upgrade.fetch import TemplateFetchError, fetch_template
 from fastapi_gen.upgrade.manifest import MANIFEST_FILENAME, write_manifest
+from fastapi_gen.upgrade.normalize import format_python
 from fastapi_gen.upgrade.render import render_template
 from fastapi_gen.upgrade.runner import UpgradeError, run_finalize, run_upgrade
 
@@ -164,6 +165,12 @@ class TestSelfUpgradeEndToEnd:
         except TemplateFetchError as exc:
             pytest.skip(f"PyPI unreachable: {exc}")
         client = render_template(old_template, ctx, work / "client_parent")
+        # A real client project went through the post-gen hook's `ruff check --fix` +
+        # `ruff format`; a render neutralizes the hook's formatter and does neither.
+        # Simulating that is not cosmetic — without it OURS and the rendered BASE/THEIRS
+        # are unfaithfully symmetric, and this test cannot see the class of bug where
+        # normalization fails to reproduce what generation did.
+        format_python(client, autofix=True)
         write_manifest(client, ctx, package_version="0.2.13")
         main = client / "backend" / "app" / "main.py"
         main.write_text("# CLIENT CUSTOM COMMENT\n" + main.read_text(), encoding="utf-8")

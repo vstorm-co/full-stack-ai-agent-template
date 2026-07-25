@@ -161,18 +161,35 @@ def _ruff_cmd(preferred: Path | None = None) -> list[str] | None:
     return [sys.executable, "-m", "ruff"] if probe.returncode == 0 else None
 
 
-def format_python(tree: Path, *, config: Path | None = None, ruff_bin: Path | None = None) -> bool:
-    """Best-effort ``ruff format`` over a tree. Returns True if ruff ran.
+def format_python(
+    tree: Path,
+    *,
+    config: Path | None = None,
+    ruff_bin: Path | None = None,
+    autofix: bool = False,
+) -> bool:
+    """Best-effort ruff pass over a tree. Returns True if ruff ran.
 
-    Three deliberate choices keep this from corrupting the merge:
+    Four deliberate choices keep this from corrupting the merge:
 
-    * We run **only** ``ruff format`` — never ``check --fix``. Autofixes (unused-import
-      removal, etc.) are code *changes*, not formatting; applying them to the client's
-      committed tree (OURS) would materialize onto the branch as phantom client edits.
-    * A single ``config`` is applied to all three trees. Without it ruff resolves each
-      tree's own ``pyproject.toml`` — the *client's* (often customized line-length /
-      rule set) for OURS but the template's for BASE/THEIRS — so the trees format
-      differently and every file looks edited, drowning the merge in false conflicts.
+    * ``autofix`` runs ``ruff check --fix`` before the format pass, and must be set for
+      the *rendered* trees (BASE/THEIRS) only. The post-gen hook runs ``check --fix``
+      *and* ``format`` at generation time, so OURS arrives already autofixed while a
+      render — which neutralizes the hook's formatter — does not. Without this the two
+      sides disagree on every unused import the hook stripped and every ``# ruff: noqa``
+      it removed, and ~a third of the backend reads as client edits that never happened.
+      Running it on OURS instead would rewrite the client's own code into the merged
+      result, which is why it is opt-in per tree rather than unconditional.
+    * The check pass deliberately gets **no** ``--config``: ``--config <file>`` moves
+      ruff's project root to that file's directory (the client's ``backend/``), which
+      changes isort's first-party detection and re-orders imports differently than
+      generation did. Each rendered tree carries its own version's ``pyproject.toml``,
+      which is exactly what that version's generator resolved.
+    * A single ``config`` is applied to the *format* pass on all three trees. Without it
+      ruff resolves each tree's own ``pyproject.toml`` — the *client's* (often customized
+      line-length / rule set) for OURS but the template's for BASE/THEIRS — so the trees
+      format differently and every file looks edited, drowning the merge in false
+      conflicts.
     * A single ``ruff_bin`` (the client's own, when present) formats all three trees, so
       the delivered merged tree matches the ruff the client's project pins — otherwise a
       style change between the bundled ruff and theirs churns files the template never
@@ -187,6 +204,10 @@ def format_python(tree: Path, *, config: Path | None = None, ruff_bin: Path | No
     cmd = _ruff_cmd(ruff_bin)
     if not cmd:
         return False
+    if autofix:
+        subprocess.run(
+            [*cmd, "check", "--fix", "--quiet", str(target)], capture_output=True, check=False
+        )
     fmt = [*cmd, "format", "--quiet"]
     if config is not None and config.exists():
         fmt += ["--config", str(config)]
@@ -263,15 +284,20 @@ def normalize_tree(
     ruff_bin: Path | None = None,
     prettier_config: Path | None = None,
     prettier_ignore: Path | None = None,
+    rendered: bool = False,
 ) -> None:
     """Apply the full normalization pass to a tree (in place).
 
     Must be applied *identically* to BASE, OURS and THEIRS so differences cancel —
     which is why ``ruff_config`` / ``prettier_config`` (the one shared config per
     language) and ``ruff_bin`` (the one shared binary) are passed the same for all three.
+
+    ``rendered`` is the one deliberate asymmetry: a freshly rendered tree (BASE/THEIRS)
+    has not been through the post-gen hook's ``ruff check --fix``, while OURS was
+    autofixed at generation time. See :func:`format_python`.
     """
     if format_code:
-        format_python(tree, config=ruff_config, ruff_bin=ruff_bin)
+        format_python(tree, config=ruff_config, ruff_bin=ruff_bin, autofix=rendered)
         format_frontend(
             tree,
             node_modules=frontend_node_modules,

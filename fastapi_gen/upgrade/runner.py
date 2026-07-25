@@ -247,7 +247,7 @@ def run_upgrade(
             None,
         )
         prettier_ignore = client_repo / "frontend" / ".prettierignore"
-        for tree in (base_dir, theirs_dir, ours_dir):
+        for tree, rendered in ((base_dir, True), (theirs_dir, True), (ours_dir, False)):
             normalize_tree(
                 tree,
                 generated_at=generated_at,
@@ -257,6 +257,7 @@ def run_upgrade(
                 ruff_bin=ruff_bin,
                 prettier_config=prettier_config,
                 prettier_ignore=prettier_ignore,
+                rendered=rendered,
             )
 
         result = merge_trees(base_dir, ours_dir, theirs_dir)

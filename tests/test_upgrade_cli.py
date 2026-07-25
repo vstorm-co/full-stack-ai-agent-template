@@ -61,6 +61,23 @@ class TestUpgradeCliWiring:
         assert option in result.output
         assert "finalize" in result.output
 
+    def test_misplaced_path_points_at_the_subcommands_own_option(
+        self, runner: CliRunner
+    ) -> None:
+        """`upgrade --path X finalize` is rejected, so "put it before the subcommand"
+        would send the user straight back to the same error. `finalize` and `recover`
+        carry their own --path — that is the form to point at."""
+        result = runner.invoke(cli, ["upgrade", "--path", ".", "finalize"])
+        assert result.exit_code != 0
+        assert "upgrade finalize --path" in result.output
+        assert "before the subcommand" not in result.output
+
+    def test_misplaced_group_flag_tells_the_user_to_drop_it(self, runner: CliRunner) -> None:
+        """A flag with no subcommand equivalent (--dry-run) can only be dropped."""
+        result = runner.invoke(cli, ["upgrade", "--dry-run", "finalize"])
+        assert result.exit_code != 0
+        assert "Drop it" in result.output
+
     def test_upgrade_without_manifest_reports_error(
         self, runner: CliRunner, tmp_path: Path
     ) -> None:

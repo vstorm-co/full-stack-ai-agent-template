@@ -80,12 +80,24 @@ def remove_file(path: str) -> None:
         print(f"  Removed: {os.path.relpath(path)}")
 
 
+def read_text(filepath: str) -> str:
+    """Read a rendered file as UTF-8.
+
+    Explicit encoding, not the platform default: the template ships hundreds of files
+    with non-ASCII content (emoji in the docs, Polish prose in the per-locale .tsx), so
+    on an interpreter whose preferred encoding is not UTF-8 — Windows cp125x, or a
+    container with LC_ALL=C and PYTHONCOERCECLOCALE=0 — a bare open() raises
+    UnicodeDecodeError and takes the whole generation (and the upgrade render) down.
+    """
+    with open(filepath, encoding="utf-8", errors="replace") as f:
+        return f.read()
+
+
 def is_stub_file(filepath: str) -> bool:
     """Return True if the file has no real code — empty or docstring-only."""
     if not os.path.exists(filepath):
         return False
-    with open(filepath) as f:
-        content = f.read().strip()
+    content = read_text(filepath).strip()
     if not content:
         return True
     # Single triple-quoted docstring, no real code
@@ -440,9 +452,8 @@ for root, dirs, files in os.walk(os.getcwd()):
         if not fname.endswith((".md", ".mdx", ".ts", ".tsx")):
             continue
         filepath = os.path.join(root, fname)
-        with open(filepath) as f:
-            if not f.read().strip():
-                remove_file(filepath)
+        if not read_text(filepath).strip():
+            remove_file(filepath)
 
 # --- Worker/Background tasks ---
 # worker/background/ holds in-process handlers (FastAPI BackgroundTasks fallback)
@@ -494,7 +505,7 @@ def remove_empty_dirs(path: str) -> None:
     elif remaining == ["__init__.py"]:
         init_path = os.path.join(path, "__init__.py")
         try:
-            init_text = open(init_path).read().strip()
+            init_text = read_text(init_path).strip()
         except OSError:
             init_text = ""
         if init_text == "":

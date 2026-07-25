@@ -47,6 +47,36 @@ def test_format_python_runs_when_ruff_present(tmp_path: Path) -> None:
     assert (tmp_path / "m.py").read_text(encoding="utf-8") == "x = 1\n"
 
 
+def test_format_python_leaves_autofixes_alone_by_default(tmp_path: Path) -> None:
+    """OURS must never be autofixed: that would rewrite the client's own code into the
+    merged tree and materialize onto the upgrade branch as edits they never made."""
+    (tmp_path / "m.py").write_text("import os\nx=1\n", encoding="utf-8")
+    assert format_python(tmp_path) is True
+    assert (tmp_path / "m.py").read_text(encoding="utf-8") == "import os\n\nx = 1\n"
+
+
+def test_format_python_autofix_matches_the_post_gen_hook(tmp_path: Path) -> None:
+    """The post-gen hook runs `ruff check --fix` before `ruff format`, so a rendered
+    tree (which neutralizes the hook's formatter) needs the same pass or every unused
+    import the hook stripped reads as a client edit for the rest of the project's life."""
+    (tmp_path / "m.py").write_text("import os\nx=1\n", encoding="utf-8")
+    assert format_python(tmp_path, autofix=True) is True
+    assert (tmp_path / "m.py").read_text(encoding="utf-8") == "x = 1\n"
+
+
+def test_normalize_tree_autofixes_only_rendered_trees(tmp_path: Path) -> None:
+    """`rendered=True` is the one deliberate asymmetry between the three trees."""
+    for name in ("rendered", "ours"):
+        (tmp_path / name).mkdir()
+        (tmp_path / name / "m.py").write_text("import os\nx = 1\n", encoding="utf-8")
+
+    normalize_tree(tmp_path / "rendered", rendered=True)
+    normalize_tree(tmp_path / "ours", rendered=False)
+
+    assert (tmp_path / "rendered" / "m.py").read_text(encoding="utf-8") == "x = 1\n"
+    assert (tmp_path / "ours" / "m.py").read_text(encoding="utf-8") == "import os\n\nx = 1\n"
+
+
 def test_format_python_reports_false_when_ruff_missing(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setattr("fastapi_gen.upgrade.normalize._ruff_cmd", lambda *_a: None)
     (tmp_path / "m.py").write_text("x=1\n", encoding="utf-8")

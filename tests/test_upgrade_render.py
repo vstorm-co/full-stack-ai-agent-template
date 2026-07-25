@@ -55,6 +55,33 @@ class TestRenderTemplate:
         assert (out / "backend" / "app" / "main.py").exists()
         assert not (out / "backend" / "uv.lock").exists()
 
+    def test_renders_under_a_non_utf8_locale(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The post-gen hook scans every rendered doc and frontend module for an empty
+        body. Those files carry non-ASCII (emoji in the docs, Polish prose in the
+        per-locale .tsx), so reading them with the platform default encoding kills both
+        generation and this render on Windows or a C-locale container."""
+        for var, value in (
+            ("PYTHONUTF8", "0"),
+            ("PYTHONCOERCECLOCALE", "0"),
+            ("LC_ALL", "C"),
+            ("LANG", "C"),
+        ):
+            monkeypatch.setenv(var, value)
+
+        cfg = ProjectConfig(
+            project_name="locale_probe",
+            database=DatabaseType.POSTGRESQL,
+            background_tasks=BackgroundTaskType.NONE,
+            enable_docker=False,
+            enable_logfire=False,
+            ci_type=CIType.NONE,
+        )
+        out = render_template(_find_template_dir(), cfg.to_cookiecutter_context(), tmp_path)
+
+        assert (out / "backend" / "app" / "main.py").exists()
+
 
 class TestShimDir:
     def test_shim_dir_is_registered_for_cleanup(self, monkeypatch: pytest.MonkeyPatch) -> None:

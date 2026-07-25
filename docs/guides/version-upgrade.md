@@ -29,6 +29,12 @@ accurate: any BASE↔OURS difference is genuinely *your* edit, and any BASE↔TH
 is genuinely a *template* change. The tool gets your answers from a small manifest file,
 `.fastapi-fullstack.json`, that the generator writes into every new project.
 
+For that to hold, all three trees have to be *formatted* the same way before they are
+compared — otherwise a formatting difference reads as an edit. The upgrade reproduces on
+BASE and THEIRS exactly what the generator did to your project when it was created
+(`ruff check --fix`, then `ruff format`, plus Prettier on the frontend), and never runs
+the autofix pass over OURS, so your own code is never rewritten on the way through.
+
 The result is applied to a new branch, `template-upgrade/v<version>`, which you review and
 merge like any other change.
 

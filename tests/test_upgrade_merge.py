@@ -329,6 +329,50 @@ class TestMaterialize:
         ).stdout.split()
         assert "new_feature.txt" in staged
 
+    def test_delivers_a_new_env_var_into_env_example(self, tmp_path: Path) -> None:
+        """The end-to-end proof for the `.env.example` exclusion fix: a setting the
+        template adds must actually reach the client's file. is_excluded() alone can't
+        show that — the path still has to survive staging, materialize and the report."""
+        base, ours, theirs = tmp_path / "b", tmp_path / "o", tmp_path / "t"
+        for t in (base, ours, theirs):
+            t.mkdir()
+        _write(base, "backend/.env.example", "DEBUG=true\n")
+        _write(ours, "backend/.env.example", "DEBUG=true\nMY_OWN_VAR=1\n")
+        _write(theirs, "backend/.env.example", "DEBUG=true\nNEW_TEMPLATE_VAR=x\n")
+
+        client = tmp_path / "client"
+        client.mkdir()
+        _write(client, "backend/.env.example", "DEBUG=true\nMY_OWN_VAR=1\n")
+        _init_client_repo(client)
+
+        result = merge_trees(base, client, theirs)
+        materialize(result, client, branch="template-upgrade/vY")
+
+        merged = (client / "backend" / ".env.example").read_text()
+        assert "NEW_TEMPLATE_VAR=x" in merged, "template's new setting was not delivered"
+        assert "MY_OWN_VAR=1" in merged, "client's own var was dropped"
+
+    def test_refuses_to_clobber_an_ignored_untracked_file(
+        self, tmp_path: Path, three_trees: tuple[Path, Path, Path]
+    ) -> None:
+        """`ls-files --others` honors .gitignore, so a file the client ignored *and*
+        untracked is invisible to the collision guard — and the tar extraction would
+        overwrite it with no warning, unrecoverably (the rollback restores tracked files
+        only)."""
+        base, ours, theirs = three_trees
+        client = tmp_path / "client"
+        client.mkdir()
+        _write(client, "upd.txt", "one\ntwo\nthree\n")
+        _write(client, ".gitignore", "new_feature.txt\n")
+        _init_client_repo(client)
+        _write(client, "new_feature.txt", "PRECIOUS LOCAL CONTENT\n")
+
+        result = merge_trees(base, client, theirs)
+        with pytest.raises(RuntimeError, match="would be overwritten"):
+            materialize(result, client, branch="template-upgrade/vY")
+
+        assert (client / "new_feature.txt").read_text() == "PRECIOUS LOCAL CONTENT\n"
+
     def test_rolls_back_on_materialize_failure(
         self, tmp_path: Path, three_trees: tuple[Path, Path, Path], monkeypatch: pytest.MonkeyPatch
     ) -> None:

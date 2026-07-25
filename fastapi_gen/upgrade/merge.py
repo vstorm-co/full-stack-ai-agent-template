@@ -173,8 +173,9 @@ def apply_renames(tree_dir: Path, renames: list[tuple[str, str]]) -> None:
     A move whose destination is already occupied is skipped, not applied: ``shutil.move``
     replaces the target, so in OURS a client who happened to create their own file at the
     path the template later renamed *into* would lose it outright — no conflict, no report
-    line, just the template's content in its place. Skipping degrades that one path to the
-    ordinary add/add the merge already knows how to surface.
+    line, just the template's content in its place. Skipping keeps both files and lets the
+    merge decide: the destination comes out as an ordinary conflict to resolve, and the
+    un-moved original survives as a client-only file. Nothing is dropped silently.
 
     Args:
         renames: (from_path, to_path) pairs; a trailing ``/`` on ``from_path`` moves
@@ -222,9 +223,9 @@ def _skip_occupied(target: Path, from_path: str, to_path: str) -> bool:
     from .report import console
 
     console.print(
-        f"[yellow]⚠ Skipping recorded rename[/] {from_path} → {to_path}: "
-        f"{target.name} already exists. Your version of that file is kept; the template's "
-        "will show up as a separate change to review."
+        f"[yellow]⚠ Skipping recorded rename[/] {from_path} → {to_path}: {target.name} "
+        "already exists and moving onto it would replace your copy. Both files are kept — "
+        "expect a conflict at the destination to resolve by hand."
     )
     return True
 
@@ -423,7 +424,15 @@ def _materialize_onto_branch(
         p for p in _untracked_files(client_repo) if (client_repo / p).is_symlink()
     }
 
-    collisions = sorted((_untracked_files(client_repo) & merged_files) - symlinks)
+    # Ask the filesystem, not `ls-files --others`: that honors .gitignore, so a file the
+    # client ignored *and* untracked is invisible to it — and `tar -x` below would
+    # overwrite it with no warning (the rollback in materialize() restores tracked files
+    # only, so it never comes back). Anything in the merged tree that HEAD does not track
+    # but that exists on disk is a collision, ignored or not. Bounded by merged_files, so
+    # this never enumerates node_modules.
+    collisions = sorted(
+        rel for rel in merged_files - in_scope_tracked - symlinks if (client_repo / rel).exists()
+    )
     if collisions and not force:
         raise RuntimeError(
             "These untracked files would be overwritten by the upgrade:\n"

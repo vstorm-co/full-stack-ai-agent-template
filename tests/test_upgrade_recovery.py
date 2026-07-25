@@ -7,10 +7,17 @@ from fastapi_gen.generator import _find_template_dir
 from fastapi_gen.upgrade.manifest import MANIFEST_FILENAME
 from fastapi_gen.upgrade.recovery import (
     _PRESENCE_DETECTORS,
+    detect_generated_at,
     detect_version,
     recover_context,
     write_candidate_manifest,
 )
+
+
+def _write_pyproject(project: Path, body: str) -> None:
+    backend = project / "backend"
+    backend.mkdir(parents=True, exist_ok=True)
+    (backend / "pyproject.toml").write_text(body, encoding="utf-8")
 
 
 def test_detect_version_from_readme(tmp_path: Path) -> None:
@@ -50,6 +57,60 @@ def test_write_candidate_manifest_is_separate_file(tmp_path: Path) -> None:
 def test_detect_version_readme_without_version(tmp_path: Path) -> None:
     (tmp_path / "README.md").write_text("# Project\nno version here\n", encoding="utf-8")
     assert detect_version(tmp_path) is None
+
+
+def test_detect_generated_at_reads_the_stamp_back(tmp_path: Path) -> None:
+    _write_pyproject(
+        tmp_path,
+        '[tool.fastapi-fullstack]\ngenerator_version = "0.2.16"\n'
+        'generated_at = "2025-03-14 10:22:01"\n',
+    )
+    assert detect_generated_at(tmp_path) == "2025-03-14 10:22:01"
+
+
+def test_detect_generated_at_without_pyproject(tmp_path: Path) -> None:
+    assert detect_generated_at(tmp_path) is None
+
+
+def test_detect_generated_at_without_the_stamp(tmp_path: Path) -> None:
+    _write_pyproject(tmp_path, '[project]\nname = "x"\n')
+    assert detect_generated_at(tmp_path) is None
+
+
+def test_recovered_context_carries_generated_at(tmp_path: Path) -> None:
+    """Without it, every stamped file reads as an edit the client never made.
+
+    `generated_at` is rendered into backend/pyproject.toml and every alembic
+    `Create Date:` header. If recovery drops it, run_upgrade passes None to
+    strip_generated_at, BASE/THEIRS render the stamp empty while OURS carries the real
+    one, and the first release touching backend/pyproject.toml conflicts on a file
+    nobody edited.
+    """
+    _write_pyproject(tmp_path, '[tool.x]\ngenerated_at = "2025-03-14 10:22:01"\n')
+
+    result = recover_context(tmp_path)
+
+    assert result.context["generated_at"] == "2025-03-14 10:22:01"
+    assert not any("generated_at" in w for w in result.warnings)
+
+
+def test_unrecoverable_generated_at_is_warned_about(tmp_path: Path) -> None:
+    result = recover_context(tmp_path)
+
+    assert "generated_at" not in result.context
+    assert any("generated_at" in w for w in result.warnings)
+
+
+def test_an_empty_stamp_is_recovered_without_a_warning(tmp_path: Path) -> None:
+    """An empty stamp is what the template renders by default, so it needs no warning
+    and nothing to set — the three trees already agree on it."""
+    _write_pyproject(tmp_path, '[tool.x]\ngenerated_at = ""\n')
+
+    result = recover_context(tmp_path)
+
+    assert detect_generated_at(tmp_path) == ""
+    assert "generated_at" not in result.context
+    assert not any("generated_at" in w for w in result.warnings)
 
 
 def test_every_detector_path_exists_in_template() -> None:

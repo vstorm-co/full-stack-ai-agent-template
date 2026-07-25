@@ -394,8 +394,9 @@ refuses rather than produce a wrong merge. Give the project its own repository.
 
 **"frontend formatting was uneven."**
 A formatter ran on some of the three trees but not all of them, so files it owns will look
-edited when they aren't. The usual cause is a committed `frontend/node_modules` in your repo —
-remove it from git tracking (it's gitignored in new projects) and re-run.
+edited when they aren't. A committed `frontend/node_modules` is fine — that install gets used
+in place. What trips this is an install with no `.bin/prettier` in it, or a platform that
+refuses symlinks. Run `bun install` in `frontend/` and re-run.
 
 **"Unresolved merge conflicts remain" when finalizing.**
 Resolve the remaining conflicts and `git add` them, then run `upgrade finalize` again.

@@ -393,6 +393,22 @@ def materialize(
     return orig_branch
 
 
+def _prune_empty_dirs(client_repo: Path, removed: list[str]) -> None:
+    """Drop directories left empty by deleting ``removed``.
+
+    git does not track directories, so a release that drops a whole subtree leaves the
+    client with empty folders that nothing else will ever clean up — ``git checkout``
+    prunes them, hand-rolled unlinking has to say so. Stops at the first parent that
+    still holds anything, which is also what keeps an untracked or ignored file from
+    taking its directory down with it.
+    """
+    for rel in removed:
+        for parent in (client_repo / rel).parents:
+            if parent == client_repo or not parent.is_dir() or any(parent.iterdir()):
+                break
+            parent.rmdir()
+
+
 def _materialize_onto_branch(
     result: MergeResult,
     client_repo: Path,
@@ -432,7 +448,8 @@ def _materialize_onto_branch(
     # Delete stale paths *before* extraction: doing it after would let a case-only
     # rename (Readme.md → README.md, same inode on case-insensitive filesystems)
     # unlink the freshly-written file, and a file→dir change raise IsADirectoryError.
-    for rel in sorted(in_scope_tracked - merged_files - symlinks):
+    stale = sorted(in_scope_tracked - merged_files - symlinks)
+    for rel in stale:
         target = client_repo / rel
         if target.is_symlink():
             target.unlink()
@@ -440,6 +457,7 @@ def _materialize_onto_branch(
             shutil.rmtree(target, ignore_errors=True)
         elif target.exists():
             target.unlink()
+    _prune_empty_dirs(client_repo, stale)
 
     # _SAFE_CONFIG is not optional here: `git archive` honors the *global* attributes
     # file even for this throwaway store, so a stray `export-ignore` would silently

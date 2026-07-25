@@ -50,6 +50,8 @@ _UNRECOVERABLE = (
 
 _VERSION_RE = re.compile(r"v(\d+\.\d+\.\d+)")
 
+_GENERATED_AT_RE = re.compile(r'^generated_at\s*=\s*"([^"]*)"', re.MULTILINE)
+
 
 @dataclass
 class RecoveryResult:
@@ -71,11 +73,38 @@ def detect_version(project_path: Path) -> str | None:
     return matches[-1] if matches else None
 
 
+def detect_generated_at(project_path: Path) -> str | None:
+    """Read the generation timestamp back out of ``backend/pyproject.toml``.
+
+    Alone among the value variables this one leaves a trace: generation stamps it into
+    ``[tool.<generator>] generated_at`` and into every alembic ``Create Date:`` header.
+    Recovering it is not cosmetic — ``normalize`` blanks the stamp in all three trees so
+    it cancels, but only when it knows the value. Without it BASE and THEIRS render the
+    stamp empty while the client's files carry the real one, so every stamped file reads
+    as an edit they never made. ``backend/pyproject.toml`` moves on nearly every release,
+    which turns the first upgrade of a recovered project into a conflict on a file
+    nobody touched.
+
+    Returns ``None`` when the stamp cannot be found, and ``""`` when the project
+    genuinely recorded an empty one — the caller must not warn about the latter, since
+    an empty stamp is already what the template renders by default.
+    """
+    pyproject = project_path / "backend" / "pyproject.toml"
+    if not pyproject.exists():
+        return None
+    match = _GENERATED_AT_RE.search(pyproject.read_text(encoding="utf-8", errors="ignore"))
+    return match.group(1) if match else None
+
+
 def recover_context(project_path: Path) -> RecoveryResult:
     """Infer a best-effort context + version from a project's file layout."""
     context: dict[str, object] = {"project_name": project_path.resolve().name}
     for key, rel in _PRESENCE_DETECTORS:
         context[key] = (project_path / rel).exists()
+
+    generated_at = detect_generated_at(project_path)
+    if generated_at:
+        context["generated_at"] = generated_at
 
     version = detect_version(project_path)
     warnings = [
@@ -85,6 +114,12 @@ def recover_context(project_path: Path) -> RecoveryResult:
     ]
     if version is None:
         warnings.append("Could not detect the generator version — set `package_version` by hand.")
+    if generated_at is None:
+        warnings.append(
+            "Could not detect `generated_at` — set it by hand, or every file carrying the "
+            "generation timestamp (backend/pyproject.toml, every alembic Create Date: header) "
+            "will read as an edit you made and conflict on the first release that touches it."
+        )
     return RecoveryResult(context=context, version=version, warnings=warnings)
 
 

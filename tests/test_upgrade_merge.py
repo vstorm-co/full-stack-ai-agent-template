@@ -227,6 +227,36 @@ class TestMaterialize:
         ).stdout
         assert "vendor/sub" not in status
 
+    def test_prunes_directories_left_empty_by_a_removal(self, tmp_path: Path) -> None:
+        """A release that drops a whole subtree must not leave the folders behind.
+
+        git tracks files, not directories, so unlinking file by file leaves empty
+        folders that nothing else ever cleans up — `git checkout` prunes them, so a
+        hand-rolled deletion has to as well. A directory that still holds something the
+        merge didn't touch (an untracked or ignored file) must survive.
+        """
+        base, theirs = tmp_path / "base", tmp_path / "theirs"
+        client = tmp_path / "client"
+        for t in (base, theirs, client):
+            t.mkdir()
+        for tree in (base, client):
+            _write(tree, "keep.txt", "same\n")
+            _write(tree, "legacy/deep/old.py", "gone\n")
+            _write(tree, "partly/old.py", "gone\n")
+        _write(theirs, "keep.txt", "same\n")
+        _init_client_repo(client)
+        # Untracked and therefore invisible to the merge: its directory must stay.
+        _write(client, "partly/mine.txt", "mine\n")
+
+        result = merge_trees(base, client, theirs)
+        materialize(result, client, branch="template-upgrade/vY", force=True)
+
+        assert not (client / "legacy" / "deep" / "old.py").exists()
+        assert not (client / "legacy" / "deep").exists()
+        assert not (client / "legacy").exists()
+        assert not (client / "partly" / "old.py").exists()
+        assert (client / "partly" / "mine.txt").read_text() == "mine\n"
+
     def test_global_export_ignore_does_not_drop_files(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:

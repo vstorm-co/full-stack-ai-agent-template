@@ -14,9 +14,11 @@ Two classes of noise would otherwise flood the merge with false conflicts:
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import sys
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -82,18 +84,22 @@ SKIP_DIRS = frozenset(
 )
 
 
-def _iter_text_files(tree: Path):
-    # relative_to(tree), not path.parts: rglob yields absolute paths, so matching the
-    # skip-list against the whole path lets an *ancestor* of the tree veto everything
-    # inside it — a project at ~/build/myapp, a Docker WORKDIR /build or a CI checkout
-    # under /builds/ would be skipped wholesale. That fails asymmetrically and silently:
-    # the rendered trees live under /tmp and still get stripped, but restore_generated_at()
-    # over the client's repo becomes a no-op, so the placeholder ships into their files.
-    for path in tree.rglob("*"):
-        if SKIP_DIRS.intersection(path.relative_to(tree).parts):
-            continue
-        if path.is_file() and not path.is_symlink() and not _is_binary(path):
-            yield path
+def _iter_text_files(tree: Path) -> Iterator[Path]:
+    # os.walk with an in-place `dirs` filter, not rglob: matching the skip-list against
+    # rglob's *absolute* paths let an ancestor of the tree veto everything inside it (a
+    # project at ~/build/myapp, a Docker WORKDIR /build, a CI checkout under /builds/),
+    # which failed asymmetrically and silently — the rendered trees live under /tmp and
+    # were still stripped, but restore_generated_at() over the client's repo became a
+    # no-op and the placeholder shipped into their files. Walking relative to the tree
+    # fixes that; pruning `dirs` is what makes it cheap, since rglob cannot prune and
+    # would still descend into every node_modules just to discard the entries one by one
+    # — and restore_generated_at() runs over the client's *whole* repo.
+    for root, dirs, names in os.walk(tree):
+        dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
+        for name in names:
+            path = Path(root) / name
+            if path.is_file() and not path.is_symlink() and not _is_binary(path):
+                yield path
 
 
 def strip_generated_at(tree: Path, value: str | None) -> None:
@@ -237,7 +243,9 @@ def format_frontend(
     Prettier can't be bundled (it needs Node + the project's plugins, e.g.
     prettier-plugin-tailwindcss), so we borrow the client's already-installed
     ``node_modules`` by symlinking it into the rendered tree, run the local Prettier
-    binary, then remove the link. Returns True if Prettier ran.
+    binary, then remove the link. A tree that already holds a usable install — OURS,
+    when the client committed their ``node_modules`` — uses that one in place and is
+    left untouched. Returns True if Prettier ran.
 
     ``config`` and ``ignore_path`` are the frontend twin of ``format_python``'s shared
     ruff config, and matter for the same reason: without them Prettier resolves each
@@ -247,19 +255,27 @@ def format_frontend(
     client edit, which turns each real template change into a conflict.
     """
     frontend = tree / "frontend"
-    if (
-        node_modules is None
-        or not (node_modules / ".bin" / "prettier").exists()
-        or not frontend.is_dir()
-    ):
+    if not frontend.is_dir():
         return False
+
+    # A tree that already carries an install is OURS whenever the client committed their
+    # frontend/node_modules, and it is never the freshly rendered BASE/THEIRS. Bailing
+    # out there is exactly what made the run uneven — Prettier on two trees of three, so
+    # every .tsx read as a client edit. Use the install that is already here instead.
+    # Prettier ignores node_modules unless asked with --with-node-modules, so passing `.`
+    # is safe either way.
     link = frontend / "node_modules"
-    if link.exists() or link.is_symlink():
+    borrowed = not (link.exists() or link.is_symlink())
+    if borrowed:
+        if node_modules is None or not (node_modules / ".bin" / "prettier").exists():
+            return False
+        try:
+            link.symlink_to(node_modules.resolve())
+        except OSError:
+            return False
+    elif not (link / ".bin" / "prettier").exists():
         return False
-    try:
-        link.symlink_to(node_modules.resolve())
-    except OSError:
-        return False
+
     cmd = [str(link / ".bin" / "prettier"), "--write"]
     if config is not None and config.exists():
         cmd += ["--config", str(config)]
@@ -271,7 +287,8 @@ def format_frontend(
     except OSError:
         return False
     finally:
-        link.unlink()
+        if borrowed:
+            link.unlink()
     return True
 
 
@@ -306,11 +323,10 @@ def normalize_tree(
     autofixed at generation time. See :func:`format_python`.
 
     Returns which formatters actually ran, so the caller can check they ran on *all*
-    three trees. That is the invariant the merge rests on and it can genuinely break
-    per-tree: :func:`format_frontend` bails out when the tree already contains
-    ``frontend/node_modules``, which is true for OURS whenever the client committed
-    theirs and never true for the freshly rendered BASE/THEIRS. Prettier would then
-    run on two trees out of three and every ``.tsx`` file would read as a client edit.
+    three trees. That is the invariant the merge rests on, and it can still break
+    per-tree — a client who committed a ``frontend/node_modules`` with no Prettier in
+    it, or whose platform refuses symlinks, gets Prettier on some trees and not others,
+    and every ``.tsx`` file then reads as an edit they never made.
     """
     if not format_code:
         strip_generated_at(tree, generated_at)

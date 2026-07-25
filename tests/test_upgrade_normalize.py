@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import os
 import sys
+from collections.abc import Iterator
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -98,6 +100,37 @@ def test_normalize_tree_makes_formatting_symmetric(tmp_path: Path) -> None:
     assert (formatted / "backend" / "m.py").read_text() == (raw / "backend" / "m.py").read_text()
 
 
+def test_iter_text_files_does_not_descend_into_skipped_dirs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Pruning, not filtering.
+
+    restore_generated_at() runs over the client's *whole* repo, where node_modules is
+    routinely six figures of entries. rglob cannot prune, so it walked every one of them
+    just to discard it on the next line.
+    """
+    (tmp_path / "backend").mkdir()
+    (tmp_path / "backend" / "m.py").write_text("x = 1\n", encoding="utf-8")
+    deep = tmp_path / "frontend" / "node_modules" / "pkg" / "dist"
+    deep.mkdir(parents=True)
+    (deep / "index.js").write_text("//\n", encoding="utf-8")
+
+    visited: list[str] = []
+    real_walk = os.walk
+
+    def _spy(top: Path) -> Iterator[tuple[str, list[str], list[str]]]:
+        for root, dirs, names in real_walk(top):
+            visited.append(root)
+            yield root, dirs, names
+
+    monkeypatch.setattr(normalize_mod.os, "walk", _spy)
+
+    files = list(normalize_mod._iter_text_files(tmp_path))
+
+    assert [p.name for p in files] == ["m.py"]
+    assert not any("node_modules" in v for v in visited)
+
+
 def test_format_frontend_runs_prettier_and_cleans_up(tmp_path: Path) -> None:
     tree = tmp_path / "tree"
     frontend = tree / "frontend"
@@ -169,12 +202,34 @@ def test_format_frontend_skips_without_frontend_dir(tmp_path: Path) -> None:
 
 
 def test_format_frontend_does_not_clobber_real_node_modules(tmp_path: Path) -> None:
+    """An in-tree node_modules without Prettier is left exactly as it was."""
     tree = tmp_path / "tree"
     frontend = tree / "frontend"
     (frontend / "node_modules").mkdir(parents=True)
     nm = _fake_node_modules(tmp_path, "#!/bin/sh\nexit 1\n")
     assert format_frontend(tree, node_modules=nm) is False
     assert (frontend / "node_modules").is_dir()
+
+
+def test_format_frontend_uses_an_install_already_in_the_tree(tmp_path: Path) -> None:
+    """OURS with a committed frontend/node_modules must still get Prettier.
+
+    Bailing out here is what made the run uneven: the rendered BASE/THEIRS never carry
+    an install, so Prettier ran on two trees out of three and every .tsx file read as a
+    client edit. The install sitting in the tree is a perfectly good one — use it, and
+    leave it in place rather than unlinking the client's real directory.
+    """
+    tree = tmp_path / "tree"
+    frontend = tree / "frontend"
+    frontend.mkdir(parents=True)
+    (frontend / "app.ts").write_text("a=1\n", encoding="utf-8")
+    _fake_node_modules(frontend, "#!/bin/sh\nprintf 'a = 1\\n' > app.ts\n").rename(
+        frontend / "node_modules"
+    )
+
+    assert format_frontend(tree, node_modules=None) is True
+    assert (frontend / "app.ts").read_text() == "a = 1\n"
+    assert (frontend / "node_modules" / ".bin" / "prettier").exists()
 
 
 def test_format_frontend_returns_false_on_symlink_error(

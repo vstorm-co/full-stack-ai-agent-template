@@ -77,6 +77,7 @@ Upgrade plan: v0.2.10 → v0.2.14
 
 New files (3)                         ← new features/files the template added
 New migrations (auto-added) (1)       ← new Alembic migrations
+Changed migrations (review — these have probably already run) (1)
 Auto-updates (template changed, you didn't) (12)
 Auto-merged (both changed, merged cleanly) (2)
 Kept your changes (template unchanged) (5)
@@ -215,6 +216,7 @@ From here your project self-describes — follow **Scenario 1** (`make upgrade` 
 |---|---|---|
 | **New files** | The template added a file you don't have. | Added. |
 | **New migrations** | New Alembic migrations. | Added (append-only, safe). Run `make db-upgrade`. |
+| **Changed migrations** | The template rewrote a migration you already have. | Updated — but it won't re-run, so review it against your real schema. |
 | **Auto-updates** | The template changed a file you didn't. | Updated to the template's version. |
 | **Auto-merged** | Both changed the file, in non-overlapping ways. | Merged cleanly by git. |
 | **Kept your changes** | You changed a file the template didn't. | Left as yours. |
@@ -237,8 +239,16 @@ The merge always skips these — they're never read, written, or merged:
 - `.gitattributes` and git submodules
 - The manifest itself (`.fastapi-fullstack.json`) — it's bumped only by `upgrade finalize`
 
-Alembic migrations are special-cased: **new** migrations are added automatically, **modified**
-existing migrations are only flagged for review, and your own migrations are never touched.
+Alembic migrations are **not** excluded — they merge like any other file. What they get is
+their own report sections, because the failure mode is different: **new** migrations are added
+automatically (append-only, safe), your own migrations are left alone as client-only files, and
+a migration the template **changed** is listed separately under *Changed migrations*.
+
+Read that section. A migration you already have has almost certainly already run against your
+database, and alembic keys off the revision id — so a rewritten body will not re-run, and the
+file quietly stops describing the schema it produced. The upgrade still applies the change
+(it's on a branch, and a release does sometimes fix a genuinely broken migration), but you have
+to decide: keep it, or `git checkout HEAD~ -- <file>` before merging.
 
 ---
 

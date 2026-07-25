@@ -41,6 +41,17 @@ def print_report(
     _section("Auto-updates (template changed, you didn't)", classification.auto_updated, "green")
     _section("New files", classification.new_files, "green")
     _section("New migrations (auto-added)", classification.new_migrations, "cyan")
+    if classification.changed_migrations:
+        _section(
+            "Changed migrations (review — these have probably already run)",
+            classification.changed_migrations,
+            "bold yellow",
+        )
+        console.print(
+            "  [dim]The template rewrote a migration you already have. Alembic keys off the\n"
+            "  revision id, so the new body will not re-run — check the change against your\n"
+            "  actual schema before merging, and revert the file if it no longer matches.[/]\n"
+        )
     _section("Kept your changes (template unchanged)", classification.client_kept, "blue")
     _section("Auto-merged (both changed, merged cleanly)", classification.auto_merged, "green")
     _section("Already converged", classification.converged, "dim")
@@ -68,7 +79,7 @@ def print_report(
 
     manual_steps = list(metadata.manual_steps)
     if classification.new_migrations:
-        manual_steps.append("Run `alembic upgrade head` (new migrations were added).")
+        manual_steps.append("Run `make db-upgrade` (new migrations were added).")
     manual_steps.append("Re-run `uv lock` / `bun install` if dependencies changed.")
     if manual_steps:
         console.print("[bold]Manual steps after merge[/]")

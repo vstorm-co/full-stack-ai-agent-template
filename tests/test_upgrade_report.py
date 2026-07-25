@@ -34,6 +34,46 @@ def _print(**meta_kwargs: object) -> str:
     return buffer.getvalue()
 
 
+def _print_classification(classification: Classification) -> str:
+    from io import StringIO
+
+    from rich.console import Console
+
+    import fastapi_gen.upgrade.report as report_mod
+
+    buffer = StringIO()
+    original = report_mod.console
+    report_mod.console = Console(file=buffer, width=100, force_terminal=False)
+    try:
+        print_report(
+            classification,
+            ReconcileReport(),
+            UpgradeMetadata(),
+            from_version="0.2.10",
+            to_version="0.2.15",
+            dry_run=True,
+        )
+    finally:
+        report_mod.console = original
+    return buffer.getvalue()
+
+
+def test_changed_migrations_carry_the_wont_re_run_warning() -> None:
+    """Listing the path isn't enough — the reader has to learn why it matters."""
+    mig = "backend/alembic/versions/0000_users.py"
+    out = _print_classification(Classification(changed_migrations=[mig]))
+
+    assert "Changed migrations" in out
+    assert mig in out
+    assert "revision id" in out
+
+
+def test_no_changed_migrations_section_when_empty() -> None:
+    out = _print_classification(Classification(auto_updated=["backend/app/main.py"]))
+    assert "Changed migrations" not in out
+    assert "revision id" not in out
+
+
 def test_documented_removals_are_shown() -> None:
     out = _print(removed=["backend/app/legacy_auth.py"])
     assert "Removed on purpose (documented)" in out

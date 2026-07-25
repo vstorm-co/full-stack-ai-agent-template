@@ -40,6 +40,7 @@ class Classification:
     conflicts: list[str] = field(default_factory=list)
     new_files: list[str] = field(default_factory=list)
     new_migrations: list[str] = field(default_factory=list)
+    changed_migrations: list[str] = field(default_factory=list)
     removed: list[str] = field(default_factory=list)
     client_only: list[str] = field(default_factory=list)
     unchanged: list[str] = field(default_factory=list)
@@ -55,6 +56,7 @@ class Classification:
             or self.other
             or self.new_files
             or self.new_migrations
+            or self.changed_migrations
             or self.removed
         )
 
@@ -71,13 +73,14 @@ def classify_trees(
 
     for path in sorted(set(base) | set(ours) | set(theirs)):
         in_base, in_ours, in_theirs = path in base, path in ours, path in theirs
+        is_migration = _MIGRATIONS_MARKER in path
 
         if path in conflicted_paths:
             result.conflicts.append(path)
             continue
 
         if not in_base and not in_ours and in_theirs:
-            (result.new_migrations if _MIGRATIONS_MARKER in path else result.new_files).append(path)
+            (result.new_migrations if is_migration else result.new_files).append(path)
         elif in_base and in_ours and not in_theirs:
             if base[path] == ours[path]:
                 result.removed.append(path)
@@ -95,13 +98,20 @@ def classify_trees(
             if b == o == t:
                 result.unchanged.append(path)
             elif o == b and t != b:
-                result.auto_updated.append(path)
+                # A migration that already exists has, in all likelihood, already run
+                # against the client's database. Rewriting its body doesn't re-run it —
+                # alembic keys off the revision id — so the file would silently stop
+                # describing the schema it produced. The merge still applies the change
+                # (it lands on a branch, and sometimes a release genuinely fixes a
+                # migration), but it must never be buried in a 30-line "Auto-updates"
+                # list the reader skims.
+                (result.changed_migrations if is_migration else result.auto_updated).append(path)
             elif t == b and o != b:
                 result.client_kept.append(path)
             elif o == t and o != b:
                 result.converged.append(path)
             else:
-                result.auto_merged.append(path)
+                (result.changed_migrations if is_migration else result.auto_merged).append(path)
         else:
             result.other.append(path)
 

@@ -498,6 +498,12 @@ def new(output: Path | None, no_input: bool, name: str | None, minimal: bool) ->
     default=False,
     help="Enable the MCP client — connect external MCP servers as agent tools (PydanticAI only)",
 )
+@click.option(
+    "--memory",
+    is_flag=True,
+    default=False,
+    help="Enable persistent per-user agent memory (Settings → Memory, PydanticAI + PostgreSQL only)",
+)
 @click.option("--session-management", is_flag=True, help="Enable session management")
 @click.option(
     "--reverse-proxy",
@@ -783,6 +789,7 @@ def create(
     skills: bool,
     deep_research: bool,
     mcp_client: bool,
+    memory: bool,
     session_management: bool,
     reverse_proxy: str,
     kubernetes: bool,
@@ -1205,6 +1212,7 @@ def create(
                 enable_skills=skills,
                 enable_deep_research=deep_research,
                 enable_mcp_client=mcp_client,
+                enable_memory=memory,
                 enable_session_management=session_management,
                 reverse_proxy=_rp_map[reverse_proxy],
                 enable_kubernetes=kubernetes,

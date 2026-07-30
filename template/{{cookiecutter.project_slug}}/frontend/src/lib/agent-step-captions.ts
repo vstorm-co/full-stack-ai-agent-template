@@ -16,6 +16,12 @@ const EXACT_CAPTIONS: Record<string, string> = {
   create_map_tool: "Drawing a map",
   ask_user: "Asking you a question",
   load_skill: "Loading a skill",
+{%- if cookiecutter.enable_memory %}
+  write_memory: "Saving a memory",
+  read_memory: "Recalling memories",
+  delete_memory: "Forgetting a memory",
+  search_memory: "Searching memories",
+{%- endif %}
 };
 
 /** Prefix-based fallbacks for tools like `generate_*`. */
@@ -52,6 +58,12 @@ const DISPLAY_NAMES: Record<string, string> = {
   ask_user: "Question",
   load_skill: "Load Skill",
   list_skills: "Available Skills",
+{%- if cookiecutter.enable_memory %}
+  write_memory: "Save Memory",
+  read_memory: "Read Memory",
+  delete_memory: "Delete Memory",
+  search_memory: "Memory Search",
+{%- endif %}
 };
 
 export function toolDisplayName(toolName: string): string {

@@ -409,6 +409,12 @@ class Settings(BaseSettings):
     DEEP_RESEARCH_MAX_TOKENS: int = 120_000
     DEEP_RESEARCH_COMPRESS_THRESHOLD: float = 0.8
 {%- endif %}
+{%- if cookiecutter.enable_memory %}
+
+    # Persistent per-user agent memory (pydantic-ai-harness), stored in the
+    # self-managed Postgres table ``agent_memory``.
+    ENABLE_MEMORY: bool = False
+{%- endif %}
 {%- if cookiecutter.enable_mcp_client %}
 
     # Deployment-managed MCP servers, always attached to the agent (on top of

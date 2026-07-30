@@ -329,6 +329,7 @@ class ProjectConfig(BaseModel):
     enable_todo: bool = False
     enable_subagents: bool = False
     enable_mcp_client: bool = False
+    enable_memory: bool = False
     use_telegram: bool = False
     use_slack: bool = False
     enable_cors: bool = True
@@ -507,6 +508,22 @@ class ProjectConfig(BaseModel):
                 "The MCP client stores per-user connections in PostgreSQL "
                 "(JSONB + encrypted tokens). "
                 "Quick fix: switch to --database postgresql or drop --mcp-client."
+            )
+
+        if self.enable_memory and self.ai_framework != AIFrameworkType.PYDANTIC_AI:
+            raise ValueError(
+                "Agent memory requires the PydanticAI framework. "
+                "Quick fix: set --ai-framework pydantic_ai, or drop --memory."
+            )
+        # Defense-in-depth: unreachable today because the only non-Postgres option
+        # (DatabaseType.NONE) is already rejected above ("a database is required"), but
+        # kept so wiring in another backend (e.g. MongoDB) can't silently ship agent
+        # memory on a store the harness PostgresMemoryStore cannot speak to.
+        if self.enable_memory and self.database != DatabaseType.POSTGRESQL:  # pragma: no cover
+            raise ValueError(
+                "Agent memory persists in PostgreSQL (pydantic-ai-harness "
+                "PostgresMemoryStore). "
+                "Quick fix: switch to --database postgresql or drop --memory."
             )
 
         # --no-ai: RAG and websockets require an AI framework
@@ -834,6 +851,7 @@ class ProjectConfig(BaseModel):
             "enable_todo": self.enable_todo,
             "enable_subagents": self.enable_subagents,
             "enable_mcp_client": self.enable_mcp_client,
+            "enable_memory": self.enable_memory,
             "enable_webhooks": self.enable_webhooks,
             # Legacy fixed values (WebSocket always uses JWT)
             "websocket_auth": "jwt",

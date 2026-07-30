@@ -18,6 +18,9 @@ import {
   Loader2,
   MessageSquare,
   Monitor,
+{% endraw %}{%- if cookiecutter.enable_memory %}{% raw %}
+  NotebookPen,
+{% endraw %}{%- endif %}{% raw %}
   Pause,
   Play,
   Radio,
@@ -43,6 +46,13 @@ import { matchCatalogMcpTool, logoDataUri } from "@/lib/mcp-catalog";
 import { FetchUrlResult } from "@/components/chat/tool-results/fetch-url";
 {% endraw %}{%- endif %}{% raw %}
 import { RawToolView } from "@/components/chat/tool-results/generic";
+{% endraw %}{%- if cookiecutter.enable_memory %}{% raw %}
+import {
+  isMemoryTool,
+  parseMemoryFileStatus,
+  parseMemorySearch,
+} from "@/components/chat/tool-results/memory";
+{% endraw %}{%- endif %}{% raw %}
 import { WebSearchResults, parseWebSearch } from "@/components/chat/tool-results/web-search";
 import { useConversationReplay } from "@/hooks/use-conversation-replay";
 import { conversationMessagesToChatMessages, type RawMessage } from "@/lib/conversation-to-chat";
@@ -100,6 +110,12 @@ const TOOL_LABELS: Record<string, string> = {
   fetch_url: "Opening a page",
   ask_user: "Asking a question",
   ask_user_tool: "Asking a question",
+{% endraw %}{%- if cookiecutter.enable_memory %}{% raw %}
+  write_memory: "Saving a memory",
+  read_memory: "Recalling memories",
+  delete_memory: "Forgetting a memory",
+  search_memory: "Searching memories",
+{% endraw %}{%- endif %}{% raw %}
 };
 
 const humanizeTool = (name: string) =>
@@ -119,6 +135,11 @@ const frameIconFor = (frame?: { kind: StepKind; tool?: ToolCall } | null) => {
   if (name === "run_python") return Code2;
   if (name.startsWith("create_chart")) return BarChart3;
   if (name === "load_skill" || name === "list_skills") return BookOpen;
+{% endraw %}{%- if cookiecutter.enable_memory %}{% raw %}
+  // Before the generic "search" match — search_memory reads its notebook, not the web.
+  // Brain is taken by reasoning frames, so memory keeps the notebook it owns elsewhere.
+  if (isMemoryTool(name)) return NotebookPen;
+{% endraw %}{%- endif %}{% raw %}
   if (name.includes("search") || name === "fetch_url") return Globe;
   return Wrench;
 };
@@ -366,6 +387,16 @@ function graphSubLabel(frame: Frame): string | null {
     }
   }
   if (t.name.startsWith("create_chart") && typeof a.title === "string") return a.title;
+{% endraw %}{%- if cookiecutter.enable_memory %}{% raw %}
+  if (isMemoryTool(t.name)) {
+    if (t.name === "search_memory") return typeof a.query === "string" ? a.query : null;
+    // The model usually omits `file` and lets the default notebook answer, so the
+    // result is the only place the real filename shows up.
+    if (typeof a.file === "string") return a.file;
+    const result = t.result == null ? "" : typeof t.result === "string" ? t.result : JSON.stringify(t.result);
+    return parseMemoryFileStatus(result)?.file ?? null;
+  }
+{% endraw %}{%- endif %}{% raw %}
   if ((t.name === "web_search_tool" || t.name === "search_web") && typeof a.query === "string") return a.query;
   if ((t.name === "ask_user" || t.name === "ask_user_tool") && typeof a.question === "string") return a.question;
   return null;
@@ -479,6 +510,27 @@ function graphNodePreview(frame: Frame): NodePreview {
   if (t.name === "ask_user" || t.name === "ask_user_tool") {
     return { tag: "Q&A", body: clipText(result, 200) };
   }
+{% endraw %}{%- if cookiecutter.enable_memory %}{% raw %}
+  // Memory results are status receipts, not prose — show what was written/found
+  // instead of dumping the raw `{'file': …, 'version': …}` dict into the node.
+  if (isMemoryTool(t.name)) {
+    if (t.name === "search_memory") {
+      const found = parseMemorySearch(result);
+      const hits = found?.matches.length ?? 0;
+      return {
+        tag: "Memory search",
+        meta: hits ? `${hits} match${hits === 1 ? "" : "es"}` : "no matches",
+        body: clipText(found?.matches[0]?.snippet || "", 160),
+      };
+    }
+    if (t.name === "read_memory") {
+      return { tag: "Memory", meta: "recalled", body: clipText(result, 160) };
+    }
+    const status = parseMemoryFileStatus(result)?.status ?? null;
+    const written = typeof a.content === "string" ? a.content : null;
+    return { tag: "Memory", meta: status, body: written ? clipText(written, 160) : null };
+  }
+{% endraw %}{%- endif %}{% raw %}
   const sqlResult = sqlFromToolCall(a, result);
   if (sqlResult) {
     return {

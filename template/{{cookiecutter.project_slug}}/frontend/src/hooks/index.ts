@@ -28,3 +28,6 @@ export { useOrgIntegrations } from "./use-org-integrations";
 {%- if cookiecutter.enable_mcp_client %}
 export { useMcpConnections } from "./use-mcp-connections";
 {%- endif %}
+{%- if cookiecutter.enable_memory %}
+export { useMemoryFiles } from "./use-memory";
+{%- endif %}

@@ -429,6 +429,36 @@ class TestOptionCombinationValidation:
         assert config.enable_mcp_client is True
         assert config.to_cookiecutter_context()["enable_mcp_client"] is True
 
+    def test_memory_requires_pydantic_ai(self) -> None:
+        """Agent memory is wired only for the PydanticAI framework."""
+        with pytest.raises(
+            ValidationError, match="Agent memory requires the PydanticAI framework"
+        ):
+            ProjectConfig(
+                project_name="test",
+                ai_framework=AIFrameworkType.LANGCHAIN,
+                enable_memory=True,
+                database=DatabaseType.POSTGRESQL,
+                background_tasks=BackgroundTaskType.NONE,
+            )
+
+    def test_memory_with_pydantic_ai_and_postgresql_is_valid(self) -> None:
+        """The supported combination generates without error."""
+        config = ProjectConfig(
+            project_name="test",
+            ai_framework=AIFrameworkType.PYDANTIC_AI,
+            enable_memory=True,
+            database=DatabaseType.POSTGRESQL,
+            background_tasks=BackgroundTaskType.NONE,
+        )
+        assert config.enable_memory is True
+        assert config.to_cookiecutter_context()["enable_memory"] is True
+
+    def test_memory_defaults_to_disabled(self) -> None:
+        config = ProjectConfig(project_name="test", background_tasks=BackgroundTaskType.NONE)
+        assert config.enable_memory is False
+        assert config.to_cookiecutter_context()["enable_memory"] is False
+
     def test_demo_export_requires_frontend(self) -> None:
         """Test that demo export requires a frontend to bundle the replay UI."""
         with pytest.raises(ValidationError, match="Demo export requires a frontend"):

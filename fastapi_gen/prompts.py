@@ -998,6 +998,29 @@ def prompt_mcp_client() -> bool:
     )
 
 
+def prompt_memory() -> bool:
+    """Prompt for persistent agent memory (PydanticAI only)."""
+    console.print()
+    console.print("[bold cyan]Agent Memory[/]")
+    console.print(
+        "Give the assistant a persistent per-user notebook (MEMORY.md + extra "
+        "notes) it reads back in every conversation. Stored in PostgreSQL; users "
+        "inspect, edit and delete everything on Settings → Memory, and the chat "
+        "shows every save/recall as a tool card."
+    )
+    console.print()
+
+    return cast(
+        bool,
+        _check_cancelled(
+            questionary.confirm(
+                "Enable persistent agent memory (PydanticAI only)?",
+                default=False,
+            ).ask()
+        ),
+    )
+
+
 def prompt_langsmith() -> bool:
     """Prompt for LangSmith observability."""
     return cast(
@@ -1517,6 +1540,7 @@ def run_interactive_prompts() -> ProjectConfig:
         "enable_skills": False,
         "enable_deep_research": False,
         "enable_mcp_client": False,
+        "enable_memory": False,
         "rag_features": RAGFeatures(),
         "orm_type": OrmType.SQLALCHEMY,
         "sandbox_backend": "state",
@@ -1702,6 +1726,12 @@ def run_interactive_prompts() -> ProjectConfig:
         else:
             state["enable_mcp_client"] = False
 
+    def step_memory() -> None:
+        if state.get("ai_framework") == AIFrameworkType.PYDANTIC_AI.value:
+            state["enable_memory"] = prompt_memory()
+        else:
+            state["enable_memory"] = False
+
     def step_langsmith() -> None:
         if state["ai_framework"] in (
             AIFrameworkType.LANGCHAIN,
@@ -1765,6 +1795,7 @@ def run_interactive_prompts() -> ProjectConfig:
         ("Skills System", step_skills),
         ("Deep Research", step_deep_research),
         ("MCP Client", step_mcp_client),
+        ("Agent Memory", step_memory),
         ("Observability (Logfire)", step_logfire),
         ("Agent Sandbox", step_sandbox_backend),
         ("LLM Provider", step_llm_provider),
@@ -1818,6 +1849,7 @@ def run_interactive_prompts() -> ProjectConfig:
     enable_skills = state["enable_skills"]
     enable_deep_research = state["enable_deep_research"]
     enable_mcp_client = state["enable_mcp_client"]
+    enable_memory = state["enable_memory"]
     rag_features = state["rag_features"]
     enable_langsmith = state["enable_langsmith"]
     use_telegram = state["use_telegram"]
@@ -1877,6 +1909,7 @@ def run_interactive_prompts() -> ProjectConfig:
         enable_skills=enable_skills,
         enable_deep_research=enable_deep_research,
         enable_mcp_client=enable_mcp_client,
+        enable_memory=enable_memory,
         use_telegram=use_telegram,
         use_slack=use_slack,
         rate_limit_requests=rate_limit_requests,

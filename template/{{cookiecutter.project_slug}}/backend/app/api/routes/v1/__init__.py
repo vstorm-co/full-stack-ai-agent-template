@@ -33,6 +33,9 @@ from app.api.routes.v1 import webhooks
 {%- if cookiecutter.enable_mcp_client %}
 from app.api.routes.v1 import me_mcp_connections
 {%- endif %}
+{%- if cookiecutter.enable_memory %}
+from app.api.routes.v1 import me_memory
+{%- endif %}
 {%- if cookiecutter.use_ai %}
 from app.api.routes.v1 import agent
 {%- endif %}
@@ -125,6 +128,11 @@ v1_router.include_router(webhooks.router, prefix="/webhooks", tags=["webhooks"])
 v1_router.include_router(
     me_mcp_connections.router, prefix="/me/mcp-connections", tags=["me:mcp-connections"]
 )
+{%- endif %}
+
+{%- if cookiecutter.enable_memory %}
+
+v1_router.include_router(me_memory.router, prefix="/me/memory", tags=["me:memory"])
 {%- endif %}
 
 {%- if cookiecutter.use_ai %}

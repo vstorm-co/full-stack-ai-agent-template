@@ -29,6 +29,9 @@ export const ROUTES = {
 {%- if cookiecutter.enable_mcp_client %}
   SETTINGS_INTEGRATIONS: "/settings/integrations",
 {%- endif %}
+{%- if cookiecutter.enable_memory %}
+  SETTINGS_MEMORY: "/settings/memory",
+{%- endif %}
   RAG: "/rag",
   ADMIN: "/admin",
   ADMIN_USERS: "/admin/users",

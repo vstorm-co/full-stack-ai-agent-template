@@ -57,6 +57,9 @@ from subagents_pydantic_ai import SubAgentCapability
 {%- if cookiecutter.enable_deep_research %}
 from pydantic_ai_summarization import ContextManagerCapability
 {%- endif %}
+{%- if cookiecutter.enable_memory %}
+from pydantic_ai_harness.memory import Memory
+{%- endif %}
 from app.agents.tools.ask_user_tool import MAX_QUESTIONS, QuestionItem, format_answers
 from app.agents.utils import get_current_datetime
 {%- if cookiecutter.enable_rag %}
@@ -206,6 +209,9 @@ class AssistantAgent:
 {%- if cookiecutter.enable_deep_research %}
         context_manager_capability: "ContextManagerCapability | None" = None,
 {%- endif %}
+{%- if cookiecutter.enable_memory %}
+        memory_capability: "Memory[Deps] | None" = None,
+{%- endif %}
     ):
 {%- if cookiecutter.enable_deep_research %}
         self.deep_research = deep_research
@@ -218,6 +224,9 @@ class AssistantAgent:
 {%- endif %}
 {%- if cookiecutter.enable_deep_research %}
         self.context_manager_capability = context_manager_capability
+{%- endif %}
+{%- if cookiecutter.enable_memory %}
+        self.memory_capability = memory_capability
 {%- endif %}
 {%- if cookiecutter.enable_mcp_client %}
         self.extra_toolsets = extra_toolsets or []
@@ -307,6 +316,10 @@ class AssistantAgent:
 {%- if cookiecutter.enable_subagents %}
         if self.subagent_capability is not None:
             capabilities.append(self.subagent_capability)
+{%- endif %}
+{%- if cookiecutter.enable_memory %}
+        if self.memory_capability is not None:
+            capabilities.append(self.memory_capability)
 {%- endif %}
 {%- if cookiecutter.enable_deep_research %}
         # Context manager must be last — summarization-pydantic-ai requires it.
@@ -543,6 +556,9 @@ def get_agent(
 {%- if cookiecutter.enable_deep_research %}
     context_manager_capability: "ContextManagerCapability | None" = None,
 {%- endif %}
+{%- if cookiecutter.enable_memory %}
+    memory_capability: "Memory[Deps] | None" = None,
+{%- endif %}
 ) -> AssistantAgent:
     return AssistantAgent(
         model_name=model_name,
@@ -562,6 +578,9 @@ def get_agent(
 {%- endif %}
 {%- if cookiecutter.enable_deep_research %}
         context_manager_capability=context_manager_capability,
+{%- endif %}
+{%- if cookiecutter.enable_memory %}
+        memory_capability=memory_capability,
 {%- endif %}
     )
 

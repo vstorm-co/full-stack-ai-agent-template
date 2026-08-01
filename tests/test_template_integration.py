@@ -548,6 +548,8 @@ def generated_project_frontend_docker(tmp_path_factory: pytest.TempPathFactory) 
         oauth_provider=OAuthProvider.GOOGLE,
         enable_docker=True,
         background_tasks=BackgroundTaskType.NONE,
+        # The brand vars are NEXT_PUBLIC_*, so they need build args like the rest.
+        enable_brand_from_config=True,
     )
     return generate_project(config, tmp_path_factory.mktemp("fe_docker"))
 
@@ -578,6 +580,11 @@ class TestGeneratedFrontendDocker:
         assert "ARG NEXT_PUBLIC_WS_URL=" in dockerfile
         # oauth project → providers baked into the client bundle for the buttons.
         assert "ARG NEXT_PUBLIC_OAUTH_PROVIDERS=google" in dockerfile
+        # Every NEXT_PUBLIC_* the frontend reads needs one, brand override included
+        # — otherwise the Docker build bakes an undefined value and the var looks
+        # settable at runtime while doing nothing (issue #132).
+        assert "ARG NEXT_PUBLIC_BRAND_COLOR=" in dockerfile
+        assert "ARG NEXT_PUBLIC_BRAND_LOGO_URL=" in dockerfile
 
     @pytest.mark.slow
     def test_dockerfile_public_copy_has_chown(
@@ -600,8 +607,68 @@ class TestGeneratedFrontendDocker:
     ) -> None:
         """Compose must forward the NEXT_PUBLIC_* build args to the image."""
         compose = (generated_project_frontend_docker / "docker-compose.frontend.yml").read_text()
-        assert "NEXT_PUBLIC_API_URL=http://localhost:" in compose
-        assert "NEXT_PUBLIC_WS_URL=ws://localhost:" in compose
+        assert (
+            "NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://${PUBLIC_HOST:-localhost}:"
+            in compose
+        )
+        assert "NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL:-ws://${PUBLIC_HOST:-localhost}:" in compose
+        assert "NEXT_PUBLIC_BRAND_COLOR=${NEXT_PUBLIC_BRAND_COLOR:-" in compose
+
+    @pytest.mark.slow
+    def test_prod_compose_passes_public_env_build_args(
+        self, generated_project_frontend_docker: Path
+    ) -> None:
+        """Issue #132: the prod frontend service shipped with no build args at all.
+
+        NEXT_PUBLIC_* is inlined at build time, so without them the image baked
+        the Dockerfile's localhost defaults and the browser dialled
+        ws://localhost:8000 no matter what the deployment set at runtime.
+        """
+        compose = (generated_project_frontend_docker / "docker-compose.prod.yml").read_text()
+        frontend = compose.split("\n  frontend:\n", 1)[1]
+        assert "args:" in frontend
+        assert "NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL:-" in frontend
+        assert "NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-" in frontend
+        assert "NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL:-" in frontend
+        # OAuth project → the buttons need the provider list in the bundle too.
+        assert "NEXT_PUBLIC_OAUTH_PROVIDERS=google" in frontend
+
+    @pytest.mark.slow
+    def test_compose_drops_unread_backend_ws_url(
+        self, generated_project_frontend_docker: Path
+    ) -> None:
+        """Issue #132: BACKEND_WS_URL was documented everywhere and read nowhere.
+
+        It sent people chasing a variable that could not work; the browser reads
+        NEXT_PUBLIC_WS_URL.
+        """
+        project = generated_project_frontend_docker
+        for path in (
+            "docker-compose.frontend.yml",
+            "docker-compose.prod.yml",
+            "frontend/.env.example",
+            "frontend/README.md",
+            "README.md",
+            "Makefile",
+        ):
+            assert "BACKEND_WS_URL" not in (project / path).read_text(), path
+
+    @pytest.mark.slow
+    def test_prod_compose_exposes_cookie_secure(
+        self, generated_project_frontend_docker: Path
+    ) -> None:
+        """Issue #132: Secure cookies over plain HTTP 401'd every request after login."""
+        compose = (generated_project_frontend_docker / "docker-compose.prod.yml").read_text()
+        assert "COOKIE_SECURE=${COOKIE_SECURE:-true}" in compose
+
+    @pytest.mark.slow
+    def test_nginx_upgrades_the_versioned_ws_prefix(
+        self, generated_project_frontend_docker: Path
+    ) -> None:
+        """The WS endpoints live under /api/v1/ws, so that is what needs the Upgrade headers."""
+        nginx = (generated_project_frontend_docker / "nginx" / "nginx.conf").read_text()
+        assert "location /api/v1/ws {" in nginx
+        assert "location /ws {" not in nginx
 
 
 # ---------------------------------------------------------------------------

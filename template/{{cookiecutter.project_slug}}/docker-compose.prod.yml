@@ -655,11 +655,44 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      # NEXT_PUBLIC_* are inlined into the browser bundle at build time, so they
+      # must be build args — an `environment:` entry cannot override them, and
+      # changing one needs a rebuild (docker compose -f docker-compose.prod.yml
+      # build --no-cache frontend). Every value here has to be reachable from
+      # the BROWSER, not from inside the compose network.
+      args:
+{%- if cookiecutter.include_traefik_labels or cookiecutter.include_nginx_service %}
+        # The proxy terminates TLS and serves the backend on api.DOMAIN.
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-https://api.${DOMAIN:-localhost}}
+        - NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL:-wss://api.${DOMAIN:-localhost}}
+        - NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL:-https://${DOMAIN:-localhost}}
+{%- else %}
+        # No proxy in front, so the browser talks to the published ports.
+        # Set PUBLIC_HOST to this host's address — the localhost default only
+        # works when the browser runs on the Docker host itself.
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://${PUBLIC_HOST:-localhost}:{{ cookiecutter.backend_port }}}
+        - NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL:-ws://${PUBLIC_HOST:-localhost}:{{ cookiecutter.backend_port }}}
+        - NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL:-http://${PUBLIC_HOST:-localhost}:{{ cookiecutter.frontend_port }}}
+{%- endif %}
+        - NEXT_PUBLIC_MAX_UPLOAD_SIZE_MB=${NEXT_PUBLIC_MAX_UPLOAD_SIZE_MB:-50}
+{%- if cookiecutter.enable_oauth %}
+        - NEXT_PUBLIC_OAUTH_PROVIDERS={% if cookiecutter.enable_oauth_google %}google{% endif %}
+{%- endif %}
+        - NEXT_PUBLIC_RAG_ENABLED={% if cookiecutter.enable_rag %}true{% else %}false{% endif %}
+{%- if cookiecutter.enable_brand_from_config %}
+        - NEXT_PUBLIC_BRAND_COLOR=${NEXT_PUBLIC_BRAND_COLOR:-{{ cookiecutter.brand_color }}}
+        - NEXT_PUBLIC_BRAND_LOGO_URL=${NEXT_PUBLIC_BRAND_LOGO_URL:-}
+{%- endif %}
     container_name: {{ cookiecutter.project_slug }}_frontend
     environment:
       - NODE_ENV=production
+      # Server-side only: resolved inside the compose network by the Next server.
       - BACKEND_URL=http://app:{{ cookiecutter.backend_port }}
-      - BACKEND_WS_URL=ws://app:{{ cookiecutter.backend_port }}
+      # The auth cookies are Secure in production, and a browser discards a
+      # Secure cookie that arrives over plain HTTP — login then "works" while
+      # every request after it is 401. Serve this over TLS, or set
+      # COOKIE_SECURE=false if it really is http:// on a trusted network.
+      - COOKIE_SECURE=${COOKIE_SECURE:-true}
 {%- if cookiecutter.include_traefik_labels %}
     networks:
       - traefik-public

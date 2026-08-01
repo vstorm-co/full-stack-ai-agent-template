@@ -49,7 +49,7 @@ The default agent is powered by [PydanticAI](https://ai.pydantic.dev), providing
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                    WebSocket Endpoint                        │
-│                  /api/v1/agent/ws                           │
+│                  /api/v1/ws/agent                           │
 │         Authentication, Message Routing, Streaming           │
 └─────────────────────────────────────────────────────────────┘
                               │
@@ -719,7 +719,7 @@ interface Message {
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                    WebSocket Endpoint                        │
-│                  /api/v1/agent/ws                           │
+│                  /api/v1/ws/agent                           │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼

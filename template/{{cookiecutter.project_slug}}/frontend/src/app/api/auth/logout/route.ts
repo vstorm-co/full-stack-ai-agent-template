@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { clearAuthCookies } from "@/lib/auth-cookies";
 import { backendFetch, BackendApiError } from "@/lib/server-api";
 
 export async function POST(request: NextRequest) {
@@ -22,20 +23,7 @@ export async function POST(request: NextRequest) {
 
   const response = NextResponse.json({ message: "Logged out successfully" });
 
-  response.cookies.set("access_token", "", {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    maxAge: 0,
-    path: "/",
-  });
-  response.cookies.set("refresh_token", "", {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    maxAge: 0,
-    path: "/",
-  });
+  clearAuthCookies(response);
 
   return response;
 }

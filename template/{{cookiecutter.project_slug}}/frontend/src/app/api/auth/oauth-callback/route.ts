@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { setAuthCookies } from "@/lib/auth-cookies";
 import { backendFetch, BackendApiError } from "@/lib/server-api";
 
 interface OAuthCallbackBody {
@@ -24,20 +25,9 @@ export async function POST(request: NextRequest) {
       message: "Sign-in successful",
     });
 
-    const isProd = process.env.NODE_ENV === "production";
-    response.cookies.set("access_token", body.access_token, {
-      httpOnly: true,
-      secure: isProd,
-      sameSite: "lax",
-      maxAge: 60 * 15,
-      path: "/",
-    });
-    response.cookies.set("refresh_token", body.refresh_token, {
-      httpOnly: true,
-      secure: isProd,
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7,
-      path: "/",
+    setAuthCookies(response, {
+      accessToken: body.access_token,
+      refreshToken: body.refresh_token,
     });
     return response;
   } catch (error) {

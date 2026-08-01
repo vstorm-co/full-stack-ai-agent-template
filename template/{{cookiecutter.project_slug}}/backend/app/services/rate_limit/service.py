@@ -4,16 +4,16 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
 
 from fastapi import Depends, HTTPException, Request, status
 
+{%- if cookiecutter.enable_teams %}
 from app.api.deps import ActiveOrg, CurrentUser
+{%- else %}
+from app.api.deps import CurrentUser
+{%- endif %}
 from app.services.rate_limit.rules import DEFAULT_RATE_LIMITS, RateLimitRule
 from app.services.rate_limit.storage import RateLimitResult, RateLimitStorage, get_storage
-
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 
@@ -36,10 +36,15 @@ async def _check_one(
     return await storage.increment_and_check(key, limit, period)
 
 
+def client_ip(request: Request) -> str:
+    """Caller IP for the per-IP scope, or ``"unknown"`` when unavailable."""
+    return request.client.host if request.client else "unknown"
+
+
 async def check_rate_limit(
     *,
     category: str,
-    request: Request,
+    client_ip: str,
     user_id: str | None = None,
     org_id: str | None = None,
     is_admin: bool = False,
@@ -49,8 +54,9 @@ async def check_rate_limit(
 
     Args:
         category: One of RateLimitCategory constants.
-        request: The incoming FastAPI request (for IP extraction).
-        user_id: Authenticated user ID (None for anonymous).
+        client_ip: Caller's IP for the per-IP scope. Pass ``"unknown"`` when it
+            cannot be determined — the limit then applies to that shared bucket.
+        user_id: Authenticated user ID (None for anonymous callers).
         org_id: Active organization ID (None for no-org context).
         is_admin: If True, all limits are bypassed.
         plan_features: org.subscription.price.plan.features dict (or None for free-tier defaults).
@@ -59,7 +65,6 @@ async def check_rate_limit(
         return
 
     storage = _get_storage()
-    ip = request.client.host if request.client else "unknown"
 
     # Resolve rule: plan features > defaults
     rule: RateLimitRule | None = None
@@ -75,17 +80,23 @@ async def check_rate_limit(
         return
 
     if rule.per_ip is not None:
-        result = await _check_one(storage, f"rl:{category}:ip:{ip}", rule.per_ip, rule.ip_period_seconds)
+        result = await _check_one(
+            storage, f"rl:{category}:ip:{client_ip}", rule.per_ip, rule.ip_period_seconds
+        )
         if not result.allowed:
             _raise_429(result, category, "ip")
 
     if rule.per_user is not None and user_id:
-        result = await _check_one(storage, f"rl:{category}:user:{user_id}", rule.per_user, rule.period_seconds)
+        result = await _check_one(
+            storage, f"rl:{category}:user:{user_id}", rule.per_user, rule.period_seconds
+        )
         if not result.allowed:
             _raise_429(result, category, "user")
 
     if rule.per_org is not None and org_id:
-        result = await _check_one(storage, f"rl:{category}:org:{org_id}", rule.per_org, rule.org_period_seconds)
+        result = await _check_one(
+            storage, f"rl:{category}:org:{org_id}", rule.per_org, rule.org_period_seconds
+        )
         if not result.allowed:
             _raise_429(result, category, "org")
 
@@ -111,37 +122,87 @@ def _raise_429(result: RateLimitResult, category: str, scope: str) -> None:
         headers={"Retry-After": str(retry_after)},
     )
 
+{%- if cookiecutter.enable_teams %}
+
+
+def _plan_features(active_org: object) -> dict | None:
+    """Read plan features off the org's subscription, if it has one.
+
+    Every hop is optional: an org may have no subscription, a subscription may
+    predate the price/plan link, and a plan's ``features`` column is nullable.
+    """
+    subscription = getattr(active_org, "subscription", None)
+    if subscription is None:
+        return None
+    price = getattr(subscription, "price", None)
+    if price is None:
+        return None
+    plan = getattr(price, "plan", None)
+    if plan is None:
+        return None
+    features: dict | None = plan.features
+    return features or {}
+{%- endif %}
+
 
 def make_rate_limit_dep(category: str):
-    """FastAPI dependency factory for a given category.
+    """FastAPI dependency factory for an *authenticated* route.
+
+    Scopes the limit to the user{% if cookiecutter.enable_teams %} and the active org{% endif %}.
+    Unauthenticated routes must use :func:`make_anonymous_rate_limit_dep` — they
+    run before auth and so cannot depend on ``CurrentUser``.
 
     Usage::
 
         AgentRateLimit = make_rate_limit_dep(RateLimitCategory.AGENT_INVOCATION)
 
-        @router.post("/invoke")
-        async def invoke(user: CurrentUser, _: None = Depends(AgentRateLimit)):
+        @router.post("/invoke", dependencies=[AgentRateLimit])
+        async def invoke(user: CurrentUser) -> Any:
             ...
     """
-    async def _dep(request: Request, user: CurrentUser, active_org: ActiveOrg) -> None:
-        plan_features: dict | None = None
-        # Try to load plan features from org subscription (best-effort)
-        try:
-            if hasattr(active_org, "subscription") and active_org.subscription:
-                sub = active_org.subscription
-                if hasattr(sub, "price") and sub.price and hasattr(sub.price, "plan"):
-                    plan_features = sub.price.plan.features or {}
-        except Exception:
-            pass
+{%- if cookiecutter.enable_teams %}
 
+    async def _dep(request: Request, user: CurrentUser, active_org: ActiveOrg) -> None:
         await check_rate_limit(
             category=category,
-            request=request,
+            client_ip=client_ip(request),
             user_id=str(user.id),
-            org_id=str(active_org.id) if active_org else None,
+            org_id=str(active_org.id),
             is_admin=getattr(user, "is_app_admin", False),
-            plan_features=plan_features,
+            plan_features=_plan_features(active_org),
         )
+{%- else %}
+
+    async def _dep(request: Request, user: CurrentUser) -> None:
+        await check_rate_limit(
+            category=category,
+            client_ip=client_ip(request),
+            user_id=str(user.id),
+            is_admin=getattr(user, "is_app_admin", False),
+        )
+{%- endif %}
+
+    return Depends(_dep)
+
+
+def make_anonymous_rate_limit_dep(category: str):
+    """FastAPI dependency factory for an *unauthenticated* route — per-IP only.
+
+    This is what guards ``/auth/*``: those endpoints run before authentication,
+    so there is no user to scope to, and they are exactly the ones that need an
+    IP limit (credential stuffing, reset-email flooding).
+
+    Usage::
+
+        AuthRateLimit = make_anonymous_rate_limit_dep(RateLimitCategory.AUTH)
+
+        @router.post("/login", dependencies=[AuthRateLimit])
+        async def login(...) -> Any:
+            ...
+    """
+
+    async def _dep(request: Request) -> None:
+        await check_rate_limit(category=category, client_ip=client_ip(request))
 
     return Depends(_dep)
 

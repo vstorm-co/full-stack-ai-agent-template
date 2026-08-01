@@ -13,10 +13,9 @@ from uuid import UUID
 from fastapi import APIRouter, File, Query, UploadFile, status
 from fastapi.responses import FileResponse
 
-from app.api.deps import ActiveOrg, CurrentUser, DBSession, KnowledgeBaseSvc
+from app.api.deps import ActiveOrg, CurrentUser, KnowledgeBaseSvc
 from app.api.deps import RAGDocumentSvc, SyncSourceSvc, VectorStoreSvc
 from app.core.exceptions import NotFoundError
-from app.repositories import sync_log as sync_log_repo
 from app.schemas.knowledge_base import (
     KnowledgeBaseCreate,
     KnowledgeBaseList,
@@ -362,14 +361,14 @@ async def list_kb_sync_source_logs(
     kb_id: UUID,
     source_id: UUID,
     service: KnowledgeBaseSvc,
-    db: DBSession,
+    sync_source_svc: SyncSourceSvc,
     current_user: CurrentUser,
     active_org: ActiveOrg,
     limit: int = Query(20, ge=1, le=100),
 ) -> Any:
     """List sync run history for a specific KB sync source."""
     kb = await service.get(kb_id, user_id=current_user.id, organization_id=active_org.id)
-    logs = await sync_log_repo.get_all(db, sync_source_id=source_id, limit=limit)
+    logs = await sync_source_svc.list_logs(source_id, limit=limit)
     # Verify source belongs to this KB's collection (security: don't leak other KBs' logs).
     items = [
         RAGSyncLogItem(

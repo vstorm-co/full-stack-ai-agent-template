@@ -4,7 +4,7 @@ import asyncio
 import contextlib
 import logging
 from datetime import datetime
-from typing import Any
+from typing import Any, ClassVar
 from uuid import UUID
 
 from fastapi import WebSocket, WebSocketDisconnect
@@ -63,6 +63,10 @@ logger = logging.getLogger(__name__)
 class AgentSession:
     """One WebSocket session with the AI agent."""
 
+    # Control frames this session implements, beyond `stop`. Anything else with
+    # a `type` is ignored rather than treated as a prompt.
+    _HANDLED_FRAME_TYPES: ClassVar[frozenset[str]] = frozenset({"message", "ask_user_response"})
+
     def __init__(
         self,
         websocket: WebSocket,
@@ -109,7 +113,12 @@ class AgentSession:
                 fut.set_result(answers if isinstance(answers, list) else [])
             return
 
-        if msg_type is not None:
+        # A frame carrying a `type` this session does not implement is a control
+        # frame, not a prompt — the shared frontend hook emits `resume`
+        # regardless of which framework is generated. Falling through would
+        # start a turn with an empty message and answer with "Empty message".
+        if msg_type is not None and msg_type not in self._HANDLED_FRAME_TYPES:
+            logger.debug("Ignoring unsupported control frame: %s", msg_type)
             return
 
         if self._turn_task is not None and not self._turn_task.done():
@@ -783,7 +792,7 @@ class AgentSession:
 import asyncio
 import contextlib
 import logging
-from typing import Any
+from typing import Any, ClassVar
 
 from fastapi import WebSocket, WebSocketDisconnect
 from langchain.messages import AIMessage, AIMessageChunk, HumanMessage, ToolMessage
@@ -816,6 +825,10 @@ logger = logging.getLogger(__name__)
 
 class AgentSession:
     """One WebSocket session with the LangChain agent."""
+
+    # Control frames this session implements, beyond `stop`. Anything else with
+    # a `type` is ignored rather than treated as a prompt.
+    _HANDLED_FRAME_TYPES: ClassVar[frozenset[str]] = frozenset({"message"})
 
     def __init__(
         self,
@@ -852,8 +865,19 @@ class AgentSession:
         a cancellable background task. Clients serialize turns, so a frame that
         arrives while a turn is running is ignored.
         """
-        if data.get("type") == "stop":
+        msg_type = data.get("type")
+
+        if msg_type == "stop":
             await self._cancel_turn()
+            return
+
+        # A frame carrying a `type` this session does not implement is a control
+        # frame, not a prompt — the shared frontend hook emits `resume` and
+        # `ask_user_response` regardless of which framework is generated. Falling
+        # through would start a turn with an empty message and answer the user
+        # with "Empty message".
+        if msg_type is not None and msg_type not in self._HANDLED_FRAME_TYPES:
+            logger.debug("Ignoring unsupported control frame: %s", msg_type)
             return
 
         if self._turn_task is not None and not self._turn_task.done():
@@ -1248,7 +1272,7 @@ class AgentSession:
 import asyncio
 import contextlib
 import logging
-from typing import Any
+from typing import Any, ClassVar
 
 from fastapi import WebSocket, WebSocketDisconnect
 from langchain_core.messages import AIMessage, AIMessageChunk, ToolMessage
@@ -1280,6 +1304,10 @@ logger = logging.getLogger(__name__)
 
 class AgentSession:
     """One WebSocket session with the LangGraph ReAct agent."""
+
+    # Control frames this session implements, beyond `stop`. Anything else with
+    # a `type` is ignored rather than treated as a prompt.
+    _HANDLED_FRAME_TYPES: ClassVar[frozenset[str]] = frozenset({"message"})
 
     def __init__(
         self,
@@ -1316,8 +1344,19 @@ class AgentSession:
         a cancellable background task. Clients serialize turns, so a frame that
         arrives while a turn is running is ignored.
         """
-        if data.get("type") == "stop":
+        msg_type = data.get("type")
+
+        if msg_type == "stop":
             await self._cancel_turn()
+            return
+
+        # A frame carrying a `type` this session does not implement is a control
+        # frame, not a prompt — the shared frontend hook emits `resume` and
+        # `ask_user_response` regardless of which framework is generated. Falling
+        # through would start a turn with an empty message and answer the user
+        # with "Empty message".
+        if msg_type is not None and msg_type not in self._HANDLED_FRAME_TYPES:
+            logger.debug("Ignoring unsupported control frame: %s", msg_type)
             return
 
         if self._turn_task is not None and not self._turn_task.done():
@@ -1708,7 +1747,7 @@ import asyncio
 import contextlib
 import logging
 import uuid
-from typing import Any
+from typing import Any, ClassVar
 
 from fastapi import WebSocket, WebSocketDisconnect
 from langchain_core.messages import AIMessage, AIMessageChunk, ToolMessage
@@ -1748,6 +1787,11 @@ class AgentSession:
     Tracks ``pending_interrupt`` across turns so that ``{"type": "resume"}`` messages
     from the client can be matched to the in-flight agent run.
     """
+
+    # Control frames this session implements, beyond `stop`. `resume` is routed
+    # by process_message; anything else with a `type` is ignored rather than
+    # treated as a prompt.
+    _HANDLED_FRAME_TYPES: ClassVar[frozenset[str]] = frozenset({"message", "resume"})
 
     def __init__(
         self,
@@ -1792,8 +1836,19 @@ class AgentSession:
         ``resume``) starts a new turn as a cancellable background task. Clients
         serialize turns, so a frame that arrives while a turn is running is ignored.
         """
-        if data.get("type") == "stop":
+        msg_type = data.get("type")
+
+        if msg_type == "stop":
             await self._cancel_turn()
+            return
+
+        # A frame carrying a `type` this session does not implement is a control
+        # frame, not a prompt — the shared frontend hook emits `resume` and
+        # `ask_user_response` regardless of which framework is generated. Falling
+        # through would start a turn with an empty message and answer the user
+        # with "Empty message".
+        if msg_type is not None and msg_type not in self._HANDLED_FRAME_TYPES:
+            logger.debug("Ignoring unsupported control frame: %s", msg_type)
             return
 
         if self._turn_task is not None and not self._turn_task.done():
@@ -2313,7 +2368,7 @@ PydanticDeep manages conversation history internally via the backend
 import asyncio
 import contextlib
 import logging
-from typing import Any
+from typing import Any, ClassVar
 
 from fastapi import WebSocket, WebSocketDisconnect
 from pydantic_ai import (
@@ -2352,6 +2407,10 @@ logger = logging.getLogger(__name__)
 class AgentSession:
     """One WebSocket session with the PydanticDeep agent."""
 
+    # Control frames this session implements, beyond `stop`. Anything else with
+    # a `type` is ignored rather than treated as a prompt.
+    _HANDLED_FRAME_TYPES: ClassVar[frozenset[str]] = frozenset({"message"})
+
     def __init__(
         self,
         websocket: WebSocket,
@@ -2380,8 +2439,19 @@ class AgentSession:
         a cancellable background task. Clients serialize turns, so a frame that
         arrives while a turn is running is ignored.
         """
-        if data.get("type") == "stop":
+        msg_type = data.get("type")
+
+        if msg_type == "stop":
             await self._cancel_turn()
+            return
+
+        # A frame carrying a `type` this session does not implement is a control
+        # frame, not a prompt — the shared frontend hook emits `resume` and
+        # `ask_user_response` regardless of which framework is generated. Falling
+        # through would start a turn with an empty message and answer the user
+        # with "Empty message".
+        if msg_type is not None and msg_type not in self._HANDLED_FRAME_TYPES:
+            logger.debug("Ignoring unsupported control frame: %s", msg_type)
             return
 
         if self._turn_task is not None and not self._turn_task.done():

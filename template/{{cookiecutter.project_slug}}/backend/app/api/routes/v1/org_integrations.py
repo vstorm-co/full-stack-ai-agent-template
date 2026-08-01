@@ -17,7 +17,6 @@ from app.api.deps import (
     RequireAdminPlus,
     SyncSourceSvc,
 )
-from app.repositories import sync_log as sync_log_repo
 from app.schemas.rag import RAGSyncLogList, RAGSyncLogItem, RAGSyncResponse
 from app.schemas.sync_source import (
     ConnectorList,
@@ -98,12 +97,12 @@ async def trigger_org_integration(
 @router.get("/{source_id}/logs", response_model=RAGSyncLogList)
 async def list_org_integration_logs(
     source_id: UUID,
-    db: DBSession,
+    sync_source_svc: SyncSourceSvc,
     _: RequireAdminPlus,
     limit: int = Query(20, ge=1, le=100),
 ) -> Any:
     """List sync run history for a specific org integration."""
-    logs = await sync_log_repo.get_all(db, sync_source_id=source_id, limit=limit)
+    logs = await sync_source_svc.list_logs(source_id, limit=limit)
     items = [
         RAGSyncLogItem(
             id=str(log.id),

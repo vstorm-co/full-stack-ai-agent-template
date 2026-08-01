@@ -65,9 +65,6 @@ dependencies = [
     # when no templates are rendered.
     "jinja2>=3.1.0",
 {%- endif %}
-{%- if cookiecutter.enable_rate_limiting %}
-    "slowapi>=0.1.9",
-{%- endif %}
 {%- if cookiecutter.enable_email and cookiecutter.email_provider == "resend" %}
     "resend>=2.0.0",
 {%- endif %}

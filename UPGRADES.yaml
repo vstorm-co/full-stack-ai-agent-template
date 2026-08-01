@@ -18,6 +18,22 @@
 #   manual_steps:
 #     - "Run `alembic upgrade head` (new billing tables)."
 
+- version: "0.2.19"
+  removed:
+    - "backend/app/core/rate_limit.py"
+    - "backend/app/core/csrf.py"
+    - "backend/app/api/versioning.py"
+  breaking:
+    - "Delegated auth (--auth-mode delegated) no longer generates the local credential endpoints: /auth/login, /auth/register, /auth/refresh, /auth/logout and the password-reset and magic-link routes. Only /auth/me remains. Any client calling them against a delegated deployment was receiving tokens that get_current_user rejects."
+    - "create_password_reset_token(subject) now requires current_password_hash, and create_magic_link_token(subject) requires magic_link_epoch. Both bind the token to state that changes on redemption, which is what makes the link single-use. Custom callers must pass the new argument."
+    - "The slowapi limiter in core/rate_limit.py is gone. It was never attached to a route and enforced nothing. Rate limits now come from services/rate_limit via make_rate_limit_dep / make_anonymous_rate_limit_dep, and slowapi is no longer a dependency."
+  manual_steps:
+    - "Run `alembic upgrade head` — 0027 adds users.magic_link_epoch, which the single-use magic-link check reads. Without it, sign-in-by-email raises on every attempt."
+    - "Rate limiting is now actually enforced on /auth/login, /auth/register and the password-reset and magic-link request endpoints (default: 5 per 15 minutes per IP). Load tests and smoke scripts that hammer login will start seeing 429s. Override per plan via the plan's features.rate_limits, or adjust DEFAULT_RATE_LIMITS in backend/app/services/rate_limit/rules.py."
+    - "If you generated with --rate-limiting and no Redis, limits are counted per worker process, so the effective limit is multiplied by your worker count. Enable Redis for a shared window."
+    - "Custom routes that need a limit: add `dependencies=[make_rate_limit_dep(RateLimitCategory.X)]` (authenticated) or `make_anonymous_rate_limit_dep` (pre-auth). Nothing is limited by default beyond the auth endpoints."
+    - "If you wired app.state.limiter or @limiter.limit from core/rate_limit.py yourself, those imports are now dead — port them to make_rate_limit_dep."
+
 - version: "0.2.18"
   manual_steps:
     - "Rebuild the frontend image: `docker compose -f docker-compose.prod.yml build --no-cache frontend`. NEXT_PUBLIC_* is inlined into the browser bundle at build time and now comes from compose build args, so an image built before this upgrade still has the old ws://localhost URL baked in."

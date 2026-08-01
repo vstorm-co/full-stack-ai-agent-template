@@ -1,19 +1,44 @@
+{%- if cookiecutter.use_delegated_auth %}
+"""Authentication routes.
+
+Delegated auth mode: identity is owned by the external IdP, so this module
+exposes **only** ``/me``. Local email/password endpoints (login, register,
+refresh, logout, password reset, magic link) are deliberately absent — see
+``get_current_user`` in ``app/api/deps.py``, which validates IdP signatures and
+would reject any token this backend minted. Leaving them mounted would also
+mean an unauthenticated caller could create a local account, and the first such
+account is auto-promoted to app-admin.
+"""
+{%- else %}
 """Authentication routes."""
+{%- endif %}
 
 import logging
+{%- if cookiecutter.use_delegated_auth %}
+from typing import Any
+{%- else %}
 from typing import Annotated, Any
+{%- if not cookiecutter.enable_session_management %}
+from uuid import UUID
+{%- endif %}
+{%- endif %}
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter{% if not cookiecutter.use_delegated_auth %}, Depends, Request{% endif %}{% if not cookiecutter.use_delegated_auth %}, status{% endif %}
+{%- if not cookiecutter.use_delegated_auth %}
 from fastapi.security import OAuth2PasswordRequestForm
+{%- endif %}
 
 {%- if cookiecutter.enable_session_management %}
 from app.api.deps import CurrentUser, SessionSvc, UserSvc
-{%- else %}
+{%- elif not cookiecutter.use_delegated_auth %}
 from app.api.deps import CurrentUser, UserSvc
+{%- else %}
+from app.api.deps import CurrentUser
 {%- endif %}
-{%- if cookiecutter.enable_email %}
+{%- if cookiecutter.enable_email and not cookiecutter.use_delegated_auth %}
 from app.core.config import settings
 {%- endif %}
+{%- if not cookiecutter.use_delegated_auth %}
 from app.core.exceptions import AuthenticationError
 from app.core.security import (
     create_access_token,
@@ -22,7 +47,8 @@ from app.core.security import (
     verify_token,
 {%- endif %}
 )
-{%- if cookiecutter.enable_email %}
+{%- endif %}
+{%- if cookiecutter.enable_email and not cookiecutter.use_delegated_auth %}
 from app.services.email.service import get_email_service
 from app.schemas.password_reset import (
     MagicLinkRequest,
@@ -33,15 +59,35 @@ from app.schemas.password_reset import (
     PasswordResetResponse,
 )
 {%- endif %}
+{%- if not cookiecutter.use_delegated_auth %}
 from app.schemas.token import RefreshTokenRequest, Token
 from app.schemas.user import UserCreate, UserRead
+{%- else %}
+from app.schemas.user import UserRead
+{%- endif %}
+{%- if cookiecutter.enable_rate_limiting and not cookiecutter.use_delegated_auth %}
+from app.services.rate_limit import RateLimitCategory, make_anonymous_rate_limit_dep
+
+# Unauthenticated endpoints: the only scope available is the caller's IP, and
+# these are exactly the routes that need one (credential stuffing, reset-email
+# flooding). Default rule: 5 requests per 15 minutes per IP.
+AuthRateLimit = make_anonymous_rate_limit_dep(RateLimitCategory.AUTH)
+{%- endif %}
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+{%- if not cookiecutter.use_delegated_auth %}
 
-@router.post("/login", response_model=Token)
+
+@router.post(
+    "/login",
+    response_model=Token,
+{%- if cookiecutter.enable_rate_limiting %}
+    dependencies=[AuthRateLimit],
+{%- endif %}
+)
 async def login(
     request: Request,
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
@@ -67,7 +113,14 @@ async def login(
     return Token(access_token=access_token, refresh_token=refresh_token)
 
 
-@router.post("/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/register",
+    response_model=UserRead,
+    status_code=status.HTTP_201_CREATED,
+{%- if cookiecutter.enable_rate_limiting %}
+    dependencies=[AuthRateLimit],
+{%- endif %}
+)
 async def register(
     user_in: UserCreate,
     user_service: UserSvc,
@@ -100,9 +153,13 @@ async def refresh_token(
     payload = verify_token(body.refresh_token)
     if not payload or payload.get("type") != "refresh":
         raise AuthenticationError(message="Invalid or expired refresh token")
-    user_id = payload.get("sub")
-    if not user_id:
+    subject = payload.get("sub")
+    if not subject:
         raise AuthenticationError(message="Invalid refresh token")
+    try:
+        user_id = UUID(str(subject))
+    except ValueError as exc:
+        raise AuthenticationError(message="Invalid refresh token") from exc
     user = await user_service.get_by_id(user_id)
 {%- endif %}
     if not user.is_active:
@@ -140,6 +197,7 @@ async def logout(
     """No-op without session tracking. Clients drop their JWTs locally."""
     return None
 {%- endif %}
+{%- endif %}
 
 
 @router.get("/me", response_model=UserRead)
@@ -147,11 +205,17 @@ async def get_current_user_info(current_user: CurrentUser) -> Any:
     """Get current authenticated user information."""
     return current_user
 
-{%- if cookiecutter.enable_email %}
+{%- if cookiecutter.enable_email and not cookiecutter.use_delegated_auth %}
 
 
 
-@router.post("/password-reset/request", response_model=PasswordResetResponse)
+@router.post(
+    "/password-reset/request",
+    response_model=PasswordResetResponse,
+{%- if cookiecutter.enable_rate_limiting %}
+    dependencies=[AuthRateLimit],
+{%- endif %}
+)
 async def request_password_reset(
     body: PasswordResetRequest,
     user_service: UserSvc,
@@ -187,7 +251,13 @@ async def confirm_password_reset(
 
 
 
-@router.post("/magic-link/request", response_model=PasswordResetResponse)
+@router.post(
+    "/magic-link/request",
+    response_model=PasswordResetResponse,
+{%- if cookiecutter.enable_rate_limiting %}
+    dependencies=[AuthRateLimit],
+{%- endif %}
+)
 async def request_magic_link(
     body: MagicLinkRequest,
     user_service: UserSvc,

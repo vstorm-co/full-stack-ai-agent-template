@@ -51,7 +51,7 @@ These are defined in `app/api/deps.py` and used throughout the route layer:
 
 | Endpoint | Method | Admin | User | Notes |
 |----------|--------|-------|------|-------|
-| `/agent/ws/agent` | WS | Y | Y | WebSocket chat with AI agent |
+| `/ws/agent` | WS | Y | Y | WebSocket chat with AI agent |
 
 ### Conversations
 

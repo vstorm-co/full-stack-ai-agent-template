@@ -623,19 +623,26 @@ else:
                 "# Backend API URL (server-side only - not exposed to browser)",
                 "BACKEND_URL=http://localhost:{{ cookiecutter.backend_port }}",
                 "",
-                "# WebSocket URL for real-time features",
-                "BACKEND_WS_URL=ws://localhost:{{ cookiecutter.backend_port }}",
+                "# Send the auth cookies with the Secure flag. Unset follows NODE_ENV,",
+                "# so production means Secure — and a browser discards a Secure cookie",
+                "# served over plain http://, which logs you in and then 401s every",
+                "# request after it. Only set false for http:// on a trusted network.",
+                "# COOKIE_SECURE=false",
+                "",
+                "# WebSocket URL for the chat stream. Read by the BROWSER, so it must",
+                "# be an address the browser can reach — and NEXT_PUBLIC_* is inlined",
+                "# at build time, so in Docker it has to be passed as a build arg.",
+                "NEXT_PUBLIC_WS_URL=ws://localhost:{{ cookiecutter.backend_port }}",
+                "",
+                "# Public API URL, exposed to the browser (OAuth redirects, API docs",
+                "# links). Same build-time rule as NEXT_PUBLIC_WS_URL above.",
+                "NEXT_PUBLIC_API_URL=http://localhost:{{ cookiecutter.backend_port }}",
                 "",
                 "# Canonical site URL — used for SEO metadata, OG tags, sitemap.xml,",
                 "# robots.txt, schema.org organization. Override in production with",
                 "# the real https origin.",
                 "NEXT_PUBLIC_SITE_URL=http://localhost:{{ cookiecutter.frontend_port }}",
             ]
-            env_lines.extend([
-                "",
-                "# Authentication (always enabled)",
-                "NEXT_PUBLIC_AUTH_ENABLED=true",
-            ])
             if enable_oauth:
                 # Build the comma-separated provider list the OAuth buttons read.
                 # Currently only Google has full backend wiring; expand here when
@@ -644,9 +651,6 @@ else:
                 if "{{ cookiecutter.enable_oauth_google }}" == "True":
                     providers.append("google")
                 env_lines.extend([
-                    "",
-                    "# Public API URL for OAuth redirects (exposed to browser)",
-                    "NEXT_PUBLIC_API_URL=http://localhost:{{ cookiecutter.backend_port }}",
                     "",
                     "# OAuth providers shown on /login + /register (comma-separated).",
                     "# Drives the <OAuthButtons> component — must include only providers",
@@ -670,8 +674,10 @@ else:
             if "{{ cookiecutter.enable_brand_from_config }}" == "True":
                 env_lines.extend([
                     "",
-                    "# Runtime brand override (white-label)",
-                    "# Set NEXT_PUBLIC_BRAND_COLOR to one of: blue, green, red, violet, orange",
+                    "# Brand override (white-label). NEXT_PUBLIC_* is inlined at build",
+                    "# time, so changing these needs a rebuild — in Docker they are",
+                    "# passed as build args (see docker-compose.frontend.yml).",
+                    "# NEXT_PUBLIC_BRAND_COLOR: blue, green, red, violet or orange",
                     "NEXT_PUBLIC_BRAND_COLOR={{ cookiecutter.brand_color }}",
                     "NEXT_PUBLIC_BRAND_LOGO_URL=",
                 ])

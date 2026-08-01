@@ -249,7 +249,9 @@ For frontend deployment to **Vercel**:
 cd frontend && npx vercel --prod
 ```
 
-In the Vercel dashboard set `BACKEND_URL`, `BACKEND_WS_URL`, `NEXT_PUBLIC_AUTH_ENABLED=true`.
+In the Vercel dashboard set `BACKEND_URL` (server-side), plus `NEXT_PUBLIC_API_URL`,
+`NEXT_PUBLIC_WS_URL` (`wss://…`) and `NEXT_PUBLIC_SITE_URL` — the `NEXT_PUBLIC_*` ones are
+inlined at build time, so they need a redeploy to take effect.
 
 </details>
 

@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **Chat was dead on any Docker deployment that wasn't localhost** — the `frontend` service in `docker-compose.prod.yml` passed no `build:` args at all, and `NEXT_PUBLIC_*` is inlined into the browser bundle by `next build`, so the image baked the Dockerfile's `ws://localhost:8000` / `http://localhost:8000` defaults and no runtime `environment:` entry could change them. Every visitor's browser then dialled `ws://localhost:8000` on its own machine: connection refused, `isConnected` false, chat input permanently disabled with the status stuck on "Offline". Both compose files now pass the full `NEXT_PUBLIC_*` set as build args, defaulting to `https://api.${DOMAIN}` / `wss://api.${DOMAIN}` behind a proxy and to `${PUBLIC_HOST}` with the published ports without one, each overridable per variable (#132)
+- **`BACKEND_WS_URL` was documented everywhere and read nowhere** — a leftover from when the chat stream went through a Next proxy. It sat in `frontend/.env.example`, `frontend/README.md`, the root `README.md`, the `Makefile` and the generated `.env.local`, so the one variable a deployment could set for the socket was the one variable with no effect; the browser reads `NEXT_PUBLIC_WS_URL`. Removed, along with `NEXT_PUBLIC_AUTH_ENABLED`, unread since auth stopped being optional. The frontend env table now says which side reads each variable and that `NEXT_PUBLIC_*` needs a rebuild (#132)
+- **Auth cookies were `Secure` over plain HTTP, so every request after login 401'd** — the flag was hardcoded to `NODE_ENV === "production"` in six route handlers, and a browser silently discards a `Secure` cookie that arrives on an `http://` origin. Serving the app on a LAN IP or a bare Docker host therefore looked like a successful login — the user and access token come back in the response body — and then `/api/auth/me` answered 401 forever, so the access token was never refreshed and the chat socket never reconnected with a good one. New `COOKIE_SECURE` env var: unset follows `NODE_ENV`, `false` opts an HTTP deployment out, an unrecognized value falls back to the `NODE_ENV` default so a typo cannot downgrade production. The six copies of the cookie block are now one `lib/auth-cookies.ts` helper with unit tests (#132)
+- **nginx never upgraded the chat WebSocket** — the `Upgrade` / `Connection` headers were set on `location /ws`, but the endpoints are mounted under the versioned prefix (`/api/v1/ws/agent`, `/api/v1/ws/projects/...`), so the handshake fell through to `location /` and failed. The location is now `/api/v1/ws`, and the same wrong path is fixed in the deployment docs (#132)
+- **The white-label brand vars had the same build-arg gap** — `NEXT_PUBLIC_BRAND_COLOR` and `NEXT_PUBLIC_BRAND_LOGO_URL` are read by the browser but were never declared as Dockerfile args, so a Docker build with `enable_brand_from_config` baked in undefined values while the variables looked settable at runtime (#132)
+
+### Added
+
+- **"Serving from a host that isn't localhost" section in the generated `docs/deploy.md`** — the build-time-vs-runtime split of `NEXT_PUBLIC_*` and the `Secure`-cookie-over-HTTP trap are the two things that break a first non-localhost deploy, and neither failure names its own cause (#132)
+
 ## [0.2.17] - 2026-07-25
 
 ### Added

@@ -1,0 +1,66 @@
+# Puts every new issue and pull request on the org-wide "Vstorm OSS" board so
+# nothing arrives in a repo nobody is watching that week.
+#
+#   https://github.com/orgs/vstorm-co/projects/12
+#
+# The board's own automation cannot do this: GitHub's built-in "Auto-add to
+# project" workflow is configured per repository and the number of them a project
+# may have is capped by the org plan, so six repos do not fit. This action does.
+#
+# SETUP (once, at the organization): a PAT with the `project` scope, stored as the
+# organization secret ADD_TO_PROJECT_PAT and shared with this repository. The
+# workflow's own GITHUB_TOKEN cannot be used - it has no access to organization
+# projects, only to this repo.
+#
+# WHY `pull_request_target` AND WHY IT IS SAFE HERE. These are public repos, so
+# most pull requests come from forks - and `pull_request` gives a fork run no
+# secrets, which means no PAT and no board entry for exactly the contributions
+# worth tracking. `pull_request_target` runs with the base repo's secrets, which
+# is normally the dangerous choice. It is safe in this one because the job never
+# touches the contributor's code: there is no checkout, no build, no script from
+# the PR. It reads two numbers from the event and calls one pinned action. If a
+# step is ever added here that checks the PR out, this trigger must change.
+name: Add to Vstorm OSS project
+
+on:
+  issues:
+    types: [opened, reopened, transferred]
+  pull_request_target:
+    types: [opened, reopened, ready_for_review]
+
+# Nothing here writes through GITHUB_TOKEN; the PAT does the one write there is.
+permissions: {}
+
+concurrency:
+  group: add-to-project-${{ github.event.issue.number || github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  add:
+    runs-on: ubuntu-latest
+    # Skip cleanly while the secret is absent rather than failing. These are
+    # public repositories: a red cross on every issue somebody opens is a worse
+    # first impression than a board that is briefly incomplete. The job starts
+    # working by itself the moment ADD_TO_PROJECT_PAT exists - nothing to merge
+    # again.
+    if: ${{ vars.DISABLE_ADD_TO_PROJECT != 'true' }}
+    steps:
+      - name: Check the project token is configured
+        id: token
+        env:
+          PAT: ${{ secrets.ADD_TO_PROJECT_PAT }}
+        run: |
+          if [ -z "$PAT" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::ADD_TO_PROJECT_PAT is not set for this repository - skipping. See the header of this workflow for setup."
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Pinned to v2.0.0 by commit. Bump deliberately; do not track a moving tag.
+      - name: Add to project
+        if: steps.token.outputs.configured == 'true'
+        uses: actions/add-to-project@5afcf98fcd03f1c2f92c3c83f58ae24323cc57fd # v2.0.0
+        with:
+          project-url: https://github.com/orgs/vstorm-co/projects/12
+          github-token: ${{ secrets.ADD_TO_PROJECT_PAT }}

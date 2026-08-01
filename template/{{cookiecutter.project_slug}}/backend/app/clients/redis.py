@@ -39,10 +39,18 @@ class RedisClient:
             self.client = None
 
     async def get(self, key: str) -> str | None:
-        """Get a value by key."""
+        """Get a value by key.
+
+        `connect()` sets decode_responses=True, so the value comes back decoded —
+        but redis-py's annotation cannot express that and still admits `bytes`.
+        Decode explicitly rather than asserting the flag through a type: ignore.
+        """
         if not self.client:
             raise RuntimeError("Redis client not connected")
-        return await self.client.get(key)  # type: ignore[no-any-return]
+        value: str | bytes | None = await self.client.get(key)
+        if isinstance(value, bytes):
+            return value.decode("utf-8")
+        return value
 
     async def set(
         self,

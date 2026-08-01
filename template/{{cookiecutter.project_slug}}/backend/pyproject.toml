@@ -75,7 +75,9 @@ dependencies = [
     "aiosmtplib>=3.0.0",
 {%- endif %}
 {%- if cookiecutter.enable_pagination %}
-    "fastapi-pagination>=0.12.31",
+    # <0.15.16: that release targets the get_body_field() signature FastAPI
+    # introduced in 0.137, which the fastapi pin above deliberately stays below.
+    "fastapi-pagination>=0.12.31,<0.15.16",
 {%- endif %}
 {%- if cookiecutter.enable_sentry %}
     "sentry-sdk[fastapi]>=2.53.0",
@@ -111,19 +113,23 @@ dependencies = [
 {%- if cookiecutter.use_all_providers %}
     # Multi-provider: install every SDK so the runtime model picker can route
     # to whichever backend the user (or env default) selects.
-    "pydantic-ai-slim[openai,anthropic,google,openrouter,duckduckgo,web-fetch]>=1.80.0",
+    "pydantic-ai-slim[openai,anthropic,google,openrouter,duckduckgo,web-fetch]>=2.18.0",
 {%- elif cookiecutter.use_openai %}
-    "pydantic-ai-slim[openai,duckduckgo,web-fetch]>=1.80.0",
+    "pydantic-ai-slim[openai,duckduckgo,web-fetch]>=2.18.0",
 {%- elif cookiecutter.use_anthropic %}
-    "pydantic-ai-slim[anthropic,duckduckgo,web-fetch]>=1.80.0",
+    "pydantic-ai-slim[anthropic,duckduckgo,web-fetch]>=2.18.0",
 {%- elif cookiecutter.use_google %}
-    "pydantic-ai-slim[google,duckduckgo,web-fetch]>=1.80.0",
+    "pydantic-ai-slim[google,duckduckgo,web-fetch]>=2.18.0",
 {%- elif cookiecutter.use_openrouter %}
-    "pydantic-ai-slim[openrouter,duckduckgo,web-fetch]>=1.80.0",
+    "pydantic-ai-slim[openrouter,duckduckgo,web-fetch]>=2.18.0",
 {%- endif %}
 {%- if cookiecutter.enable_mcp_client %}
     # MCP client transports + toolset support (Settings → Integrations).
-    "pydantic-ai-slim[mcp]>=1.80.0",
+    "pydantic-ai-slim[mcp]>=2.18.0",
+{%- endif %}
+{%- if cookiecutter.enable_memory %}
+    # Persistent per-user agent memory (Settings → Memory).
+    "pydantic-ai-harness>=0.12.0",
 {%- endif %}
 {%- endif %}
 {%- if cookiecutter.use_langchain %}
@@ -255,16 +261,16 @@ dependencies = [
     "pydantic-monty>=0.0.19",
 {%- endif %}
 {%- if cookiecutter.enable_skills %}
-    "pydantic-ai-skills>=0.11.0",
+    "pydantic-ai-skills>=1.3.0",
 {%- endif %}
 {%- if cookiecutter.enable_todo %}
     "pydantic-ai-todo[postgres]>=0.2.1",
 {%- endif %}
 {%- if cookiecutter.enable_subagents %}
-    "subagents-pydantic-ai>=0.2.7",
+    "subagents-pydantic-ai>=0.2.10",
 {%- endif %}
 {%- if cookiecutter.enable_deep_research %}
-    "summarization-pydantic-ai>=0.1.7",
+    "summarization-pydantic-ai>=0.1.11",
 {%- endif %}
 {%- if cookiecutter.use_telegram or cookiecutter.use_slack or cookiecutter.enable_rag %}
     "cryptography>=44.0.0",

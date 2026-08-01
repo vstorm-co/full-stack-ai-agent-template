@@ -59,6 +59,11 @@ export const qk = {
     workspace: () => ["mcp-connections", "workspace"] as const,
   },
 {%- endif %}
+{%- if cookiecutter.enable_memory %}
+  memory: {
+    list: () => ["memory", "list"] as const,
+  },
+{%- endif %}
   admin: {
     stats: () => ["admin", "stats"] as const,
     events: () => ["admin", "events"] as const,

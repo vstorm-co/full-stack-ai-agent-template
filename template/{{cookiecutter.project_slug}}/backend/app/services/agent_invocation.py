@@ -21,6 +21,9 @@ from app.services.agent import build_message_history
 {%- if cookiecutter.enable_mcp_client %}
 from app.services.mcp_connection import build_toolsets_for_user
 {%- endif %}
+{%- if cookiecutter.enable_memory %}
+from app.agents.memory import build_memory_capability
+{%- endif %}
 {%- if cookiecutter.use_pydantic_deep %}
 from app.agents.pydantic_deep_assistant import PydanticDeepAssistant, PydanticDeepContext
 {%- endif %}
@@ -150,12 +153,29 @@ class AgentInvocationService:
         """Invoke PydanticAI agent and extract tool events from result messages."""
 
         model_name: str | None = kwargs.get("model_override")
+{%- if cookiecutter.enable_memory %}
+        # Channel messages share the web chat's memory notebook, but only for
+        # traffic mapped to a real account — anonymous channel traffic must not
+        # collapse onto one shared memory scope.
+        invocation_user_id = kwargs.get("user_id")
+        memory_capability = (
+            await build_memory_capability(str(invocation_user_id)) if invocation_user_id else None
+        )
+{%- endif %}
 {%- if cookiecutter.enable_mcp_client %}
         # Channel messages run the same agent as the web chat, so the user's
         # Settings → Integrations servers apply here too. Traffic with no mapped
         # account still gets the deployment-managed MCP_SERVERS.
         mcp_toolsets = await build_toolsets_for_user(kwargs.get("user_id"))
-        assistant = get_agent(model_name=model_name, extra_toolsets=mcp_toolsets)
+        assistant = get_agent(
+            model_name=model_name,
+            extra_toolsets=mcp_toolsets,
+{%- if cookiecutter.enable_memory %}
+            memory_capability=memory_capability,
+{%- endif %}
+        )
+{%- elif cookiecutter.enable_memory %}
+        assistant = get_agent(model_name=model_name, memory_capability=memory_capability)
 {%- else %}
         assistant = get_agent(model_name=model_name)
 {%- endif %}

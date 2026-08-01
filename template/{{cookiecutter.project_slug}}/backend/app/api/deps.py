@@ -738,3 +738,15 @@ def get_mcp_connection_service(db: DBSession) -> McpConnectionService:
 
 McpConnectionSvc = Annotated[McpConnectionService, Depends(get_mcp_connection_service)]
 {%- endif %}
+{%- if cookiecutter.enable_memory %}
+from app.db.memory_pool import get_memory_store
+from app.services.user_memory import UserMemoryService
+
+
+async def get_user_memory_service() -> UserMemoryService:
+    """Service over the process-wide memory store — no DB session involved."""
+    return UserMemoryService(await get_memory_store())
+
+
+UserMemorySvc = Annotated[UserMemoryService, Depends(get_user_memory_service)]
+{%- endif %}

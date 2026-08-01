@@ -51,6 +51,7 @@ enable_deep_research = "{{ cookiecutter.enable_deep_research }}" == "True"
 enable_todo = "{{ cookiecutter.enable_todo }}" == "True"
 enable_subagents = "{{ cookiecutter.enable_subagents }}" == "True"
 enable_mcp_client = "{{ cookiecutter.enable_mcp_client }}" == "True"
+enable_memory = "{{ cookiecutter.enable_memory }}" == "True"
 use_pydantic_deep = "{{ cookiecutter.use_pydantic_deep }}" == "True"
 use_telegram = "{{ cookiecutter.use_telegram }}" == "True"
 use_slack = "{{ cookiecutter.use_slack }}" == "True"
@@ -204,6 +205,33 @@ if not enable_mcp_client:
             )
         )
         remove_dir(os.path.join(frontend_src, "app", "api", "me", "mcp-connections"))
+
+# Agent memory (Settings → Memory). Full modules, not Jinja stubs — remove explicitly.
+if not enable_memory:
+    backend_root = os.path.join(os.getcwd(), "backend")
+    remove_file(os.path.join(backend_app, "agents", "memory.py"))
+    remove_file(os.path.join(backend_app, "db", "memory_pool.py"))
+    remove_file(os.path.join(backend_app, "schemas", "user_memory.py"))
+    remove_file(os.path.join(backend_app, "services", "user_memory.py"))
+    remove_file(os.path.join(backend_app, "api", "routes", "v1", "me_memory.py"))
+    remove_file(os.path.join(backend_root, "tests", "test_memory.py"))
+    remove_file(os.path.join(backend_root, "tests", "api", "test_me_memory.py"))
+    if use_frontend:
+        frontend_src = os.path.join(os.getcwd(), "frontend", "src")
+        remove_file(os.path.join(frontend_src, "lib", "memory-api.ts"))
+        remove_file(os.path.join(frontend_src, "lib", "py-literal.ts"))
+        remove_file(os.path.join(frontend_src, "hooks", "use-memory.ts"))
+        remove_file(os.path.join(frontend_src, "components", "settings", "memory-manager.tsx"))
+        remove_file(os.path.join(frontend_src, "components", "settings", "memory-file-editor.tsx"))
+        remove_file(
+            os.path.join(frontend_src, "components", "settings", "memory-delete-dialog.tsx")
+        )
+        remove_file(os.path.join(frontend_src, "components", "settings", "memory-file-name.ts"))
+        remove_file(os.path.join(frontend_src, "components", "chat", "tool-results", "memory.tsx"))
+        remove_dir(
+            os.path.join(frontend_src, "app", "[locale]", "(dashboard)", "settings", "memory")
+        )
+        remove_dir(os.path.join(frontend_src, "app", "api", "me", "memory"))
 
 # The fetched-page tool-result renderer is only referenced when web fetch is on.
 if not enable_web_fetch and use_frontend:

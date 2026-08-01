@@ -98,6 +98,23 @@ class TestGetAgent:
         """Test get_agent returns AssistantAgent."""
         agent = get_agent()
         assert isinstance(agent, AssistantAgent)
+{%- if cookiecutter.enable_memory %}
+
+    def test_memory_capability_defaults_to_none(self):
+        agent = get_agent()
+        assert agent.memory_capability is None
+
+    @patch("app.agents.assistant._build_model")
+    def test_memory_capability_reaches_agent(self, mock_build_model):
+        """A passed Memory capability is stored and survives agent construction."""
+        from pydantic_ai_harness.memory import InMemoryStore, Memory
+
+        mock_build_model.return_value = TestModel()
+        capability = Memory(store=InMemoryStore(), namespace="user-test")
+        agent = get_agent(memory_capability=capability)
+        assert agent.memory_capability is capability
+        _ = agent.agent
+{%- endif %}
 
 
 class TestAgentRoutes:

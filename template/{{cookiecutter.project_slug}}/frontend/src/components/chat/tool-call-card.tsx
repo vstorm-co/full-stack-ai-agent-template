@@ -25,6 +25,9 @@ import {
 {%- if cookiecutter.enable_mcp_client %}
   Plug,
 {%- endif %}
+{%- if cookiecutter.enable_memory %}
+  NotebookPen,
+{%- endif %}
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toolCaption, toolDisplayName } from "@/lib/agent-step-captions";
@@ -42,6 +45,9 @@ import { WebSearchResults, parseWebSearch } from "./tool-results/web-search";
 import { LoadSkillResult, formatSkillName } from "./tool-results/skills";
 {%- endif %}
 import { AskUserResult } from "./tool-results/ask-user";
+{%- if cookiecutter.enable_memory %}
+import { MemoryToolResult, isMemoryTool } from "./tool-results/memory";
+{%- endif %}
 import { GenericToolResult, RawToolView } from "./tool-results/generic";
 {%- if cookiecutter.enable_code_execution %}
 import { RunPythonResult } from "./tool-results/run-python";
@@ -78,6 +84,10 @@ export function ToolCallCard({ toolCall, defaultExpanded = false }: ToolCallCard
 {%- endif %}
   );
   const [showRaw, setShowRaw] = useState(false);
+
+{%- if cookiecutter.enable_memory %}
+  const isMemory = isMemoryTool(toolCall.name);
+{%- endif %}
 
   // Short input hint shown in the collapsed bar — the query for search
   // tools, the URL for fetch_url, etc. (any tool with a url/query arg).
@@ -140,7 +150,7 @@ export function ToolCallCard({ toolCall, defaultExpanded = false }: ToolCallCard
 {%- endif %}
 
   const hasSpecialRenderer =
-    isDateTime || isRAGSearch || isWebSearch || isAskUser{%- if cookiecutter.enable_web_fetch %} || isFetch{%- endif %}{%- if cookiecutter.enable_charts %} || isChart{%- endif %}{%- if cookiecutter.enable_code_execution %} || isRunPython{%- endif %};
+    isDateTime || isRAGSearch || isWebSearch || isAskUser{%- if cookiecutter.enable_web_fetch %} || isFetch{%- endif %}{%- if cookiecutter.enable_charts %} || isChart{%- endif %}{%- if cookiecutter.enable_code_execution %} || isRunPython{%- endif %}{%- if cookiecutter.enable_memory %} || isMemory{%- endif %};
   const friendlyName = isDateTime
     ? "Current Date & Time"
     : isRAGSearch
@@ -188,6 +198,10 @@ export function ToolCallCard({ toolCall, defaultExpanded = false }: ToolCallCard
 {%- if cookiecutter.enable_code_execution %}
             : isRunPython
               ? Code2
+{%- endif %}
+{%- if cookiecutter.enable_memory %}
+            : isMemory
+              ? NotebookPen
 {%- endif %}
             : Wrench;
 
@@ -290,8 +304,10 @@ export function ToolCallCard({ toolCall, defaultExpanded = false }: ToolCallCard
             </span>
           ) : null}
 {%- endif %}
+          {/* pr-0.5 gives italic glyph overhang room — `truncate` clips it otherwise
+              (a trailing "d" loses its edge and reads as "a"). */}
           {inputHint && !isRunning ? (
-            <span className="text-muted-foreground min-w-0 flex-1 truncate text-xs italic">
+            <span className="text-muted-foreground min-w-0 flex-1 truncate pr-0.5 text-xs italic">
               {inputHint}
             </span>
           ) : null}
@@ -357,6 +373,10 @@ export function ToolCallCard({ toolCall, defaultExpanded = false }: ToolCallCard
 {%- if cookiecutter.enable_code_execution %}
           ) : isRunPython ? (
             <RunPythonResult toolCall={toolCall} resultText={resultText} />
+{%- endif %}
+{%- if cookiecutter.enable_memory %}
+          ) : isMemory ? (
+            <MemoryToolResult toolCall={toolCall} resultText={resultText} />
 {%- endif %}
 {%- if cookiecutter.enable_skills %}
           ) : isLoadSkill ? (

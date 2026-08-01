@@ -761,7 +761,7 @@ They also ship a ready-to-use **`.claude/` toolkit** that adapts to the options 
 | **Background Tasks** | Celery, Taskiq, ARQ, Prefect |
 | **Billing** | Stripe subscriptions (seat-based), credits + usage metering, invoices, Customer Portal |
 | **Caching & State** | Redis, fastapi-cache2 |
-| **Security** | Rate limiting, CORS, CSRF protection |
+| **Security** | Per-plan sliding-window rate limiting (per user / org / IP), CORS, SSRF-guarded webhook delivery, httpOnly + SameSite session cookies |
 | **Observability** | Logfire, LangSmith, Sentry, Prometheus |
 | **Admin** | SQLAdmin panel with auth |
 | **Collaboration** | Conversation sharing (direct + link), admin conversation browser |
@@ -1266,7 +1266,7 @@ Select what you need:
 ```bash
 fastapi-fullstack new
 # ✓ Redis (caching/sessions)
-# ✓ Rate limiting (slowapi)
+# ✓ Rate limiting (per user/org/IP, Redis or in-memory)
 # ✓ Pagination (fastapi-pagination)
 # ✓ Admin Panel (SQLAdmin)
 # ✓ AI Agent (PydanticAI or LangChain)

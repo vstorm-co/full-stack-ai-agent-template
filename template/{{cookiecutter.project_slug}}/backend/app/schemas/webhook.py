@@ -38,7 +38,11 @@ class WebhookRead(BaseSchema):
     is_active: bool
     description: str | None
     created_at: datetime
-    updated_at: datetime
+    # Nullable to match TimestampMixin: `updated_at` has an onupdate but no
+    # default, so a row that has never been modified carries NULL. Declaring it
+    # non-optional made every read of a freshly created webhook fail response
+    # validation with a 500.
+    updated_at: datetime | None = None
 
 
 class WebhookDeliveryRead(BaseSchema):

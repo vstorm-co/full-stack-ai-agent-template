@@ -1189,6 +1189,293 @@ jobs:
           SECRET_KEY: test-secret-key-for-ci-that-is-long-enough
         run: uv run pytest -v
 
+  # Delegated auth is the most security-sensitive switch in the generator and
+  # was previously rendered by no job. Both modes are covered: JWKS (IdP) and
+  # shared-secret HS256. The admin panel is on deliberately — it is the
+  # combination where a reachable local /auth/register would escalate to full
+  # SQLAdmin access.
+  generate-pg-delegated-auth-jwks:
+    name: Template - PostgreSQL + Delegated Auth (JWKS)
+    needs: [lint, type-check]
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+
+      - name: Install generator
+        run: uv sync
+
+      - name: Generate project with delegated auth (JWKS)
+        run: |
+          mkdir -p /tmp/projects
+          uv run fastapi-fullstack create test_delegated_jwks \
+            --database postgresql \
+            --auth-mode delegated \
+            --external-user-id \
+            --admin-panel \
+            --webhooks \
+            -o /tmp/projects
+
+      - name: Install backend
+        working-directory: /tmp/projects/test_delegated_jwks/backend
+        run: uv sync --dev
+
+      - name: Run linting
+        working-directory: /tmp/projects/test_delegated_jwks/backend
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+
+      - name: Run type check
+        working-directory: /tmp/projects/test_delegated_jwks/backend
+        run: uv run ty check
+
+      - name: Run tests
+        working-directory: /tmp/projects/test_delegated_jwks/backend
+        env:
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+          SECRET_KEY: test-secret-key-for-ci-that-is-long-enough
+        run: uv run pytest -v
+
+  generate-pg-delegated-auth-shared-secret:
+    name: Template - PostgreSQL + Delegated Auth (shared secret)
+    needs: [lint, type-check]
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+
+      - name: Install generator
+        run: uv sync
+
+      - name: Generate project with delegated auth (shared secret)
+        run: |
+          mkdir -p /tmp/projects
+          uv run fastapi-fullstack create test_delegated_hs256 \
+            --database postgresql \
+            --auth-mode delegated \
+            --shared-secret-jwt \
+            --admin-panel \
+            -o /tmp/projects
+
+      - name: Install backend
+        working-directory: /tmp/projects/test_delegated_hs256/backend
+        run: uv sync --dev
+
+      - name: Run linting
+        working-directory: /tmp/projects/test_delegated_hs256/backend
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+
+      - name: Run type check
+        working-directory: /tmp/projects/test_delegated_hs256/backend
+        run: uv run ty check
+
+      - name: Run tests
+        working-directory: /tmp/projects/test_delegated_hs256/backend
+        env:
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+          SECRET_KEY: test-secret-key-for-ci-that-is-long-enough
+        run: uv run pytest -v
+
+  # Rate limiting is generated twice over (with and without teams, which changes
+  # whether the limiter can scope to an org) and the tests assert a 429 actually
+  # comes back — a limiter that is not attached to any route passes any test that
+  # only checks it was constructed.
+  generate-pg-rate-limiting:
+    name: Template - PostgreSQL + Rate Limiting
+    needs: [lint, type-check]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: test_rl_teams
+            extra: "--teams"
+          - name: test_rl_solo
+            extra: ""
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+
+      - name: Install generator
+        run: uv sync
+
+      - name: Generate project with rate limiting
+        run: |
+          mkdir -p /tmp/projects
+          uv run fastapi-fullstack create ${{ matrix.name }} \
+            --database postgresql \
+            --redis \
+            --rate-limiting \
+            --email \
+            ${{ matrix.extra }} \
+            -o /tmp/projects
+
+      - name: Install backend
+        working-directory: /tmp/projects/${{ matrix.name }}/backend
+        run: uv sync --dev
+
+      - name: Run linting
+        working-directory: /tmp/projects/${{ matrix.name }}/backend
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+
+      - name: Run type check
+        working-directory: /tmp/projects/${{ matrix.name }}/backend
+        run: uv run ty check
+
+      - name: Run tests
+        working-directory: /tmp/projects/${{ matrix.name }}/backend
+        env:
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+          SECRET_KEY: test-secret-key-for-ci-that-is-long-enough
+        run: uv run pytest -v
+
+  # The reranker was rendered by no job, which is how a per-request model reload
+  # and a LifespanState key mismatch both survived. The grep step is deliberate:
+  # `ty` reports these as warnings and exits 0, so a type check alone would not
+  # have caught either, and neither would a test that never issues two searches.
+  generate-pg-rag-reranker:
+    name: Template - PostgreSQL + RAG + Reranker
+    needs: [lint, type-check]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+
+      - name: Install generator
+        run: uv sync
+
+      - name: Generate project with cross-encoder reranker
+        run: |
+          mkdir -p /tmp/projects
+          uv run fastapi-fullstack create test_rag_reranker \
+            --database postgresql \
+            --redis \
+            --rag \
+            --reranker cross_encoder \
+            -o /tmp/projects
+
+      - name: Install backend
+        working-directory: /tmp/projects/test_rag_reranker/backend
+        run: uv sync --dev
+
+      - name: Run linting
+        working-directory: /tmp/projects/test_rag_reranker/backend
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+
+      - name: Run type check
+        working-directory: /tmp/projects/test_rag_reranker/backend
+        run: uv run ty check
+
+      - name: Assert the reranker is reused rather than rebuilt per request
+        working-directory: /tmp/projects/test_rag_reranker/backend
+        run: |
+          grep -q 'request.state, "rerank_service"' app/api/deps.py
+          grep -q 'rerank_service: RerankService' app/main.py
+
+      - name: Run tests
+        working-directory: /tmp/projects/test_rag_reranker/backend
+        run: uv run pytest -v
+
   generate-pg-mcp-client:
     name: Template - PostgreSQL + MCP Client
     needs: [lint, type-check]

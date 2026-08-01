@@ -342,7 +342,6 @@ if not enable_caching:
     remove_file(os.path.join(backend_app, "core", "cache.py"))
 
 if not enable_rate_limiting:
-    remove_file(os.path.join(backend_app, "core", "rate_limit.py"))
     remove_dir(os.path.join(backend_app, "services", "rate_limit"))
 
 if not enable_oauth:

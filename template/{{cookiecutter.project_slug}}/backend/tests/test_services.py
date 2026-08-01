@@ -7,6 +7,9 @@ from uuid import uuid4
 import pytest
 
 from app.core.exceptions import AlreadyExistsError, AuthenticationError, NotFoundError
+{%- if cookiecutter.enable_email %}
+from app.core.security import get_password_hash
+{%- endif %}
 from app.schemas.user import UserCreate, UserUpdate
 from app.services.user import UserService
 
@@ -239,7 +242,98 @@ class TestUserServicePostgresql:
             with pytest.raises(NotFoundError):
                 await user_service.delete(uuid4())
 
+{%- if cookiecutter.enable_email %}
 
+
+class TestSingleUseLinks:
+    """Reset and sign-in links must not survive being redeemed.
+
+    Both are JWTs, so they cannot be revoked — a link that stays valid for its
+    whole TTL can be replayed after the legitimate user has already used it,
+    which takes over the account.
+    """
+
+    @pytest.fixture
+    def user_service(self) -> UserService:
+        return UserService(AsyncMock())
+
+    @pytest.mark.anyio
+    async def test_reset_link_cannot_be_replayed(self, user_service: UserService):
+        """Second use of the same reset token is rejected."""
+        user = MockUser(hashed_password=get_password_hash("original"))
+
+        with patch("app.services.user.user_repo") as mock_repo:
+            mock_repo.get_by_email = AsyncMock(return_value=user)
+            issued = await user_service.issue_password_reset_token(user.email)
+            assert issued is not None
+            _, token = issued
+
+            mock_repo.get_by_id = AsyncMock(return_value=user)
+
+            # Redeeming rotates the hash, which is what expires the token.
+            async def _rotate(db, *, db_user, update_data):
+                db_user.hashed_password = update_data["hashed_password"]
+                return db_user
+
+            mock_repo.update = AsyncMock(side_effect=_rotate)
+
+            await user_service.confirm_password_reset(token, "first-new-password")
+
+            with pytest.raises(AuthenticationError):
+                await user_service.confirm_password_reset(token, "attacker-password")
+
+    @pytest.mark.anyio
+    async def test_magic_link_cannot_be_replayed(self, user_service: UserService):
+        """Second use of the same sign-in link is rejected."""
+        user = MockUser()
+        user.magic_link_epoch = 0
+
+        with patch("app.services.user.user_repo") as mock_repo:
+            mock_repo.get_by_email = AsyncMock(return_value=user)
+            issued = await user_service.issue_magic_link_token(user.email)
+            assert issued is not None
+            _, token = issued
+
+            mock_repo.get_by_id = AsyncMock(return_value=user)
+
+            async def _bump(db, *, db_user, update_data):
+                db_user.magic_link_epoch = update_data["magic_link_epoch"]
+                return db_user
+
+            mock_repo.update = AsyncMock(side_effect=_bump)
+
+            await user_service.consume_magic_link_token(token)
+
+            with pytest.raises(AuthenticationError):
+                await user_service.consume_magic_link_token(token)
+
+    @pytest.mark.anyio
+    async def test_redeeming_one_link_invalidates_the_others(
+        self, user_service: UserService
+    ):
+        """Two links outstanding: using the newer one must kill the older one."""
+        user = MockUser()
+        user.magic_link_epoch = 0
+
+        with patch("app.services.user.user_repo") as mock_repo:
+            mock_repo.get_by_email = AsyncMock(return_value=user)
+            first = await user_service.issue_magic_link_token(user.email)
+            second = await user_service.issue_magic_link_token(user.email)
+            assert first is not None and second is not None
+
+            mock_repo.get_by_id = AsyncMock(return_value=user)
+
+            async def _bump(db, *, db_user, update_data):
+                db_user.magic_link_epoch = update_data["magic_link_epoch"]
+                return db_user
+
+            mock_repo.update = AsyncMock(side_effect=_bump)
+
+            await user_service.consume_magic_link_token(second[1])
+
+            with pytest.raises(AuthenticationError):
+                await user_service.consume_magic_link_token(first[1])
+{%- endif %}
 
 
 {%- endif %}

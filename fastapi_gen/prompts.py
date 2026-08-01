@@ -450,7 +450,7 @@ def prompt_integrations(
             checked=True,
         ),
         questionary.Choice(
-            "Rate limiting (slowapi) — optional Redis storage",
+            "Rate limiting (per user/org/IP) — Redis or in-memory storage",
             value="rate_limiting",
             checked=True,
         ),

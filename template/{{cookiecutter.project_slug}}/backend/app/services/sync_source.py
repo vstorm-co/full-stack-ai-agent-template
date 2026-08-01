@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.crypto import decrypt_value, encrypt_value, is_encrypted
 from app.core.exceptions import BadRequestError, NotFoundError
+from app.db.models.sync_log import SyncLog
 from app.db.models.sync_source import SyncSource
 from app.services.rag.connectors import CONNECTOR_REGISTRY
 from app.repositories import sync_log as sync_log_repo
@@ -42,10 +43,24 @@ def _secret_fields(connector_type: str) -> set[str]:
     return {name for name, spec in cls.CONFIG_SCHEMA.items() if spec.get("secret")}
 
 
+def _encryption_key() -> str:
+    """Key used to encrypt connector secrets at rest.
+
+    ``CHANNEL_ENCRYPTION_KEY`` is only declared when a messaging channel
+    (Telegram/Slack) is enabled, so it cannot be the primary: reading or
+    creating a sync source in a RAG-only project raised ``AttributeError``.
+    Prefer it when it exists so projects that already encrypted rows with it
+    keep decrypting, and fall back to ``SECRET_KEY`` — which is what every
+    other caller of ``app.core.crypto`` uses.
+    """
+    return getattr(settings, "CHANNEL_ENCRYPTION_KEY", settings.SECRET_KEY)
+
+
 def _encrypt_config(config: dict, connector_type: str) -> dict:
     secrets = _secret_fields(connector_type)
+    key = _encryption_key()
     return {
-        k: (encrypt_value(v, settings.CHANNEL_ENCRYPTION_KEY)
+        k: (encrypt_value(v, key)
             if k in secrets and isinstance(v, str) and v and not is_encrypted(v)
             else v)
         for k, v in config.items()
@@ -53,8 +68,9 @@ def _encrypt_config(config: dict, connector_type: str) -> dict:
 
 
 def _decrypt_config(config: dict) -> dict:
+    key = _encryption_key()
     return {
-        k: (decrypt_value(v, settings.CHANNEL_ENCRYPTION_KEY) if is_encrypted(v) else v)
+        k: (decrypt_value(v, key) if is_encrypted(v) else v)
         for k, v in config.items()
     }
 
@@ -119,6 +135,10 @@ class SyncSourceService:
             is_active=is_active,
         )
         return SyncSourceList(items=[self._to_read(s) for s in sources], total=len(sources))
+
+    async def list_logs(self, source_id: UUID, limit: int = 20) -> list[SyncLog]:
+        """Most recent sync attempts for one source, newest first."""
+        return await sync_log_repo.get_all(self.db, sync_source_id=source_id, limit=limit)
 
     async def get_source(self, source_id: str) -> SyncSource:
         """Get a sync source by ID.

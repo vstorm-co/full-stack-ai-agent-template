@@ -107,7 +107,6 @@ template/
 - Frontend i18n: PL + EN via `next-intl`, locale-prefixed routes, per-locale TSX for long-form prose
 - Marketing site (gated by `enable_marketing_site`): home, pricing, FAQ, blog, contact, legal
 - Auth flows: password + JWT, password reset, magic link sign-in, OAuth-ready
-- User-scoped API keys (`sk_<43>` format, prefix lookup + bcrypt verify)
 - Admin panel (gated by `enable_admin_panel`): workspace stats, Stripe events browser
 - SEO defaults: `opengraph-image.tsx`, `icon.tsx`, `manifest.ts`, `robots.ts`, `sitemap.ts`
 

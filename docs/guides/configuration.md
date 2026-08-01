@@ -118,7 +118,7 @@ Enable during project generation:
 ```bash
 fastapi-fullstack new
 # ✓ Redis (caching/sessions)
-# ✓ Rate limiting (slowapi)
+# ✓ Rate limiting (per user/org/IP, Redis or in-memory)
 # ✓ Pagination
 # ✓ Admin Panel (SQLAdmin)
 # ✓ Webhooks

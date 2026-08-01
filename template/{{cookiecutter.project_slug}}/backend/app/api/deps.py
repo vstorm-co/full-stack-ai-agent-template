@@ -512,6 +512,11 @@ async def get_current_user_ws(
     Tokens in query strings are NOT accepted — they leak into logs and
     Referer headers.
 
+    The token is validated by the same authority as ``get_current_user``: the
+    IdP's keys under delegated auth, this backend's ``SECRET_KEY`` otherwise.
+    The two must not diverge — a WebSocket that trusts a different issuer than
+    the REST API is an authentication bypass on whichever side is weaker.
+
     Raises:
         WebSocketException: If token is invalid or user not found. Raising the
             WebSocket-native exception lets Starlette close the handshake cleanly
@@ -527,6 +532,35 @@ async def get_current_user_ws(
     if not auth_token:
         raise WebSocketException(code=4001, reason="Missing authentication token")
 
+{%- if cookiecutter.use_delegated_auth %}
+    payload = verify_idp_token(auth_token)
+    if payload is None:
+        raise WebSocketException(code=4001, reason="Invalid or expired token")
+
+    # No `type` check here: an external IdP does not mint our access/refresh
+    # distinction. The audience and issuer checks in verify_idp_token are what
+    # constrain which tokens this API accepts.
+    external_id = payload.get(settings.IDP_USER_ID_CLAIM)
+    if not external_id:
+        raise WebSocketException(code=4001, reason="Invalid token payload")
+
+    async with get_db_context() as db:
+        user_service = UserService(db)
+        user = await user_service.get_or_create_from_idp(
+            external_user_id=str(external_id),
+            email=payload.get(settings.IDP_EMAIL_CLAIM) or f"{external_id}@idp.local",
+            full_name=payload.get(settings.IDP_NAME_CLAIM),
+        )
+
+        if not user.is_active:
+            raise WebSocketException(code=4001, reason="User account is disabled")
+
+        # Eagerly load all columns, then detach from session to avoid
+        # "instance not bound to a Session" errors after the context manager exits
+        await db.refresh(user)
+        db.expunge(user)
+        return user
+{%- else %}
     payload = verify_token(auth_token)
     if payload is None:
         raise WebSocketException(code=4001, reason="Invalid or expired token")
@@ -553,6 +587,7 @@ async def get_current_user_ws(
         await db.refresh(user)
         db.expunge(user)
         return user
+{%- endif %}
 
 
 CurrentUserWS = Annotated[User, Depends(get_current_user_ws)]
@@ -639,18 +674,34 @@ def get_vectorstore(request: Request, embedder: EmbeddingSvc) -> BaseVectorStore
 
 VectorStoreSvc = Annotated[BaseVectorStore, Depends(get_vectorstore)]
 
-def get_retrieval_service(vector_store: VectorStoreSvc) -> RetrievalService:
+{%- if cookiecutter.enable_reranker %}
+def get_rerank_service(request: Request) -> RerankService:
+    """Get the reranker warmed at startup, or build one if warmup failed.
+
+    Reusing the lifespan instance is not an optimisation — a cross-encoder
+    reranker holds its model on the instance and loads it lazily, so a
+    per-request service reloads the model inside the request.
+    """
+    if hasattr(request.state, "rerank_service"):
+        return request.state.rerank_service  # type: ignore[no-any-return]
+    return RerankService(settings=settings.rag)
+
+RerankSvc = Annotated[RerankService, Depends(get_rerank_service)]
+
+def get_retrieval_service(
+    vector_store: VectorStoreSvc, rerank_service: RerankSvc
+) -> RetrievalService:
     """Create RetrievalService instance."""
-    {%- if cookiecutter.enable_reranker %}
-    rerank_service = RerankService(settings=settings.rag)
     return RetrievalService(
         vector_store=vector_store,
         settings=settings.rag,
         rerank_service=rerank_service,
     )
-    {%- else %}
+{%- else %}
+def get_retrieval_service(vector_store: VectorStoreSvc) -> RetrievalService:
+    """Create RetrievalService instance."""
     return RetrievalService(vector_store=vector_store, settings=settings.rag)
-    {%- endif %}
+{%- endif %}
 
 RetrievalSvc = Annotated[RetrievalService, Depends(get_retrieval_service)]
 

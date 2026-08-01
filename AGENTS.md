@@ -13,7 +13,7 @@ uv sync                    # Install dependencies
 uv run pytest              # Run tests
 uv run ruff check . --fix  # Lint
 uv run ruff format .       # Format
-uv run mypy fastapi_gen    # Type check
+uv run ty check            # Type check
 ```
 
 ## CLI

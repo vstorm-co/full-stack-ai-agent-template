@@ -25,11 +25,10 @@ Configuration via settings:
 """
 
 import logging
-from collections.abc import Callable
 from typing import Any, TypedDict
 
 from deepagents import create_deep_agent
-from deepagents.backends import StateBackend
+from deepagents.backends import BackendProtocol, StateBackend
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 {%- if cookiecutter.enable_rag or cookiecutter.enable_web_search or cookiecutter.web_fetch_tool or cookiecutter.enable_charts %}
@@ -307,13 +306,17 @@ class DeepAgentsAssistant:
         self._graph = None
         self._checkpointer = MemorySaver()
 
-    def _create_backend(self) -> Callable:
+    def _create_backend(self) -> BackendProtocol:
         """Create the file-storage backend.
 
+        `create_deep_agent` takes a backend instance, and StateBackend reads the
+        current run's state out of the LangGraph config itself, so it needs no
+        constructor argument.
+
         Returns:
-            BackendFactory (callable) for StateBackend (in-memory, ephemeral).
+            StateBackend (in-memory file state, ephemeral, no external deps).
         """
-        return lambda rt: StateBackend(rt)
+        return StateBackend()
 
     def _create_model(self) -> BaseChatModel:
         """Create the LLM model for DeepAgents."""

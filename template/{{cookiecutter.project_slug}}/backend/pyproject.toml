@@ -75,7 +75,13 @@ dependencies = [
     "aiosmtplib>=3.0.0",
 {%- endif %}
 {%- if cookiecutter.enable_pagination %}
-    "fastapi-pagination>=0.12.31",
+    # 0.15.16 is broken against every FastAPI without the private _get_body_field
+    # helpers (i.e. anything below 0.140.5, which includes the pin above): its
+    # ImportError fallback binds the public get_body_field but still sets
+    # _get_body_field_new_signature = True, so add_pagination() calls it with a
+    # body_params kwarg it does not accept and the app dies on import. Lift the
+    # cap once upstream fixes the fallback or the FastAPI pin moves past 0.140.5.
+    "fastapi-pagination>=0.12.31,<0.15.16",
 {%- endif %}
 {%- if cookiecutter.enable_sentry %}
     "sentry-sdk[fastapi]>=2.53.0",
@@ -154,7 +160,11 @@ dependencies = [
     "langgraph-checkpoint>=4.0.0",
 {%- endif %}
 {%- if cookiecutter.use_deepagents %}
-    "deepagents>=0.1.0",
+    # Capped: the backend API is still moving between minors (0.7 dropped the
+    # runtime argument from StateBackend and switched create_deep_agent to take
+    # an instance instead of a factory), so an unbounded pin breaks generation
+    # on release day.
+    "deepagents>=0.7.1,<0.8",
 {%- if cookiecutter.use_openai %}
     "langchain-openai>=1.1.0",
 {%- endif %}

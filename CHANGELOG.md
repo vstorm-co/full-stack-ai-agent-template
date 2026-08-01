@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **Every generated project with pagination failed to start** — `fastapi-pagination` 0.15.16 probes for FastAPI's private `_get_body_field` / `_get_flat_body_params` helpers to decide which signature to call, and its `ImportError` fallback binds the *public* `get_body_field` while still setting `_get_body_field_new_signature = True`. On any FastAPI below 0.140.5 — which the template's `fastapi>=0.135.3,<0.137` pin guarantees — `add_pagination(app)` therefore calls it with a `body_params` kwarg it does not accept, and `app.main` raises `TypeError` on import. Nothing in the generated project was wrong; the release landed 2026-07-28 and took every template CI job with it. Pinned `fastapi-pagination<0.15.16` until upstream fixes the fallback or the FastAPI pin moves past 0.140.5
+- **The DeepAgents backend was constructed with an argument it no longer takes** — `deepagents` 0.7 dropped the runtime parameter from `StateBackend.__init__` and changed `create_deep_agent` to accept a backend *instance* rather than a factory, so `lambda rt: StateBackend(rt)` was wrong twice over: `ty` rejected the call, and the first agent invocation would have raised `TypeError`. `_create_backend` now returns `StateBackend()` typed as `BackendProtocol`, and the dependency is capped `<0.8` — that API has moved between minors, and unbounded pins turn an upstream release into a broken generation
+- **`RedisClient.get` leaned on a `type: ignore` that stopped applying** — `connect()` passes `decode_responses=True`, but redis-py's annotation cannot express that and still admits `bytes`, so the declared `str | None` was a claim the type checker had no reason to accept. The value is now decoded explicitly instead of being asserted through a suppression
+
 ## [0.2.17] - 2026-07-25
 
 ### Added

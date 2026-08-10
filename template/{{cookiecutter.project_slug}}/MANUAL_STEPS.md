@@ -60,6 +60,14 @@ These are used to sign JWTs and authenticate service-to-service calls. Rotate at
 - [ ] Set `OPENROUTER_API_KEY` in `.env`.
 {%- endif %}
 
+{%- if cookiecutter.use_orcarouter %}
+
+## OrcaRouter
+
+- [ ] Create API key at https://www.orcarouter.ai.
+- [ ] Set `ORCAROUTER_API_KEY` in `.env`.
+{%- endif %}
+
 {%- if cookiecutter.enable_oauth_google %}
 
 ## Google OAuth

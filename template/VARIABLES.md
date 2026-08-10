@@ -217,7 +217,7 @@ These variables are set automatically by the generator.
 | `use_qdrant` | bool | `false` | Qdrant vector database is selected | Computed from `vector_store` |
 | `use_chromadb` | bool | `false` | ChromaDB vector database is selected (embedded mode) | Computed from `vector_store` |
 | `use_pgvector` | bool | `false` | pgvector (PostgreSQL extension) is selected | Computed from `vector_store`, requires PostgreSQL |
-| `embedding_provider` | enum | auto-derived | Embedding model provider. Auto-derived from LLM provider: OpenAI→openai, Anthropic→voyage, OpenRouter→sentence_transformers | Auto-derived from `llm_provider` |
+| `embedding_provider` | enum | auto-derived | Embedding model provider. Auto-derived from LLM provider: OpenAI→openai, Anthropic→voyage, Google→gemini, OpenRouter→openai, OrcaRouter→sentence_transformers | Auto-derived from `llm_provider` |
 | `use_openai_embeddings` | bool | `false` | OpenAI embeddings are selected | Computed from `llm_provider` |
 | `use_voyage_embeddings` | bool | `false` | Voyage AI embeddings are selected | Computed from `llm_provider` |
 | `use_gemini_embeddings` | bool | `false` | Google Gemini multimodal embeddings are selected | Computed from `llm_provider` |
@@ -238,7 +238,7 @@ These variables are set automatically by the generator.
 **Notes:**
 
 - RAG requires a vector database (Milvus, Qdrant, ChromaDB, or pgvector)
-- Embedding provider is auto-derived from LLM provider (OpenAI→openai, Anthropic→voyage, Google→gemini, OpenRouter→sentence_transformers)
+- Embedding provider is auto-derived from LLM provider (OpenAI→openai, Anthropic→voyage, Google→gemini, OpenRouter→openai, OrcaRouter→sentence_transformers)
 - Reranker is enabled via `--reranker` CLI flag (cohere, cross_encoder)
 - Cohere and Cross-Encoder rerankers improve search result relevance
 - LlamaParse requires an API key; PyMuPDF is free and local (with tables, OCR fallback)
@@ -275,11 +275,12 @@ These variables are set automatically by the generator.
 | `use_deepagents` | bool | `false` | DeepAgents (agentic coding, LangChain) is selected | Computed from `ai_framework` |
 | `use_pydantic_deep` | bool | `false` | PydanticDeep (deep agentic coding, Docker sandbox) is selected | Computed from `ai_framework` |
 | `sandbox_backend` | enum | `"state"` | Agent sandbox environment for DeepAgents/PydanticDeep. Values: `state`, `daytona` | Only used when `use_deepagents` or `use_pydantic_deep` is true |
-| `llm_provider` | enum | `"openai"` | LLM provider. Values: `openai`, `anthropic`, `google`, `openrouter` | - |
+| `llm_provider` | enum | `"openai"` | LLM provider. Values: `openai`, `anthropic`, `google`, `openrouter`, `orcarouter` | - |
 | `use_openai` | bool | `true` | OpenAI is selected | Computed from `llm_provider` |
 | `use_anthropic` | bool | `false` | Anthropic is selected | Computed from `llm_provider` |
 | `use_google` | bool | `false` | Google Gemini is selected | Computed from `llm_provider` |
 | `use_openrouter` | bool | `false` | OpenRouter is selected | Computed from `llm_provider` |
+| `use_orcarouter` | bool | `false` | OrcaRouter is selected | Computed from `llm_provider` |
 | `enable_langsmith` | bool | `false` | Enable LangSmith observability (tracing, prompt management) | Requires LangChain, LangGraph, or DeepAgents |
 | `enable_web_search` | bool | `false` | Web search. PydanticAI/PydanticDeep use the model-native WebSearch capability; LangChain/LangGraph/DeepAgents use a Tavily-backed tool (needs `TAVILY_API_KEY`) | Requires an AI framework |
 | `enable_web_fetch` | bool | `false` | Web fetch. PydanticAI/PydanticDeep use the model-native WebFetch capability; LangChain/LangGraph/DeepAgents use the portable `fetch_url` tool | Requires an AI framework |
@@ -298,7 +299,7 @@ These variables are set automatically by the generator.
 - PydanticAI uses `iter()` for full event streaming over WebSocket
 - LangGraph implements a ReAct (Reasoning + Acting) agent pattern with graph-based architecture
 - DeepAgents provides an agentic coding assistant with built-in filesystem tools (ls, read_file, write_file, edit_file, glob, grep) and task management
-- OpenRouter with LangChain, LangGraph, or DeepAgents is not supported
+- OpenRouter and OrcaRouter with LangChain, LangGraph, or DeepAgents is not supported
 
 ---
 

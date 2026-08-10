@@ -512,7 +512,7 @@ class TestOptionCombinationValidation:
                 ai_framework=AIFrameworkType.LANGCHAIN,
                 background_tasks=BackgroundTaskType.NONE,
             )
-        assert "OpenRouter is only supported with PydanticAI" in str(exc_info.value)
+        assert "OpenRouter/OrcaRouter is only supported with PydanticAI or PydanticDeep" in str(exc_info.value)
 
     def test_openrouter_with_langgraph_raises_validation_error(self) -> None:
         """Test that OpenRouter + LangGraph combination is rejected."""
@@ -523,7 +523,7 @@ class TestOptionCombinationValidation:
                 ai_framework=AIFrameworkType.LANGGRAPH,
                 background_tasks=BackgroundTaskType.NONE,
             )
-        assert "OpenRouter is only supported with PydanticAI" in str(exc_info.value)
+        assert "OpenRouter/OrcaRouter is only supported with PydanticAI or PydanticDeep" in str(exc_info.value)
 
     def test_openrouter_with_pydanticai_is_valid(self) -> None:
         """Test that OpenRouter + PydanticAI combination is accepted."""
@@ -545,7 +545,7 @@ class TestOptionCombinationValidation:
                 ai_framework=AIFrameworkType.DEEPAGENTS,
                 background_tasks=BackgroundTaskType.NONE,
             )
-        assert "OpenRouter is only supported with PydanticAI" in str(exc_info.value)
+        assert "OpenRouter/OrcaRouter is only supported with PydanticAI or PydanticDeep" in str(exc_info.value)
 
     def test_deepagents_with_openai_is_valid(self) -> None:
         """Test that DeepAgents + OpenAI combination is accepted."""
@@ -608,6 +608,74 @@ class TestOptionCombinationValidation:
         )
         assert config.llm_provider == LLMProviderType.OPENROUTER
         assert config.ai_framework == AIFrameworkType.PYDANTIC_DEEP
+
+    def test_orcarouter_with_langchain_raises_validation_error(self) -> None:
+        """Test that OrcaRouter + LangChain combination is rejected."""
+        with pytest.raises(ValidationError) as exc_info:
+            ProjectConfig(
+                project_name="test",
+                llm_provider=LLMProviderType.ORCAROUTER,
+                ai_framework=AIFrameworkType.LANGCHAIN,
+                background_tasks=BackgroundTaskType.NONE,
+            )
+        assert "OpenRouter/OrcaRouter is only supported with PydanticAI or PydanticDeep" in str(exc_info.value)
+
+    def test_orcarouter_with_langgraph_raises_validation_error(self) -> None:
+        """Test that OrcaRouter + LangGraph combination is rejected."""
+        with pytest.raises(ValidationError) as exc_info:
+            ProjectConfig(
+                project_name="test",
+                llm_provider=LLMProviderType.ORCAROUTER,
+                ai_framework=AIFrameworkType.LANGGRAPH,
+                background_tasks=BackgroundTaskType.NONE,
+            )
+        assert "OpenRouter/OrcaRouter is only supported with PydanticAI or PydanticDeep" in str(exc_info.value)
+
+    def test_orcarouter_with_deepagents_raises_validation_error(self) -> None:
+        """Test that OrcaRouter + DeepAgents combination is rejected."""
+        with pytest.raises(ValidationError) as exc_info:
+            ProjectConfig(
+                project_name="test",
+                llm_provider=LLMProviderType.ORCAROUTER,
+                ai_framework=AIFrameworkType.DEEPAGENTS,
+                background_tasks=BackgroundTaskType.NONE,
+            )
+        assert "OpenRouter/OrcaRouter is only supported with PydanticAI or PydanticDeep" in str(exc_info.value)
+
+    def test_orcarouter_with_pydanticai_is_valid(self) -> None:
+        """Test that OrcaRouter + PydanticAI combination is accepted."""
+        config = ProjectConfig(
+            project_name="test",
+            llm_provider=LLMProviderType.ORCAROUTER,
+            ai_framework=AIFrameworkType.PYDANTIC_AI,
+            background_tasks=BackgroundTaskType.NONE,
+        )
+        assert config.llm_provider == LLMProviderType.ORCAROUTER
+        assert config.ai_framework == AIFrameworkType.PYDANTIC_AI
+
+    def test_orcarouter_with_pydantic_deep_is_valid(self) -> None:
+        """Test that OrcaRouter + PydanticDeep combination is accepted."""
+        config = ProjectConfig(
+            project_name="test",
+            llm_provider=LLMProviderType.ORCAROUTER,
+            ai_framework=AIFrameworkType.PYDANTIC_DEEP,
+            background_tasks=BackgroundTaskType.NONE,
+        )
+        assert config.llm_provider == LLMProviderType.ORCAROUTER
+        assert config.ai_framework == AIFrameworkType.PYDANTIC_DEEP
+
+    def test_orcarouter_context_flags(self) -> None:
+        """Test that OrcaRouter sets correct context flags."""
+        config = ProjectConfig(
+            project_name="test",
+            llm_provider=LLMProviderType.ORCAROUTER,
+            ai_framework=AIFrameworkType.PYDANTIC_AI,
+            background_tasks=BackgroundTaskType.NONE,
+        )
+        context = config.to_cookiecutter_context()
+
+        assert context["use_orcarouter"] is True
+        assert context["use_openrouter"] is False
 
     def test_langsmith_with_pydantic_deep_raises_error(self) -> None:
         """Test that LangSmith + PydanticDeep is rejected (pydantic-deep uses Logfire)."""

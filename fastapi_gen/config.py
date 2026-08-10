@@ -96,6 +96,7 @@ class LLMProviderType(StrEnum):
     ANTHROPIC = "anthropic"
     GOOGLE = "google"
     OPENROUTER = "openrouter"
+    ORCAROUTER = "orcarouter"
     ALL = "all"
 
 
@@ -450,7 +451,7 @@ class ProjectConfig(BaseModel):
             raise ValueError("Caching requires Redis to be enabled")
         if (
             self.ai_framework != AIFrameworkType.NONE
-            and self.llm_provider == LLMProviderType.OPENROUTER
+            and self.llm_provider in (LLMProviderType.OPENROUTER, LLMProviderType.ORCAROUTER)
             and self.ai_framework
             not in (
                 AIFrameworkType.PYDANTIC_AI,
@@ -458,7 +459,7 @@ class ProjectConfig(BaseModel):
             )
         ):
             raise ValueError(
-                f"OpenRouter is only supported with PydanticAI or PydanticDeep, "
+                f"OpenRouter/OrcaRouter is only supported with PydanticAI or PydanticDeep, "
                 f"not {self.ai_framework.value}"
             )
         if (
@@ -809,6 +810,8 @@ class ProjectConfig(BaseModel):
             "use_google": self.llm_provider in (LLMProviderType.GOOGLE, LLMProviderType.ALL),
             "use_openrouter": self.llm_provider
             in (LLMProviderType.OPENROUTER, LLMProviderType.ALL),
+            "use_orcarouter": self.llm_provider
+            in (LLMProviderType.ORCAROUTER, LLMProviderType.ALL),
             "use_all_providers": self.llm_provider == LLMProviderType.ALL,
             # Legacy fixed values (always enabled, not user-configurable)
             # AI
@@ -900,6 +903,8 @@ class ProjectConfig(BaseModel):
                 if self.llm_provider == LLMProviderType.ANTHROPIC
                 else EmbeddingProviderType.GEMINI.value
                 if self.llm_provider == LLMProviderType.GOOGLE
+                else EmbeddingProviderType.SENTENCE_TRANSFORMERS.value
+                if self.llm_provider == LLMProviderType.ORCAROUTER
                 else EmbeddingProviderType.OPENAI.value
             ),
             "use_openai_embeddings": self.rag_features.enable_rag
@@ -907,12 +912,14 @@ class ProjectConfig(BaseModel):
             not in (
                 LLMProviderType.ANTHROPIC,
                 LLMProviderType.GOOGLE,
+                LLMProviderType.ORCAROUTER,
             ),
             "use_voyage_embeddings": self.rag_features.enable_rag
             and self.llm_provider == LLMProviderType.ANTHROPIC,
             "use_gemini_embeddings": self.rag_features.enable_rag
             and self.llm_provider == LLMProviderType.GOOGLE,
-            "use_sentence_transformers": False,
+            "use_sentence_transformers": self.rag_features.enable_rag
+            and self.llm_provider == LLMProviderType.ORCAROUTER,
             "enable_reranker": self.rag_features.enable_rag
             and self.rag_features.reranker_type != RerankerType.NONE,
             "use_cohere_reranker": self.rag_features.enable_rag

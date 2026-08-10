@@ -101,6 +101,21 @@ class TestEmbeddingProviderAutoDerivation:
             == EmbeddingProviderType.OPENAI
         )
 
+    def test_orcarouter_derives_sentence_transformers_embeddings(self) -> None:
+        """Test that OrcaRouter LLM provider derives SentenceTransformers embeddings."""
+        config = ProjectConfig(
+            project_name="test",
+            llm_provider=LLMProviderType.ORCAROUTER,
+            rag_features=RAGFeatures(enable_rag=True),
+            background_tasks=BackgroundTaskType.CELERY,
+            enable_redis=True,
+            enable_docker=True,
+        )
+        assert (
+            config.to_cookiecutter_context()["embedding_provider"]
+            == EmbeddingProviderType.SENTENCE_TRANSFORMERS
+        )
+
     def test_openai_derives_openai_embeddings(self) -> None:
         """Test that OpenAI LLM provider derives OpenAI embeddings."""
         config = ProjectConfig(
@@ -223,6 +238,22 @@ class TestRAGCookiecutterContext:
 
         assert context["use_sentence_transformers"] is False
         assert context["use_openai_embeddings"] is True
+        assert context["use_voyage_embeddings"] is False
+
+    def test_orcarouter_derives_sentence_transformers_embeddings_context_flags(self) -> None:
+        """Test OrcaRouter LLM provider derives SentenceTransformers (not OpenAI)."""
+        config = ProjectConfig(
+            project_name="test",
+            llm_provider=LLMProviderType.ORCAROUTER,
+            rag_features=RAGFeatures(enable_rag=True),
+            background_tasks=BackgroundTaskType.CELERY,
+            enable_redis=True,
+            enable_docker=True,
+        )
+        context = config.to_cookiecutter_context()
+
+        assert context["use_sentence_transformers"] is True
+        assert context["use_openai_embeddings"] is False
         assert context["use_voyage_embeddings"] is False
 
     def test_reranker_enabled_context_flags(self) -> None:

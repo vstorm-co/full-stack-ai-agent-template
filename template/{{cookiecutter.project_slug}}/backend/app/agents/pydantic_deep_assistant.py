@@ -56,6 +56,7 @@ _PROVIDER_PREFIXES: dict[str, str] = {
     "anthropic": "anthropic",
     "google": "google-gla",  # Google AI (Gemini) via GOOGLE_API_KEY
     "openrouter": "openrouter",
+    "orcarouter": "openai-responses",
 }
 
 
@@ -181,7 +182,26 @@ class PydanticDeepAssistant:
     def _build_agent_and_deps(self) -> tuple[Agent[DeepAgentDeps, str], DeepAgentDeps]:
         """Instantiate the pydantic-deep agent and its dependencies."""
         backend = self._backend_override if self._backend_override is not None else self._create_backend()
-        model_str = self._get_model_string()
+{%- if cookiecutter.use_orcarouter %}
+        # OrcaRouter is OpenAI-compatible with a custom base URL, so build the
+        # model object directly — a model string would resolve to OPENAI_API_KEY
+        # and api.openai.com instead of the OrcaRouter endpoint.
+        from pydantic_ai.models.openai import OpenAIResponsesModel
+        from pydantic_ai.providers.openai import OpenAIProvider
+
+        if settings.LLM_PROVIDER == "orcarouter" or self.model_name.startswith("orcarouter/"):
+            model = OpenAIResponsesModel(
+                self.model_name.removeprefix("orcarouter/"),
+                provider=OpenAIProvider(
+                    api_key=settings.ORCAROUTER_API_KEY,
+                    base_url="https://api.orcarouter.ai/v1",
+                ),
+            )
+        else:
+            model = self._get_model_string()
+{%- else %}
+        model = self._get_model_string()
+{%- endif %}
         history_path = (
             self._history_messages_path
             if self._history_messages_path is not None
@@ -190,7 +210,7 @@ class PydanticDeepAssistant:
 
         logger.info(
             "Creating PydanticDeep agent — model=%s backend=%s conversation=%s",
-            model_str,
+            model,
             type(backend).__name__,
             self.conversation_id,
         )
@@ -208,7 +228,7 @@ class PydanticDeepAssistant:
 {%- endif %}
 
         agent = create_deep_agent(
-            model=model_str,
+            model=model,
             backend=backend,
             instructions=self._get_system_prompt(),
             # Per-conversation history persistence

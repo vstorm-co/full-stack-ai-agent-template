@@ -97,7 +97,7 @@ CROSS_ENCODER_MODEL=...    # Model name (default: cross-encoder/ms-marco-MiniLM-
 | Option | Values | Description |
 |--------|--------|-------------|
 | `enable_rag` | bool | Enable RAG functionality |
-| `embedding_provider` | auto-derived | Embedding model provider (auto-derived from LLM provider: OpenAI→openai, Anthropic→voyage, OpenRouter→sentence_transformers) |
+| `embedding_provider` | auto-derived | Embedding model provider (auto-derived from LLM provider: OpenAI→openai, Anthropic→voyage, Google→gemini, OpenRouter→openai, OrcaRouter→sentence_transformers) |
 | `pdf_parser` | `pymupdf`, `llamaparse` | PDF parsing method (set via `--pdf-parser` CLI flag) |
 | `enable_reranker` | bool | Enable reranking (set via `--reranker` CLI flag: none/cohere/cross_encoder) |
 

@@ -714,7 +714,7 @@ They also ship a ready-to-use **`.claude/` toolkit** that adapts to the options 
 ### 🤖 AI/LLM First
 
 - **5 AI Frameworks** - [PydanticAI](https://ai.pydantic.dev), [PydanticDeep](https://github.com/vstorm-co/pydantic-deep), [LangChain](https://python.langchain.com), [LangGraph](https://langchain-ai.github.io/langgraph/), [DeepAgents](https://github.com/vstorm-co/pydantic-deepagents)
-- **4 LLM Providers** - OpenAI, Anthropic, Google Gemini, OpenRouter
+- **5 LLM Providers** - OpenAI, Anthropic, Google Gemini, OpenRouter, OrcaRouter
 - **RAG** - Document ingestion, vector search, reranking (Milvus, Qdrant, ChromaDB, pgvector)
 - **WebSocket Streaming** - Real-time responses with full event access
 - **Rich Chat UI** - Specialized tool-call cards (web search, knowledge base, Python, charts, skills), live subagent feed, citation sources panel, plan/task checklist, reasoning view, and in-chat file previews
@@ -754,7 +754,7 @@ They also ship a ready-to-use **`.claude/` toolkit** that adapts to the options 
 | Category | Integrations |
 |----------|-------------|
 | **AI Frameworks** | PydanticAI, PydanticDeep, LangChain, LangGraph, DeepAgents |
-| **LLM Providers** | OpenAI, Anthropic, Google Gemini, OpenRouter |
+| **LLM Providers** | OpenAI, Anthropic, Google Gemini, OpenRouter, OrcaRouter |
 | **RAG / Vector Stores** | Milvus, Qdrant, ChromaDB, pgvector |
 | **RAG Sources** | Local files, API upload, Google Drive, S3/MinIO, Sync Sources (per-org UI, scheduled) |
 | **Embeddings** | OpenAI, Voyage, Gemini (multimodal), SentenceTransformers |
@@ -786,7 +786,7 @@ They also ship a ready-to-use **`.claude/` toolkit** that adapts to the options 
 │  │  PydanticAI · LangChain · LangGraph · DeepAgents                │     │
 │  │  ────────────────────────────────────────────────────────────   │     │
 │  │  Tools: datetime · web_search (Tavily) · search_knowledge_base  │     │
-│  │  Providers: OpenAI · Anthropic · Gemini · OpenRouter            │     │
+│  │  Providers: OpenAI · Anthropic · Gemini · OpenRouter · OrcaRouter │     │
 │  └─────────────────────────────────────────────────────────────────┘     │
 │                                                                          │
 │  ┌─────────────────────────────────────────────────────────────────┐     │
@@ -890,7 +890,7 @@ See [Architecture Documentation](https://github.com/vstorm-co/full-stack-ai-agen
 
 ## 🤖 AI Agent
 
-Choose from **5 AI frameworks** and **4 LLM providers** when generating your project:
+Choose from **5 AI frameworks** and **5 LLM providers** when generating your project:
 
 ```bash
 # PydanticAI with OpenAI (default)

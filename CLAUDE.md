@@ -92,7 +92,7 @@ template/
 ## Key Design Decisions
 
 - 5 AI frameworks: PydanticAI, PydanticDeep, LangChain, LangGraph, DeepAgents
-- 4 LLM providers: OpenAI, Anthropic, Google Gemini, OpenRouter
+- 5 LLM providers: OpenAI, Anthropic, Google Gemini, OpenRouter, OrcaRouter
 - 4 vector store backends: Milvus, Qdrant, ChromaDB, pgvector
 - 4 embedding providers: OpenAI, Voyage, Gemini (multimodal), SentenceTransformers
 - RAG document sources: local files (CLI), Google Drive, S3/MinIO

@@ -81,6 +81,7 @@
   "use_anthropic": false,
   "use_google": false,
   "use_openrouter": false,
+  "use_orcarouter": false,
   "use_all_providers": false,
   "use_ai": true,
   "enable_conversation_persistence": true,

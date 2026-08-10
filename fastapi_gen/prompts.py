@@ -786,10 +786,13 @@ def prompt_llm_provider(ai_framework: AIFrameworkType) -> LLMProviderType:
         questionary.Choice("Google Gemini (gemini-2.5-flash)", value=LLMProviderType.GOOGLE),
     ]
 
-    # OpenRouter available for PydanticAI and PydanticDeep (both use pydantic-ai)
+    # OpenRouter and OrcaRouter available for PydanticAI and PydanticDeep (both use pydantic-ai)
     if ai_framework in (AIFrameworkType.PYDANTIC_AI, AIFrameworkType.PYDANTIC_DEEP):
         choices.append(
             questionary.Choice("OpenRouter (multi-provider)", value=LLMProviderType.OPENROUTER)
+        )
+        choices.append(
+            questionary.Choice("OrcaRouter (model routing)", value=LLMProviderType.ORCAROUTER)
         )
 
     return cast(

@@ -39,6 +39,10 @@ from pydantic_ai.providers.google import GoogleProvider
 from pydantic_ai.models.openrouter import OpenRouterModel
 from pydantic_ai.providers.openrouter import OpenRouterProvider
 {%- endif %}
+{%- if cookiecutter.use_orcarouter and not cookiecutter.use_openai %}
+from pydantic_ai.models.openai import OpenAIResponsesModel
+from pydantic_ai.providers.openai import OpenAIProvider
+{%- endif %}
 from pydantic_ai.settings import ModelSettings
 
 from app.agents.prompts import DEFAULT_SYSTEM_PROMPT
@@ -89,6 +93,7 @@ def _build_model(model_name: str) -> "OpenAIResponsesModel | AnthropicModel | Go
       - anthropic/claude-*                      → Anthropic
       - google/gemini-*                         → Google
       - openrouter/<provider>/<model>           → OpenRouter
+      - orcarouter/<provider>/<model>           → OrcaRouter (OpenAI-compatible)
       - bare names (no slash) → fall back to OpenAI for backwards compat.
     """
     name = model_name or settings.AI_MODEL
@@ -108,6 +113,14 @@ def _build_model(model_name: str) -> "OpenAIResponsesModel | AnthropicModel | Go
         if prefix == "openrouter":
             return OpenRouterModel(
                 rest, provider=OpenRouterProvider(api_key=settings.OPENROUTER_API_KEY)
+            )
+        if prefix == "orcarouter":
+            return OpenAIResponsesModel(
+                rest,
+                provider=OpenAIProvider(
+                    api_key=settings.ORCAROUTER_API_KEY,
+                    base_url="https://api.orcarouter.ai/v1",
+                ),
             )
     # Bare model name — best-effort sniff by family.
     if lowered.startswith(("claude-", "claude/")):
@@ -146,6 +159,17 @@ def _build_model(model_name: str) -> OpenRouterModel:
     return OpenRouterModel(
         model_name or settings.AI_MODEL,
         provider=OpenRouterProvider(api_key=settings.OPENROUTER_API_KEY),
+    )
+{%- elif cookiecutter.use_orcarouter %}
+
+
+def _build_model(model_name: str) -> OpenAIResponsesModel:
+    return OpenAIResponsesModel(
+        model_name or settings.AI_MODEL,
+        provider=OpenAIProvider(
+            api_key=settings.ORCAROUTER_API_KEY,
+            base_url="https://api.orcarouter.ai/v1",
+        ),
     )
 {%- endif %}
 

@@ -185,6 +185,7 @@ async def readiness_probe(
             "anthropic": "ANTHROPIC_API_KEY",
             "google": "GOOGLE_API_KEY",
             "openrouter": "OPENROUTER_API_KEY",
+            "orcarouter": "ORCAROUTER_API_KEY",
         }.get(llm_provider)
         api_key = getattr(settings, key_field, None) if key_field else None
         checks["llm"] = {

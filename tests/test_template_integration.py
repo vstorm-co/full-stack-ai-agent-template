@@ -238,6 +238,12 @@ MATRIX_CONFIGS: dict[str, dict] = {
         llm_provider=LLMProviderType.OPENROUTER,
         background_tasks=BackgroundTaskType.NONE,
     ),
+    "orcarouter": dict(
+        database=DatabaseType.POSTGRESQL,
+        ai_framework=AIFrameworkType.PYDANTIC_AI,
+        llm_provider=LLMProviderType.ORCAROUTER,
+        background_tasks=BackgroundTaskType.NONE,
+    ),
     "anthropic": dict(
         database=DatabaseType.POSTGRESQL,
         ai_framework=AIFrameworkType.PYDANTIC_AI,

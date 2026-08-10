@@ -133,6 +133,10 @@ Computed properties:
 | `OPENROUTER_API_KEY` | (empty) | OpenRouter API key |
 | `AI_MODEL` | `anthropic/claude-opus-4-7` | Default LLM model for chat |
 {%- endif %}
+{%- if cookiecutter.use_orcarouter %}
+| `ORCAROUTER_API_KEY` | (empty) | OrcaRouter API key |
+| `AI_MODEL` | `anthropic/claude-sonnet-4.6` | Default LLM model for chat |
+{%- endif %}
 | `AI_TEMPERATURE` | `0.7` | LLM temperature (0.0 = deterministic, 1.0 = creative) |
 | `AI_AVAILABLE_MODELS` | (auto-configured) | JSON list of models shown in the UI model selector |
 | `AI_FRAMEWORK` | `{{ cookiecutter.ai_framework }}` | AI framework (informational) |
@@ -488,4 +492,7 @@ Before deploying to production, ensure these variables are properly set:
 {%- endif %}
 {%- if cookiecutter.use_openrouter %}
 8. `OPENROUTER_API_KEY` -- Your production API key
+{%- endif %}
+{%- if cookiecutter.use_orcarouter %}
+8. `ORCAROUTER_API_KEY` -- Your production API key
 {%- endif %}

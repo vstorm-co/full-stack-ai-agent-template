@@ -301,14 +301,32 @@ class TestRAGWithEmbeddingProviders:
         content = rag_config.read_text()
         assert "voyage" in content.lower()
 
-    def test_rag_with_sentence_transformers(self, tmp_path) -> None:
-        """Test RAG with SentenceTransformers (auto-derived from OpenRouter)."""
+    def test_rag_with_openrouter_openai_embeddings(self, tmp_path) -> None:
+        """Test RAG with OpenAI-compatible embeddings (auto-derived from OpenRouter)."""
         config = ProjectConfig(
-            project_name="rag_st_emb",
+            project_name="rag_or_emb",
             database=DatabaseType.POSTGRESQL,
             background_tasks=BackgroundTaskType.CELERY,
             enable_redis=True,
-            llm_provider=LLMProviderType.OPENROUTER,  # Derives SentenceTransformers
+            llm_provider=LLMProviderType.OPENROUTER,  # Derives OpenAI-compatible embeddings
+            rag_features=RAGFeatures(enable_rag=True),
+            enable_docker=True,
+        )
+        project = generate_project(config, tmp_path)
+
+        # Verify config uses OpenAI-compatible embeddings
+        rag_config = project / "backend" / "app" / "services" / "rag" / "config.py"
+        content = rag_config.read_text()
+        assert "text-embedding" in content.lower()
+
+    def test_rag_with_orcarouter_sentence_transformers(self, tmp_path) -> None:
+        """Test RAG with SentenceTransformers (auto-derived from OrcaRouter)."""
+        config = ProjectConfig(
+            project_name="rag_orca_st",
+            database=DatabaseType.POSTGRESQL,
+            background_tasks=BackgroundTaskType.CELERY,
+            enable_redis=True,
+            llm_provider=LLMProviderType.ORCAROUTER,  # Derives SentenceTransformers
             rag_features=RAGFeatures(enable_rag=True),
             enable_docker=True,
         )

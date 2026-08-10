@@ -70,7 +70,7 @@ class TestAssistantAgent:
 
     # ``_build_model`` is the single per-provider model factory in
     # assistant.py, so patching it keeps these tests provider-agnostic
-    # (openai/anthropic/google/openrouter/all) and avoids needing real API keys.
+    # (openai/anthropic/google/openrouter/orcarouter/all) and avoids needing real API keys.
     @patch("app.agents.assistant._build_model")
     def test_agent_property_creates_agent(self, mock_build_model):
         """Test agent property creates agent on first access."""

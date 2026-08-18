@@ -1383,7 +1383,7 @@ Yes. The LLM provider is configured via environment variables (`AI_MODEL`, `OPEN
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=vstorm-co/full-stack-fastapi-nextjs-llm-template&type=date&legend=top-left)](https://www.star-history.com/#vstorm-co/full-stack-fastapi-nextjs-llm-template&type=date&legend=top-left)
+[![Star History Chart](https://star-history.dera.page/svg?repos=vstorm-co/full-stack-fastapi-nextjs-llm-template&type=date&legend=top-left)](https://star-history.dera.page/#vstorm-co/full-stack-fastapi-nextjs-llm-template&type=date&legend=top-left)
 
 ---
 

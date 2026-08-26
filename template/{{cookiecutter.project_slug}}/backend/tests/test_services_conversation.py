@@ -6,7 +6,7 @@ from uuid import uuid4
 
 import pytest
 
-from app.core.exceptions import NotFoundError
+from app.core.exceptions import AuthorizationError, NotFoundError
 from app.services.conversation import ConversationService
 
 
@@ -268,6 +268,64 @@ class TestConversationServiceCreate:
 
             assert result.title == "Test Conversation"
             mock_repo.create_conversation.assert_called_once()
+
+
+class TestConversationServiceAddMessage:
+    """Tests for add_message authorization."""
+
+    @pytest.fixture
+    def mock_db(self) -> AsyncMock:
+        """Create mock database session."""
+        return AsyncMock()
+
+    @pytest.fixture
+    def service(self, mock_db: AsyncMock) -> ConversationService:
+        """Create ConversationService instance with mock db."""
+        return ConversationService(mock_db)
+
+{%- if cookiecutter.use_jwt %}
+    @pytest.mark.anyio
+    async def test_add_message_rejects_view_only_share(self, service: ConversationService):
+        """Recipients with a view share cannot append messages."""
+        conv_id = uuid4()
+        owner_id = uuid4()
+        recipient_id = uuid4()
+        mock_conv = MockConversation(id=conv_id, user_id=owner_id)
+        mock_share = MagicMock(permission="view")
+        data = MagicMock(role="user", content="hi", thinking=None, model_name=None, tokens_used=None)
+
+        with patch("app.services.conversation.conversation_repo") as mock_repo, \
+             patch("app.services.conversation.conversation_share_repo") as mock_share_repo:
+            mock_repo.get_conversation_by_id = AsyncMock(return_value=mock_conv)
+            mock_share_repo.get_share = AsyncMock(return_value=mock_share)
+
+            with pytest.raises(AuthorizationError):
+                await service.add_message(conv_id, data, user_id=recipient_id)
+
+            mock_repo.create_message.assert_not_called()
+
+    @pytest.mark.anyio
+    async def test_add_message_allows_edit_share(self, service: ConversationService):
+        """Recipients with an edit share can append messages."""
+        conv_id = uuid4()
+        owner_id = uuid4()
+        recipient_id = uuid4()
+        message = MockMessage(conversation_id=conv_id, content="hi")
+        mock_conv = MockConversation(id=conv_id, user_id=owner_id)
+        mock_share = MagicMock(permission="edit")
+        data = MagicMock(role="user", content="hi", thinking=None, model_name=None, tokens_used=None)
+
+        with patch("app.services.conversation.conversation_repo") as mock_repo, \
+             patch("app.services.conversation.conversation_share_repo") as mock_share_repo:
+            mock_repo.get_conversation_by_id = AsyncMock(return_value=mock_conv)
+            mock_repo.create_message = AsyncMock(return_value=message)
+            mock_share_repo.get_share = AsyncMock(return_value=mock_share)
+
+            result = await service.add_message(conv_id, data, user_id=recipient_id)
+
+            assert result.content == "hi"
+            mock_repo.create_message.assert_called_once()
+{%- endif %}
 
 
 class TestConversationServiceUpdate:

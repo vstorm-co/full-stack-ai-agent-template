@@ -164,7 +164,7 @@ services:
     restart: unless-stopped
 
   milvus:
-    image: milvusdb/milvus:v2.6.22
+    image: milvusdb/milvus:v2.6.23
     container_name: {{ cookiecutter.project_slug }}_milvus
     command: ["milvus", "run", "standalone"]
     ports:

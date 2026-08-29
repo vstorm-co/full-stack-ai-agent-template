@@ -246,7 +246,7 @@ services:
 {%- if cookiecutter.enable_redis %}
 
   redis:
-    image: redis:7-alpine
+    image: redis:8-alpine
     container_name: {{ cookiecutter.project_slug }}_redis
     command: redis-server --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
     # NO external ports - only accessible within backend-internal network

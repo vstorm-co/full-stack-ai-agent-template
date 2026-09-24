@@ -48,7 +48,7 @@ See the [Quick Start guide](guides/quick-start.md) for details and the [Installa
 
 | Framework | Streaming | Observability | Providers |
 |-----------|:---------:|:-------------:|:---------:|
-| **PydanticAI** | WebSocket | Logfire | OpenAI, Anthropic, OpenRouter |
+| **PydanticAI** | WebSocket | Logfire | OpenAI, Anthropic, OpenRouter, Requesty |
 | **LangChain** | WebSocket | LangSmith | OpenAI, Anthropic |
 | **LangGraph** | WebSocket | LangSmith | OpenAI, Anthropic |
 

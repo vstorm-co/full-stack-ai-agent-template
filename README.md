@@ -680,6 +680,7 @@ They also ship a ready-to-use **`.claude/` toolkit** that adapts to the options 
   <a href="https://anthropic.com"><img src="https://img.shields.io/badge/Anthropic-D4A373?logo=anthropic&logoColor=white" alt="Anthropic"></a>
   <a href="https://ai.google.dev"><img src="https://img.shields.io/badge/Gemini-4285F4?logo=google&logoColor=white" alt="Google Gemini"></a>
   <a href="https://openrouter.ai"><img src="https://img.shields.io/badge/OpenRouter-6366F1?logoColor=white" alt="OpenRouter"></a>
+  <a href="https://requesty.ai"><img src="https://img.shields.io/badge/Requesty-111827?logoColor=white" alt="Requesty"></a>
 </p>
 
 <p align="center">
@@ -714,7 +715,7 @@ They also ship a ready-to-use **`.claude/` toolkit** that adapts to the options 
 ### 🤖 AI/LLM First
 
 - **5 AI Frameworks** - [PydanticAI](https://ai.pydantic.dev), [PydanticDeep](https://github.com/vstorm-co/pydantic-deep), [LangChain](https://python.langchain.com), [LangGraph](https://langchain-ai.github.io/langgraph/), [DeepAgents](https://github.com/vstorm-co/pydantic-deepagents)
-- **4 LLM Providers** - OpenAI, Anthropic, Google Gemini, OpenRouter
+- **5 LLM Providers** - OpenAI, Anthropic, Google Gemini, OpenRouter, Requesty
 - **RAG** - Document ingestion, vector search, reranking (Milvus, Qdrant, ChromaDB, pgvector)
 - **WebSocket Streaming** - Real-time responses with full event access
 - **Rich Chat UI** - Specialized tool-call cards (web search, knowledge base, Python, charts, skills), live subagent feed, citation sources panel, plan/task checklist, reasoning view, and in-chat file previews
@@ -754,7 +755,7 @@ They also ship a ready-to-use **`.claude/` toolkit** that adapts to the options 
 | Category | Integrations |
 |----------|-------------|
 | **AI Frameworks** | PydanticAI, PydanticDeep, LangChain, LangGraph, DeepAgents |
-| **LLM Providers** | OpenAI, Anthropic, Google Gemini, OpenRouter |
+| **LLM Providers** | OpenAI, Anthropic, Google Gemini, OpenRouter, Requesty |
 | **RAG / Vector Stores** | Milvus, Qdrant, ChromaDB, pgvector |
 | **RAG Sources** | Local files, API upload, Google Drive, S3/MinIO, Sync Sources (per-org UI, scheduled) |
 | **Embeddings** | OpenAI, Voyage, Gemini (multimodal), SentenceTransformers |
@@ -786,7 +787,7 @@ They also ship a ready-to-use **`.claude/` toolkit** that adapts to the options 
 │  │  PydanticAI · LangChain · LangGraph · DeepAgents                │     │
 │  │  ────────────────────────────────────────────────────────────   │     │
 │  │  Tools: datetime · web_search (Tavily) · search_knowledge_base  │     │
-│  │  Providers: OpenAI · Anthropic · Gemini · OpenRouter            │     │
+│  │  Providers: OpenAI · Anthropic · Gemini · OpenRouter · Requesty │     │
 │  └─────────────────────────────────────────────────────────────────┘     │
 │                                                                          │
 │  ┌─────────────────────────────────────────────────────────────────┐     │
@@ -908,13 +909,13 @@ fastapi-fullstack create my_app --rag --database postgresql --task-queue celery
 
 ### Supported Combinations
 
-| Framework | OpenAI | Anthropic | Gemini | OpenRouter |
-|-----------|:------:|:---------:|:------:|:----------:|
-| **PydanticAI** | ✓ | ✓ | ✓ | ✓ |
-| **PydanticDeep** | ✓ | ✓ | ✓ | - |
-| **LangChain** | ✓ | ✓ | ✓ | - |
-| **LangGraph** | ✓ | ✓ | ✓ | - |
-| **DeepAgents** | ✓ | ✓ | ✓ | - |
+| Framework | OpenAI | Anthropic | Gemini | OpenRouter | Requesty |
+|-----------|:------:|:---------:|:------:|:----------:|:--------:|
+| **PydanticAI** | ✓ | ✓ | ✓ | ✓ | ✓ |
+| **PydanticDeep** | ✓ | ✓ | ✓ | - | ✓ |
+| **LangChain** | ✓ | ✓ | ✓ | - | - |
+| **LangGraph** | ✓ | ✓ | ✓ | - | - |
+| **DeepAgents** | ✓ | ✓ | ✓ | - | - |
 
 ### PydanticAI Integration
 
@@ -1245,7 +1246,7 @@ generated_at = "2024-12-21T10:30:00+00:00"
 | **Auth** | `jwt`, `api_key`, `both`, `none` | JWT includes user management |
 | **OAuth** | `none`, `google` | Social login |
 | **AI Framework** | `pydantic_ai`, `pydantic_deep`, `langchain`, `langgraph`, `deepagents` | Choose your AI agent framework |
-| **LLM Provider** | `openai`, `anthropic`, `google`, `openrouter` | OpenRouter only with PydanticAI |
+| **LLM Provider** | `openai`, `anthropic`, `google`, `openrouter`, `requesty` | OpenRouter and Requesty only with PydanticAI |
 | **RAG** | `--rag` | Enable RAG with vector database |
 | **Vector Store** | `milvus`, `qdrant`, `chromadb`, `pgvector` | pgvector uses existing PostgreSQL |
 | **Background Tasks** | `none`, `celery`, `taskiq`, `arq`, `prefect` | Distributed queues / orchestration |

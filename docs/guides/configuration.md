@@ -10,7 +10,7 @@ All available options when generating a project.
 | `--orm` | `sqlalchemy`, `sqlmodel` | ORM choice (SQLModel for simplified syntax) |
 | `--oauth-google` | flag | Enable Google OAuth2 login |
 | `--ai-framework` | `pydantic_ai`, `pydantic_deep`, `langchain`, `langgraph`, `deepagents` | AI agent framework |
-| `--llm-provider` | `openai`, `anthropic`, `google`, `openrouter` | LLM provider |
+| `--llm-provider` | `openai`, `anthropic`, `google`, `openrouter`, `requesty` | LLM provider |
 | `--task-queue` | `none`, `celery`, `taskiq`, `arq` | Background task queue (Redis-backed). **Prefect** is available via the interactive wizard. |
 | `--frontend` | `none`, `nextjs` | Frontend framework |
 
@@ -31,7 +31,7 @@ fastapi-fullstack create my_app --minimal
 
 | Framework | Providers | Description |
 |-----------|-----------|-------------|
-| `pydantic_ai` | OpenAI, Anthropic, Google, OpenRouter | Type-safe agents with WebSearch/WebFetch built-in |
+| `pydantic_ai` | OpenAI, Anthropic, Google, OpenRouter, Requesty | Type-safe agents with WebSearch/WebFetch built-in |
 | `pydantic_deep` | OpenAI, Anthropic, Google | Deep coding assistant (filesystem tools, Docker/Daytona sandbox) |
 | `langchain` | OpenAI, Anthropic, Google | Comprehensive chain-based agents |
 | `langgraph` | OpenAI, Anthropic, Google | Graph-based ReAct agents |

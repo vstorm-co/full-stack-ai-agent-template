@@ -60,6 +60,14 @@ These are used to sign JWTs and authenticate service-to-service calls. Rotate at
 - [ ] Set `OPENROUTER_API_KEY` in `.env`.
 {%- endif %}
 
+{%- if cookiecutter.use_requesty %}
+
+## Requesty
+
+- [ ] Create API key at https://app.requesty.ai/api-keys.
+- [ ] Set `REQUESTY_API_KEY` in `.env`.
+{%- endif %}
+
 {%- if cookiecutter.enable_oauth_google %}
 
 ## Google OAuth

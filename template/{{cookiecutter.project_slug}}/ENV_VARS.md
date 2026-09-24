@@ -54,6 +54,10 @@ group is for and which are required vs optional.
 {%- if cookiecutter.use_openrouter %}
 | `OPENROUTER_API_KEY` | **required** | — | From openrouter.ai |
 {%- endif %}
+{%- if cookiecutter.use_requesty %}
+| `REQUESTY_API_KEY` | **required** | `""` | From app.requesty.ai/api-keys |
+| `REQUESTY_BASE_URL` | optional | `https://router.requesty.ai/v1` | Use `https://router.eu.requesty.ai/v1` for EU routing |
+{%- endif %}
 {%- if cookiecutter.enable_logfire %}
 | `LOGFIRE_TOKEN` | optional | — | When set, ships traces to Logfire (logfire.pydantic.dev) |
 {%- endif %}

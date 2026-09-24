@@ -96,6 +96,7 @@ class LLMProviderType(StrEnum):
     ANTHROPIC = "anthropic"
     GOOGLE = "google"
     OPENROUTER = "openrouter"
+    REQUESTY = "requesty"
     ALL = "all"
 
 
@@ -462,6 +463,19 @@ class ProjectConfig(BaseModel):
                 f"not {self.ai_framework.value}"
             )
         if (
+            self.ai_framework != AIFrameworkType.NONE
+            and self.llm_provider == LLMProviderType.REQUESTY
+            and self.ai_framework
+            not in (
+                AIFrameworkType.PYDANTIC_AI,
+                AIFrameworkType.PYDANTIC_DEEP,
+            )
+        ):
+            raise ValueError(
+                f"Requesty is only supported with PydanticAI or PydanticDeep, "
+                f"not {self.ai_framework.value}"
+            )
+        if (
             self.enable_rate_limiting
             and self.rate_limit_storage == RateLimitStorageType.REDIS
             and not self.enable_redis
@@ -809,6 +823,7 @@ class ProjectConfig(BaseModel):
             "use_google": self.llm_provider in (LLMProviderType.GOOGLE, LLMProviderType.ALL),
             "use_openrouter": self.llm_provider
             in (LLMProviderType.OPENROUTER, LLMProviderType.ALL),
+            "use_requesty": self.llm_provider in (LLMProviderType.REQUESTY, LLMProviderType.ALL),
             "use_all_providers": self.llm_provider == LLMProviderType.ALL,
             # Legacy fixed values (always enabled, not user-configurable)
             # AI

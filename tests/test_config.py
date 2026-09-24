@@ -609,6 +609,39 @@ class TestOptionCombinationValidation:
         assert config.llm_provider == LLMProviderType.OPENROUTER
         assert config.ai_framework == AIFrameworkType.PYDANTIC_DEEP
 
+    @pytest.mark.parametrize(
+        "framework",
+        [AIFrameworkType.LANGCHAIN, AIFrameworkType.LANGGRAPH, AIFrameworkType.DEEPAGENTS],
+    )
+    def test_requesty_with_non_pydantic_framework_raises_validation_error(
+        self, framework: AIFrameworkType
+    ) -> None:
+        """Test that Requesty is rejected for frameworks not built on pydantic-ai."""
+        with pytest.raises(ValidationError) as exc_info:
+            ProjectConfig(
+                project_name="test",
+                llm_provider=LLMProviderType.REQUESTY,
+                ai_framework=framework,
+                background_tasks=BackgroundTaskType.NONE,
+            )
+        assert "Requesty is only supported with PydanticAI" in str(exc_info.value)
+
+    @pytest.mark.parametrize(
+        "framework", [AIFrameworkType.PYDANTIC_AI, AIFrameworkType.PYDANTIC_DEEP]
+    )
+    def test_requesty_with_pydantic_framework_is_valid(self, framework: AIFrameworkType) -> None:
+        """Test that Requesty + PydanticAI/PydanticDeep is accepted."""
+        config = ProjectConfig(
+            project_name="test",
+            llm_provider=LLMProviderType.REQUESTY,
+            ai_framework=framework,
+            background_tasks=BackgroundTaskType.NONE,
+        )
+        context = config.to_cookiecutter_context()
+        assert context["use_requesty"] is True
+        assert context["use_openrouter"] is False
+        assert context["use_openai"] is False
+
     def test_langsmith_with_pydantic_deep_raises_error(self) -> None:
         """Test that LangSmith + PydanticDeep is rejected (pydantic-deep uses Logfire)."""
         with pytest.raises(ValidationError) as exc_info:

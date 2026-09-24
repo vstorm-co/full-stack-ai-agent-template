@@ -892,6 +892,18 @@ class TestPromptLLMProvider:
         assert result == LLMProviderType.OPENROUTER
 
     @patch("fastapi_gen.prompts.questionary")
+    def test_returns_requesty_for_pydanticai(self, mock_questionary: MagicMock) -> None:
+        """Test Requesty provider is returned for PydanticAI."""
+        mock_select = MagicMock()
+        mock_select.ask.return_value = LLMProviderType.REQUESTY
+        mock_questionary.select.return_value = mock_select
+        mock_questionary.Choice = MagicMock()
+
+        result = prompt_llm_provider(AIFrameworkType.PYDANTIC_AI)
+
+        assert result == LLMProviderType.REQUESTY
+
+    @patch("fastapi_gen.prompts.questionary")
     def test_openrouter_option_added_for_pydanticai(self, mock_questionary: MagicMock) -> None:
         """Test OpenRouter option is added when using PydanticAI."""
         mock_select = MagicMock()
@@ -901,10 +913,11 @@ class TestPromptLLMProvider:
 
         prompt_llm_provider(AIFrameworkType.PYDANTIC_AI)
 
-        # Check that select was called with 4 choices (OpenAI, Anthropic, Google, OpenRouter)
+        # Check that select was called with 5 choices
+        # (OpenAI, Anthropic, Google, OpenRouter, Requesty)
         select_call = mock_questionary.select.call_args
         choices = select_call[1]["choices"]
-        assert len(choices) == 4
+        assert len(choices) == 5
 
     @patch("fastapi_gen.prompts.questionary")
     def test_openrouter_option_not_added_for_langchain(self, mock_questionary: MagicMock) -> None:

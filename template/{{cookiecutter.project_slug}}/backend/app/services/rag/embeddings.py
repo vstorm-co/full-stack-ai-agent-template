@@ -173,6 +173,12 @@ class EmbeddingService:
             api_key=app_settings.OPENROUTER_API_KEY,
             base_url="https://openrouter.ai/api/v1",
         )
+        {%- elif cookiecutter.use_requesty %}
+        self.provider = OpenAIEmbeddingProvider(
+            model=config.model if "/" in config.model else f"openai/{config.model}",
+            api_key=app_settings.REQUESTY_API_KEY,
+            base_url=app_settings.REQUESTY_BASE_URL,
+        )
         {%- else %}
         self.provider = OpenAIEmbeddingProvider(
             model=config.model,

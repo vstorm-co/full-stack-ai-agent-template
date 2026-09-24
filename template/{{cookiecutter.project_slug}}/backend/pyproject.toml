@@ -123,6 +123,8 @@ dependencies = [
     "pydantic-ai-slim[google,duckduckgo,web-fetch]>=1.80.0",
 {%- elif cookiecutter.use_openrouter %}
     "pydantic-ai-slim[openrouter,duckduckgo,web-fetch]>=1.80.0",
+{%- elif cookiecutter.use_requesty %}
+    "pydantic-ai-slim[openai,duckduckgo,web-fetch]>=1.80.0",
 {%- endif %}
 {%- if cookiecutter.enable_mcp_client %}
     # MCP client transports + toolset support (Settings → Integrations).
@@ -178,7 +180,12 @@ dependencies = [
     # pydantic-ai backend with console toolset (StateBackend, LocalBackend)
     "pydantic-ai-backend[console]>=0.2.4",
     # pydantic-ai with web search and fetch support (WebSearch, WebFetch capabilities)
+{%- if cookiecutter.use_requesty %}
+    # Requesty goes through the OpenAI-compatible model, so it needs the openai extra
+    "pydantic-ai-slim[openai,duckduckgo,web-fetch]>=1.80.0",
+{%- else %}
     "pydantic-ai-slim[duckduckgo,web-fetch]>=1.80.0",
+{%- endif %}
 {%- endif %}
 {%- if cookiecutter.enable_rag %}
     # Vector store

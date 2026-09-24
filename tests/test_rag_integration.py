@@ -283,6 +283,24 @@ class TestRAGWithEmbeddingProviders:
         content = rag_config.read_text()
         assert "text-embedding-3-small" in content or "embedding-3" in content
 
+    def test_rag_with_requesty_embeddings(self, tmp_path) -> None:
+        """Test RAG with OpenAI embeddings served through Requesty."""
+        config = ProjectConfig(
+            project_name="rag_requesty_emb",
+            database=DatabaseType.POSTGRESQL,
+            background_tasks=BackgroundTaskType.CELERY,
+            enable_redis=True,
+            llm_provider=LLMProviderType.REQUESTY,
+            rag_features=RAGFeatures(enable_rag=True),
+            enable_docker=True,
+        )
+        project = generate_project(config, tmp_path)
+
+        embeddings = project / "backend" / "app" / "services" / "rag" / "embeddings.py"
+        content = embeddings.read_text()
+        assert "app_settings.REQUESTY_API_KEY" in content
+        assert "app_settings.OPENAI_API_KEY" not in content
+
     def test_rag_with_voyage_embeddings(self, tmp_path) -> None:
         """Test RAG with Voyage embeddings (auto-derived from Anthropic)."""
         config = ProjectConfig(

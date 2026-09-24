@@ -32,6 +32,10 @@ from pydantic_ai import Agent
 {%- if cookiecutter.enable_rag or cookiecutter.enable_charts %}
 from pydantic_ai import Tool as PAITool
 {%- endif %}
+{%- if cookiecutter.use_requesty %}
+from pydantic_ai.models.openai import OpenAIChatModel
+from pydantic_ai.providers.openai import OpenAIProvider
+{%- endif %}
 from pydantic_ai_backends import BackendProtocol, StateBackend
 from pydantic_deep import DeepAgentDeps, create_deep_agent
 
@@ -56,6 +60,7 @@ _PROVIDER_PREFIXES: dict[str, str] = {
     "anthropic": "anthropic",
     "google": "google-gla",  # Google AI (Gemini) via GOOGLE_API_KEY
     "openrouter": "openrouter",
+    "requesty": "requesty",
 }
 
 
@@ -182,6 +187,17 @@ class PydanticDeepAssistant:
         """Instantiate the pydantic-deep agent and its dependencies."""
         backend = self._backend_override if self._backend_override is not None else self._create_backend()
         model_str = self._get_model_string()
+{%- if cookiecutter.use_requesty %}
+        # pydantic-ai has no built-in Requesty provider, so build an OpenAI-compatible model.
+        model: str | OpenAIChatModel = model_str
+        if model_str.startswith("requesty:"):
+            model = OpenAIChatModel(
+                model_str.removeprefix("requesty:"),
+                provider=OpenAIProvider(
+                    base_url=settings.REQUESTY_BASE_URL, api_key=settings.REQUESTY_API_KEY
+                ),
+            )
+{%- endif %}
         history_path = (
             self._history_messages_path
             if self._history_messages_path is not None
@@ -208,7 +224,13 @@ class PydanticDeepAssistant:
 {%- endif %}
 
         agent = create_deep_agent(
+{%- if cookiecutter.use_requesty %}
+            model=model,
+            # pydantic-deep only inherits string models for summarization.
+            summarization_model=model,
+{%- else %}
             model=model_str,
+{%- endif %}
             backend=backend,
             instructions=self._get_system_prompt(),
             # Per-conversation history persistence

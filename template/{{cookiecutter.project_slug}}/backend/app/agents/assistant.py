@@ -39,6 +39,12 @@ from pydantic_ai.providers.google import GoogleProvider
 from pydantic_ai.models.openrouter import OpenRouterModel
 from pydantic_ai.providers.openrouter import OpenRouterProvider
 {%- endif %}
+{%- if cookiecutter.use_requesty %}
+from pydantic_ai.models.openai import OpenAIChatModel
+{%- if not cookiecutter.use_openai %}
+from pydantic_ai.providers.openai import OpenAIProvider
+{%- endif %}
+{%- endif %}
 from pydantic_ai.settings import ModelSettings
 
 from app.agents.prompts import DEFAULT_SYSTEM_PROMPT
@@ -77,10 +83,25 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
+{%- if cookiecutter.use_requesty %}
+
+
+def _build_requesty_model(model_name: str) -> OpenAIChatModel:
+    """Requesty exposes an OpenAI-compatible Chat Completions API."""
+    return OpenAIChatModel(
+        model_name,
+        provider=OpenAIProvider(
+            base_url=settings.REQUESTY_BASE_URL, api_key=settings.REQUESTY_API_KEY
+        ),
+    )
+{%- endif %}
+
 {%- if cookiecutter.use_all_providers %}
 
 
-def _build_model(model_name: str) -> "OpenAIResponsesModel | AnthropicModel | GoogleModel | OpenRouterModel":
+def _build_model(
+    model_name: str,
+) -> "OpenAIResponsesModel | AnthropicModel | GoogleModel | OpenRouterModel | OpenAIChatModel":
     """Dispatch to the right pydantic-ai Model for ``model_name``.
 
     Multi-provider deployments accept any model name from any installed SDK.
@@ -89,6 +110,7 @@ def _build_model(model_name: str) -> "OpenAIResponsesModel | AnthropicModel | Go
       - anthropic/claude-*                      → Anthropic
       - google/gemini-*                         → Google
       - openrouter/<provider>/<model>           → OpenRouter
+      - requesty/<model>                        → Requesty
       - bare names (no slash) → fall back to OpenAI for backwards compat.
     """
     name = model_name or settings.AI_MODEL
@@ -109,6 +131,8 @@ def _build_model(model_name: str) -> "OpenAIResponsesModel | AnthropicModel | Go
             return OpenRouterModel(
                 rest, provider=OpenRouterProvider(api_key=settings.OPENROUTER_API_KEY)
             )
+        if prefix == "requesty":
+            return _build_requesty_model(rest)
     # Bare model name — best-effort sniff by family.
     if lowered.startswith(("claude-", "claude/")):
         return AnthropicModel(name.removeprefix("claude/"))
@@ -147,6 +171,11 @@ def _build_model(model_name: str) -> OpenRouterModel:
         model_name or settings.AI_MODEL,
         provider=OpenRouterProvider(api_key=settings.OPENROUTER_API_KEY),
     )
+{%- elif cookiecutter.use_requesty %}
+
+
+def _build_model(model_name: str) -> OpenAIChatModel:
+    return _build_requesty_model(model_name or settings.AI_MODEL)
 {%- endif %}
 
 

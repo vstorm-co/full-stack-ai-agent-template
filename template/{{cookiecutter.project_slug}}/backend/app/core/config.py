@@ -310,10 +310,16 @@ class Settings(BaseSettings):
 {%- if cookiecutter.use_openrouter %}
     OPENROUTER_API_KEY: str = ""
 {%- endif %}
+{%- if cookiecutter.use_requesty %}
+    REQUESTY_API_KEY: str = ""
+    # EU: https://router.eu.requesty.ai/v1
+    REQUESTY_BASE_URL: str = "https://router.requesty.ai/v1"
+{%- endif %}
 {%- if cookiecutter.use_all_providers %}
     # Multi-provider: model can come from any installed SDK. Prefix with the
     # provider name (`openai/gpt-5.5`, `anthropic/claude-opus-4-7`,
-    # `google/gemini-2.5-flash`, `openrouter/anthropic/claude-opus-4-7`)
+    # `google/gemini-2.5-flash`, `openrouter/anthropic/claude-opus-4-7`,
+    # `requesty/claude-opus-4-7`)
     # so the dispatcher in agents/assistant.py routes to the right backend.
     AI_MODEL: str = "openai/gpt-5.5"
 {%- elif cookiecutter.use_openai %}
@@ -324,6 +330,8 @@ class Settings(BaseSettings):
     AI_MODEL: str = "gemini-2.5-flash"
 {%- elif cookiecutter.use_openrouter %}
     AI_MODEL: str = "anthropic/claude-opus-4-7"
+{%- elif cookiecutter.use_requesty %}
+    AI_MODEL: str = "claude-opus-4-7"
 {%- endif %}
     AI_TEMPERATURE: float = 0.7
     AI_THINKING_ENABLED: bool = False
@@ -343,6 +351,9 @@ class Settings(BaseSettings):
         # OpenRouter (proxies many providers)
         "openrouter/anthropic/claude-opus-4-7",
         "openrouter/deepseek/deepseek-r1",
+        # Requesty (proxies many providers)
+        "requesty/claude-opus-4-7",
+        "requesty/deepseek-v4-pro",
     ]
 {%- elif cookiecutter.use_openai %}
     AI_AVAILABLE_MODELS: list[str] = [
@@ -383,6 +394,14 @@ class Settings(BaseSettings):
         "openai/gpt-5.5",
         "google/gemini-2.5-flash",
         "deepseek/deepseek-r1",
+    ]
+{%- elif cookiecutter.use_requesty %}
+    AI_AVAILABLE_MODELS: list[str] = [
+        "claude-opus-4-7",
+        "claude-sonnet-4-6",
+        "gpt-5.5",
+        "gemini-3.5-flash",
+        "deepseek-v4-pro",
     ]
 {%- endif %}
     AI_FRAMEWORK: str = "{{ cookiecutter.ai_framework }}"

@@ -101,6 +101,21 @@ class TestEmbeddingProviderAutoDerivation:
             == EmbeddingProviderType.OPENAI
         )
 
+    def test_requesty_derives_openai_embeddings(self) -> None:
+        """Test that Requesty LLM provider derives OpenAI embeddings."""
+        config = ProjectConfig(
+            project_name="test",
+            llm_provider=LLMProviderType.REQUESTY,
+            rag_features=RAGFeatures(enable_rag=True),
+            background_tasks=BackgroundTaskType.CELERY,
+            enable_redis=True,
+            enable_docker=True,
+        )
+        assert (
+            config.to_cookiecutter_context()["embedding_provider"]
+            == EmbeddingProviderType.OPENAI
+        )
+
     def test_openai_derives_openai_embeddings(self) -> None:
         """Test that OpenAI LLM provider derives OpenAI embeddings."""
         config = ProjectConfig(

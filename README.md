@@ -9,7 +9,6 @@
   <a href="#-features">Features</a> •
   <a href="#-demo">Demo</a> •
   <a href="https://vstorm-co.github.io/full-stack-ai-agent-template/">Documentation</a> •
-  <a href="https://oss.vstorm.co/projects/full-stack-ai-agent-template/configurator/">Configurator</a> •
   <a href="https://pypi.org/project/fastapi-fullstack/">PyPI</a>
 </p>
 
@@ -32,7 +31,7 @@
 </p>
 
 <p align="center">
-  <b>🤖 5 AI Agent Frameworks</b> <i>(PydanticAI, PydanticDeep, LangChain, LangGraph, DeepAgents)</i>
+  <b>🤖 5 AI Agent Frameworks</b> <i>(Pydantic AI, Pydantic Deep Agents, LangChain, LangGraph, DeepAgents)</i>
   <br>
   <b>📄 RAG Pipeline</b> <i>(Milvus, Qdrant, pgvector, ChromaDB)</i>
   <br>
@@ -73,22 +72,23 @@ This template is part of a broader open-source ecosystem for production AI agent
 
 | Project | Description | |
 |---------|-------------|---|
+| **[AgenticOS](https://github.com/vstorm-co/agenticos)** | Open-source (Apache-2.0), self-hosted platform to build, share and govern AI agents across a company. | [![Stars](https://img.shields.io/github/stars/vstorm-co/agenticos?style=flat&logo=github&color=yellow)](https://github.com/vstorm-co/agenticos) |
 | **[pydantic-deepagents](https://github.com/vstorm-co/pydantic-deepagents)** | The modular agent runtime for Python. Claude Code-style CLI with Docker sandbox, browser automation, multi-agent teams, and /improve. | [![Stars](https://img.shields.io/github/stars/vstorm-co/pydantic-deepagents?style=flat&logo=github&color=yellow)](https://github.com/vstorm-co/pydantic-deepagents) |
 | **[pydantic-ai-shields](https://github.com/vstorm-co/pydantic-ai-shields)** | Drop-in guardrails for Pydantic AI agents. 5 infra + 5 content shields. | [![Stars](https://img.shields.io/github/stars/vstorm-co/pydantic-ai-shields?style=flat&logo=github&color=yellow)](https://github.com/vstorm-co/pydantic-ai-shields) |
-| **[pydantic-ai-subagents](https://github.com/vstorm-co/pydantic-ai-subagents)** | Declarative multi-agent orchestration with token tracking. | [![Stars](https://img.shields.io/github/stars/vstorm-co/pydantic-ai-subagents?style=flat&logo=github&color=yellow)](https://github.com/vstorm-co/pydantic-ai-subagents) |
-| **[summarization-pydantic-ai](https://github.com/vstorm-co/pydantic-ai-summarization)** | Smart context compression for long-running agents. | [![Stars](https://img.shields.io/github/stars/vstorm-co/summarization-pydantic-ai?style=flat&logo=github&color=yellow)](https://github.com/vstorm-co/summarization-pydantic-ai) |
+| **[subagents-pydantic-ai](https://github.com/vstorm-co/subagents-pydantic-ai)** | Declarative multi-agent orchestration with token tracking. | [![Stars](https://img.shields.io/github/stars/vstorm-co/subagents-pydantic-ai?style=flat&logo=github&color=yellow)](https://github.com/vstorm-co/subagents-pydantic-ai) |
+| **[summarization-pydantic-ai](https://github.com/vstorm-co/summarization-pydantic-ai)** | Smart context compression for long-running agents. | [![Stars](https://img.shields.io/github/stars/vstorm-co/summarization-pydantic-ai?style=flat&logo=github&color=yellow)](https://github.com/vstorm-co/summarization-pydantic-ai) |
 | **[pydantic-ai-backend](https://github.com/vstorm-co/pydantic-ai-backend)** | Sandboxed execution for AI agents. Docker + Daytona. | [![Stars](https://img.shields.io/github/stars/vstorm-co/pydantic-ai-backend?style=flat&logo=github&color=yellow)](https://github.com/vstorm-co/pydantic-ai-backend) |
 
-> **Want the runtime behind this template's AI agents?** [pydantic-deepagents](https://github.com/vstorm-co/pydantic-deepagents) powers the `deepagents` framework option — install it standalone with `curl -fsSL .../install.sh | bash`.
+> **Want the runtime behind this template's AI agents?** [pydantic-deepagents](https://github.com/vstorm-co/pydantic-deepagents) powers the `pydantic_deep` framework option — install it standalone with `curl -fsSL .../install.sh | bash`.
 
-Browse all projects at [oss.vstorm.co](https://oss.vstorm.co)
+Browse all projects at [github.com/vstorm-co](https://github.com/vstorm-co)
 
 ---
 
 ## 🚀 Quick Start
 
 > [!TIP]
-> **Prefer a visual configurator?** Use the [Web Configurator](https://oss.vstorm.co/projects/full-stack-ai-agent-template/configurator/) to configure your project in the browser and download a ZIP — no CLI installation needed.
+> **Want to review every option first?** The [installation guide](https://vstorm-co.github.io/full-stack-ai-agent-template/installation/) covers the interactive wizard, non-interactive flags and presets; `fastapi-fullstack templates` lists every option.
 
 ### Installation
 
@@ -605,7 +605,7 @@ The chat UI streams responses over WebSocket and renders each tool call as a pur
 <tr>
 <td width="50%">
 
-**Logfire** — distributed tracing: FastAPI, PydanticAI, DB, Redis, Celery, HTTPX in one timeline.
+**Logfire** — distributed tracing: FastAPI, Pydantic AI, DB, Redis, Celery, HTTPX in one timeline.
 
 ![Logfire](https://raw.githubusercontent.com/vstorm-co/full-stack-ai-agent-template/main/assets/logfire.png)
 
@@ -652,7 +652,7 @@ This template gives you all of that out of the box, with **20+ configurable inte
 
 ### Perfect For
 
-- 🤖 **AI Chatbots & Assistants** - PydanticAI or LangChain agents with streaming responses
+- 🤖 **AI Chatbots & Assistants** - Pydantic AI or LangChain agents with streaming responses
 - 📊 **ML Applications** - Background task processing with Celery/Taskiq
 - 🏢 **Enterprise SaaS** - Full auth, admin panel, webhooks, and more
 - 🚀 **Startups** - Ship fast with production-ready infrastructure
@@ -672,7 +672,7 @@ They also ship a ready-to-use **`.claude/` toolkit** that adapts to the options 
 ## ✨ Features
 
 <p align="center">
-  <a href="https://ai.pydantic.dev"><img src="https://img.shields.io/badge/PydanticAI-E92063?logo=pydantic&logoColor=white" alt="PydanticAI"></a>
+  <a href="https://ai.pydantic.dev"><img src="https://img.shields.io/badge/Pydantic%20AI-E92063?logo=pydantic&logoColor=white" alt="Pydantic AI"></a>
   <a href="https://python.langchain.com"><img src="https://img.shields.io/badge/LangChain-1C3C3C?logo=langchain&logoColor=white" alt="LangChain"></a>
   <a href="https://langchain-ai.github.io/langgraph/"><img src="https://img.shields.io/badge/LangGraph-005A9C?logo=langchain&logoColor=white" alt="LangGraph"></a>
   <a href="https://milvus.io"><img src="https://img.shields.io/badge/Milvus-FF6B35?logoColor=white" alt="Milvus"></a>
@@ -713,7 +713,7 @@ They also ship a ready-to-use **`.claude/` toolkit** that adapts to the options 
 
 ### 🤖 AI/LLM First
 
-- **5 AI Frameworks** - [PydanticAI](https://ai.pydantic.dev), [PydanticDeep](https://github.com/vstorm-co/pydantic-deep), [LangChain](https://python.langchain.com), [LangGraph](https://langchain-ai.github.io/langgraph/), [DeepAgents](https://github.com/vstorm-co/pydantic-deepagents)
+- **5 AI Frameworks** - [Pydantic AI](https://ai.pydantic.dev), [Pydantic Deep Agents](https://github.com/vstorm-co/pydantic-deepagents), [LangChain](https://python.langchain.com), [LangGraph](https://langchain-ai.github.io/langgraph/), [DeepAgents](https://github.com/langchain-ai/deepagents)
 - **4 LLM Providers** - OpenAI, Anthropic, Google Gemini, OpenRouter
 - **RAG** - Document ingestion, vector search, reranking (Milvus, Qdrant, ChromaDB, pgvector)
 - **WebSocket Streaming** - Real-time responses with full event access
@@ -727,7 +727,7 @@ They also ship a ready-to-use **`.claude/` toolkit** that adapts to the options 
 - **Multimodal Embeddings** - Provider-aware: OpenAI, Voyage (Anthropic), Gemini (multimodal text + images)
 - **Document Sources** - Local files, API upload, Google Drive, S3/MinIO
 - **Sync Sources** - Per-organization connector management UI (Google Drive, S3/MinIO) with scheduled sync, manual triggers, encrypted credentials, and per-run logs
-- **Observability** - Logfire for PydanticAI, LangSmith for LangChain/LangGraph/DeepAgents
+- **Observability** - Logfire for Pydantic AI, LangSmith for LangChain/LangGraph/DeepAgents
 
 ### ⚡ Backend (FastAPI)
 
@@ -753,7 +753,7 @@ They also ship a ready-to-use **`.claude/` toolkit** that adapts to the options 
 
 | Category | Integrations |
 |----------|-------------|
-| **AI Frameworks** | PydanticAI, PydanticDeep, LangChain, LangGraph, DeepAgents |
+| **AI Frameworks** | Pydantic AI, Pydantic Deep Agents, LangChain, LangGraph, DeepAgents |
 | **LLM Providers** | OpenAI, Anthropic, Google Gemini, OpenRouter |
 | **RAG / Vector Stores** | Milvus, Qdrant, ChromaDB, pgvector |
 | **RAG Sources** | Local files, API upload, Google Drive, S3/MinIO, Sync Sources (per-org UI, scheduled) |
@@ -783,7 +783,7 @@ They also ship a ready-to-use **`.claude/` toolkit** that adapts to the options 
 │                                                                          │
 │  ┌─────────────────────────────────────────────────────────────────┐     │
 │  │                     AI AGENTS                                   │     │
-│  │  PydanticAI · LangChain · LangGraph · DeepAgents                │     │
+│  │  Pydantic AI · LangChain · LangGraph · DeepAgents               │     │
 │  │  ────────────────────────────────────────────────────────────   │     │
 │  │  Tools: datetime · web_search (Tavily) · search_knowledge_base  │     │
 │  │  Providers: OpenAI · Anthropic · Gemini · OpenRouter            │     │
@@ -893,7 +893,7 @@ See [Architecture Documentation](https://github.com/vstorm-co/full-stack-ai-agen
 Choose from **5 AI frameworks** and **4 LLM providers** when generating your project:
 
 ```bash
-# PydanticAI with OpenAI (default)
+# Pydantic AI with OpenAI (default)
 fastapi-fullstack create my_app --ai-framework pydantic_ai
 
 # LangGraph with Anthropic
@@ -910,13 +910,13 @@ fastapi-fullstack create my_app --rag --database postgresql --task-queue celery
 
 | Framework | OpenAI | Anthropic | Gemini | OpenRouter |
 |-----------|:------:|:---------:|:------:|:----------:|
-| **PydanticAI** | ✓ | ✓ | ✓ | ✓ |
-| **PydanticDeep** | ✓ | ✓ | ✓ | - |
+| **Pydantic AI** | ✓ | ✓ | ✓ | ✓ |
+| **Pydantic Deep Agents** | ✓ | ✓ | ✓ | - |
 | **LangChain** | ✓ | ✓ | ✓ | - |
 | **LangGraph** | ✓ | ✓ | ✓ | - |
 | **DeepAgents** | ✓ | ✓ | ✓ | - |
 
-### PydanticAI Integration
+### Pydantic AI Integration
 
 Type-safe agents with full dependency injection:
 
@@ -985,7 +985,7 @@ Each framework has its own observability solution:
 
 | Framework | Observability | Dashboard |
 |-----------|--------------|-----------|
-| **PydanticAI** | [Logfire](https://logfire.pydantic.dev) | Agent runs, tool calls, token usage |
+| **Pydantic AI** | [Logfire](https://logfire.pydantic.dev) | Agent runs, tool calls, token usage |
 | **LangChain** | [LangSmith](https://smith.langchain.com) | Traces, feedback, datasets |
 
 See [AI Agent Documentation](https://github.com/vstorm-co/full-stack-ai-agent-template/blob/main/docs/ai-agent.md) for more.
@@ -1040,7 +1040,7 @@ uv run my_app rag-sync-s3 --collection docs --prefix reports/ --bucket my-bucket
 
 ## 📊 Observability
 
-### Logfire (for PydanticAI)
+### Logfire (for Pydantic AI)
 
 [Logfire](https://logfire.pydantic.dev) provides complete observability for your application - from AI agents to database queries. Built by the Pydantic team, it offers first-class support for the entire Python ecosystem.
 
@@ -1048,7 +1048,7 @@ uv run my_app rag-sync-s3 --collection docs --prefix reports/ --bucket my-bucket
 graph LR
     subgraph Your App
         API[FastAPI]
-        Agent[PydanticAI]
+        Agent[Pydantic AI]
         DB[(Database)]
         Cache[(Redis)]
         Queue[Celery/Taskiq]
@@ -1071,7 +1071,7 @@ graph LR
 
 | Component | What You See |
 |-----------|-------------|
-| **PydanticAI** | Agent runs, tool calls, LLM requests, token usage, streaming events |
+| **Pydantic AI** | Agent runs, tool calls, LLM requests, token usage, streaming events |
 | **FastAPI** | Request/response traces, latency, status codes, route performance |
 | **PostgreSQL** | Query execution time, slow queries, connection pool stats |
 | **Redis** | Cache hits/misses, command latency, key patterns |
@@ -1245,7 +1245,7 @@ generated_at = "2024-12-21T10:30:00+00:00"
 | **Auth** | `jwt`, `api_key`, `both`, `none` | JWT includes user management |
 | **OAuth** | `none`, `google` | Social login |
 | **AI Framework** | `pydantic_ai`, `pydantic_deep`, `langchain`, `langgraph`, `deepagents` | Choose your AI agent framework |
-| **LLM Provider** | `openai`, `anthropic`, `google`, `openrouter` | OpenRouter only with PydanticAI |
+| **LLM Provider** | `openai`, `anthropic`, `google`, `openrouter` | OpenRouter only with Pydantic AI |
 | **RAG** | `--rag` | Enable RAG with vector database |
 | **Vector Store** | `milvus`, `qdrant`, `chromadb`, `pgvector` | pgvector uses existing PostgreSQL |
 | **Background Tasks** | `none`, `celery`, `taskiq`, `arq`, `prefect` | Distributed queues / orchestration |
@@ -1269,7 +1269,7 @@ fastapi-fullstack new
 # ✓ Rate limiting (per user/org/IP, Redis or in-memory)
 # ✓ Pagination (fastapi-pagination)
 # ✓ Admin Panel (SQLAdmin)
-# ✓ AI Agent (PydanticAI or LangChain)
+# ✓ AI Agent (Pydantic AI or LangChain)
 # ✓ Webhooks
 # ✓ Sentry
 # ✓ Logfire / LangSmith
@@ -1291,7 +1291,7 @@ Setting up a production AI agent stack manually means wiring together 10+ tools 
 # 2. Configure SQLAlchemy + Alembic migrations
 # 3. Implement JWT auth with refresh tokens
 # 4. Build WebSocket streaming for AI responses
-# 5. Integrate PydanticAI/LangChain with tool calling
+# 5. Integrate Pydantic AI/LangChain with tool calling
 # 6. Set up RAG pipeline (parsing, chunking, embedding, vector store)
 # 7. Configure Celery + Redis for background tasks
 # 8. Build Next.js frontend with auth and chat UI
@@ -1361,7 +1361,7 @@ The generated project is plain code — no lock-in or runtime dependency on the 
 <details>
 <summary><b>Can I use a different LLM provider than the one I selected?</b></summary>
 
-Yes. The LLM provider is configured via environment variables (`AI_MODEL`, `OPENAI_API_KEY`, etc.). You can switch providers by changing the `.env` file and the model name — no code changes needed for PydanticAI (which supports all providers natively).
+Yes. The LLM provider is configured via environment variables (`AI_MODEL`, `OPENAI_API_KEY`, etc.). You can switch providers by changing the `.env` file and the model name — no code changes needed for Pydantic AI (which supports all providers natively).
 
 </details>
 
@@ -1373,7 +1373,7 @@ Yes. The LLM provider is configured via environment variables (`AI_MODEL`, `OPEN
 |----------|-------------|
 | [Architecture](https://github.com/vstorm-co/full-stack-ai-agent-template/blob/main/docs/architecture.md) | Repository + Service pattern, layered design |
 | [Frontend](https://github.com/vstorm-co/full-stack-ai-agent-template/blob/main/docs/frontend.md) | Next.js setup, auth, state management |
-| [AI Agent](https://github.com/vstorm-co/full-stack-ai-agent-template/blob/main/docs/ai-agent.md) | PydanticAI, tools, WebSocket streaming |
+| [AI Agent](https://github.com/vstorm-co/full-stack-ai-agent-template/blob/main/docs/ai-agent.md) | Pydantic AI, tools, WebSocket streaming |
 | [Observability](https://github.com/vstorm-co/full-stack-ai-agent-template/blob/main/docs/observability.md) | Logfire integration, tracing, metrics |
 | [Deployment](https://github.com/vstorm-co/full-stack-ai-agent-template/blob/main/docs/deployment.md) | Docker, Kubernetes, production setup |
 | [Development](https://github.com/vstorm-co/full-stack-ai-agent-template/blob/main/docs/development.md) | Local setup, testing, debugging |
@@ -1383,7 +1383,7 @@ Yes. The LLM provider is configured via environment variables (`AI_MODEL`, `OPEN
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=vstorm-co/full-stack-fastapi-nextjs-llm-template&type=date&legend=top-left)](https://www.star-history.com/#vstorm-co/full-stack-fastapi-nextjs-llm-template&type=date&legend=top-left)
+[![Star History Chart](https://api.star-history.com/svg?repos=vstorm-co/full-stack-ai-agent-template&type=date&legend=top-left)](https://www.star-history.com/#vstorm-co/full-stack-ai-agent-template&type=date&legend=top-left)
 
 ---
 

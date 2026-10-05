@@ -1,10 +1,6 @@
 <p align="center">
   <a href="https://github.com/vstorm-co/agenticos">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="assets/agenticos-banner-dark.png">
-      <source media="(prefers-color-scheme: light)" srcset="assets/agenticos-banner-light.png">
-      <img src="assets/agenticos-banner-light.png" width="100%" alt="AgenticOS by Vstorm, the Sovereign Agentic AI Layer: AI agents your whole team can use and improve. Open source (Apache-2.0), self-hosted, built on Pydantic AI, with budgets, approvals, guardrails and activity built in. Links to the AgenticOS repository on GitHub.">
-    </picture>
+    <img src="assets/agenticos-banner-light.png" width="100%" alt="AgenticOS by Vstorm, the Sovereign Agentic AI Layer: AI agents your whole team can use and improve. Open source (Apache-2.0), self-hosted, built on Pydantic AI, with budgets, approvals, guardrails and activity built in. Links to the AgenticOS repository on GitHub.">
   </a>
 </p>
 <p align="center"><sub>From the team behind this repo: <a href="https://github.com/vstorm-co/agenticos"><b>AgenticOS</b></a>, the Sovereign Agentic AI Layer. AI agents your whole team can use and improve: open source (Apache-2.0), self-hosted, built on Pydantic AI.</sub></p>

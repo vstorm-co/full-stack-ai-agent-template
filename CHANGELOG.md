@@ -42,6 +42,11 @@ failed in 13 jobs, and several breakages were runtime-only.
 - **OpenAI embeddings relied on another package's dependency** — `openai` is
   now declared whenever OpenAI embeddings are selected, so a non-OpenAI
   provider no longer leaves the embedding service without its SDK
+- **`docker-compose.prod.yml` was rejected outright for Celery and Taskiq
+  projects** — `celery_worker` and `taskiq_worker` run `replicas: 2` and also set
+  `container_name`, which has to be unique, so Compose v2 refused the whole
+  project (`can't set container_name and celery_worker as container name must
+  be unique`). The two workers no longer name their containers
 
 ### Security
 

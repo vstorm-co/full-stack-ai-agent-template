@@ -310,10 +310,10 @@ MATRIX_CONFIGS: dict[str, dict] = {
         background_tasks=BackgroundTaskType.NONE,
     ),
     # Agent memory: the pool/capability/service/routes and the Settings → Memory
-    # UI only render under this flag. Deep research is on because the memory
-    # tool names join the interstitial buffering set only in that combination,
-    # and Slack because agent_invocation.py is the second place the agent gets
-    # the memory capability and it only renders for a channel build.
+    # UI only render under this flag. Deep research is on for the TODO table it
+    # adds to Alembic's filter, and Slack because agent_invocation.py is the
+    # second place the agent gets the memory capability and it only renders
+    # for a channel build.
     "pydantic_ai_memory": dict(
         database=DatabaseType.POSTGRESQL,
         ai_framework=AIFrameworkType.PYDANTIC_AI,
@@ -460,8 +460,7 @@ class TestGeneratedDeepResearch:
         )
         content = session.read_text()
         assert "from app.services.research import RESEARCH_TOOL_NAMES, ResearchToolkit" in content
-        assert "_INTERSTITIAL_TOOL_NAMES = RESEARCH_TOOL_NAMES" in content
-        assert "made_interstitial_call = any(" in content
+        assert "made_research_call = any(name in RESEARCH_TOOL_NAMES" in content
         # The old indiscriminate drop must be gone.
         assert "made_tool_call" not in content
 

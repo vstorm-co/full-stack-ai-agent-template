@@ -29,7 +29,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 
-import httpx
+import httpx2
 from mcp.client.auth import PKCEParameters
 from mcp.client.auth.exceptions import OAuthFlowError
 from mcp.client.auth.oauth2 import (
@@ -63,7 +63,7 @@ FLOW_TTL_SECS = 600.0
 # Redirects are followed by hand (see _send) so every hop is SSRF-checked.
 _MAX_REDIRECTS = 5
 
-_HTTP_TIMEOUT = httpx.Timeout(
+_HTTP_TIMEOUT = httpx2.Timeout(
     settings.MCP_CONNECT_TIMEOUT_SECS, connect=settings.MCP_CONNECT_TIMEOUT_SECS
 )
 
@@ -72,7 +72,7 @@ class OAuthError(Exception):
     """A recoverable failure in the OAuth flow (surfaced to the user)."""
 
 
-async def _send(client: httpx.AsyncClient, request: httpx.Request) -> httpx.Response:
+async def _send(client: httpx2.AsyncClient, request: httpx2.Request) -> httpx2.Response:
     """Send *request*, SSRF-checking every hop, redirects included.
 
     Discovery and token endpoints are chosen by the remote server, so the URL
@@ -154,7 +154,7 @@ async def discover(server_url: str) -> DiscoveredServer:
     metadata (from the ``WWW-Authenticate`` header if present, else well-known
     URIs), then the authorization-server metadata (RFC 8414, OIDC fallbacks).
     """
-    async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT, follow_redirects=False) as client:
+    async with httpx2.AsyncClient(timeout=_HTTP_TIMEOUT, follow_redirects=False) as client:
         # 1. Probe the server unauthenticated to surface the WWW-Authenticate hint.
         www_auth_url: str | None = None
         try:
@@ -177,7 +177,7 @@ async def discover(server_url: str) -> DiscoveredServer:
                 ),
             )
             www_auth_url = extract_resource_metadata_from_www_auth(probe)
-        except (httpx.HTTPError, OAuthError):
+        except (httpx2.HTTPError, OAuthError):
             # Probe failed or was blocked — fall back to well-known discovery below.
             pass
 
@@ -189,7 +189,7 @@ async def discover(server_url: str) -> DiscoveredServer:
                 prm = await handle_protected_resource_response(
                     await _send(client, create_oauth_metadata_request(url))
                 )
-            except (httpx.HTTPError, OAuthError):
+            except (httpx2.HTTPError, OAuthError):
                 continue
             if prm and prm.authorization_servers:
                 auth_server_url = str(prm.authorization_servers[0])
@@ -207,7 +207,7 @@ async def discover(server_url: str) -> DiscoveredServer:
                 keep_going, candidate = await handle_auth_metadata_response(
                     await _send(client, create_oauth_metadata_request(url))
                 )
-            except (httpx.HTTPError, OAuthError):
+            except (httpx2.HTTPError, OAuthError):
                 continue
             if candidate is not None:
                 asm = candidate
@@ -256,10 +256,10 @@ async def register_client(server: DiscoveredServer, redirect_uri: str) -> tuple[
     request = create_client_registration_request(
         server.metadata, metadata, server.authorization_endpoint
     )
-    async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT, follow_redirects=False) as client:
+    async with httpx2.AsyncClient(timeout=_HTTP_TIMEOUT, follow_redirects=False) as client:
         try:
             info = await handle_registration_response(await _send(client, request))
-        except httpx.HTTPError as exc:
+        except httpx2.HTTPError as exc:
             raise OAuthError(f"Dynamic client registration failed: {exc}") from exc
         except OAuthFlowError as exc:
             # The SDK puts the server's response body in the message — keep it
@@ -291,7 +291,7 @@ def authorization_url(
     }
     if server.scope:
         params["scope"] = server.scope
-    query = httpx.QueryParams(params)
+    query = httpx2.QueryParams(params)
     sep = "&" if "?" in server.authorization_endpoint else "?"
     return f"{server.authorization_endpoint}{sep}{query}"
 
@@ -349,7 +349,7 @@ async def refresh_tokens(
 
 
 async def _token_request(token_endpoint: str, data: dict[str, str]) -> OAuthToken:
-    async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT, follow_redirects=False) as client:
+    async with httpx2.AsyncClient(timeout=_HTTP_TIMEOUT, follow_redirects=False) as client:
         try:
             response = await _send(
                 client,
@@ -360,7 +360,7 @@ async def _token_request(token_endpoint: str, data: dict[str, str]) -> OAuthToke
                     headers={"Content-Type": "application/x-www-form-urlencoded"},
                 ),
             )
-        except httpx.HTTPError as exc:
+        except httpx2.HTTPError as exc:
             raise OAuthError(f"Token request failed: {exc}") from exc
     if response.status_code != 200:
         # The body is whatever the endpoint chose to return, and this message

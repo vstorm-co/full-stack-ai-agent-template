@@ -497,6 +497,19 @@ if not enable_docker:
     ):
         remove_file(os.path.join(project_root, compose_file))
 
+# The WebSocket write-access tests render to a stub without an agent, a database
+# and JWT auth on the chat socket.
+if not (
+    "{{ cookiecutter.use_ai }}" == "True"
+    and "{{ cookiecutter.use_database }}" == "True"
+    and "{{ cookiecutter.websocket_auth_jwt }}" == "True"
+):
+    remove_file(os.path.join(os.getcwd(), "backend", "tests", "test_conversation_write_access.py"))
+
+# The OpenAI-compatible endpoint's tests render to a stub without it.
+if "{{ cookiecutter.use_openai_compatible }}" != "True":
+    remove_file(os.path.join(os.getcwd(), "backend", "tests", "test_openai_compatible.py"))
+
 # Scan all .py files under backend/app — catches any template that rendered to
 # a stub docstring because its feature gate was disabled.
 for root, _dirs, files in os.walk(backend_app):

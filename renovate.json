@@ -6,5 +6,21 @@
   "ignorePaths": [
     "**/node_modules/**",
     "ai_agent_test/**"
+  ],
+  "packageRules": [
+    {
+      "description": "Data-store majors (Postgres, Milvus) change the on-disk format of existing projects' volumes and need a migration path; upgrade deliberately, with a migration note.",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "postgres",
+        "milvusdb/milvus"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "enabled": false
+    }
   ]
 }

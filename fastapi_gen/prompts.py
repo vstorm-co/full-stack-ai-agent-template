@@ -773,8 +773,9 @@ def prompt_llm_provider(ai_framework: AIFrameworkType) -> LLMProviderType:
     """Prompt for LLM provider selection.
 
     Args:
-        ai_framework: The selected AI framework. OpenRouter is only
-            available for PydanticAI and PydanticDeep (both use pydantic-ai under the hood).
+        ai_framework: The selected AI framework. OpenRouter and an OpenAI-compatible
+            endpoint are only available for PydanticAI and PydanticDeep (both use
+            pydantic-ai under the hood).
     """
     console.print()
     console.print("[bold cyan]LLM Provider[/]")
@@ -790,6 +791,12 @@ def prompt_llm_provider(ai_framework: AIFrameworkType) -> LLMProviderType:
     if ai_framework in (AIFrameworkType.PYDANTIC_AI, AIFrameworkType.PYDANTIC_DEEP):
         choices.append(
             questionary.Choice("OpenRouter (multi-provider)", value=LLMProviderType.OPENROUTER)
+        )
+        choices.append(
+            questionary.Choice(
+                "OpenAI-compatible endpoint (gateway, LiteLLM, vLLM, Ollama, ...)",
+                value=LLMProviderType.OPENAI_COMPATIBLE,
+            )
         )
 
     return cast(

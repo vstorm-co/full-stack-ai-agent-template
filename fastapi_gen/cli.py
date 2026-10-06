@@ -395,11 +395,13 @@ def new(output: Path | None, no_input: bool, name: str | None, minimal: bool) ->
 )
 @click.option(
     "--llm-provider",
-    type=click.Choice(["openai", "anthropic", "google", "openrouter", "all"]),
+    type=click.Choice(["openai", "anthropic", "google", "openrouter", "openai_compatible", "all"]),
     default="openai",
     help=(
         "LLM provider (default: openai). 'all' installs every SDK and lets users "
-        "pick the model at runtime. openrouter requires pydantic_ai."
+        "pick the model at runtime. openai_compatible targets any OpenAI-compatible "
+        "gateway or server by base URL. openrouter and openai_compatible require "
+        "pydantic_ai or pydantic_deep."
     ),
 )
 @click.option("--redis", is_flag=True, help="Enable Redis")
@@ -1370,6 +1372,9 @@ def templates() -> None:
     console.print("  --llm-provider anthropic        Anthropic (claude-opus-4-7)")
     console.print("  --llm-provider google           Google Gemini (gemini-2.5-flash)")
     console.print("  --llm-provider openrouter       OpenRouter (pydantic_ai only)")
+    console.print(
+        "  --llm-provider openai_compatible  Any OpenAI-compatible gateway or server (pydantic_ai only)"
+    )
     console.print(
         "  --websockets                    Enable WebSocket support (real-time chat streaming)"
     )

@@ -314,6 +314,12 @@ class Settings(BaseSettings):
 {%- if cookiecutter.use_openrouter %}
     OPENROUTER_API_KEY: str = ""
 {%- endif %}
+{%- if cookiecutter.use_openai_compatible %}
+    # Any OpenAI-compatible gateway or server, e.g. https://gateway.example.com/v1
+    # or http://localhost:8000/v1. The key is optional: local servers check none.
+    OPENAI_COMPATIBLE_BASE_URL: str = ""
+    OPENAI_COMPATIBLE_API_KEY: str = ""
+{%- endif %}
 {%- if cookiecutter.use_all_providers %}
     # Multi-provider: model can come from any installed SDK. Prefix with the
     # provider name (`openai/gpt-5.5`, `anthropic/claude-opus-4-7`,
@@ -328,6 +334,9 @@ class Settings(BaseSettings):
     AI_MODEL: str = "gemini-2.5-flash"
 {%- elif cookiecutter.use_openrouter %}
     AI_MODEL: str = "anthropic/claude-opus-4-7"
+{%- elif cookiecutter.use_openai_compatible %}
+    # The model as your endpoint names it - required.
+    AI_MODEL: str = ""
 {%- endif %}
     AI_TEMPERATURE: float = 0.7
     AI_THINKING_ENABLED: bool = False
@@ -388,6 +397,9 @@ class Settings(BaseSettings):
         "google/gemini-2.5-flash",
         "deepseek/deepseek-r1",
     ]
+{%- elif cookiecutter.use_openai_compatible %}
+    # What the endpoint serves differs per deployment; list the ones to offer.
+    AI_AVAILABLE_MODELS: list[str] = []
 {%- endif %}
     AI_FRAMEWORK: str = "{{ cookiecutter.ai_framework }}"
     LLM_PROVIDER: str = "{{ cookiecutter.llm_provider }}"

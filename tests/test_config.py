@@ -577,6 +577,38 @@ class TestOptionCombinationValidation:
             )
         assert "OpenRouter is only supported with PydanticAI" in str(exc_info.value)
 
+    @pytest.mark.parametrize(
+        "framework", [AIFrameworkType.LANGCHAIN, AIFrameworkType.LANGGRAPH, AIFrameworkType.DEEPAGENTS]
+    )
+    def test_openai_compatible_outside_pydantic_ai_raises(self, framework: AIFrameworkType) -> None:
+        """The endpoint is wired into the Pydantic AI-based agents only."""
+        with pytest.raises(ValidationError) as exc_info:
+            ProjectConfig(
+                project_name="test",
+                llm_provider=LLMProviderType.OPENAI_COMPATIBLE,
+                ai_framework=framework,
+                background_tasks=BackgroundTaskType.NONE,
+            )
+        assert "An OpenAI-compatible endpoint is only supported with PydanticAI" in str(
+            exc_info.value
+        )
+
+    @pytest.mark.parametrize("framework", [AIFrameworkType.PYDANTIC_AI, AIFrameworkType.PYDANTIC_DEEP])
+    def test_openai_compatible_with_pydantic_frameworks_is_valid(
+        self, framework: AIFrameworkType
+    ) -> None:
+        config = ProjectConfig(
+            project_name="test",
+            llm_provider=LLMProviderType.OPENAI_COMPATIBLE,
+            ai_framework=framework,
+            background_tasks=BackgroundTaskType.NONE,
+        )
+        context = config.to_cookiecutter_context()
+        assert context["use_openai_compatible"] is True
+        assert not any(
+            context[f"use_{p}"] for p in ("openai", "anthropic", "google", "openrouter")
+        )
+
     def test_deepagents_with_openai_is_valid(self) -> None:
         """Test that DeepAgents + OpenAI combination is accepted."""
         config = ProjectConfig(

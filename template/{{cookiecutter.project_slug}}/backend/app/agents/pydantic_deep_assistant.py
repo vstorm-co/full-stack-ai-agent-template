@@ -36,6 +36,9 @@ from pydantic_ai.capabilities import AbstractCapability
 from pydantic_ai_backends import StateWorkspace
 from pydantic_deep import DeepAgentDeps, create_deep_agent
 
+{%- if cookiecutter.use_openai_compatible %}
+from app.agents.openai_compatible import build_openai_compatible_model
+{%- endif %}
 from app.agents.prompts import DEFAULT_SYSTEM_PROMPT
 {%- if cookiecutter.enable_rag %}
 from app.agents.prompts import get_system_prompt_with_rag
@@ -176,7 +179,14 @@ class PydanticDeepAssistant:
     def _build_agent_and_deps(self) -> tuple[Agent[DeepAgentDeps, str], DeepAgentDeps]:
         """Instantiate the pydantic-deep agent and its dependencies."""
         workspace = self._create_workspace()
+{%- if cookiecutter.use_openai_compatible %}
+        # A Model instance: the endpoint is a base URL no model string can carry.
+        model = build_openai_compatible_model(self.model_name)
+        model_str = f"{model.system}:{model.model_name}"
+{%- else %}
         model_str = self._get_model_string()
+        model = model_str
+{%- endif %}
         history_path = (
             self._history_messages_path
             if self._history_messages_path is not None
@@ -203,7 +213,7 @@ class PydanticDeepAssistant:
 {%- endif %}
 
         agent = create_deep_agent(
-            model=model_str,
+            model=model,
             workspace=workspace,
             instructions=self._get_system_prompt(),
             # Per-conversation history persistence

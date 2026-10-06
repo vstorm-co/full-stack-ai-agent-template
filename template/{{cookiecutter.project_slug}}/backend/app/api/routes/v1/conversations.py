@@ -310,7 +310,13 @@ async def add_message(
 {%- endif %}
 ) -> Any:
     """Add a message to a conversation."""
-    return await conversation_service.add_message(conversation_id, data)
+    return await conversation_service.add_message(
+        conversation_id,
+        data,
+{%- if cookiecutter.use_jwt %}
+        user_id=current_user.id,
+{%- endif %}
+    )
 
 
 {%- if cookiecutter.use_jwt and cookiecutter.use_database %}

@@ -238,6 +238,19 @@ MATRIX_CONFIGS: dict[str, dict] = {
         llm_provider=LLMProviderType.OPENROUTER,
         background_tasks=BackgroundTaskType.NONE,
     ),
+    "openai_compatible": dict(
+        database=DatabaseType.POSTGRESQL,
+        ai_framework=AIFrameworkType.PYDANTIC_AI,
+        llm_provider=LLMProviderType.OPENAI_COMPATIBLE,
+        rag_features=RAGFeatures(enable_rag=True, vector_store=VectorStoreType.PGVECTOR),
+        background_tasks=BackgroundTaskType.NONE,
+    ),
+    "openai_compatible_deep": dict(
+        database=DatabaseType.POSTGRESQL,
+        ai_framework=AIFrameworkType.PYDANTIC_DEEP,
+        llm_provider=LLMProviderType.OPENAI_COMPATIBLE,
+        background_tasks=BackgroundTaskType.NONE,
+    ),
     "anthropic": dict(
         database=DatabaseType.POSTGRESQL,
         ai_framework=AIFrameworkType.PYDANTIC_AI,

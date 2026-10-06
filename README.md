@@ -721,7 +721,7 @@ They also ship a ready-to-use **`.claude/` toolkit** that adapts to the options 
 ### 🤖 AI/LLM First
 
 - **5 AI Frameworks** - [Pydantic AI](https://ai.pydantic.dev), [Pydantic Deep Agents](https://github.com/vstorm-co/pydantic-deepagents), [LangChain](https://python.langchain.com), [LangGraph](https://langchain-ai.github.io/langgraph/), [DeepAgents](https://github.com/langchain-ai/deepagents)
-- **4 LLM Providers** - OpenAI, Anthropic, Google Gemini, OpenRouter
+- **5 LLM Providers** - OpenAI, Anthropic, Google Gemini, OpenRouter, and any OpenAI-compatible gateway or server
 - **RAG** - Document ingestion, vector search, reranking (Milvus, Qdrant, ChromaDB, pgvector)
 - **WebSocket Streaming** - Real-time responses with full event access
 - **Rich Chat UI** - Specialized tool-call cards (web search, knowledge base, Python, charts, skills), live subagent feed, citation sources panel, plan/task checklist, reasoning view, and in-chat file previews
@@ -761,7 +761,7 @@ They also ship a ready-to-use **`.claude/` toolkit** that adapts to the options 
 | Category | Integrations |
 |----------|-------------|
 | **AI Frameworks** | Pydantic AI, Pydantic Deep Agents, LangChain, LangGraph, DeepAgents |
-| **LLM Providers** | OpenAI, Anthropic, Google Gemini, OpenRouter |
+| **LLM Providers** | OpenAI, Anthropic, Google Gemini, OpenRouter, OpenAI-compatible endpoints |
 | **RAG / Vector Stores** | Milvus, Qdrant, ChromaDB, pgvector |
 | **RAG Sources** | Local files, API upload, Google Drive, S3/MinIO, Sync Sources (per-org UI, scheduled) |
 | **Embeddings** | OpenAI, Voyage, Gemini (multimodal), SentenceTransformers |
@@ -915,13 +915,15 @@ fastapi-fullstack create my_app --rag --database postgresql --task-queue celery
 
 ### Supported Combinations
 
-| Framework | OpenAI | Anthropic | Gemini | OpenRouter |
-|-----------|:------:|:---------:|:------:|:----------:|
-| **Pydantic AI** | ✓ | ✓ | ✓ | ✓ |
-| **Pydantic Deep Agents** | ✓ | ✓ | ✓ | - |
-| **LangChain** | ✓ | ✓ | ✓ | - |
-| **LangGraph** | ✓ | ✓ | ✓ | - |
-| **DeepAgents** | ✓ | ✓ | ✓ | - |
+| Framework | OpenAI | Anthropic | Gemini | OpenRouter | OpenAI-compatible |
+|-----------|:------:|:---------:|:------:|:----------:|:-----------------:|
+| **Pydantic AI** | ✓ | ✓ | ✓ | ✓ | ✓ |
+| **Pydantic Deep Agents** | ✓ | ✓ | ✓ | ✓ | ✓ |
+| **LangChain** | ✓ | ✓ | ✓ | - | - |
+| **LangGraph** | ✓ | ✓ | ✓ | - | - |
+| **DeepAgents** | ✓ | ✓ | ✓ | - | - |
+
+**OpenAI-compatible** (`--llm-provider openai_compatible`) reaches any gateway or server that speaks the OpenAI API by its base URL: model routers and LLM gateways (LiteLLM, Requesty, OrcaRouter, Portkey) and self-hosted servers (vLLM, llama.cpp, LM Studio, Ollama). Set `OPENAI_COMPATIBLE_BASE_URL`, `AI_MODEL` as the endpoint names it, and `OPENAI_COMPATIBLE_API_KEY` if it checks one.
 
 ### Pydantic AI Integration
 
@@ -1252,7 +1254,7 @@ generated_at = "2024-12-21T10:30:00+00:00"
 | **Auth** | `jwt`, `api_key`, `both`, `none` | JWT includes user management |
 | **OAuth** | `none`, `google` | Social login |
 | **AI Framework** | `pydantic_ai`, `pydantic_deep`, `langchain`, `langgraph`, `deepagents` | Choose your AI agent framework |
-| **LLM Provider** | `openai`, `anthropic`, `google`, `openrouter` | OpenRouter only with Pydantic AI |
+| **LLM Provider** | `openai`, `anthropic`, `google`, `openrouter`, `openai_compatible`, `all` | OpenRouter and OpenAI-compatible only with Pydantic AI / Pydantic Deep Agents |
 | **RAG** | `--rag` | Enable RAG with vector database |
 | **Vector Store** | `milvus`, `qdrant`, `chromadb`, `pgvector` | pgvector uses existing PostgreSQL |
 | **Background Tasks** | `none`, `celery`, `taskiq`, `arq`, `prefect` | Distributed queues / orchestration |

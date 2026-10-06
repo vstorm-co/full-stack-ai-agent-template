@@ -29,6 +29,9 @@ from pydantic_ai.messages import (
 )
 
 from app.agents.assistant import Deps, get_agent
+{%- if cookiecutter.use_database %}
+from app.core.exceptions import AuthorizationError, NotFoundError
+{%- endif %}
 from app.services.agent import (
     build_message_history,
 {%- if cookiecutter.use_database %}
@@ -186,15 +189,21 @@ class AgentSession:
             return
 
 {%- if cookiecutter.use_database %}
-        self.current_conversation_id, newly_created, organization_id = await persist_user_turn(
-{%- if cookiecutter.websocket_auth_jwt %}
-            self.user,
-{%- endif %}
-            user_message,
-            file_ids,
-            requested_conversation_id=data.get("conversation_id"),
-            current_conversation_id=self.current_conversation_id,
-        )
+        try:
+            self.current_conversation_id, newly_created, organization_id = await persist_user_turn(
+    {%- if cookiecutter.websocket_auth_jwt %}
+                self.user,
+    {%- endif %}
+                user_message,
+                file_ids,
+                requested_conversation_id=data.get("conversation_id"),
+                current_conversation_id=self.current_conversation_id,
+            )
+        except (NotFoundError, AuthorizationError) as e:
+            # A conversation this user may not write to: refuse the turn, so
+            # nothing - the prompt or the agent's reply - lands in it.
+            await send_event(self.websocket, "error", {"message": e.message})
+            return
         if newly_created and self.current_conversation_id:
             await send_event(
                 self.websocket,
@@ -816,6 +825,9 @@ from langchain.messages import AIMessage, AIMessageChunk, HumanMessage, ToolMess
 from langchain_core.messages.ai import add_usage
 
 from app.agents.langchain_assistant import AgentContext, get_agent
+{%- if cookiecutter.use_database %}
+from app.core.exceptions import AuthorizationError, NotFoundError
+{%- endif %}
 from app.services.agent import (
     build_message_history,
 {%- if cookiecutter.use_database %}
@@ -955,15 +967,21 @@ class AgentSession:
             return
 
 {%- if cookiecutter.use_database %}
-        self.current_conversation_id, newly_created, organization_id = await persist_user_turn(
-{%- if cookiecutter.websocket_auth_jwt %}
-            self.user,
-{%- endif %}
-            user_message,
-            file_ids,
-            requested_conversation_id=data.get("conversation_id"),
-            current_conversation_id=self.current_conversation_id,
-        )
+        try:
+            self.current_conversation_id, newly_created, organization_id = await persist_user_turn(
+    {%- if cookiecutter.websocket_auth_jwt %}
+                self.user,
+    {%- endif %}
+                user_message,
+                file_ids,
+                requested_conversation_id=data.get("conversation_id"),
+                current_conversation_id=self.current_conversation_id,
+            )
+        except (NotFoundError, AuthorizationError) as e:
+            # A conversation this user may not write to: refuse the turn, so
+            # nothing - the prompt or the agent's reply - lands in it.
+            await send_event(self.websocket, "error", {"message": e.message})
+            return
         if newly_created and self.current_conversation_id:
             await send_event(
                 self.websocket,
@@ -1296,6 +1314,9 @@ from langchain_core.messages import AIMessage, AIMessageChunk, ToolMessage
 from langchain_core.messages.ai import add_usage
 
 from app.agents.langgraph_assistant import AgentContext, get_agent
+{%- if cookiecutter.use_database %}
+from app.core.exceptions import AuthorizationError, NotFoundError
+{%- endif %}
 from app.services.agent import (
 {%- if cookiecutter.use_database %}
     persist_assistant_turn,
@@ -1434,15 +1455,21 @@ class AgentSession:
             return
 
 {%- if cookiecutter.use_database %}
-        self.current_conversation_id, newly_created, organization_id = await persist_user_turn(
-{%- if cookiecutter.websocket_auth_jwt %}
-            self.user,
-{%- endif %}
-            user_message,
-            file_ids,
-            requested_conversation_id=data.get("conversation_id"),
-            current_conversation_id=self.current_conversation_id,
-        )
+        try:
+            self.current_conversation_id, newly_created, organization_id = await persist_user_turn(
+    {%- if cookiecutter.websocket_auth_jwt %}
+                self.user,
+    {%- endif %}
+                user_message,
+                file_ids,
+                requested_conversation_id=data.get("conversation_id"),
+                current_conversation_id=self.current_conversation_id,
+            )
+        except (NotFoundError, AuthorizationError) as e:
+            # A conversation this user may not write to: refuse the turn, so
+            # nothing - the prompt or the agent's reply - lands in it.
+            await send_event(self.websocket, "error", {"message": e.message})
+            return
         if newly_created and self.current_conversation_id:
             await send_event(
                 self.websocket,
@@ -1776,6 +1803,9 @@ from app.agents.deepagents_assistant import (
     InterruptData,
     get_agent,
 )
+{%- if cookiecutter.use_database %}
+from app.core.exceptions import AuthorizationError, NotFoundError
+{%- endif %}
 from app.services.agent import (
 {%- if cookiecutter.use_database %}
     persist_assistant_turn,
@@ -2007,15 +2037,21 @@ class AgentSession:
             self._current_thinking_effort = new_thinking_effort
 
 {%- if cookiecutter.use_database %}
-        self.current_conversation_id, newly_created, organization_id = await persist_user_turn(
-{%- if cookiecutter.websocket_auth_jwt %}
-            self.user,
-{%- endif %}
-            user_message,
-            file_ids,
-            requested_conversation_id=data.get("conversation_id"),
-            current_conversation_id=self.current_conversation_id,
-        )
+        try:
+            self.current_conversation_id, newly_created, organization_id = await persist_user_turn(
+    {%- if cookiecutter.websocket_auth_jwt %}
+                self.user,
+    {%- endif %}
+                user_message,
+                file_ids,
+                requested_conversation_id=data.get("conversation_id"),
+                current_conversation_id=self.current_conversation_id,
+            )
+        except (NotFoundError, AuthorizationError) as e:
+            # A conversation this user may not write to: refuse the turn, so
+            # nothing - the prompt or the agent's reply - lands in it.
+            await send_event(self.websocket, "error", {"message": e.message})
+            return
         if newly_created and self.current_conversation_id:
             await send_event(
                 self.websocket,
@@ -2401,6 +2437,9 @@ from pydantic_ai import (
 from pydantic_ai.messages import BinaryContent, TextPart, ThinkingPart, ThinkingPartDelta
 
 from app.agents.pydantic_deep_assistant import PydanticDeepContext, get_agent
+{%- if cookiecutter.use_database %}
+from app.core.exceptions import AuthorizationError, NotFoundError
+{%- endif %}
 from app.services.agent import (
 {%- if cookiecutter.use_database %}
     persist_assistant_turn,
@@ -2529,15 +2568,21 @@ class AgentSession:
             return
 
 {%- if cookiecutter.use_database %}
-        self.current_conversation_id, newly_created, organization_id = await persist_user_turn(
-{%- if cookiecutter.websocket_auth_jwt %}
-            self.user,
-{%- endif %}
-            user_message,
-            file_ids,
-            requested_conversation_id=data.get("conversation_id"),
-            current_conversation_id=self.current_conversation_id,
-        )
+        try:
+            self.current_conversation_id, newly_created, organization_id = await persist_user_turn(
+    {%- if cookiecutter.websocket_auth_jwt %}
+                self.user,
+    {%- endif %}
+                user_message,
+                file_ids,
+                requested_conversation_id=data.get("conversation_id"),
+                current_conversation_id=self.current_conversation_id,
+            )
+        except (NotFoundError, AuthorizationError) as e:
+            # A conversation this user may not write to: refuse the turn, so
+            # nothing - the prompt or the agent's reply - lands in it.
+            await send_event(self.websocket, "error", {"message": e.message})
+            return
         if newly_created and self.current_conversation_id:
             await send_event(
                 self.websocket,

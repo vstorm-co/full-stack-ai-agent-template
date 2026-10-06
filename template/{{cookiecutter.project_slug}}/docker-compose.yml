@@ -105,7 +105,7 @@ services:
 {%- if cookiecutter.enable_redis %}
 
   redis:
-    image: redis:7-alpine
+    image: valkey/valkey:8-alpine
     container_name: {{ cookiecutter.project_slug }}_redis
     # Port exposed only for local development - remove in production
     ports:
@@ -115,7 +115,7 @@ services:
     networks:
       - backend
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "valkey-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5

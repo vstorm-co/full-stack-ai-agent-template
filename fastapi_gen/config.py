@@ -96,6 +96,7 @@ class LLMProviderType(StrEnum):
     ANTHROPIC = "anthropic"
     GOOGLE = "google"
     OPENROUTER = "openrouter"
+    OPENAI_COMPATIBLE = "openai_compatible"
     ALL = "all"
 
 
@@ -449,9 +450,13 @@ class ProjectConfig(BaseModel):
             raise ValueError("SQLModel requires PostgreSQL database")
         if self.enable_caching and not self.enable_redis:
             raise ValueError("Caching requires Redis to be enabled")
+        pydantic_ai_only = {
+            LLMProviderType.OPENROUTER: "OpenRouter",
+            LLMProviderType.OPENAI_COMPATIBLE: "An OpenAI-compatible endpoint",
+        }
         if (
             self.ai_framework != AIFrameworkType.NONE
-            and self.llm_provider == LLMProviderType.OPENROUTER
+            and self.llm_provider in pydantic_ai_only
             and self.ai_framework
             not in (
                 AIFrameworkType.PYDANTIC_AI,
@@ -459,8 +464,8 @@ class ProjectConfig(BaseModel):
             )
         ):
             raise ValueError(
-                f"OpenRouter is only supported with PydanticAI or PydanticDeep, "
-                f"not {self.ai_framework.value}"
+                f"{pydantic_ai_only[self.llm_provider]} is only supported with PydanticAI "
+                f"or PydanticDeep, not {self.ai_framework.value}"
             )
         if (
             self.enable_rate_limiting
@@ -826,6 +831,8 @@ class ProjectConfig(BaseModel):
             "use_google": self.llm_provider in (LLMProviderType.GOOGLE, LLMProviderType.ALL),
             "use_openrouter": self.llm_provider
             in (LLMProviderType.OPENROUTER, LLMProviderType.ALL),
+            # A gateway or self-hosted server, at a base URL set at deploy time.
+            "use_openai_compatible": self.llm_provider == LLMProviderType.OPENAI_COMPATIBLE,
             "use_all_providers": self.llm_provider == LLMProviderType.ALL,
             # Legacy fixed values (always enabled, not user-configurable)
             # AI

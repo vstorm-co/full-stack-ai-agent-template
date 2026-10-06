@@ -33,6 +33,7 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
 {%- if cookiecutter.use_database %}
 from app.api.deps import get_conversation_service
+from app.core.exceptions import AuthorizationError, NotFoundError
 from app.schemas.conversation import (
     ConversationCreate,
     ConversationUpdate,
@@ -149,6 +150,14 @@ async def persist_user_turn(
     WebSocket event. ``organization_id`` is the conversation's owning org (the user's
     Personal org for new conversations) so usage events can be billed correctly;
     None when teams are disabled or no org context is available.
+
+    Other failures to persist are logged and the turn goes on; an access refusal
+    is not one of them.
+
+    Raises:
+        NotFoundError: The requested conversation does not exist, or is neither
+            the user's nor shared with them.
+        AuthorizationError: It is shared with the user read-only.
     """
     newly_created = False
     organization_id: str | None = None
@@ -197,12 +206,18 @@ async def persist_user_turn(
             user_msg = await conv_service.add_message(
                 UUID(current_conversation_id),
                 MessageCreate(role="user", content=user_message),
+{%- if cookiecutter.websocket_auth_jwt %}
+                user_id=user.id,
+{%- endif %}
             )
             if file_ids:
                 try:
                     await conv_service.link_files_to_message(user_msg.id, file_ids)
                 except Exception as e:
                     logger.warning("Failed to link files: %s", e)
+    except (NotFoundError, AuthorizationError):
+        # Access decisions are not persistence hiccups: the caller refuses the turn.
+        raise
     except Exception as e:
         logger.warning("Failed to persist conversation: %s", e)
 

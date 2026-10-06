@@ -275,11 +275,12 @@ These variables are set automatically by the generator.
 | `use_deepagents` | bool | `false` | DeepAgents (agentic coding, LangChain) is selected | Computed from `ai_framework` |
 | `use_pydantic_deep` | bool | `false` | Pydantic Deep Agents (deep agentic coding, Docker sandbox) is selected | Computed from `ai_framework` |
 | `sandbox_backend` | enum | `"state"` | Agent sandbox environment for DeepAgents/Pydantic Deep Agents. Values: `state`, `daytona` | Only used when `use_deepagents` or `use_pydantic_deep` is true |
-| `llm_provider` | enum | `"openai"` | LLM provider. Values: `openai`, `anthropic`, `google`, `openrouter` | - |
+| `llm_provider` | enum | `"openai"` | LLM provider. Values: `openai`, `anthropic`, `google`, `openrouter`, `openai_compatible`, `all` | - |
 | `use_openai` | bool | `true` | OpenAI is selected | Computed from `llm_provider` |
 | `use_anthropic` | bool | `false` | Anthropic is selected | Computed from `llm_provider` |
 | `use_google` | bool | `false` | Google Gemini is selected | Computed from `llm_provider` |
 | `use_openrouter` | bool | `false` | OpenRouter is selected | Computed from `llm_provider` |
+| `use_openai_compatible` | bool | `false` | An OpenAI-compatible endpoint (gateway or self-hosted server) is selected | Computed from `llm_provider` |
 | `enable_langsmith` | bool | `false` | Enable LangSmith observability (tracing, prompt management) | Requires LangChain, LangGraph, or DeepAgents |
 | `enable_web_search` | bool | `false` | Web search. Pydantic AI/Pydantic Deep Agents use the model-native WebSearch capability; LangChain/LangGraph/DeepAgents use a Tavily-backed tool (needs `TAVILY_API_KEY`) | Requires an AI framework |
 | `enable_web_fetch` | bool | `false` | Web fetch. Pydantic AI/Pydantic Deep Agents use the model-native WebFetch capability; LangChain/LangGraph/DeepAgents use the portable `fetch_url` tool | Requires an AI framework |

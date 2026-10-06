@@ -185,6 +185,8 @@ async def readiness_probe(
             "anthropic": "ANTHROPIC_API_KEY",
             "google": "GOOGLE_API_KEY",
             "openrouter": "OPENROUTER_API_KEY",
+            # The key is optional here; without the endpoint nothing works.
+            "openai_compatible": "OPENAI_COMPATIBLE_BASE_URL",
         }.get(llm_provider)
         api_key = getattr(settings, key_field, None) if key_field else None
         checks["llm"] = {

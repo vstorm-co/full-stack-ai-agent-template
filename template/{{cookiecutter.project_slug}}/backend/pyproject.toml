@@ -114,19 +114,22 @@ dependencies = [
 {%- if cookiecutter.use_all_providers %}
     # Multi-provider: install every SDK so the runtime model picker can route
     # to whichever backend the user (or env default) selects.
-    "pydantic-ai-slim[openai,anthropic,google,openrouter,duckduckgo,web-fetch]>=1.80.0",
+    "pydantic-ai-slim[openai,anthropic,google,openrouter,duckduckgo,web-fetch]>=2.0.0",
 {%- elif cookiecutter.use_openai %}
-    "pydantic-ai-slim[openai,duckduckgo,web-fetch]>=1.80.0",
+    "pydantic-ai-slim[openai,duckduckgo,web-fetch]>=2.0.0",
 {%- elif cookiecutter.use_anthropic %}
-    "pydantic-ai-slim[anthropic,duckduckgo,web-fetch]>=1.80.0",
+    "pydantic-ai-slim[anthropic,duckduckgo,web-fetch]>=2.0.0",
 {%- elif cookiecutter.use_google %}
-    "pydantic-ai-slim[google,duckduckgo,web-fetch]>=1.80.0",
+    "pydantic-ai-slim[google,duckduckgo,web-fetch]>=2.0.0",
 {%- elif cookiecutter.use_openrouter %}
-    "pydantic-ai-slim[openrouter,duckduckgo,web-fetch]>=1.80.0",
+    "pydantic-ai-slim[openrouter,duckduckgo,web-fetch]>=2.0.0",
 {%- endif %}
 {%- if cookiecutter.enable_mcp_client %}
     # MCP client transports + toolset support (Settings → Integrations).
-    "pydantic-ai-slim[mcp]>=1.80.0",
+    "pydantic-ai-slim[mcp]>=2.0.0",
+    # 2.x: the streamable-HTTP client and the OAuth helpers speak httpx2.
+    "mcp>=2.0.0",
+    "httpx2>=2.13.0",
 {%- endif %}
 {%- endif %}
 {%- if cookiecutter.use_langchain %}
@@ -173,12 +176,23 @@ dependencies = [
 {%- endif %}
 {%- endif %}
 {%- if cookiecutter.use_pydantic_deep %}
-    # pydantic-deep: deep agentic coding assistant built on pydantic-ai
-    "pydantic-deep>=0.1.0",
-    # pydantic-ai backend with console toolset (StateBackend, LocalBackend)
-    "pydantic-ai-backend[console]>=0.2.4",
-    # pydantic-ai with web search and fetch support (WebSearch, WebFetch capabilities)
-    "pydantic-ai-slim[duckduckgo,web-fetch]>=1.80.0",
+    # pydantic-deep: deep agentic coding assistant, on Pydantic AI workspaces
+    "pydantic-deep>=0.3.49",
+    # Workspaces for it to work in: StateWorkspace{% if cookiecutter.sandbox_backend == "daytona" %}, DaytonaWorkspace{% endif %}
+    "pydantic-ai-backend[console,workspaces{% if cookiecutter.sandbox_backend == "daytona" %},daytona{% endif %}]>=0.2.33",
+    # pydantic-deep installs pydantic-ai-slim without provider SDKs; add the
+    # selected provider's, plus web search and fetch (WebSearch, WebFetch).
+{%- if cookiecutter.use_all_providers %}
+    "pydantic-ai-slim[openai,anthropic,google,openrouter,duckduckgo,web-fetch]>=2.0.0",
+{%- elif cookiecutter.use_openai %}
+    "pydantic-ai-slim[openai,duckduckgo,web-fetch]>=2.0.0",
+{%- elif cookiecutter.use_anthropic %}
+    "pydantic-ai-slim[anthropic,duckduckgo,web-fetch]>=2.0.0",
+{%- elif cookiecutter.use_google %}
+    "pydantic-ai-slim[google,duckduckgo,web-fetch]>=2.0.0",
+{%- elif cookiecutter.use_openrouter %}
+    "pydantic-ai-slim[openrouter,duckduckgo,web-fetch]>=2.0.0",
+{%- endif %}
 {%- endif %}
 {%- if cookiecutter.enable_rag %}
     # Vector store
@@ -199,7 +213,7 @@ dependencies = [
     # BM25 for hybrid search
     "rank-bm25>=0.2.2",
 {%- if cookiecutter.use_openai_embeddings %}
-    # Uses existing openai dependency
+    "openai>=1.0.0",
 {%- endif %}
 {%- if cookiecutter.use_voyage_embeddings %}
     "voyageai>=0.3.0",
@@ -259,10 +273,10 @@ dependencies = [
     "matplotlib>=3.9.0",
 {%- endif %}
 {%- if cookiecutter.enable_code_execution %}
-    "pydantic-monty>=0.0.19",
+    "pydantic-monty>=1.0.0",
 {%- endif %}
 {%- if cookiecutter.enable_skills %}
-    "pydantic-ai-skills>=0.11.0",
+    "pydantic-ai-skills>=2.0.0",
 {%- endif %}
 {%- if cookiecutter.enable_todo %}
     "pydantic-ai-todo[postgres]>=0.2.1",

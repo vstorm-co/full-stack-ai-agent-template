@@ -430,9 +430,9 @@ class TestOptionCombinationValidation:
         assert config.to_cookiecutter_context()["enable_mcp_client"] is True
 
     def test_memory_requires_pydantic_ai(self) -> None:
-        """Agent memory is wired only for the PydanticAI framework."""
+        """Agent memory is wired only for the Pydantic AI framework."""
         with pytest.raises(
-            ValidationError, match="Agent memory requires the PydanticAI framework"
+            ValidationError, match="Agent memory requires the Pydantic AI framework"
         ):
             ProjectConfig(
                 project_name="test",

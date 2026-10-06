@@ -502,7 +502,7 @@ def new(output: Path | None, no_input: bool, name: str | None, minimal: bool) ->
     "--memory",
     is_flag=True,
     default=False,
-    help="Enable persistent per-user agent memory (Settings → Memory, PydanticAI + PostgreSQL only)",
+    help="Enable persistent per-user agent memory (Settings → Memory, Pydantic AI + PostgreSQL only)",
 )
 @click.option("--session-management", is_flag=True, help="Enable session management")
 @click.option(

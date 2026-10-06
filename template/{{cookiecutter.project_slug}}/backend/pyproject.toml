@@ -287,10 +287,10 @@ dependencies = [
     "pydantic-ai-todo[postgres]>=0.2.1",
 {%- endif %}
 {%- if cookiecutter.enable_subagents %}
-    "subagents-pydantic-ai>=0.2.10",
+    "subagents-pydantic-ai>=0.2.7",
 {%- endif %}
 {%- if cookiecutter.enable_deep_research %}
-    "summarization-pydantic-ai>=0.1.11",
+    "summarization-pydantic-ai>=0.1.7",
 {%- endif %}
 {%- if cookiecutter.use_telegram or cookiecutter.use_slack or cookiecutter.enable_rag %}
     "cryptography>=44.0.0",

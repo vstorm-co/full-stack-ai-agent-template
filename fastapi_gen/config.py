@@ -512,7 +512,7 @@ class ProjectConfig(BaseModel):
 
         if self.enable_memory and self.ai_framework != AIFrameworkType.PYDANTIC_AI:
             raise ValueError(
-                "Agent memory requires the PydanticAI framework. "
+                "Agent memory requires the Pydantic AI framework. "
                 "Quick fix: set --ai-framework pydantic_ai, or drop --memory."
             )
         # Defense-in-depth: unreachable today because the only non-Postgres option

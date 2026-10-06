@@ -52,9 +52,12 @@ export function useMemoryFiles(): UseMemoryFilesResult {
     queryFn: listMemoryFiles,
   });
 
-  // A 503 means the feature is switched off, which is a state to explain rather
-  // than an error to retry.
-  const disabled = queryError instanceof ApiError && queryError.status === 503;
+  // A 503 for a switched-off feature is a state to explain rather than an error
+  // to retry; one for an unreachable store is an error.
+  const disabled =
+    queryError instanceof ApiError &&
+    queryError.status === 503 &&
+    (queryError.data as { code?: string } | undefined)?.code !== "MEMORY_UNAVAILABLE";
   const error = disabled
     ? null
     : queryError instanceof Error

@@ -122,6 +122,9 @@ class ChannelMessageRouter:
 {%- endif %}
                 system_prompt_override=getattr(bot, "system_prompt_override", None),
                 model_override=getattr(bot, "ai_model_override", None),
+{%- if cookiecutter.enable_memory %}
+                direct_message=incoming.chat_type == "private",
+{%- endif %}
             )
         except Exception:
             logger.exception("Agent invocation failed for bot %s", incoming.bot_id)

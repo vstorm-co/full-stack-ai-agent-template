@@ -999,7 +999,7 @@ def prompt_mcp_client() -> bool:
 
 
 def prompt_memory() -> bool:
-    """Prompt for persistent agent memory (PydanticAI only)."""
+    """Prompt for persistent agent memory (Pydantic AI only)."""
     console.print()
     console.print("[bold cyan]Agent Memory[/]")
     console.print(
@@ -1014,7 +1014,7 @@ def prompt_memory() -> bool:
         bool,
         _check_cancelled(
             questionary.confirm(
-                "Enable persistent agent memory (PydanticAI only)?",
+                "Enable persistent agent memory (Pydantic AI only)?",
                 default=False,
             ).ask()
         ),

@@ -11,6 +11,9 @@ from sqlmodel import SQLModel
 {%- endif %}
 
 from app.core.config import settings
+{%- if cookiecutter.enable_memory or cookiecutter.enable_todo %}
+from app.db.migration_filters import include_name
+{%- endif %}
 {%- if not cookiecutter.use_sqlmodel %}
 from app.db.base import Base
 {%- endif %}
@@ -69,6 +72,9 @@ def run_migrations_offline() -> None:
     context.configure(
         url=url,
         target_metadata=target_metadata,
+{%- if cookiecutter.enable_memory or cookiecutter.enable_todo %}
+        include_name=include_name,
+{%- endif %}
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
     )
@@ -92,6 +98,9 @@ def run_migrations_online() -> None:
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
+{%- if cookiecutter.enable_memory or cookiecutter.enable_todo %}
+            include_name=include_name,
+{%- endif %}
         )
 
         with context.begin_transaction():

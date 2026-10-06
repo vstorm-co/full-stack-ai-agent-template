@@ -50,11 +50,7 @@ from app.services.file_storage import get_file_storage
 from app.services.mcp_connection import build_toolsets_for_user
 {%- endif %}
 {%- if cookiecutter.enable_memory %}
-{%- if cookiecutter.enable_deep_research %}
-from app.agents.memory import MEMORY_TOOL_NAMES, build_memory_capability
-{%- else %}
 from app.agents.memory import build_memory_capability
-{%- endif %}
 {%- endif %}
 {%- if cookiecutter.enable_billing and cookiecutter.enable_teams and cookiecutter.enable_credits_system %}
 from app.services.usage import UsageService
@@ -65,13 +61,6 @@ from app.services.research import RESEARCH_TOOL_NAMES, ResearchToolkit
 {%- endif %}
 
 logger = logging.getLogger(__name__)
-
-{%- if cookiecutter.enable_deep_research %}
-
-# During deep research, text accompanying a step that only called these tools is
-# planning noise, not a final answer — it stays buffered instead of streaming out.
-_INTERSTITIAL_TOOL_NAMES = RESEARCH_TOOL_NAMES{% if cookiecutter.enable_memory %} | MEMORY_TOOL_NAMES{% endif %}
-{%- endif %}
 
 
 class AgentSession:
@@ -264,7 +253,14 @@ class AgentSession:
                 context_manager_capability=ctx_manager_cap,
 {%- endif %}
 {%- if cookiecutter.enable_memory %}
+{%- if cookiecutter.enable_teams %}
+                # The conversation's organisation: memory never crosses organisations.
+                memory_capability=await build_memory_capability(
+                    str(self.user.id), str(organization_id) if organization_id else None
+                ),
+{%- else %}
                 memory_capability=await build_memory_capability(str(self.user.id)),
+{%- endif %}
 {%- endif %}
             )
             model_history = build_message_history(self.conversation_history)
@@ -651,14 +647,6 @@ class AgentSession:
         collected_thinking: list[str],
     ) -> None:
         """Drive the agent_run iterator, dispatching each node to its streaming helper."""
-{%- if cookiecutter.enable_deep_research %}
-        # Text held back from the most recent model step (see
-        # :meth:`_stream_request_events`). PydanticAI treats text co-emitted with
-        # function tool calls as the final result, so if the run ends right after
-        # such a step that text was the answer, not narration, and has to reach
-        # the client before ``final_result``.
-        withheld_text: list[tuple[int, str]] = []
-{%- endif %}
         async for node in agent_run:
             if Agent.is_user_prompt_node(node):
                 prompt_text = (
@@ -670,47 +658,28 @@ class AgentSession:
             elif Agent.is_model_request_node(node):
                 await send_event(self.websocket, "model_request_start", {})
                 async with node.stream(agent_run.ctx) as request_stream:
-{%- if cookiecutter.enable_deep_research %}
-                    withheld_text = await self._stream_request_events(
-                        request_stream, collected_thinking
-                    )
-{%- else %}
                     await self._stream_request_events(request_stream, collected_thinking)
-{%- endif %}
             elif Agent.is_call_tools_node(node):
                 await send_event(self.websocket, "call_tools_start", {})
                 async with node.stream(agent_run.ctx) as handle_stream:
                     await self._stream_tool_events(handle_stream, collected_tool_calls)
             elif Agent.is_end_node(node) and agent_run.result is not None:
-{%- if cookiecutter.enable_deep_research %}
-                for index, content in withheld_text:
-                    await send_event(
-                        self.websocket, "text_delta", {"index": index, "content": content}
-                    )
-{%- endif %}
                 await send_event(
                     self.websocket, "final_result", {"output": agent_run.result.output}
                 )
 
     async def _stream_request_events(
         self, request_stream: Any, collected_thinking: list[str]
-{%- if cookiecutter.enable_deep_research %}
-    ) -> list[tuple[int, str]]:
-{%- else %}
     ) -> None:
-{%- endif %}
         """Forward model-request events (text/thinking/tool deltas + final-result start).
 {%- if cookiecutter.enable_deep_research %}
 
         During a deep research turn the model narrates every delegation step.
         A plain-text response ends a PydanticAI run, so a step that issues a
-        planning/delegation tool call (``_INTERSTITIAL_TOOL_NAMES``) is
-        interstitial: its text is withheld. A step with only content tools
-        (charts, RAG) or no tool calls is the final answer and its text is
-        released. Reasoning and tool events are always forwarded.
-
-        Returns the withheld text so the caller can release it if the run turns
-        out to have ended on this step.
+        planning/delegation tool call (``RESEARCH_TOOL_NAMES``) is interstitial:
+        its text is buffered and dropped. A step with only content tools (charts,
+        RAG) or no tool calls is the final answer and its text is released.
+        Reasoning and tool events are always forwarded.
 {%- endif %}
         """
 {%- if cookiecutter.enable_deep_research %}
@@ -797,16 +766,12 @@ class AgentSession:
                 )
 {%- if cookiecutter.enable_deep_research %}
 
-        made_interstitial_call = any(
-            name in _INTERSTITIAL_TOOL_NAMES for name in tool_names.values()
-        )
-        if not deep_research or not buffered_text:
-            return []
-        if made_interstitial_call:
-            return buffered_text
-        for index, content in buffered_text:
-            await send_event(self.websocket, "text_delta", {"index": index, "content": content})
-        return []
+        made_research_call = any(name in RESEARCH_TOOL_NAMES for name in tool_names.values())
+        if deep_research and buffered_text and not made_research_call:
+            for index, content in buffered_text:
+                await send_event(
+                    self.websocket, "text_delta", {"index": index, "content": content}
+                )
 {%- endif %}
 
     async def _stream_tool_events(

@@ -2,8 +2,15 @@
 
 Builds the pydantic-ai-harness ``Memory`` capability over the process-wide
 Postgres store (see ``app.db.memory_pool``). Each user gets an isolated
-namespace — store paths look like ``user-<uuid>/main/MEMORY.md`` — resolved
-from the authenticated user here, never from model-controlled input.
+namespace, resolved from the authenticated user here, never from
+model-controlled input:
+{%- if cookiecutter.enable_teams %}
+``user-<uuid>/org-<uuid>/main/MEMORY.md`` — one notebook per organisation the
+user works in, so what the agent learns in one organisation's conversations is
+never injected into another's.
+{%- else %}
+``user-<uuid>/main/MEMORY.md``.
+{%- endif %}
 """
 
 import logging
@@ -22,9 +29,9 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# The tools the harness Memory capability registers. Mirrors the frontend
-# ``MEMORY_TOOLS`` in ``lib/agent-tools.ts``; the names are owned by the
-# harness, so ``test_tool_names_match_harness_toolset`` pins them.
+# The tools the harness Memory capability registers. Mirrors ``isMemoryTool`` in
+# the frontend's ``components/chat/tool-results/memory.tsx``; the names are owned
+# by the harness, so ``test_tool_names_match_harness_toolset`` pins them.
 MEMORY_TOOL_NAMES = frozenset({"write_memory", "read_memory", "delete_memory", "search_memory"})
 MAX_MEMORY_FILE_CHARS = 65_536
 MEMORY_AGENT_NAME = "main"
@@ -46,14 +53,34 @@ MEMORY_GUIDANCE = (
 )
 
 
+def memory_user_prefix(user_id: str) -> str:
+    """Store-path prefix of everything one user has remembered, in any scope."""
+    return f"user-{user_id}/"
+
+
+{%- if cookiecutter.enable_teams %}
+
+
+def memory_namespace(user_id: str, organization_id: str) -> str:
+    """Store namespace for one user's memory within one organisation."""
+    return f"{memory_user_prefix(user_id)}org-{organization_id}"
+
+
+def memory_scope_prefix(user_id: str, organization_id: str) -> str:
+    """Store-path prefix of one user's memory files within one organisation."""
+    return f"{memory_namespace(user_id, organization_id)}/{MEMORY_AGENT_NAME}/"
+{%- else %}
+
+
 def memory_namespace(user_id: str) -> str:
     """Store namespace for one user's memory."""
-    return f"user-{user_id}"
+    return memory_user_prefix(user_id).rstrip("/")
 
 
 def memory_scope_prefix(user_id: str) -> str:
     """Store-path prefix all of one user's memory files live under."""
     return f"{memory_namespace(user_id)}/{MEMORY_AGENT_NAME}/"
+{%- endif %}
 
 
 def canonical_memory_filename(path: str) -> str:
@@ -71,6 +98,24 @@ def canonical_memory_filename(path: str) -> str:
         raise ValueError(str(e)) from e
 
 
+{%- if cookiecutter.enable_teams %}
+async def build_memory_capability(
+    user_id: str, organization_id: str | None
+) -> "Memory[Deps] | None":
+    """Build the user's Memory capability for one organisation, or ``None``.
+
+    A static namespace (rather than a ``ctx.deps`` callable) keeps CLI and
+    other user-less agent paths from silently writing to a ``user-None`` scope.
+    Without an organisation there is no memory at all, rather than one shared
+    across every organisation the user belongs to.
+    """
+    if not settings.ENABLE_MEMORY:
+        return None
+    if organization_id is None:
+        logger.warning("No organisation for this turn; running without memory")
+        return None
+    namespace = memory_namespace(user_id, organization_id)
+{%- else %}
 async def build_memory_capability(user_id: str) -> "Memory[Deps] | None":
     """Build the per-user Memory capability, or ``None`` when unavailable.
 
@@ -79,13 +124,15 @@ async def build_memory_capability(user_id: str) -> "Memory[Deps] | None":
     """
     if not settings.ENABLE_MEMORY:
         return None
+    namespace = memory_namespace(user_id)
+{%- endif %}
     store = await get_memory_store()
     if store is None:
         logger.warning("Agent memory enabled but store unavailable; running without memory")
         return None
     return Memory(
         store=store,
-        namespace=memory_namespace(user_id),
+        namespace=namespace,
         agent_name=MEMORY_AGENT_NAME,
         max_memory_size=MAX_MEMORY_FILE_CHARS,
         guidance=MEMORY_GUIDANCE,

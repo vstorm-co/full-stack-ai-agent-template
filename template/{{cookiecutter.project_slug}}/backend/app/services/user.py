@@ -34,6 +34,9 @@ from app.repositories import user_repo
 {%- endif %}
 from app.schemas.user import UserCreate, UserRead, UserUpdate
 from app.services.file_storage import get_file_storage
+{%- if cookiecutter.enable_memory %}
+from app.services.user_memory import forget_user_memory
+{%- endif %}
 {%- if cookiecutter.enable_email %}
 from app.services.email.service import get_email_service
 {%- endif %}
@@ -322,6 +325,11 @@ class UserService:
                 message="User not found",
                 details={"user_id": user_id},
             )
+{%- if cookiecutter.enable_memory %}
+        # The memory store has no foreign key to users. If it cannot be cleared,
+        # this raises and the request's transaction rolls the user back too.
+        await forget_user_memory(user_id)
+{%- endif %}
         return user
 
 {%- if cookiecutter.enable_email %}

@@ -1570,6 +1570,116 @@ jobs:
         working-directory: /tmp/projects/test_mcp_client/frontend
         run: bun run test:run
 
+  generate-pg-memory:
+    name: Template - PostgreSQL + Agent Memory (teams, deep research, Slack)
+    needs: [lint, type-check]
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: valkey/valkey:8-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "valkey-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.2.0
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install generator
+        run: uv sync
+
+      # --teams scopes memory per organisation, --slack renders the channel path
+      # (direct messages only), --deep-research turns on the TODO tables Alembic
+      # must also leave alone. tests/test_memory_postgres.py runs against the
+      # service database here.
+      - name: Generate project with agent memory
+        run: |
+          mkdir -p /tmp/projects
+          uv run fastapi-fullstack create test_memory \
+            --database postgresql \
+            --ai-framework pydantic_ai \
+            --memory \
+            --teams \
+            --deep-research \
+            --slack \
+            --redis \
+            --frontend nextjs \
+            -o /tmp/projects
+
+      - name: Install backend
+        working-directory: /tmp/projects/test_memory/backend
+        run: uv sync --dev
+
+      - name: Run linting
+        working-directory: /tmp/projects/test_memory/backend
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+
+      - name: Run type check
+        working-directory: /tmp/projects/test_memory/backend
+        run: uv run ty check
+
+      - name: Run tests
+        working-directory: /tmp/projects/test_memory/backend
+        env:
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          SECRET_KEY: test-secret-key-for-ci-that-is-long-enough
+        run: uv run pytest -v
+
+      - name: Install frontend dependencies
+        working-directory: /tmp/projects/test_memory/frontend
+        run: bun install
+
+      - name: Run frontend lint
+        working-directory: /tmp/projects/test_memory/frontend
+        run: bun run lint
+
+      - name: Run frontend type check
+        working-directory: /tmp/projects/test_memory/frontend
+        run: bun run type-check
+
+      - name: Run frontend unit tests
+        working-directory: /tmp/projects/test_memory/frontend
+        run: bun run test:run
+
   generate-pg-monitoring:
     name: Template - PostgreSQL + ARQ + Sentry + Prometheus + Caching
     needs: [lint, type-check]

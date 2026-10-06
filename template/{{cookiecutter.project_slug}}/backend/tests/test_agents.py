@@ -113,7 +113,11 @@ class TestGetAgent:
         capability = Memory(store=InMemoryStore(), namespace="user-test")
         agent = get_agent(memory_capability=capability)
         assert agent.memory_capability is capability
-        _ = agent.agent
+
+        model = TestModel(call_tools=[])
+        agent.agent.run_sync("hi", model=model, deps=Deps())
+        offered = {tool.name for tool in model.last_model_request_parameters.function_tools}
+        assert {"write_memory", "read_memory"} <= offered
 {%- endif %}
 
 

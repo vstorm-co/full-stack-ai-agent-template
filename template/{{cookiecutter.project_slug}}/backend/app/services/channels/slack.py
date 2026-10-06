@@ -209,7 +209,8 @@ class SlackAdapter(ChannelAdapter):
         thread_ts: str | None = event.get("thread_ts")
         message_ts: str | None = event.get("ts")
 
-        chat_type = "private" if channel_type in ("im", "mpim") else "group"
+        # Only a one-to-one DM is private; a multi-person DM ("mpim") is a group.
+        chat_type = "private" if channel_type == "im" else "group"
 
         # For threads: fold thread_ts into platform_chat_id so each thread
         # gets its own ChannelSession and Conversation

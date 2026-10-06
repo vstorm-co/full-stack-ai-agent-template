@@ -8,6 +8,9 @@ from httpx import ASGITransport, AsyncClient
 from pydantic_ai_harness.memory import InMemoryStore
 
 from app.api.deps import get_current_user, get_user_memory_service
+{%- if cookiecutter.enable_teams %}
+from app.api.deps import get_active_organization
+{%- endif %}
 {%- if cookiecutter.use_database %}
 from app.api.deps import get_db_session
 {%- endif %}
@@ -61,6 +64,11 @@ async def auth_client(
 ) -> AsyncClient:
     app.dependency_overrides[get_current_user] = lambda: mock_user
     app.dependency_overrides[get_user_memory_service] = lambda: memory_service
+{%- if cookiecutter.enable_teams %}
+    # ActiveOrg checks membership against the database; the routes only need its id.
+    active_org = type("Org", (), {"id": uuid4()})()
+    app.dependency_overrides[get_active_organization] = lambda: active_org
+{%- endif %}
 {%- if cookiecutter.enable_redis %}
     app.dependency_overrides[get_redis] = lambda: mock_redis
 {%- endif %}
@@ -192,6 +200,9 @@ async def test_returns_503_when_memory_disabled(
 ):
     app.dependency_overrides[get_current_user] = MockUser
     app.dependency_overrides[get_user_memory_service] = lambda: UserMemoryService(None)
+{%- if cookiecutter.enable_teams %}
+    app.dependency_overrides[get_active_organization] = lambda: type("Org", (), {"id": uuid4()})()
+{%- endif %}
 {%- if cookiecutter.enable_redis %}
     app.dependency_overrides[get_redis] = lambda: mock_redis
 {%- endif %}

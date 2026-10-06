@@ -304,10 +304,8 @@ export function ToolCallCard({ toolCall, defaultExpanded = false }: ToolCallCard
             </span>
           ) : null}
 {%- endif %}
-          {/* pr-0.5 gives italic glyph overhang room — `truncate` clips it otherwise
-              (a trailing "d" loses its edge and reads as "a"). */}
           {inputHint && !isRunning ? (
-            <span className="text-muted-foreground min-w-0 flex-1 truncate pr-0.5 text-xs italic">
+            <span className="text-muted-foreground min-w-0 flex-1 truncate text-xs italic">
               {inputHint}
             </span>
           ) : null}

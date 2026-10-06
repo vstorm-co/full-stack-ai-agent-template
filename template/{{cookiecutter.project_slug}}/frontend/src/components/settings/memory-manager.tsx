@@ -33,9 +33,13 @@ function sortFiles(files: MemoryFileEntry[]): MemoryFileEntry[] {
   );
 }
 
+function errorCode(e: unknown): string | undefined {
+  return e instanceof ApiError ? (e.data as { code?: string } | null)?.code : undefined;
+}
+
 /** Turn a failed request into advice the user can act on. */
 function errorMessage(e: unknown, fallback: string): string {
-  const code = e instanceof ApiError ? (e.data as { code?: string } | null)?.code : undefined;
+  const code = errorCode(e);
   if (code === "MEMORY_FILE_EXISTS") {
     return "A file with that name already exists — edit that one instead.";
   }
@@ -84,9 +88,22 @@ export function MemoryManager() {
       toast.success(`${path} saved.`);
       setEditor(null);
     } catch (e) {
-      toast.error(errorMessage(e, "Failed to save file"));
-      // The version in hand may be stale; drop it so the next attempt reloads.
-      setEditor(null);
+      // Keep the editor open: closing it would throw away what was typed.
+      if (errorCode(e) === "MEMORY_VERSION_CONFLICT") {
+        try {
+          // Take the current version, so saving again overwrites the newer copy
+          // knowingly rather than failing the same way.
+          const current = await readMemoryFile(path);
+          setEditor((open) => (open ? { ...open, version: current.version } : open));
+          toast.error(
+            "This file changed since you opened it. Your text is kept — save again to replace the newer copy.",
+          );
+        } catch (reloadError) {
+          toast.error(errorMessage(reloadError, "Failed to reload file"));
+        }
+      } else {
+        toast.error(errorMessage(e, "Failed to save file"));
+      }
       void refresh();
     } finally {
       setSubmitting(false);

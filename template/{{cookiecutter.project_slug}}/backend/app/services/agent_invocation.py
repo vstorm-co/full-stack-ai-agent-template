@@ -87,8 +87,16 @@ class AgentInvocationService:
         organization_id: UUID | None = None,
         system_prompt_override: str | None = None,
         model_override: str | None = None,
+{%- if cookiecutter.enable_memory %}
+        direct_message: bool = False,
+{%- endif %}
     ) -> tuple[str, list[ToolEvent]]:
         """Run the agent and return final text + tool events.
+{%- if cookiecutter.enable_memory %}
+
+        ``direct_message`` marks a one-to-one chat: only there does the agent use
+        the user's memory.
+{%- endif %}
 
         Returns:
             Tuple of (response_text, tool_events).
@@ -113,6 +121,10 @@ class AgentInvocationService:
             kb_collection_names=kb_collection_names,
             system_prompt_override=system_prompt_override,
             model_override=model_override,
+{%- if cookiecutter.enable_memory %}
+            organization_id=organization_id,
+            direct_message=direct_message,
+{%- endif %}
         )
 
         await self._persist_assistant_message(conversation_id, response_text)
@@ -154,13 +166,22 @@ class AgentInvocationService:
 
         model_name: str | None = kwargs.get("model_override")
 {%- if cookiecutter.enable_memory %}
-        # Channel messages share the web chat's memory notebook, but only for
-        # traffic mapped to a real account — anonymous channel traffic must not
-        # collapse onto one shared memory scope.
+        # Channel messages share the user's memory notebook, but only for traffic
+        # mapped to a real account - anonymous channel traffic must not collapse
+        # onto one shared scope - and only in a direct message: in a group chat
+        # the user's private notes would be answered into the channel, and other
+        # members' messages could be saved into them.
         invocation_user_id = kwargs.get("user_id")
-        memory_capability = (
-            await build_memory_capability(str(invocation_user_id)) if invocation_user_id else None
-        )
+        memory_capability = None
+        if invocation_user_id and kwargs.get("direct_message"):
+{%- if cookiecutter.enable_teams %}
+            invocation_org_id = kwargs.get("organization_id")
+            memory_capability = await build_memory_capability(
+                str(invocation_user_id), str(invocation_org_id) if invocation_org_id else None
+            )
+{%- else %}
+            memory_capability = await build_memory_capability(str(invocation_user_id))
+{%- endif %}
 {%- endif %}
 {%- if cookiecutter.enable_mcp_client %}
         # Channel messages run the same agent as the web chat, so the user's

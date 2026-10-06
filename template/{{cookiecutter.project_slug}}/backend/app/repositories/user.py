@@ -143,6 +143,14 @@ async def delete(db: AsyncSession, user_id: UUID) -> User | None:
     return user
 
 
+{%- if cookiecutter.enable_memory %}
+async def list_non_admin_ids(db: AsyncSession) -> list[UUID]:
+    """Ids of the users without the admin role - those ``delete_non_admins`` removes."""
+    result = await db.execute(select(User.id).where(User.role != "admin"))
+    return list(result.scalars().all())
+
+
+{%- endif %}
 async def delete_non_admins(db: AsyncSession) -> int:
     """Bulk-delete users without the admin role. Returns affected row count."""
     result = await db.execute(sql_delete(User).where(User.role != "admin"))

@@ -4,6 +4,7 @@ These tests generate actual projects and run linting/type checking on them.
 They are slower but ensure the template produces valid, well-formatted code.
 """
 
+import ast
 import subprocess
 from pathlib import Path
 
@@ -390,6 +391,37 @@ class TestGeneratedTemplateMatrix:
             cwd=backend_path,
         )
         assert result.returncode == 0, f"Ruff failed:\n{result.stdout}\n{result.stderr}"
+
+    def test_alembic_chain_is_unbroken(self, matrix_project: Path) -> None:
+        """Every migration's parent is generated, and there is one head.
+
+        Migrations behind a feature flag are left out of projects without it, so
+        one that names a gated migration as its parent breaks `alembic upgrade`
+        for every project that lacks the flag.
+        """
+        versions = matrix_project / "backend" / "alembic" / "versions"
+        if not versions.is_dir():
+            pytest.skip("no Alembic migrations in this configuration")
+        parents: dict[str, tuple[str, ...]] = {}
+        for path in versions.glob("*.py"):
+            assigned = {
+                target.id: ast.literal_eval(node.value)
+                for node in ast.parse(path.read_text()).body
+                if isinstance(node, ast.Assign)
+                for target in node.targets
+                if isinstance(target, ast.Name) and target.id in ("revision", "down_revision")
+            }
+            if "revision" not in assigned:
+                continue
+            down = assigned.get("down_revision")
+            parents[assigned["revision"]] = (
+                () if down is None else tuple(down) if isinstance(down, (tuple, list)) else (down,)
+            )
+
+        missing = {rev: p for rev, ps in parents.items() for p in ps if p not in parents}
+        heads = set(parents) - {p for ps in parents.values() for p in ps}
+        assert not missing, f"migrations whose parent is not generated: {missing}"
+        assert len(heads) == 1, f"expected one head, got {sorted(heads)}"
 
     @pytest.mark.slow
     def test_passes_ty(self, matrix_project: Path, request: pytest.FixtureRequest) -> None:

@@ -1,6 +1,6 @@
 """Tests for the agent memory capability factory and the user memory service."""
 
-from unittest.mock import patch
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
@@ -295,3 +295,27 @@ class TestUserMemoryService:
 
         assert listing.items == []
 {%- endif %}
+
+
+@pytest.mark.anyio
+async def test_deleting_all_non_admins_forgets_their_memory():
+    """The bulk reset removes rows the memory store has no foreign key to."""
+    from app.services.user import UserService
+
+    ids = [uuid4(), uuid4()]
+    forgotten: list = []
+
+    async def _forget(user_id):
+        forgotten.append(user_id)
+        return 1
+
+    with (
+        patch("app.services.user.user_repo.list_non_admin_ids", AsyncMock(return_value=ids)),
+        patch("app.services.user.user_repo.delete_non_admins", AsyncMock(return_value=2)),
+        patch("app.services.user.forget_user_memory", _forget),
+    ):
+        deleted = await UserService(MagicMock()).delete_non_admins()
+
+    assert deleted == 2
+    assert forgotten == ids
+

@@ -255,6 +255,8 @@ if not enable_subagents and use_frontend:
 
 if not use_ai:
     remove_dir(os.path.join(backend_app, "agents"))
+    # Its module goes below; a test left behind fails the whole run at collection.
+    remove_file(os.path.join(os.getcwd(), "backend", "tests", "test_services_conversation.py"))
     remove_dir(os.path.join(os.getcwd(), ".claude", "skills", "agent-tool"))
     remove_file(os.path.join(backend_app, "services", "agent.py"))
     remove_file(os.path.join(backend_app, "services", "agent_session.py"))
@@ -515,6 +517,13 @@ if "{{ cookiecutter.use_pydantic_deep }}" != "True":
     remove_file(os.path.join(os.getcwd(), "backend", "tests", "test_pydantic_deep_history.py"))
 if not (use_slack or use_telegram):
     remove_file(os.path.join(os.getcwd(), "backend", "tests", "test_channel_history.py"))
+
+# The deep-research streaming tests render to a stub without it.
+if not (
+    "{{ cookiecutter.use_pydantic_ai }}" == "True"
+    and "{{ cookiecutter.enable_deep_research }}" == "True"
+):
+    remove_file(os.path.join(os.getcwd(), "backend", "tests", "test_deep_research_streaming.py"))
 
 # The conversation-resume tests render to a stub without a database and a
 # Pydantic AI-based agent.

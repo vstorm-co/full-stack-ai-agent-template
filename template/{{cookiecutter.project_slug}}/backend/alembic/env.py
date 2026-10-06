@@ -22,9 +22,12 @@ from app.db.base import Base
 {%- if cookiecutter.use_jwt %}
 from app.db.models.user import User  # noqa: F401
 {%- endif %}
+{%- if cookiecutter.use_ai %}
+# Generated only with an AI framework; the core-tables migration creates them regardless.
 from app.db.models.conversation import Conversation, Message, ToolCall  # noqa: F401
 {%- if cookiecutter.use_jwt %}
 from app.db.models.message_rating import MessageRating  # noqa: F401
+{%- endif %}
 {%- endif %}
 {%- if cookiecutter.enable_session_management and cookiecutter.use_jwt %}
 from app.db.models.session import Session  # noqa: F401

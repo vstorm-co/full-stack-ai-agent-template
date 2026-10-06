@@ -13,15 +13,25 @@ import pytest
 
 
 def _db_available() -> bool:
-    """Return True if the database backend is reachable via alembic current."""
-    result = subprocess.run(
-        [sys.executable, "-m", "alembic", "current"],
-        capture_output=True,
-        text=True,
-        cwd=".",
-        timeout=10,
-    )
-    return result.returncode == 0
+    """Return True if the database answers a connection.
+
+    Checked directly rather than through `alembic current`: that also fails on
+    a broken migration chain, which would then skip these tests as "no
+    database" instead of failing them.
+    """
+    from sqlalchemy import create_engine
+    from sqlalchemy.exc import OperationalError
+
+    from app.core.config import settings
+
+    engine = create_engine(settings.DATABASE_URL_SYNC, connect_args={"connect_timeout": 5})
+    try:
+        with engine.connect():
+            return True
+    except OperationalError:
+        return False
+    finally:
+        engine.dispose()
 
 
 pytestmark = pytest.mark.skipif(

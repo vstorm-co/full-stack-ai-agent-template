@@ -84,7 +84,17 @@ class UserService:
 {%- endif %}
 
     async def delete_non_admins(self) -> int:
+{%- if cookiecutter.enable_memory %}
+        user_ids = await user_repo.list_non_admin_ids(self.db)
+        deleted = await user_repo.delete_non_admins(self.db)
+        # As in delete(): the memory store has no foreign key to users, and a
+        # failure to clear it rolls the request's transaction back too.
+        for user_id in user_ids:
+            await forget_user_memory(user_id)
+        return deleted
+{%- else %}
         return await user_repo.delete_non_admins(self.db)
+{%- endif %}
 
     async def has_any(self) -> bool:
         return await user_repo.has_any(self.db)

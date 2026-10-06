@@ -86,6 +86,8 @@ async def _turn(
             AsyncMock(return_value=(conversation_id, False, None)),
         ),
         patch("app.services.agent_session.persist_assistant_turn", AsyncMock()),
+        # A conversation with nothing stored yet: the session carries what follows.
+        patch("app.services.agent_session.load_conversation_history", AsyncMock(return_value=[])),
 {%- endif %}
 {%- if cookiecutter.enable_teams and cookiecutter.enable_rag %}
         patch("app.services.agent_session.resolve_kb_collections", AsyncMock(return_value=[])),

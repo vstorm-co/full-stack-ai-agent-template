@@ -35,6 +35,7 @@ from app.core.exceptions import AuthorizationError, NotFoundError
 from app.services.agent import (
     build_message_history,
 {%- if cookiecutter.use_database %}
+    load_conversation_history,
     persist_assistant_turn,
     persist_user_turn,
 {%- endif %}
@@ -93,6 +94,8 @@ class AgentSession:
         self.deps.ask_user = self._ask_user
 {%- if cookiecutter.use_database %}
         self.current_conversation_id: str | None = None
+        # The conversation ``conversation_history`` belongs to.
+        self._history_conversation_id: str | None = None
 {%- endif %}
         self._turn_task: asyncio.Task[None] | None = None
         self._ask_user_future: asyncio.Future[list[dict[str, Any]]] | None = None
@@ -210,6 +213,17 @@ class AgentSession:
                 "conversation_created",
                 {"conversation_id": self.current_conversation_id},
             )
+        if self.current_conversation_id != self._history_conversation_id:
+            # Another conversation, or this one resumed on a new connection: the
+            # model gets its stored history, not the previous conversation's.
+            self.conversation_history = (
+                await load_conversation_history(
+                    self.current_conversation_id, current_prompt=user_message
+                )
+                if self.current_conversation_id and not newly_created
+                else []
+            )
+            self._history_conversation_id = self.current_conversation_id
 {%- endif %}
 
         await send_event(self.websocket, "user_prompt", {"content": user_message})
@@ -2445,12 +2459,13 @@ from pydantic_ai.messages import (
 )
 from pydantic_ai_backends import StateBackend
 
-from app.agents.pydantic_deep_assistant import PydanticDeepContext, get_agent
+from app.agents.pydantic_deep_assistant import PydanticDeepContext, get_agent, to_model_messages
 {%- if cookiecutter.use_database %}
 from app.core.exceptions import AuthorizationError, NotFoundError
 {%- endif %}
 from app.services.agent import (
 {%- if cookiecutter.use_database %}
+    load_conversation_history,
     persist_assistant_turn,
     persist_user_turn,
 {%- endif %}
@@ -2614,7 +2629,21 @@ class AgentSession:
             conversation_key = "default"
 {%- endif %}
             if conversation_key != self._history_key:
+{%- if cookiecutter.use_database %}
+                # Another conversation, or this one resumed on a new connection:
+                # its stored history, not the previous conversation's.
+                self._message_history = (
+                    to_model_messages(
+                        await load_conversation_history(
+                            self.current_conversation_id, current_prompt=user_message
+                        )
+                    )
+                    if self.current_conversation_id and not newly_created
+                    else []
+                )
+{%- else %}
                 self._message_history = []
+{%- endif %}
                 self._workspace_documents = {}
                 self._history_key = conversation_key
             assistant = get_agent(

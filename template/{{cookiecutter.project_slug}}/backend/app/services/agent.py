@@ -233,6 +233,41 @@ def normalize_tool_args(args: Any) -> dict[str, Any]:
     return args
 
 
+# How much of a stored conversation a resumed session replays to the model.
+HISTORY_REPLAY_LIMIT = 100
+
+
+async def load_conversation_history(
+    conversation_id: str, *, current_prompt: str
+) -> list[dict[str, str]]:
+    """A stored conversation's user and assistant messages, oldest first, to resume it.
+
+    A session holds the conversation in memory only while it lasts; reconnecting,
+    or switching to another conversation, would otherwise start the model from
+    nothing. The most recent ``HISTORY_REPLAY_LIMIT`` messages are replayed.
+    ``persist_user_turn`` has already stored ``current_prompt`` as the last
+    message - it is this turn's prompt, so it is left out rather than sent twice.
+
+    The caller has already checked the user may access the conversation.
+    """
+    async with get_db_context() as db:
+        conv_service = get_conversation_service(db)
+        _, total = await conv_service.list_messages(UUID(conversation_id), limit=1)
+        messages, _ = await conv_service.list_messages(
+            UUID(conversation_id),
+            skip=max(0, total - HISTORY_REPLAY_LIMIT - 1),
+            limit=HISTORY_REPLAY_LIMIT + 1,
+        )
+    history = [
+        {"role": m.role, "content": m.content}
+        for m in messages
+        if m.role in ("user", "assistant") and m.content
+    ]
+    if history and history[-1] == {"role": "user", "content": current_prompt}:
+        history.pop()
+    return history[-HISTORY_REPLAY_LIMIT:]
+
+
 async def persist_assistant_turn(
     conversation_id: str,
     output: str,

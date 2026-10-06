@@ -516,6 +516,17 @@ if "{{ cookiecutter.use_pydantic_deep }}" != "True":
 if not (use_slack or use_telegram):
     remove_file(os.path.join(os.getcwd(), "backend", "tests", "test_channel_history.py"))
 
+# The conversation-resume tests render to a stub without a database and a
+# Pydantic AI-based agent.
+if not (
+    "{{ cookiecutter.use_database }}" == "True"
+    and (
+        "{{ cookiecutter.use_pydantic_ai }}" == "True"
+        or "{{ cookiecutter.use_pydantic_deep }}" == "True"
+    )
+):
+    remove_file(os.path.join(os.getcwd(), "backend", "tests", "test_conversation_resume.py"))
+
 # Scan all .py files under backend/app — catches any template that rendered to
 # a stub docstring because its feature gate was disabled.
 for root, _dirs, files in os.walk(backend_app):

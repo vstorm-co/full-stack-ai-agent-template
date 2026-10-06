@@ -26,15 +26,12 @@ from app.core.exceptions import AuthorizationError, NotFoundError
 from app.db.session import get_db_context
 from app.schemas.conversation import ConversationCreate, MessageCreate
 from pydantic_ai import (
-    FinalResultEvent,
+    AgentRunResultEvent,
     FunctionToolCallEvent,
     FunctionToolResultEvent,
     PartDeltaEvent,
-    PartStartEvent,
     TextPartDelta,
 )
-from pydantic_ai.messages import TextPart
-from pydantic_ai_backends import StateBackend
 {%- endif %}
 
 logger = logging.getLogger(__name__)
@@ -150,13 +147,11 @@ async def project_chat_websocket(
                 await websocket.close(code=4003, reason=str(exc))
                 return
 
-        backend: Any = StateBackend()
-
         assistant = get_agent(
             conversation_id=str(conversation_id),
-            backend_override=backend,
+            user_id=context.get("user_id"),
+            user_name=context.get("user_name"),
             history_messages_path=f".pydantic-deep/sessions/{conversation_id}/messages.json",
-            context=context,
         )
 
         async with get_db_context() as db:
@@ -203,21 +198,17 @@ async def project_chat_websocket(
             try:
                 await send_event(websocket, "model_request_start", {})
 
-                async with assistant.agent.run_stream(
+                output = ""
+                async with assistant.agent.run_stream_events(
                     user_message, deps=assistant.deps
-                ) as stream:
-                    async for event in stream.stream_events():
+                ) as events:
+                    async for event in events:
                         if isinstance(event, PartDeltaEvent) and isinstance(
                             event.delta, TextPartDelta
                         ):
                             await send_event(
                                 websocket, "text_delta", {"delta": event.delta.content_delta}
                             )
-                        elif isinstance(event, PartStartEvent) and isinstance(
-                            event.part, TextPart
-                        ):
-                            # PartStartEvent for TextPart signals the start of a response chunk; no client event needed.
-                            pass
                         elif isinstance(event, FunctionToolCallEvent):
                             await send_event(
                                 websocket,
@@ -232,16 +223,13 @@ async def project_chat_websocket(
                                 websocket,
                                 "tool_result",
                                 {
-                                    "tool_name": event.result.tool_name,
-                                    "content": str(event.result.content),
+                                    "tool_name": event.part.tool_name,
+                                    "content": str(event.part.content),
                                 },
                             )
-                        elif isinstance(event, FinalResultEvent):
-                            await send_event(
-                                websocket, "final_result", {"content": str(event.output)}
-                            )
-
-                    result = stream.result()
+                        elif isinstance(event, AgentRunResultEvent):
+                            output = event.result.output
+                            await send_event(websocket, "final_result", {"content": output})
 
                 async with get_db_context() as db:
                     conv_service = get_conversation_service(db)
@@ -250,7 +238,7 @@ async def project_chat_websocket(
                             conversation_id,
                             MessageCreate(
                                 role="assistant",
-                                content=getattr(result, "output", ""),
+                                content=output,
                                 model_name=getattr(assistant, "model_name", None),
                             ),
                         )

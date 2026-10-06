@@ -71,7 +71,7 @@ from app.agents.tools.code_execution import run_python as run_python_code
 {%- if cookiecutter.enable_skills %}
 from pathlib import Path
 
-from pydantic_ai_skills import SkillsToolset
+from pydantic_ai_skills import SkillsCapability
 {%- endif %}
 from app.core.config import settings
 
@@ -284,14 +284,14 @@ class AssistantAgent:
         if self.thinking_effort:
             model_settings["openai_reasoning_summary"] = "auto"  # type: ignore[typeddict-unknown-key]  # ty: ignore[invalid-key]
 
-{%- if cookiecutter.enable_skills or cookiecutter.enable_mcp_client %}
+{%- if cookiecutter.enable_mcp_client %}
         toolsets: list[Any] = []
 {%- endif %}
 {%- if cookiecutter.enable_skills %}
 
         skills_dir = Path(__file__).parent.parent.parent / "skills"
         if skills_dir.exists():
-            toolsets.append(SkillsToolset(directories=[str(skills_dir)]))
+            capabilities.append(SkillsCapability(skills_dir))
 {%- endif %}
 {%- if cookiecutter.enable_mcp_client %}
 
@@ -319,7 +319,7 @@ class AssistantAgent:
             model_settings=model_settings,
             system_prompt=self.system_prompt,
             capabilities=capabilities,
-{%- if cookiecutter.enable_skills or cookiecutter.enable_mcp_client %}
+{%- if cookiecutter.enable_mcp_client %}
             toolsets=toolsets,
 {%- endif %}
         )

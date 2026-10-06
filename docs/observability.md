@@ -1,17 +1,17 @@
 # Observability with Logfire
 
-[Logfire](https://logfire.pydantic.dev) is a modern observability platform built by the Pydantic team. It provides first-class support for Python applications, especially those using Pydantic, FastAPI, and PydanticAI.
+[Logfire](https://logfire.pydantic.dev) is a modern observability platform built by the Pydantic team. It provides first-class support for Python applications, especially those using Pydantic, FastAPI, and Pydantic AI.
 
 ## Why Logfire?
 
 - **Built for Python** - Native support for async, type hints, and Pydantic models
-- **AI-First** - Deep integration with PydanticAI for agent observability
+- **AI-First** - Deep integration with Pydantic AI for agent observability
 - **OpenTelemetry Compatible** - Works with any OTEL instrumentation
 - **Beautiful UI** - Modern dashboard with powerful query capabilities
 
 ## Supported Integrations
 
-### PydanticAI Agents
+### Pydantic AI Agents
 
 Full visibility into AI agent execution:
 
@@ -337,6 +337,6 @@ GROUP BY model
 
 - [Logfire Documentation](https://logfire.pydantic.dev/docs/)
 - [Integrations Guide](https://logfire.pydantic.dev/docs/integrations/)
-- [PydanticAI Integration](https://logfire.pydantic.dev/docs/integrations/pydantic-ai/)
+- [Pydantic AI Integration](https://logfire.pydantic.dev/docs/integrations/pydantic-ai/)
 - [FastAPI Integration](https://logfire.pydantic.dev/docs/integrations/fastapi/)
 - [OpenTelemetry Compatibility](https://logfire.pydantic.dev/docs/integrations/opentelemetry/)

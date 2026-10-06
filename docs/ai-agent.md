@@ -8,8 +8,8 @@ The template supports 5 AI frameworks for building intelligent agents:
 
 | Framework | Description | Best For |
 |-----------|-------------|----------|
-| **PydanticAI** | Type-safe AI with Pydantic integration + WebSearch/WebFetch built-in | Simple agents, type safety, web-capable |
-| **PydanticDeep** | Deep agentic coding assistant with filesystem tools, Docker/Daytona sandbox | Code generation, file manipulation |
+| **Pydantic AI** | Type-safe AI with Pydantic integration + WebSearch/WebFetch built-in | Simple agents, type safety, web-capable |
+| **Pydantic Deep Agents** | Deep agentic coding assistant with filesystem tools, Docker/Daytona sandbox | Code generation, file manipulation |
 | **LangChain** | Comprehensive AI tooling ecosystem | Complex chains, many integrations |
 | **LangGraph** | Graph-based ReAct agents | Multi-step reasoning, tool loops |
 | **DeepAgents** | Agentic framework with subagent delegation | Advanced multi-step tasks |
@@ -26,9 +26,9 @@ fastapi-fullstack create my_project --ai-framework deepagents
 
 ---
 
-## PydanticAI Agent
+## Pydantic AI Agent
 
-The default agent is powered by [PydanticAI](https://ai.pydantic.dev), providing:
+The default agent is powered by [Pydantic AI](https://ai.pydantic.dev), providing:
 
 - Type-safe AI interactions
 - Tool/function calling support
@@ -56,7 +56,7 @@ The default agent is powered by [PydanticAI](https://ai.pydantic.dev), providing
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                    AssistantAgent                            │
-│              PydanticAI Agent Wrapper                        │
+│              Pydantic AI Agent Wrapper                       │
 │         Model Config, Tools, Streaming via iter()            │
 └─────────────────────────────────────────────────────────────┘
                               │
@@ -785,7 +785,7 @@ async for event in assistant.stream(prompt, mode="updates"):
 
 ## Framework Comparison
 
-| Feature | PydanticAI | LangChain | LangGraph |
+| Feature | Pydantic AI | LangChain | LangGraph |
 |---------|------------|-----------|-----------|
 | Type Safety | ✅ Native | ⚠️ Manual | ⚠️ Manual |
 | Multi-Agent | ❌ | ⚠️ Complex | ⚠️ Complex |
@@ -797,6 +797,6 @@ async for event in assistant.stream(prompt, mode="updates"):
 
 ### When to Use Each
 
-- **PydanticAI**: Simple assistants, chatbots, type-safe applications
+- **Pydantic AI**: Simple assistants, chatbots, type-safe applications
 - **LangChain**: Complex chains, many third-party integrations needed
 - **LangGraph**: Multi-step reasoning, tool loops, state machines

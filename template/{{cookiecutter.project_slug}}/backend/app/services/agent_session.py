@@ -656,6 +656,10 @@ class AgentSession:
         collected_thinking: list[str],
     ) -> None:
         """Drive the agent_run iterator, dispatching each node to its streaming helper."""
+{%- if cookiecutter.enable_deep_research %}
+        # Text held back from the latest model request (see _stream_request_events).
+        withheld_text: list[tuple[int, str]] = []
+{%- endif %}
         async for node in agent_run:
             if Agent.is_user_prompt_node(node):
                 prompt_text = (
@@ -667,28 +671,50 @@ class AgentSession:
             elif Agent.is_model_request_node(node):
                 await send_event(self.websocket, "model_request_start", {})
                 async with node.stream(agent_run.ctx) as request_stream:
+{%- if cookiecutter.enable_deep_research %}
+                    withheld_text = await self._stream_request_events(
+                        request_stream, collected_thinking
+                    )
+{%- else %}
                     await self._stream_request_events(request_stream, collected_thinking)
+{%- endif %}
             elif Agent.is_call_tools_node(node):
                 await send_event(self.websocket, "call_tools_start", {})
                 async with node.stream(agent_run.ctx) as handle_stream:
                     await self._stream_tool_events(handle_stream, collected_tool_calls)
             elif Agent.is_end_node(node) and agent_run.result is not None:
+{%- if cookiecutter.enable_deep_research %}
+                # A run that ends on a step whose text was withheld as narration
+                # ended on its answer: send it, rather than a final result the
+                # chat never showed.
+                for index, content in withheld_text:
+                    await send_event(
+                        self.websocket, "text_delta", {"index": index, "content": content}
+                    )
+{%- endif %}
                 await send_event(
                     self.websocket, "final_result", {"output": agent_run.result.output}
                 )
 
     async def _stream_request_events(
         self, request_stream: Any, collected_thinking: list[str]
+{%- if cookiecutter.enable_deep_research %}
+    ) -> list[tuple[int, str]]:
+{%- else %}
     ) -> None:
+{%- endif %}
         """Forward model-request events (text/thinking/tool deltas + final-result start).
 {%- if cookiecutter.enable_deep_research %}
 
         During a deep research turn the model narrates every delegation step.
         A plain-text response ends a PydanticAI run, so a step that issues a
         planning/delegation tool call (``RESEARCH_TOOL_NAMES``) is interstitial:
-        its text is buffered and dropped. A step with only content tools (charts,
-        RAG) or no tool calls is the final answer and its text is released.
-        Reasoning and tool events are always forwarded.
+        its text is withheld. A step with only content tools (charts, RAG) or no
+        tool calls is the final answer and its text is released. Reasoning and
+        tool events are always forwarded.
+
+        Returns the withheld text, for the caller to send should the run end on
+        this step after all.
 {%- endif %}
         """
 {%- if cookiecutter.enable_deep_research %}
@@ -776,11 +802,13 @@ class AgentSession:
 {%- if cookiecutter.enable_deep_research %}
 
         made_research_call = any(name in RESEARCH_TOOL_NAMES for name in tool_names.values())
-        if deep_research and buffered_text and not made_research_call:
-            for index, content in buffered_text:
-                await send_event(
-                    self.websocket, "text_delta", {"index": index, "content": content}
-                )
+        if not deep_research or not buffered_text:
+            return []
+        if made_research_call:
+            return buffered_text
+        for index, content in buffered_text:
+            await send_event(self.websocket, "text_delta", {"index": index, "content": content})
+        return []
 {%- endif %}
 
     async def _stream_tool_events(

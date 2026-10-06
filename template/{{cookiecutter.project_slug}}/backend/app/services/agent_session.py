@@ -2414,8 +2414,10 @@ class AgentSession:
 {%- elif cookiecutter.use_pydantic_deep %}
 """Per-connection AI agent session (PydanticDeep).
 
-PydanticDeep manages conversation history internally via the workspace
-(history_messages_path), so this session does not maintain ``conversation_history``.
+The agent is rebuilt for every turn, so the session carries what has to outlive
+one: the full message history of the conversation, passed to the next run, and
+the in-memory workspace documents, which that history's workspace ref attaches
+to again - so files written in one turn are there in the next.
 """
 
 import asyncio
@@ -2434,7 +2436,14 @@ from pydantic_ai import (
     TextPartDelta,
     ToolCallPartDelta,
 )
-from pydantic_ai.messages import BinaryContent, TextPart, ThinkingPart, ThinkingPartDelta
+from pydantic_ai.messages import (
+    BinaryContent,
+    ModelMessage,
+    TextPart,
+    ThinkingPart,
+    ThinkingPartDelta,
+)
+from pydantic_ai_backends import StateBackend
 
 from app.agents.pydantic_deep_assistant import PydanticDeepContext, get_agent
 {%- if cookiecutter.use_database %}
@@ -2487,6 +2496,11 @@ class AgentSession:
         self.current_conversation_id: str | None = None
 {%- endif %}
         self._turn_task: asyncio.Task[None] | None = None
+        # What a turn leaves for the next one, for the conversation in
+        # ``_history_key``; another conversation starts both afresh.
+        self._message_history: list[ModelMessage] = []
+        self._workspace_documents: dict[str, StateBackend] = {}
+        self._history_key: str | None = None
 
     async def handle_frame(self, data: dict[str, Any]) -> None:
         """Dispatch one incoming WebSocket frame.
@@ -2594,18 +2608,24 @@ class AgentSession:
         await send_event(self.websocket, "user_prompt", {"content": user_message})
 
         try:
+{%- if cookiecutter.use_database %}
+            conversation_key = self.current_conversation_id or "default"
+{%- else %}
+            conversation_key = "default"
+{%- endif %}
+            if conversation_key != self._history_key:
+                self._message_history = []
+                self._workspace_documents = {}
+                self._history_key = conversation_key
             assistant = get_agent(
                 model_name=data.get("model"),
                 thinking_effort=data.get("thinking_effort"),
-{%- if cookiecutter.use_database %}
-                conversation_id=self.current_conversation_id or "default",
-{%- else %}
-                conversation_id="default",
-{%- endif %}
+                conversation_id=conversation_key,
 {%- if cookiecutter.websocket_auth_jwt %}
                 user_id=self.context.get("user_id"),
                 user_name=self.context.get("user_name"),
 {%- endif %}
+                workspace_documents=self._workspace_documents,
             )
 
             user_input = await self._build_agent_input(user_message, file_ids, assistant)
@@ -2634,7 +2654,9 @@ class AgentSession:
             try:
                 collected_tool_calls: list[dict[str, Any]] = []
                 collected_thinking: list[str] = []
-                async with assistant.agent.iter(user_input, deps=assistant.deps) as agent_run:
+                async with assistant.agent.iter(
+                    user_input, deps=assistant.deps, message_history=self._message_history
+                ) as agent_run:
                     await self._stream_agent_run(
                         agent_run, user_message, collected_tool_calls, collected_thinking
                     )
@@ -2643,11 +2665,18 @@ class AgentSession:
 {%- else %}
             collected_tool_calls: list[dict[str, Any]] = []
             collected_thinking: list[str] = []
-            async with assistant.agent.iter(user_input, deps=assistant.deps) as agent_run:
+            async with assistant.agent.iter(
+                user_input, deps=assistant.deps, message_history=self._message_history
+            ) as agent_run:
                 await self._stream_agent_run(
                     agent_run, user_message, collected_tool_calls, collected_thinking
                 )
 {%- endif %}
+
+            # Only a complete run extends the history; a stopped or failed one
+            # leaves the conversation where it was.
+            if agent_run.result is not None:
+                self._message_history = agent_run.result.all_messages()
 
 {%- if cookiecutter.use_database %}
             if self.current_conversation_id and agent_run.result is not None:

@@ -36,12 +36,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Generated projects run [Valkey](https://valkey.io/) instead of Redis** —
-  `valkey/valkey:8-alpine` in the compose files, the GitHub Actions and GitLab
+  `valkey/valkey:9-alpine` in the compose files, the GitHub Actions and GitLab
   CI services, and `valkey-server` / `valkey-cli` for the prod command and
   health checks. Redis 8 is licensed RSALv2/SSPLv1/AGPLv3; Valkey is the
   BSD-licensed fork and speaks the same protocol, so the `redis` client,
   `REDIS_*` settings and the `redis` service name are unchanged. **Existing
-  projects:** Valkey 8 cannot load an RDB written by Redis 7.4 (`Can't handle
+  projects:** Valkey cannot load an RDB written by Redis 7.4 (`Can't handle
   RDB format version 12`); the template keeps only cache, broker and rate-limit
   data there, so move `/data/dump.rdb` aside (or recreate the `redis_data`
   volume) before the first start. The prod health check gained a
@@ -91,6 +91,17 @@ failed in 13 jobs, and several breakages were runtime-only.
   `container_name`, which has to be unique, so Compose v2 refused the whole
   project (`can't set container_name and celery_worker as container name must
   be unique`). The two workers no longer name their containers
+- **A PydanticDeep chat forgot the conversation on every turn** — the template
+  assumed pydantic-deep kept history between runs; it keeps none
+  (`history_messages_path` is only an archive for searching compacted history).
+  The chat session now carries the conversation's messages from turn to turn,
+  and its in-memory workspace documents too, so files written in one turn are
+  there in the next; another conversation starts afresh. The project chat
+  socket and channel bots replay their history as well (#175)
+- **Channel bots handed the model the new message twice** — the message was
+  stored before the conversation history was loaded, so it arrived as the
+  prompt and again at the end of the history; it is now loaded first, for every
+  framework
 - **Skill cards rendered as generic tool calls** — since `pydantic-ai-skills`
   2.0 a skill loads through `load_capability(id)` and returns its instructions,
   but the chat, the demo replay and the step captions still looked for 1.x's

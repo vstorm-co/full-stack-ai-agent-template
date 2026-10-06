@@ -51,7 +51,7 @@ jobs:
           --health-retries 5
 {%- if cookiecutter.enable_redis %}
       redis:
-        image: valkey/valkey:8-alpine
+        image: valkey/valkey:9-alpine
         ports:
           - 6379:6379
         options: >-

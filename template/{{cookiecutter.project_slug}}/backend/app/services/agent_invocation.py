@@ -101,9 +101,10 @@ class AgentInvocationService:
         Returns:
             Tuple of (response_text, tool_events).
         """
-        await self._persist_user_message(conversation_id, user_message)
-
+        # Loaded before the new message is stored: it is the run's prompt, and a
+        # history that already ended with it would hand it to the model twice.
         history = await self._load_history(conversation_id)
+        await self._persist_user_message(conversation_id, user_message)
         # Resolve active KB collections server-side — never trust the client
         kb_collection_names = await self._load_active_kb_collection_names(
             conversation_id=conversation_id,
@@ -279,9 +280,8 @@ class AgentInvocationService:
     ) -> tuple[str, list[ToolEvent]]:
         """Invoke PydanticDeep agent (non-streaming).
 
-        PydanticDeep manages its own conversation history via history_messages_path,
-        so we pass the conversation_id for per-conversation persistence rather than
-        replaying the DB message history.
+        Each channel message builds a new agent, so the conversation stored in the
+        database is the only history there is: it is replayed into the run.
         """
 
         conversation_id = str(kwargs.get("conversation_id") or "default")
@@ -294,7 +294,7 @@ class AgentInvocationService:
             user_id=user_id,
         )
         context = PydanticDeepContext(user_id=user_id)
-        text, _, _ = await assistant.run(user_message, context=context)
+        text, _, _ = await assistant.run(user_message, history=history, context=context)
         return text, []
 {%- endif %}
 

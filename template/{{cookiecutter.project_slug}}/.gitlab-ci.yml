@@ -78,7 +78,7 @@ test:
         POSTGRES_PASSWORD: postgres
         POSTGRES_DB: test_db
 {%- if cookiecutter.enable_redis %}
-    - name: valkey/valkey:8-alpine
+    - name: valkey/valkey:9-alpine
       alias: redis
 {%- endif %}
   variables:

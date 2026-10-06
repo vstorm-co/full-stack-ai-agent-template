@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 
 import pytest
+import yaml
 
 from fastapi_gen.config import (
     BackgroundTaskType,
@@ -99,6 +100,34 @@ class TestPostgresqlProjectGeneration:
     def test_auth_files_exist(self, postgresql_project: Path) -> None:
         """Test auth-related files exist."""
         assert (postgresql_project / "backend" / "app" / "core" / "security.py").is_file()
+
+
+class TestProdComposeReplicas:
+    """Compose v2 refuses a whole project when a service that runs several
+    replicas sets ``container_name``, which has to be unique."""
+
+    @pytest.mark.parametrize(
+        "background_tasks", [BackgroundTaskType.CELERY, BackgroundTaskType.TASKIQ]
+    )
+    def test_replicated_services_set_no_container_name(
+        self, tmp_path: Path, background_tasks: BackgroundTaskType
+    ) -> None:
+        config = ProjectConfig(
+            project_name="replicas_project",
+            database=DatabaseType.POSTGRESQL,
+            background_tasks=background_tasks,
+            enable_redis=True,
+        )
+        project = generate_project(config, tmp_path)
+        compose = yaml.safe_load((project / "docker-compose.prod.yml").read_text())
+
+        replicated = {
+            name: service
+            for name, service in compose["services"].items()
+            if service.get("deploy", {}).get("replicas", 1) > 1
+        }
+        assert replicated
+        assert [name for name, service in replicated.items() if "container_name" in service] == []
 
 
 class TestFullFeaturedProjectGeneration:

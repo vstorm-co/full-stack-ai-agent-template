@@ -18,6 +18,19 @@
 #   manual_steps:
 #     - "Run `alembic upgrade head` (new billing tables)."
 
+- version: "0.2.20"
+  breaking:
+    - "Redis is replaced by Valkey (valkey/valkey:9-alpine) in the compose files and the generated CI. The protocol, the redis client, the REDIS_* settings and the `redis` service name are unchanged."
+    - "DATABASE_URL_SYNC now names its driver (postgresql+psycopg2://). Code that passed it to asyncpg must strip the driver first, as app/db/todo_pool.py does."
+    - "Pydantic AI 2.x is the floor (pydantic-ai-slim>=2.0.0). Custom code reading FunctionToolResultEvent.result must read .part instead; .result no longer exists."
+    - "PydanticDeep projects run on pydantic-deep 0.3.50 and Pydantic AI workspaces: PydanticDeepAssistant takes no backend_override, write_file_to_workspace is now upload_file(filename, content), and the Daytona backend is DaytonaWorkspace (the `daytona` extra of pydantic-ai-backend)."
+    - "MCP client projects need mcp>=2.0.0: the streamable-HTTP client is streamable_http_client, and app/agents/mcp_oauth.py uses httpx2."
+    - "Slack multi-person DMs (mpim) are now chat_type \"group\", not \"private\"."
+  manual_steps:
+    - "Before the first start on Valkey: move /data/dump.rdb out of the redis_data volume (or recreate the volume). Valkey cannot load an RDB written by Redis 7.4 (`Can't handle RDB format version 12`); the template keeps only cache, broker and rate-limit data there."
+    - "Run `uv sync` in backend/: several floors moved (pydantic-ai-slim 2.0, pydantic-monty 1.0, pydantic-ai-skills 2.0, mcp 2.0, pydantic-deep 0.3.50), and OpenAI embeddings now declare `openai` themselves."
+    - "Skills: drop-in SKILL.md files keep working; the agent now loads each one with `load_capability` instead of `load_skill`."
+
 - version: "0.2.19"
   removed:
     - "backend/app/core/rate_limit.py"

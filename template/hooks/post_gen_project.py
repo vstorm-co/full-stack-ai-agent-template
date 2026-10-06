@@ -466,6 +466,10 @@ if not enable_docker:
     ):
         remove_file(os.path.join(project_root, compose_file))
 
+# The OpenAI-compatible endpoint's tests render to a stub without it.
+if "{{ cookiecutter.use_openai_compatible }}" != "True":
+    remove_file(os.path.join(os.getcwd(), "backend", "tests", "test_openai_compatible.py"))
+
 # Scan all .py files under backend/app — catches any template that rendered to
 # a stub docstring because its feature gate was disabled.
 for root, _dirs, files in os.walk(backend_app):

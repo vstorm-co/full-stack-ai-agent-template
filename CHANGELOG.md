@@ -15,8 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   by `OPENAI_COMPATIBLE_BASE_URL`, with `AI_MODEL` named as the endpoint names
   it and an optional `OPENAI_COMPATIBLE_API_KEY` (`OPENAI_API_KEY` is never sent
   there). Pydantic AI and Pydantic Deep Agents projects; OpenAI embeddings for
-  RAG go to the same endpoint. One provider instead of a named one per gateway
-  (#141, #156)
+  RAG go to the same endpoint; Pydantic Deep Agents projects need
+  pydantic-deep 0.3.50, which also compacts long conversations on that endpoint.
+  One provider instead of a named one per gateway (#141, #156)
 
 ### Fixed
 

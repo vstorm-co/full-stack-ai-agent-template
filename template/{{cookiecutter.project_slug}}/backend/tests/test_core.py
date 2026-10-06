@@ -1,6 +1,13 @@
 """Tests for core modules."""
 # ruff: noqa: I001 - Imports structured for Jinja2 template conditionals
 
+{%- if cookiecutter.enable_rate_limiting %}
+import contextlib
+
+import pytest
+from fastapi import HTTPException
+{%- endif %}
+
 from app.core.config import settings
 from app.core.exceptions import (
     AlreadyExistsError,
@@ -15,7 +22,7 @@ from app.core.middleware import RequestIDMiddleware
 from app.core.cache import setup_cache
 {%- endif %}
 {%- if cookiecutter.enable_rate_limiting %}
-from app.core.rate_limit import limiter
+from app.services.rate_limit import DEFAULT_RATE_LIMITS, RateLimitCategory, check_rate_limit
 {%- endif %}
 {%- if cookiecutter.enable_logfire %}
 from unittest.mock import patch
@@ -114,11 +121,47 @@ class TestMiddleware:
 
 
 class TestRateLimit:
-    """Tests for rate limiting."""
+    """Tests for rate limiting.
 
-    def test_limiter_exists(self):
-        """Test rate limiter is configured."""
-        assert limiter is not None
+    These assert the *effect* on a caller, not that the limiter object exists —
+    a limiter that is never attached to a route passes the latter and protects
+    nothing.
+    """
+
+    def test_auth_category_has_a_per_ip_limit(self):
+        """The auth rule must be per-IP: /auth/* runs before authentication."""
+        rule = DEFAULT_RATE_LIMITS[RateLimitCategory.AUTH]
+        assert rule.per_ip is not None
+
+    @pytest.mark.anyio
+    async def test_exceeding_the_auth_limit_raises_429(self):
+        """The (limit + 1)-th call from one IP is rejected with Retry-After."""
+        limit = DEFAULT_RATE_LIMITS[RateLimitCategory.AUTH].per_ip
+        assert limit is not None
+
+        for _ in range(limit):
+            await check_rate_limit(category=RateLimitCategory.AUTH, client_ip="203.0.113.7")
+
+        with pytest.raises(HTTPException) as exc_info:
+            await check_rate_limit(category=RateLimitCategory.AUTH, client_ip="203.0.113.7")
+
+        assert exc_info.value.status_code == 429
+        assert exc_info.value.headers is not None
+        assert "Retry-After" in exc_info.value.headers
+
+    @pytest.mark.anyio
+    async def test_limits_are_scoped_per_ip(self):
+        """One IP exhausting its budget must not lock out another."""
+        limit = DEFAULT_RATE_LIMITS[RateLimitCategory.AUTH].per_ip
+        assert limit is not None
+
+        for _ in range(limit + 1):
+            with contextlib.suppress(HTTPException):
+                await check_rate_limit(category=RateLimitCategory.AUTH, client_ip="203.0.113.7")
+
+        # A different caller is unaffected.
+        await check_rate_limit(category=RateLimitCategory.AUTH, client_ip="198.51.100.4")
+
 {%- endif %}
 
 

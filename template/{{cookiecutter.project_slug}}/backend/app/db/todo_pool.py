@@ -11,6 +11,7 @@ be created, in which case callers fall back to in-memory storage.
 import logging
 
 import asyncpg
+from sqlalchemy.engine import make_url
 
 from app.core.config import settings
 
@@ -22,15 +23,18 @@ _todo_pool: asyncpg.Pool | None = None
 async def init_todo_pool() -> asyncpg.Pool | None:
     """Create the shared asyncpg pool, returning ``None`` on failure.
 
-    asyncpg rejects the ``+asyncpg`` driver suffix, so ``DATABASE_URL_SYNC``
-    (plain ``postgresql://``) is used, which it parses directly.
+    asyncpg accepts no SQLAlchemy driver suffix, so ``DATABASE_URL_SYNC`` is
+    passed with its driver stripped to a plain ``postgresql://`` DSN.
     """
     global _todo_pool
     if _todo_pool is not None:
         return _todo_pool
     try:
+        dsn = make_url(settings.DATABASE_URL_SYNC).set(drivername="postgresql")
         _todo_pool = await asyncpg.create_pool(
-            settings.DATABASE_URL_SYNC, min_size=1, max_size=settings.DB_POOL_SIZE
+            dsn.render_as_string(hide_password=False),
+            min_size=1,
+            max_size=settings.DB_POOL_SIZE,
         )
         logger.info("Deep-research TODO pool connected")
     except Exception as e:

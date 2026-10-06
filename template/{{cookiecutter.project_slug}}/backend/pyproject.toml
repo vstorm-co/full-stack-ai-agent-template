@@ -65,9 +65,6 @@ dependencies = [
     # when no templates are rendered.
     "jinja2>=3.1.0",
 {%- endif %}
-{%- if cookiecutter.enable_rate_limiting %}
-    "slowapi>=0.1.9",
-{%- endif %}
 {%- if cookiecutter.enable_email and cookiecutter.email_provider == "resend" %}
     "resend>=2.0.0",
 {%- endif %}
@@ -75,8 +72,12 @@ dependencies = [
     "aiosmtplib>=3.0.0",
 {%- endif %}
 {%- if cookiecutter.enable_pagination %}
-    # <0.15.16: that release targets the get_body_field() signature FastAPI
-    # introduced in 0.137, which the fastapi pin above deliberately stays below.
+    # 0.15.16 is broken against every FastAPI without the private _get_body_field
+    # helpers (i.e. anything below 0.140.5, which includes the pin above): its
+    # ImportError fallback binds the public get_body_field but still sets
+    # _get_body_field_new_signature = True, so add_pagination() calls it with a
+    # body_params kwarg it does not accept and the app dies on import. Lift the
+    # cap once upstream fixes the fallback or the FastAPI pin moves past 0.140.5.
     "fastapi-pagination>=0.12.31,<0.15.16",
 {%- endif %}
 {%- if cookiecutter.enable_sentry %}
@@ -113,23 +114,27 @@ dependencies = [
 {%- if cookiecutter.use_all_providers %}
     # Multi-provider: install every SDK so the runtime model picker can route
     # to whichever backend the user (or env default) selects.
-    "pydantic-ai-slim[openai,anthropic,google,openrouter,duckduckgo,web-fetch]>=2.18.0",
+    "pydantic-ai-slim[openai,anthropic,google,openrouter,duckduckgo,web-fetch]>=2.0.0",
 {%- elif cookiecutter.use_openai %}
-    "pydantic-ai-slim[openai,duckduckgo,web-fetch]>=2.18.0",
+    "pydantic-ai-slim[openai,duckduckgo,web-fetch]>=2.0.0",
 {%- elif cookiecutter.use_anthropic %}
-    "pydantic-ai-slim[anthropic,duckduckgo,web-fetch]>=2.18.0",
+    "pydantic-ai-slim[anthropic,duckduckgo,web-fetch]>=2.0.0",
 {%- elif cookiecutter.use_google %}
-    "pydantic-ai-slim[google,duckduckgo,web-fetch]>=2.18.0",
+    "pydantic-ai-slim[google,duckduckgo,web-fetch]>=2.0.0",
 {%- elif cookiecutter.use_openrouter %}
-    "pydantic-ai-slim[openrouter,duckduckgo,web-fetch]>=2.18.0",
+    "pydantic-ai-slim[openrouter,duckduckgo,web-fetch]>=2.0.0",
 {%- endif %}
 {%- if cookiecutter.enable_mcp_client %}
     # MCP client transports + toolset support (Settings → Integrations).
-    "pydantic-ai-slim[mcp]>=2.18.0",
+    "pydantic-ai-slim[mcp]>=2.0.0",
+    # 2.x: the streamable-HTTP client and the OAuth helpers speak httpx2.
+    "mcp>=2.0.0",
+    "httpx2>=2.13.0",
 {%- endif %}
 {%- if cookiecutter.enable_memory %}
-    # Persistent per-user agent memory (Settings → Memory).
-    "pydantic-ai-harness>=0.12.0",
+    # Persistent per-user agent memory (Settings → Memory). Each harness
+    # release pins the Pydantic AI it ships with.
+    "pydantic-ai-harness>=0.54.0",
 {%- endif %}
 {%- endif %}
 {%- if cookiecutter.use_langchain %}
@@ -160,7 +165,11 @@ dependencies = [
     "langgraph-checkpoint>=4.0.0",
 {%- endif %}
 {%- if cookiecutter.use_deepagents %}
-    "deepagents>=0.1.0",
+    # Capped: the backend API is still moving between minors (0.7 dropped the
+    # runtime argument from StateBackend and switched create_deep_agent to take
+    # an instance instead of a factory), so an unbounded pin breaks generation
+    # on release day.
+    "deepagents>=0.7.1,<0.8",
 {%- if cookiecutter.use_openai %}
     "langchain-openai>=1.1.0",
 {%- endif %}
@@ -172,12 +181,23 @@ dependencies = [
 {%- endif %}
 {%- endif %}
 {%- if cookiecutter.use_pydantic_deep %}
-    # pydantic-deep: deep agentic coding assistant built on pydantic-ai
-    "pydantic-deep>=0.1.0",
-    # pydantic-ai backend with console toolset (StateBackend, LocalBackend)
-    "pydantic-ai-backend[console]>=0.2.4",
-    # pydantic-ai with web search and fetch support (WebSearch, WebFetch capabilities)
-    "pydantic-ai-slim[duckduckgo,web-fetch]>=1.80.0",
+    # pydantic-deep: deep agentic coding assistant, on Pydantic AI workspaces
+    "pydantic-deep>=0.3.49",
+    # Workspaces for it to work in: StateWorkspace{% if cookiecutter.sandbox_backend == "daytona" %}, DaytonaWorkspace{% endif %}
+    "pydantic-ai-backend[console,workspaces{% if cookiecutter.sandbox_backend == "daytona" %},daytona{% endif %}]>=0.2.33",
+    # pydantic-deep installs pydantic-ai-slim without provider SDKs; add the
+    # selected provider's, plus web search and fetch (WebSearch, WebFetch).
+{%- if cookiecutter.use_all_providers %}
+    "pydantic-ai-slim[openai,anthropic,google,openrouter,duckduckgo,web-fetch]>=2.0.0",
+{%- elif cookiecutter.use_openai %}
+    "pydantic-ai-slim[openai,duckduckgo,web-fetch]>=2.0.0",
+{%- elif cookiecutter.use_anthropic %}
+    "pydantic-ai-slim[anthropic,duckduckgo,web-fetch]>=2.0.0",
+{%- elif cookiecutter.use_google %}
+    "pydantic-ai-slim[google,duckduckgo,web-fetch]>=2.0.0",
+{%- elif cookiecutter.use_openrouter %}
+    "pydantic-ai-slim[openrouter,duckduckgo,web-fetch]>=2.0.0",
+{%- endif %}
 {%- endif %}
 {%- if cookiecutter.enable_rag %}
     # Vector store
@@ -198,7 +218,7 @@ dependencies = [
     # BM25 for hybrid search
     "rank-bm25>=0.2.2",
 {%- if cookiecutter.use_openai_embeddings %}
-    # Uses existing openai dependency
+    "openai>=1.0.0",
 {%- endif %}
 {%- if cookiecutter.use_voyage_embeddings %}
     "voyageai>=0.3.0",
@@ -258,10 +278,10 @@ dependencies = [
     "matplotlib>=3.9.0",
 {%- endif %}
 {%- if cookiecutter.enable_code_execution %}
-    "pydantic-monty>=0.0.19",
+    "pydantic-monty>=1.0.0",
 {%- endif %}
 {%- if cookiecutter.enable_skills %}
-    "pydantic-ai-skills>=1.3.0",
+    "pydantic-ai-skills>=2.0.0",
 {%- endif %}
 {%- if cookiecutter.enable_todo %}
     "pydantic-ai-todo[postgres]>=0.2.1",

@@ -174,6 +174,19 @@ group is for and which are required vs optional.
 | `S3_REGION` | optional | `us-east-1` | AWS region |
 {%- endif %}
 
+{%- if cookiecutter.use_frontend %}
+
+## Frontend (`frontend/.env.local`)
+
+Separate from the backend `.env` above — `frontend/README.md` has the full table.
+The two that decide whether a deployment works at all:
+
+| Variable | Read by | Description |
+|---|---|---|
+| `NEXT_PUBLIC_WS_URL` | browser | WebSocket origin for chat. Inlined at **build** time, so it needs a rebuild to change, and it must be an address the browser can reach — not a Docker service name |
+| `COOKIE_SECURE` | server | `Secure` flag on the auth cookies. Unset follows `NODE_ENV`. A browser drops a `Secure` cookie served over plain `http://`, which makes every request after login return 401 — set `false` only for `http://` on a trusted network |
+{%- endif %}
+
 ## Validation
 
 ```bash

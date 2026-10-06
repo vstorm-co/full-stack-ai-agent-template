@@ -21,6 +21,9 @@ from app.api.deps import get_redis
 {%- if cookiecutter.use_database %}
 from app.api.deps import get_db_session
 {%- endif %}
+{%- if cookiecutter.enable_rate_limiting %}
+from app.services.rate_limit import DEFAULT_RATE_LIMITS, RateLimitCategory
+{%- endif %}
 
 
 class MockUser:
@@ -91,6 +94,39 @@ async def client_with_mock_service(
         yield ac
 
     app.dependency_overrides.clear()
+
+
+{%- if not cookiecutter.use_delegated_auth %}
+{%- if cookiecutter.enable_rate_limiting %}
+
+
+@pytest.mark.anyio
+async def test_login_is_rate_limited(
+    client_with_mock_service: AsyncClient,
+    mock_user_service: MagicMock,
+):
+    """The auth rate limit is actually attached to /auth/login.
+
+    Asserts the effect on a caller rather than the existence of a limiter — an
+    unattached limiter passes every test that only checks it was constructed.
+    """
+    mock_user_service.authenticate = ServiceMock(
+        side_effect=AuthenticationError(message="Invalid credentials")
+    )
+    limit = DEFAULT_RATE_LIMITS[RateLimitCategory.AUTH].per_ip
+    assert limit is not None
+
+    statuses = []
+    for _ in range(limit + 1):
+        response = await client_with_mock_service.post(
+            f"{settings.API_V1_STR}/auth/login",
+            data={"username": "nobody@example.com", "password": "wrong-password"},
+        )
+        statuses.append(response.status_code)
+
+    assert statuses[:limit] == [401] * limit, statuses
+    assert statuses[-1] == 429, statuses
+{%- endif %}
 
 
 @pytest.mark.anyio
@@ -226,6 +262,22 @@ async def test_refresh_token_inactive_user(
         json={"refresh_token": refresh_token},
     )
     assert response.status_code == 401
+{%- endif %}
+{%- endif %}
+{%- if cookiecutter.use_delegated_auth %}
+
+
+@pytest.mark.anyio
+async def test_local_credential_endpoints_are_not_generated(client: AsyncClient):
+    """Delegated auth must not expose local login/registration.
+
+    Regression guard for the escalation this replaced: an unauthenticated caller
+    could POST /auth/register, and UserService.register auto-promotes the first
+    account to app-admin — which SQLAdmin then accepts on a local password.
+    """
+    for path in ("auth/login", "auth/register", "auth/refresh", "auth/logout"):
+        response = await client.post(f"{settings.API_V1_STR}/{path}", json={})
+        assert response.status_code == 404, f"{path} is still reachable"
 {%- endif %}
 
 

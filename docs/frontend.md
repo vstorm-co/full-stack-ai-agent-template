@@ -374,7 +374,8 @@ import { useCallback, useState } from 'react';
 import { useChatStore } from '@/stores/chat-store';
 import { useWebSocket } from './use-websocket';
 
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000/api/v1/agent/ws';
+// Origin only — the hook appends the endpoint path (/api/v1/ws/agent).
+const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000';
 
 export function useChat() {
   const [isStreaming, setIsStreaming] = useState(false);
@@ -815,8 +816,14 @@ bun test:e2e
 # Backend API URL (for server-side)
 BACKEND_URL=http://localhost:8000
 
-# Public WebSocket URL (for client-side)
-NEXT_PUBLIC_WS_URL=ws://localhost:8000/api/v1/agent/ws
+# Public WebSocket origin (for client-side). Inlined into the browser bundle at
+# build time, so it must be reachable from the browser and needs a rebuild to
+# change. The path (/api/v1/ws/agent) is appended by the chat hook.
+NEXT_PUBLIC_WS_URL=ws://localhost:8000
+
+# Secure flag on the auth cookies (server-side). Unset follows NODE_ENV; a
+# Secure cookie is dropped by the browser over plain http://.
+# COOKIE_SECURE=false
 
 # OpenTelemetry (if Logfire enabled)
 OTEL_EXPORTER_OTLP_ENDPOINT=https://logfire-api.pydantic.dev

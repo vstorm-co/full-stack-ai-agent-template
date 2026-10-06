@@ -94,9 +94,6 @@ from app.repositories import user_repo
 {%- if cookiecutter.enable_admin_panel and not cookiecutter.admin_env_disabled %}
 from app.admin import setup_admin
 {%- endif %}
-{%- if cookiecutter.enable_rate_limiting %}
-from app.core.rate_limit import limiter
-{%- endif %}
 
 logger = logging.getLogger(__name__)
 
@@ -112,6 +109,9 @@ class LifespanState(TypedDict, total=False):
 {%- if cookiecutter.enable_rag %}
     embedding_service: EmbeddingService
     vector_store: BaseVectorStore
+{%- if cookiecutter.enable_reranker %}
+    rerank_service: RerankService
+{%- endif %}
 {%- endif %}
 {%- endif %}
 
@@ -506,14 +506,6 @@ def create_app() -> FastAPI:
         )
 {%- endif %}
 
-{%- if cookiecutter.enable_rate_limiting %}
-
-    # slowapi requires app.state.limiter, not lifespan state (library constraint)
-    from slowapi import _rate_limit_exceeded_handler
-    from slowapi.errors import RateLimitExceeded
-    app.state.limiter = limiter
-    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-{%- endif %}
 
 {%- if (cookiecutter.enable_admin_panel and cookiecutter.admin_require_auth and not cookiecutter.admin_env_disabled) or cookiecutter.enable_oauth %}
 

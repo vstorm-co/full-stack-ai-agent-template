@@ -91,7 +91,7 @@ template/
 
 ## Key Design Decisions
 
-- 5 AI frameworks: PydanticAI, PydanticDeep, LangChain, LangGraph, DeepAgents
+- 5 AI frameworks: Pydantic AI, Pydantic Deep Agents, LangChain, LangGraph, DeepAgents
 - 4 LLM providers: OpenAI, Anthropic, Google Gemini, OpenRouter
 - 4 vector store backends: Milvus, Qdrant, ChromaDB, pgvector
 - 4 embedding providers: OpenAI, Voyage, Gemini (multimodal), SentenceTransformers
@@ -101,13 +101,12 @@ template/
 - 3 PDF parsers: PyMuPDF, LiteParse, LlamaParse (runtime selection via env var)
 - Image description via LLM vision API (optional, opt-in)
 - LlamaParse support for 130+ document formats
-- Logfire for PydanticAI observability, LangSmith for LangChain/LangGraph/DeepAgents
+- Logfire for Pydantic AI observability, LangSmith for LangChain/LangGraph/DeepAgents
 - Repository + Service pattern — routes never contain direct DB calls
 - Database always required (PostgreSQL async, MongoDB async, SQLite sync)
 - Frontend i18n: PL + EN via `next-intl`, locale-prefixed routes, per-locale TSX for long-form prose
 - Marketing site (gated by `enable_marketing_site`): home, pricing, FAQ, blog, contact, legal
 - Auth flows: password + JWT, password reset, magic link sign-in, OAuth-ready
-- User-scoped API keys (`sk_<43>` format, prefix lookup + bcrypt verify)
 - Admin panel (gated by `enable_admin_panel`): workspace stats, Stripe events browser
 - SEO defaults: `opengraph-image.tsx`, `icon.tsx`, `manifest.ts`, `robots.ts`, `sitemap.ts`
 

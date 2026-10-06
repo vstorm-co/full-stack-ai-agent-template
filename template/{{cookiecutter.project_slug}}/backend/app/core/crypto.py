@@ -1,10 +1,19 @@
 """Field-level Fernet encryption for sensitive connector credentials.
 
+Every caller keys this with ``settings.SECRET_KEY`` — keep it that way. The key
+is only a *derivation input*, so any two callers using different keys produce
+ciphertext the other cannot read: mixing keys silently strands rows rather than
+raising at write time.
+
+Consequence worth knowing before you rotate anything: rotating ``SECRET_KEY``
+(the JWT signing key) makes every value encrypted with the old one
+undecryptable. See ``app/services/mcp_connection.py`` for how that is handled.
+
 Usage:
     from app.core.crypto import encrypt_value, decrypt_value, is_encrypted
 
-    stored = encrypt_value(plaintext, settings.CHANNEL_ENCRYPTION_KEY)
-    original = decrypt_value(stored, settings.CHANNEL_ENCRYPTION_KEY)
+    stored = encrypt_value(plaintext, settings.SECRET_KEY)
+    original = decrypt_value(stored, settings.SECRET_KEY)
 """
 
 import base64

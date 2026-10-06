@@ -50,6 +50,22 @@ class TestOpenAPISchema:
 
 {%- if cookiecutter.use_jwt %}
 
+{%- if cookiecutter.use_delegated_auth %}
+    @pytest.mark.anyio
+    async def test_schema_has_no_local_auth_endpoints(self, client: AsyncClient):
+        """Delegated auth must not advertise local credential endpoints.
+
+        They cannot work — ``get_current_user`` only accepts IdP signatures — and
+        a reachable ``/auth/register`` lets an unauthenticated caller create the
+        first account, which is auto-promoted to app-admin.
+        """
+        response = await client.get("/api/v1/openapi.json")
+        paths = response.json()["paths"]
+        assert "/api/v1/auth/login" not in paths
+        assert "/api/v1/auth/register" not in paths
+        assert "/api/v1/auth/refresh" not in paths
+        assert "/api/v1/auth/me" in paths
+{%- else %}
     @pytest.mark.anyio
     async def test_schema_has_auth_endpoints(self, client: AsyncClient):
         """Test that authentication endpoints are in schema."""
@@ -57,6 +73,7 @@ class TestOpenAPISchema:
         paths = response.json()["paths"]
         assert "/api/v1/auth/login" in paths
         assert "/api/v1/auth/register" in paths
+{%- endif %}
 {%- endif %}
 
     @pytest.mark.anyio

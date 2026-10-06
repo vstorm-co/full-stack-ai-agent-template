@@ -387,10 +387,9 @@ vercel-deploy:
 	@echo "✅ Frontend deployed to Vercel!"
 	@echo "   Set environment variables in Vercel dashboard:"
 	@echo "   BACKEND_URL=https://api.your-domain.com"
-	@echo "   BACKEND_WS_URL=wss://api.your-domain.com"
-{%- if cookiecutter.use_jwt %}
-	@echo "   NEXT_PUBLIC_AUTH_ENABLED=true"
-{%- endif %}
+	@echo "   NEXT_PUBLIC_API_URL=https://api.your-domain.com"
+	@echo "   NEXT_PUBLIC_WS_URL=wss://api.your-domain.com"
+	@echo "   NEXT_PUBLIC_SITE_URL=https://your-domain.com"
 {%- if cookiecutter.enable_rag %}
 	@echo "   NEXT_PUBLIC_RAG_ENABLED=true"
 {%- endif %}

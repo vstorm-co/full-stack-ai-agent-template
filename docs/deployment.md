@@ -358,8 +358,10 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
-    # WebSocket support
-    location /api/v1/agent/ws {
+    # WebSocket support. Must cover the whole /api/v1/ws prefix — a request that
+    # falls through to `location /api` above is proxied without the Upgrade
+    # headers and the handshake fails.
+    location /api/v1/ws {
         proxy_pass http://backend;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;

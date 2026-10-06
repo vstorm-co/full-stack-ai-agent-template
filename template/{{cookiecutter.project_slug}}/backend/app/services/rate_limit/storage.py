@@ -31,7 +31,9 @@ class RateLimitStorage(Protocol):
 
 
 {%- if cookiecutter.enable_redis %}
-from app.core.cache import get_redis
+from redis import asyncio as aioredis
+
+from app.core.config import settings
 
 
 class RedisSlidingWindowStorage:
@@ -53,8 +55,11 @@ class RedisSlidingWindowStorage:
             pipe.expire(key, period_seconds + 1)
             results = await pipe.execute()
             current_count: int = results[2]
-        except Exception as exc:
-            logger.error("rate_limit_redis_error", error=str(exc))
+        except Exception:
+            # Fail open: a Redis outage must not take the whole API down with
+            # it. The exception is logged in full because the alternative —
+            # silently unlimited traffic — is worth paging about.
+            logger.exception("rate_limit_redis_error")
             return RateLimitResult(
                 allowed=True,
                 current_count=0,
@@ -124,16 +129,26 @@ class InMemoryStorage:
 
 
 def get_storage() -> RateLimitStorage:
+    """Pick the backing store once, at first use.
+
+    Storage is resolved outside any request, so it cannot borrow the Redis
+    client from lifespan state — it opens its own connection from
+    ``REDIS_URL``. Connecting is lazy inside redis-py, so this does no I/O and
+    cannot fail here; a Redis that is actually unreachable surfaces per-call in
+    ``RedisSlidingWindowStorage.increment_and_check``, which fails open.
+    """
 {%- if cookiecutter.enable_redis %}
-    try:
-        redis = get_redis()
-        if redis is not None:
-            return RedisSlidingWindowStorage(redis)
-    except Exception:
-        pass
-{%- endif %}
+    return RedisSlidingWindowStorage(
+        aioredis.from_url(  # type: ignore[no-untyped-call]
+            settings.REDIS_URL, encoding="utf-8", decode_responses=True
+        )
+    )
+{%- else %}
+    # Counters live in this process only, so with N workers the effective limit
+    # is N times the configured one. Enable Redis for a shared window.
     logger.warning("rate_limit_using_in_memory_storage")
     return InMemoryStorage()
+{%- endif %}
 
 {%- else %}
 """Rate limit storage — not enabled."""

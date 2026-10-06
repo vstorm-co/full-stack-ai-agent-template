@@ -29,6 +29,10 @@ from app.clients.redis import RedisClient
 {%- if cookiecutter.use_database %}
 from app.api.deps import get_db_session
 {%- endif %}
+{%- if cookiecutter.enable_rate_limiting %}
+from app.services.rate_limit import service as rate_limit_service
+from app.services.rate_limit.storage import InMemoryStorage
+{%- endif %}
 
 
 @pytest.fixture
@@ -38,6 +42,20 @@ def anyio_backend() -> str:
     Options: "asyncio" or "trio". We use asyncio since that's what uvicorn uses.
     """
     return "asyncio"
+
+{%- if cookiecutter.enable_rate_limiting %}
+
+
+@pytest.fixture(autouse=True)
+def reset_rate_limit_storage(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Give every test its own rate-limit counters.
+
+    The limiter's storage is a module-level singleton keyed by client IP, and in
+    tests every request arrives from the same IP. Without this, the sixth test
+    that posts to an ``/auth/*`` route gets a 429 from the previous five.
+    """
+    monkeypatch.setattr(rate_limit_service, "_storage", InMemoryStorage())
+{%- endif %}
 
 
 {%- if cookiecutter.enable_redis %}

@@ -1,18 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { clearAuthCookies, setAuthCookies } from "@/lib/auth-cookies";
 import { backendFetch, BackendApiError } from "@/lib/server-api";
 import type { User } from "@/types";
-
-const ACCESS_MAXAGE = 60 * 15; // 15 min
-const REFRESH_MAXAGE = 60 * 60 * 24 * 7; // 7 days
-
-const cookieOpts = (maxAge: number) =>
-  ({
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax" as const,
-    maxAge,
-    path: "/",
-  }) as const;
 
 function fetchMe(token: string) {
   return backendFetch<User>("/api/v1/auth/me", {
@@ -55,16 +44,15 @@ export async function GET(request: NextRequest) {
     );
     const data = await fetchMe(refreshed.access_token);
     const response = NextResponse.json({ ...data, access_token: refreshed.access_token });
-    response.cookies.set("access_token", refreshed.access_token, cookieOpts(ACCESS_MAXAGE));
-    if (refreshed.refresh_token) {
-      response.cookies.set("refresh_token", refreshed.refresh_token, cookieOpts(REFRESH_MAXAGE));
-    }
+    setAuthCookies(response, {
+      accessToken: refreshed.access_token,
+      refreshToken: refreshed.refresh_token,
+    });
     return response;
   } catch {
     // Refresh failed → truly logged out. Clear cookies.
     const response = NextResponse.json({ detail: "Not authenticated" }, { status: 401 });
-    response.cookies.set("access_token", "", cookieOpts(0));
-    response.cookies.set("refresh_token", "", cookieOpts(0));
+    clearAuthCookies(response);
     return response;
   }
 }

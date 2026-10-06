@@ -13,11 +13,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.exceptions import AlreadyExistsError, AuthenticationError, NotFoundError
 from app.core.security import (
+{%- if cookiecutter.enable_email %}
     create_magic_link_token,
     create_password_reset_token,
+{%- endif %}
     get_password_hash,
+{%- if cookiecutter.enable_email %}
+    password_epoch,
+{%- endif %}
     verify_password,
+{%- if cookiecutter.enable_email %}
     verify_special_token,
+{%- endif %}
 )
 from app.db.models.user import User, UserRole
 {%- if cookiecutter.enable_session_management and cookiecutter.use_jwt %}
@@ -112,7 +119,14 @@ class UserService:
         return AdminUserList(items=items, total=total)
 
     async def register(self, user_in: UserCreate) -> User:
-        """The first user to register is auto-promoted to app-admin — no separate CLI step needed."""
+        """Create a local password account.
+
+        The first user to register is auto-promoted to app-admin — no separate
+        CLI step needed. That convenience is a land-grab on a public
+        deployment, so the window matters: whoever registers first owns the
+        app. Set ``FIRST_ADMIN_EMAIL`` (or run ``cmd create-app-admin``) and
+        register before exposing the API publicly.
+        """
         existing = await user_repo.get_by_email(self.db, user_in.email)
         if existing:
             raise AlreadyExistsError(
@@ -151,8 +165,6 @@ class UserService:
 {%- endif %}
         return user
 
-{%- if cookiecutter.enable_oauth %}
-
 {%- if cookiecutter.use_delegated_auth %}
     async def get_or_create_from_idp(
         self,
@@ -169,6 +181,12 @@ class UserService:
         2. ``email`` — for users that pre-existed in the local DB before
            switching to delegated auth (e.g., migrated SaaS).
         3. Create new row + personal org + welcome email (best-effort).
+
+        Step 2 adopts a row on an unverified email match, which is only safe
+        because delegated mode does not generate ``/auth/register``: no
+        attacker-controlled row can be sitting on a victim's address waiting to
+        be adopted. If local registration is ever reintroduced here, this
+        lookup has to require ``external_user_id`` instead.
         """
         existing = await user_repo.get_by_external_user_id(self.db, external_user_id)
         if existing:
@@ -201,6 +219,7 @@ class UserService:
         return user
 
 {%- endif %}
+{%- if cookiecutter.enable_oauth %}
     async def get_or_create_oauth_user(
         self,
         *,
@@ -305,12 +324,16 @@ class UserService:
             )
         return user
 
+{%- if cookiecutter.enable_email %}
+
     async def issue_password_reset_token(self, email: str) -> tuple[User, str] | None:
         """Returns None (not raises) to avoid leaking whether the email is registered."""
         user = await user_repo.get_by_email(self.db, email)
         if user is None or not user.is_active:
             return None
-        token = create_password_reset_token(subject=str(user.id))
+        token = create_password_reset_token(
+            subject=str(user.id), current_password_hash=user.hashed_password
+        )
         return user, token
 
     async def confirm_password_reset(self, token: str, new_password: str) -> User:
@@ -327,6 +350,11 @@ class UserService:
         user = await self.get_by_id(user_id)
         if not user.is_active:
             raise AuthenticationError(message="Account is disabled")
+
+        # Single use: the token is bound to the password hash it was issued
+        # against, so a link that has already been redeemed no longer matches.
+        if payload.get("pwe") != password_epoch(user.hashed_password):
+            raise AuthenticationError(message="Reset link is invalid or has expired")
 
         await user_repo.update(
             self.db,
@@ -345,11 +373,18 @@ class UserService:
         user = await user_repo.get_by_email(self.db, email)
         if user is None or not user.is_active:
             return None
-        token = create_magic_link_token(subject=str(user.id))
+        token = create_magic_link_token(
+            subject=str(user.id), magic_link_epoch=user.magic_link_epoch
+        )
         return user, token
 
     async def consume_magic_link_token(self, token: str) -> User:
-        """Caller is responsible for minting access/refresh tokens for the returned user."""
+        """Redeem a sign-in link exactly once.
+
+        Caller is responsible for minting access/refresh tokens for the returned
+        user. Bumping the epoch here is what makes the link single-use, so this
+        must run before the caller issues any credential.
+        """
         payload = verify_special_token(token, expected_type="magic_link")
         if payload is None or "sub" not in payload:
             raise AuthenticationError(message="Magic link is invalid or has expired")
@@ -363,4 +398,15 @@ class UserService:
         user = await self.get_by_id(user_id)
         if not user.is_active:
             raise AuthenticationError(message="Account is disabled")
+
+        if payload.get("mle") != user.magic_link_epoch:
+            raise AuthenticationError(message="Magic link is invalid or has expired")
+
+        # Invalidates this link and every other one outstanding for the user.
+        await user_repo.update(
+            self.db,
+            db_user=user,
+            update_data={"magic_link_epoch": user.magic_link_epoch + 1},
+        )
         return user
+{%- endif %}

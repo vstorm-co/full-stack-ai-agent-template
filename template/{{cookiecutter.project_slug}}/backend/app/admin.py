@@ -301,7 +301,19 @@ def get_sync_engine() -> Engine:
 class AdminAuth(AuthenticationBackend):
     """Admin panel authentication backend.
 
-    Requires superuser credentials to access the admin panel.
+    Requires app-admin credentials to access the admin panel. Note this is a
+    *local* password check — it does not consult any external IdP, so it must
+    never be the only thing standing between a self-registered account and the
+    database. Both conditions below matter:
+
+    - ``is_app_admin`` — the explicit admin flag, not just the ``role`` column,
+      so a row that acquired ``role=admin`` some other way is not enough.
+{%- if cookiecutter.use_delegated_auth %}
+    - ``external_user_id`` — the row must correspond to a real IdP identity.
+      Under delegated auth the local ``/auth/register`` endpoint is not
+      generated, so no unlinked row should exist; this check makes that
+      guarantee local instead of relying on a route elsewhere staying absent.
+{%- endif %}
     """
 
     async def login(self, request: Request) -> bool:
@@ -321,9 +333,14 @@ class AdminAuth(AuthenticationBackend):
 
             if (
                 user
+                and user.is_active
                 and user.hashed_password
                 and verify_password(password, user.hashed_password)
                 and user.has_role(UserRole.ADMIN)
+                and getattr(user, "is_app_admin", False)
+{%- if cookiecutter.use_delegated_auth %}
+                and user.external_user_id is not None
+{%- endif %}
             ):
                 request.session["admin_user_id"] = str(user.id)
                 request.session["admin_email"] = user.email
@@ -344,7 +361,12 @@ class AdminAuth(AuthenticationBackend):
 
         with DBSession(get_sync_engine()) as session:
             user = session.query(User).filter(User.id == admin_user_id).first()
-            if user and user.has_role(UserRole.ADMIN) and user.is_active:
+            if (
+                user
+                and user.is_active
+                and user.has_role(UserRole.ADMIN)
+                and getattr(user, "is_app_admin", False)
+            ):
                 return True
 
         request.session.clear()

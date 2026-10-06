@@ -8,7 +8,7 @@ from enum import StrEnum
 from typing import TYPE_CHECKING
 {%- endif %}
 
-from sqlalchemy import Boolean, Column, DateTime, String
+from sqlalchemy import Boolean, Column, DateTime{% if cookiecutter.enable_email %}, Integer{% endif %}, String
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlmodel import Field, SQLModel{%- if cookiecutter.enable_session_management %}, Relationship{%- endif %}
 
@@ -54,6 +54,15 @@ class User(TimestampMixin, SQLModel, table=True):
         default=None,
         sa_column=Column(DateTime(timezone=True), nullable=True),
     )
+{%- if cookiecutter.enable_email %}
+    # Bumped every time a magic link is redeemed. Each link carries the epoch
+    # in force when it was issued, so redeeming one invalidates every
+    # outstanding link for this user — a JWT can't be revoked any other way.
+    magic_link_epoch: int = Field(
+        default=0,
+        sa_column=Column(Integer, nullable=False, server_default="0"),
+    )
+{%- endif %}
 {%- if cookiecutter.enable_oauth %}
     oauth_provider: str | None = Field(
         default=None,
@@ -103,7 +112,7 @@ from enum import StrEnum
 from typing import TYPE_CHECKING
 {%- endif %}
 
-from sqlalchemy import Boolean, DateTime, String
+from sqlalchemy import Boolean, DateTime{% if cookiecutter.enable_email %}, Integer{% endif %}, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column{%- if cookiecutter.enable_session_management %}, relationship{%- endif %}
 
@@ -143,6 +152,14 @@ class User(Base, TimestampMixin):
     onboarding_completed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+{%- if cookiecutter.enable_email %}
+    # Bumped every time a magic link is redeemed. Each link carries the epoch
+    # in force when it was issued, so redeeming one invalidates every
+    # outstanding link for this user — a JWT can't be revoked any other way.
+    magic_link_epoch: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="0", default=0
+    )
+{%- endif %}
 {%- if cookiecutter.enable_oauth %}
     oauth_provider: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
     oauth_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)

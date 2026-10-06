@@ -17,7 +17,7 @@ async def test_not_found_error_format(client: AsyncClient):
     # FastAPI returns 404 for unknown routes
 
 
-{%- if cookiecutter.use_jwt %}
+{%- if cookiecutter.use_jwt and not cookiecutter.use_delegated_auth %}
 
 from unittest.mock import AsyncMock, MagicMock
 ServiceMock = AsyncMock

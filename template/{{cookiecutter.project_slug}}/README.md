@@ -318,7 +318,7 @@ bun run lint
 bun run build
 ```
 
-The frontend talks to the backend through Next.js API route handlers in `src/app/api/*` (server-side proxy that forwards auth cookies to the FastAPI backend). Direct calls to `localhost:{{ cookiecutter.backend_port }}` from the browser are deliberately avoided.
+The frontend talks to the backend through Next.js API route handlers in `src/app/api/*` (server-side proxy that forwards auth cookies to the FastAPI backend), so HTTP traffic never leaves the frontend origin. The one exception is the chat WebSocket: the browser opens it straight against the backend at `NEXT_PUBLIC_WS_URL`, so that origin must be reachable from the browser and the backend port (or a proxy route to it) has to be exposed.
 
 i18n (PL + EN) ships out of the box via `next-intl`. Add a new locale by extending `messages/<lang>.json` and `src/i18n.ts`.
 {%- endif %}
@@ -335,12 +335,17 @@ cd frontend && npx vercel --prod
 
 Set in the Vercel dashboard:
 
-- `BACKEND_URL` = `https://api.your-domain.com`
-- `BACKEND_WS_URL` = `wss://api.your-domain.com`
-- `NEXT_PUBLIC_AUTH_ENABLED` = `true`
+- `BACKEND_URL` = `https://api.your-domain.com` (server-side only)
+- `NEXT_PUBLIC_API_URL` = `https://api.your-domain.com`
+- `NEXT_PUBLIC_WS_URL` = `wss://api.your-domain.com`
+- `NEXT_PUBLIC_SITE_URL` = `https://your-domain.com`
 {%- if cookiecutter.enable_rag %}
 - `NEXT_PUBLIC_RAG_ENABLED` = `true`
 {%- endif %}
+
+`NEXT_PUBLIC_*` values are inlined into the browser bundle at build time, so
+changing one needs a redeploy, and each must be an address the **browser** can
+reach.
 
 ### Backend → your server
 

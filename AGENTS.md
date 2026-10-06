@@ -13,7 +13,7 @@ uv sync                    # Install dependencies
 uv run pytest              # Run tests
 uv run ruff check . --fix  # Lint
 uv run ruff format .       # Format
-uv run mypy fastapi_gen    # Type check
+uv run ty check            # Type check
 ```
 
 ## CLI
@@ -56,13 +56,13 @@ Jinja2 conditionals: `{%- if cookiecutter.enable_rag %}...{%- endif %}`
 
 ## Key Features
 
-- **5 AI Frameworks**: PydanticAI, PydanticDeep, LangChain, LangGraph, DeepAgents
+- **5 AI Frameworks**: Pydantic AI, Pydantic Deep Agents, LangChain, LangGraph, DeepAgents
 - **4 LLM Providers**: OpenAI, Anthropic, Google Gemini, OpenRouter
 - **RAG**: 4 vector stores (Milvus, Qdrant, ChromaDB, pgvector), 4 embedding providers, reranking, image description
 - **Document Sources**: Local files (CLI), API upload, Google Drive (service account), S3/MinIO
 - **Sync Sources**: Configurable connectors (Google Drive, S3) with scheduled sync
 - **PDF Parsers**: PyMuPDF, LiteParse, LlamaParse (runtime selection via env var)
-- **Observability**: Logfire (PydanticAI), LangSmith (LangChain/LangGraph/DeepAgents)
+- **Observability**: Logfire (Pydantic AI), LangSmith (LangChain/LangGraph/DeepAgents)
 
 ## Common Tasks
 

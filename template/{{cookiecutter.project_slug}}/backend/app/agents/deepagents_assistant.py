@@ -309,8 +309,12 @@ class DeepAgentsAssistant:
     def _create_backend(self) -> BackendProtocol:
         """Create the file-storage backend.
 
+        `create_deep_agent` takes a backend instance, and StateBackend reads the
+        current run's state out of the LangGraph config itself, so it needs no
+        constructor argument.
+
         Returns:
-            StateBackend (in-memory file state, ephemeral).
+            StateBackend (in-memory file state, ephemeral, no external deps).
         """
         return StateBackend()
 

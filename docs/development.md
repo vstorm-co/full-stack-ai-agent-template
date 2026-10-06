@@ -145,16 +145,18 @@ AI_MODEL=gpt-4o-mini
 # Backend URL (server-side only - not exposed to browser)
 BACKEND_URL=http://localhost:8000
 
-# WebSocket URL for real-time features
-BACKEND_WS_URL=ws://localhost:8000
+# Secure flag on the auth cookies. Unset follows NODE_ENV; set false only for
+# an http:// deployment on a trusted network (a browser drops Secure cookies
+# served over plain HTTP, which 401s every request after login).
+# COOKIE_SECURE=false
 
-# Authentication (set to true when JWT or OAuth is enabled)
-NEXT_PUBLIC_AUTH_ENABLED=true
+# WebSocket URL for the chat stream — read by the browser, inlined at build time
+NEXT_PUBLIC_WS_URL=ws://localhost:8000
 
 # RAG (Retrieval Augmented Generation)
 NEXT_PUBLIC_RAG_ENABLED=true
 
-# Public API URL for OAuth redirects (exposed to browser)
+# Public API URL, exposed to the browser (OAuth redirects, API docs links)
 NEXT_PUBLIC_API_URL=http://localhost:8000
 ```
 

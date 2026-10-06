@@ -77,6 +77,17 @@ failed in 13 jobs, and several breakages were runtime-only.
   `container_name`, which has to be unique, so Compose v2 refused the whole
   project (`can't set container_name and celery_worker as container name must
   be unique`). The two workers no longer name their containers
+- **A PydanticDeep chat forgot the conversation on every turn** — the template
+  assumed pydantic-deep kept history between runs; it keeps none
+  (`history_messages_path` is only an archive for searching compacted history).
+  The chat session now carries the conversation's messages from turn to turn,
+  and its in-memory workspace documents too, so files written in one turn are
+  there in the next; another conversation starts afresh. The project chat
+  socket and channel bots replay their history as well (#175)
+- **Channel bots handed the model the new message twice** — the message was
+  stored before the conversation history was loaded, so it arrived as the
+  prompt and again at the end of the history; it is now loaded first, for every
+  framework
 
 ### Security
 

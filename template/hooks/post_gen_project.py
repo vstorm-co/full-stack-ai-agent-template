@@ -479,6 +479,12 @@ if not (
 if "{{ cookiecutter.use_openai_compatible }}" != "True":
     remove_file(os.path.join(os.getcwd(), "backend", "tests", "test_openai_compatible.py"))
 
+# History tests that render to a stub without their framework or channel.
+if "{{ cookiecutter.use_pydantic_deep }}" != "True":
+    remove_file(os.path.join(os.getcwd(), "backend", "tests", "test_pydantic_deep_history.py"))
+if not (use_slack or use_telegram):
+    remove_file(os.path.join(os.getcwd(), "backend", "tests", "test_channel_history.py"))
+
 # Scan all .py files under backend/app — catches any template that rendered to
 # a stub docstring because its feature gate was disabled.
 for root, _dirs, files in os.walk(backend_app):

@@ -26,6 +26,7 @@ Configuration via settings:
 """
 
 import logging
+from collections.abc import MutableMapping
 from typing import Any, TypedDict
 
 from pydantic_ai import Agent
@@ -33,7 +34,14 @@ from pydantic_ai import Agent
 from pydantic_ai import Tool as PAITool
 {%- endif %}
 from pydantic_ai.capabilities import AbstractCapability
-from pydantic_ai_backends import StateWorkspace
+from pydantic_ai.messages import (
+    ModelMessage,
+    ModelRequest,
+    ModelResponse,
+    TextPart,
+    UserPromptPart,
+)
+from pydantic_ai_backends import StateBackend, StateWorkspace
 from pydantic_deep import DeepAgentDeps, create_deep_agent
 
 {%- if cookiecutter.use_openai_compatible %}
@@ -100,6 +108,17 @@ async def _rag_search(query: str, top_k: int = 5) -> str:
 
 
 
+def to_model_messages(history: list[dict[str, str]] | None) -> list[ModelMessage]:
+    """``{"role", "content"}`` dicts - as persisted conversations hold them - as messages."""
+    messages: list[ModelMessage] = []
+    for message in history or []:
+        if message["role"] == "user":
+            messages.append(ModelRequest(parts=[UserPromptPart(content=message["content"])]))
+        elif message["role"] == "assistant":
+            messages.append(ModelResponse(parts=[TextPart(content=message["content"])]))
+    return messages
+
+
 class PydanticDeepAssistant:
     """Deep agentic assistant powered by pydantic-deep.
 
@@ -118,6 +137,7 @@ class PydanticDeepAssistant:
         user_id: str | None = None,
         user_name: str | None = None,
         history_messages_path: str | None = None,
+        workspace_documents: MutableMapping[str, StateBackend] | None = None,
     ):
         self.model_name = model_name or settings.AI_MODEL
         self.thinking_effort = thinking_effort
@@ -126,6 +146,9 @@ class PydanticDeepAssistant:
         self.user_name = user_name
         # Lets the project-scoped WS endpoint keep one history file per chat
         self._history_messages_path = history_messages_path
+        # In-memory workspace documents that outlive this assistant: a run whose
+        # message history names one attaches to it again, files and all.
+        self._workspace_documents = workspace_documents
         self._agent: Agent | None = None
         self._deps: DeepAgentDeps | None = None
 
@@ -166,6 +189,8 @@ class PydanticDeepAssistant:
             return DaytonaWorkspace(sandbox_name=f"pd-{self.conversation_id}")
 
         # Default: in-memory, no cross-connection persistence
+        if self._workspace_documents is not None:
+            return StateWorkspace(store=self._workspace_documents)
         return StateWorkspace()
 
     def _get_system_prompt(self) -> str:
@@ -279,18 +304,15 @@ class PydanticDeepAssistant:
     async def run(
         self,
         user_input: str,
-        history: list[dict[str, str]] | None = None,  # noqa: ARG002 — managed internally via history_messages_path
+        history: list[dict[str, str]] | None = None,
         context: PydanticDeepContext | None = None,
     ) -> tuple[str, list[Any], PydanticDeepContext]:
         """Run the agent and return the full response.
 
-        Note: pydantic-deep manages conversation history internally via the
-        workspace (history_messages_path). The ``history`` parameter is accepted
-        for API parity with other agent wrappers but is not used.
-
         Args:
             user_input: User's message.
-            history: Ignored — pydantic-deep persists history internally.
+            history: The conversation so far, as ``{"role", "content"}`` dicts -
+                pydantic-deep keeps none between runs itself.
             context: Optional runtime context (user_id, user_name, metadata).
 
         Returns:
@@ -302,11 +324,15 @@ class PydanticDeepAssistant:
 {%- if cookiecutter.enable_teams and cookiecutter.enable_rag %}
         token = _active_kb_collections.set(agent_context.get("kb_collection_names") or [])
         try:
-            result = await self.agent.run(user_input, deps=self.deps)
+            result = await self.agent.run(
+                user_input, deps=self.deps, message_history=to_model_messages(history)
+            )
         finally:
             _active_kb_collections.reset(token)
 {%- else %}
-        result = await self.agent.run(user_input, deps=self.deps)
+        result = await self.agent.run(
+                user_input, deps=self.deps, message_history=to_model_messages(history)
+            )
 {%- endif %}
 
         tool_events: list[Any] = []
@@ -322,18 +348,15 @@ class PydanticDeepAssistant:
     async def stream(
         self,
         user_input: str,
-        history: list[dict[str, str]] | None = None,  # noqa: ARG002 — managed internally via history_messages_path
+        history: list[dict[str, str]] | None = None,
         context: PydanticDeepContext | None = None,
     ):
         """Stream agent execution token by token.
 
-        Note: pydantic-deep manages conversation history internally via the
-        workspace (history_messages_path). The ``history`` parameter is accepted
-        for API parity with other agent wrappers but is not used.
-
         Args:
             user_input: User's message.
-            history: Ignored — pydantic-deep persists history internally.
+            history: The conversation so far, as ``{"role", "content"}`` dicts -
+                pydantic-deep keeps none between runs itself.
             context: Optional runtime context.
 
         Yields:
@@ -345,13 +368,17 @@ class PydanticDeepAssistant:
         agent_context: PydanticDeepContext = context if context is not None else {}
         token = _active_kb_collections.set(agent_context.get("kb_collection_names") or [])
         try:
-            async with self.agent.run_stream(user_input, deps=self.deps) as response:
+            async with self.agent.run_stream(
+                user_input, deps=self.deps, message_history=to_model_messages(history)
+            ) as response:
                 async for text in response.stream_text(delta=True):
                     yield "messages", (text, {})
         finally:
             _active_kb_collections.reset(token)
 {%- else %}
-        async with self.agent.run_stream(user_input, deps=self.deps) as response:
+        async with self.agent.run_stream(
+                user_input, deps=self.deps, message_history=to_model_messages(history)
+            ) as response:
             async for text in response.stream_text(delta=True):
                 yield "messages", (text, {})
 {%- endif %}
@@ -364,6 +391,7 @@ def get_agent(
     user_id: str | None = None,
     user_name: str | None = None,
     history_messages_path: str | None = None,
+    workspace_documents: MutableMapping[str, StateBackend] | None = None,
 ) -> PydanticDeepAssistant:
     """Create a PydanticDeepAssistant instance.
 
@@ -374,6 +402,8 @@ def get_agent(
         user_id: Optional user identifier for context.
         user_name: Optional user display name for context.
         history_messages_path: Override the history file path inside the workspace.
+        workspace_documents: Store for the in-memory workspace's documents, kept
+            by the caller across turns so a conversation's files survive them.
             Useful for project-scoped chats where each chat has its own path.
 
     Returns:
@@ -386,6 +416,7 @@ def get_agent(
         user_id=user_id,
         user_name=user_name,
         history_messages_path=history_messages_path,
+        workspace_documents=workspace_documents,
     )
 
 

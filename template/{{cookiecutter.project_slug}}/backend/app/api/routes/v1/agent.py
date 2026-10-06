@@ -32,6 +32,7 @@ from pydantic_ai import (
     PartDeltaEvent,
     TextPartDelta,
 )
+from pydantic_ai.messages import ModelMessage
 {%- endif %}
 
 logger = logging.getLogger(__name__)
@@ -175,6 +176,8 @@ async def project_chat_websocket(
                     {"conversation_id": str(conv.id), "project_id": str(project_id)},
                 )
 
+        # pydantic-deep keeps no history between runs; this chat's lives here.
+        message_history: list[ModelMessage] = []
         while True:
             data = await websocket.receive_json()
             user_message = data.get("message", "")
@@ -200,7 +203,7 @@ async def project_chat_websocket(
 
                 output = ""
                 async with assistant.agent.run_stream_events(
-                    user_message, deps=assistant.deps
+                    user_message, deps=assistant.deps, message_history=message_history
                 ) as events:
                     async for event in events:
                         if isinstance(event, PartDeltaEvent) and isinstance(
@@ -229,6 +232,7 @@ async def project_chat_websocket(
                             )
                         elif isinstance(event, AgentRunResultEvent):
                             output = event.result.output
+                            message_history = event.result.all_messages()
                             await send_event(websocket, "final_result", {"content": output})
 
                 async with get_db_context() as db:

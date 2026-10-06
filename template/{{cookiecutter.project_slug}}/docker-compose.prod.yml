@@ -246,19 +246,22 @@ services:
 {%- if cookiecutter.enable_redis %}
 
   redis:
-    image: redis:7-alpine
+    image: valkey/valkey:8-alpine
     container_name: {{ cookiecutter.project_slug }}_redis
-    command: redis-server --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+    command: valkey-server --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
     # NO external ports - only accessible within backend-internal network
     volumes:
       - redis_data:/data
     networks:
       - backend-internal
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      test: ["CMD", "valkey-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
+      # A restarted container would otherwise report its last status - such as
+      # an unhealthy one from a crash loop - before its first check runs.
+      start_period: 10s
     restart: unless-stopped
     deploy:
       resources:

@@ -6,5 +6,20 @@
   "ignorePaths": [
     "**/node_modules/**",
     "ai_agent_test/**"
+  ],
+  "packageRules": [
+    {
+      "description": "Postgres majors change the data directory layout and need pg_upgrade for existing projects; upgrade deliberately, with a migration note.",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "postgres"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "enabled": false
+    }
   ]
 }

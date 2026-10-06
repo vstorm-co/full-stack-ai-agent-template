@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **Generated projects run [Valkey](https://valkey.io/) instead of Redis** —
+  `valkey/valkey:8-alpine` in the compose files, the GitHub Actions and GitLab
+  CI services, and `valkey-server` / `valkey-cli` for the prod command and
+  health checks. Redis 8 is licensed RSALv2/SSPLv1/AGPLv3; Valkey is the
+  BSD-licensed fork and speaks the same protocol, so the `redis` client,
+  `REDIS_*` settings and the `redis` service name are unchanged. **Existing
+  projects:** Valkey 8 cannot load an RDB written by Redis 7.4 (`Can't handle
+  RDB format version 12`); the template keeps only cache, broker and rate-limit
+  data there, so move `/data/dump.rdb` aside (or recreate the `redis_data`
+  volume) before the first start. The prod health check gained a
+  `start_period`, so a restarted container is not judged on its stale status
+- Renovate no longer proposes Postgres major updates: a new major changes the
+  data directory layout and needs `pg_upgrade` for existing projects, so it
+  will be done deliberately, with a migration note
+
 ## [0.2.19] - 2026-08-01
 
 Findings from a full audit of the template's product code. The theme is one

@@ -75,7 +75,9 @@ export function MemoryManager() {
     if (!editor) return;
     const path = canonicalMemoryName(editor.path);
     if (!isValidMemoryName(path)) {
-      toast.error("Use a flat file name — letters, digits, dots and dashes, no folders.");
+      toast.error(
+        "Use a flat file name up to 80 characters — letters, digits, dots and dashes, no folders.",
+      );
       return;
     }
     if (editor.isNew && files.some((f) => f.path === path)) {

@@ -112,7 +112,6 @@ _last_attempt_at: float | None = None
 async def _connect() -> None:
     """Create the pool and store; on failure leave both ``None``. Call under the lock."""
     global _memory_pool, _memory_store, _last_attempt_at
-    _last_attempt_at = time.monotonic()
     # asyncpg accepts no SQLAlchemy driver suffix, so strip it from the sync URL.
     dsn = make_url(settings.DATABASE_URL_SYNC).set(drivername="postgresql")
     pool: asyncpg.Pool | None = None
@@ -132,6 +131,10 @@ async def _connect() -> None:
         _memory_pool = None
         _memory_store = None
         logger.warning("Memory pool unavailable, agent memory is disabled: %s", e)
+    finally:
+        # Stamped when the attempt ends: a connect that hangs longer than the
+        # cooldown must not let the next caller start another straight away.
+        _last_attempt_at = time.monotonic()
 
 
 async def init_memory_pool() -> asyncpg.Pool | None:

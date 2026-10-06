@@ -24,6 +24,7 @@ class MemoryFileList(BaseSchema):
 
     items: list[MemoryFileEntry]
     total: int
+    """Number of files in ``items`` — not the store total when ``truncated``."""
     truncated: bool = False
     """More files exist in the store than ``items`` carries."""
 

@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`alembic upgrade head` failed in every PostgreSQL project without
+  `--mcp-client`** — since 0.2.19, migration 0027 named
+  `0026_create_mcp_connections` as its parent, and that migration is generated
+  only with the MCP client, so Alembic stopped with
+  `KeyError: '0026_create_mcp_connections'`. 0027 now follows 0025 when 0026 is
+  absent. Nobody noticed because `tests/test_migrations.py` took any `alembic
+  current` failure for "no database" and skipped itself; it now checks the
+  connection directly, so a broken chain fails it. A new matrix check,
+  `test_alembic_chain_is_unbroken`, verifies every generated configuration has
+  one head and no missing parent
+- **Migrations could not start in projects without an AI framework** —
+  `alembic/env.py` imported the conversation models, which are generated only
+  with one
+- **The test suite of a project without an AI framework failed at collection**
+  — `tests/test_services_conversation.py` stayed behind after its module was
+  removed
 - **Deep research could drop an answer given alongside a planning step** — text
   sent with a planning or delegation tool call is held back as narration; if a
   run nevertheless ended on that step, the text never streamed although it was

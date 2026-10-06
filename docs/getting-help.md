@@ -20,7 +20,7 @@
 
 | Use Case | Recommended |
 |----------|-------------|
-| Type-safe agents with Pydantic | **PydanticAI** |
+| Type-safe agents with Pydantic | **Pydantic AI** |
 | Complex workflows and chains | **LangChain** |
 | Stateful agent workflows | **LangGraph** |
 
@@ -52,5 +52,5 @@ See [Deployment Guide](deployment.md) for details.
 ## Related Projects
 
 - [pydantic-deep](https://github.com/vstorm-co/pydantic-deepagents) - Deep agent framework with planning and subagents
-- [pydantic-ai](https://github.com/pydantic/pydantic-ai) - The foundation for PydanticAI agents
+- [pydantic-ai](https://github.com/pydantic/pydantic-ai) - The foundation for Pydantic AI agents
 - [FastAPI](https://fastapi.tiangolo.com/) - The web framework powering the backend

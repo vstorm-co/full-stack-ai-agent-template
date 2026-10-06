@@ -47,7 +47,7 @@ async def run_python(code: str) -> str:
         message the model can read and recover from.
     """
     limits: ResourceLimits = {
-        "max_duration_secs": settings.CODE_EXECUTION_TIMEOUT_SECS,
+        "max_feed_duration_secs": settings.CODE_EXECUTION_TIMEOUT_SECS,
         "max_memory": settings.CODE_EXECUTION_MAX_MEMORY_MB * 1024 * 1024,
     }
     collector = CollectString()

@@ -5,6 +5,49 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+Generated projects had drifted from the libraries they resolve to: `main`'s CI
+failed in 13 jobs, and several breakages were runtime-only.
+
+- **Every PostgreSQL project failed to run Alembic and SQLAdmin** — SQLAlchemy
+  2.1 maps a bare `postgresql://` URL to psycopg 3, which the template does not
+  install. `DATABASE_URL_SYNC` now names `postgresql+psycopg2://`, which also
+  holds under SQLAlchemy 2.0 (pinned by SQLModel); the deep-research TODO pool
+  strips the driver back off for asyncpg
+- **Tool results crashed every PydanticAI and PydanticDeep chat turn** —
+  Pydantic AI 2.0 replaced `FunctionToolResultEvent.result` with `.part`, and the
+  agent session still read `.result`, which `ty` could not see through an
+  untyped event. The `pydantic-ai-slim` floor is now 2.0.0
+- **PydanticDeep projects could not build their agent** — pydantic-deep 0.3.45
+  moved to Pydantic AI workspaces: the assistant now uses `StateWorkspace`, or
+  `DaytonaWorkspace` with the Daytona sandbox backend (which now installs the `daytona`
+  extra instead of silently falling back to in-memory), and uploads go through
+  `DeepAgentDeps.upload_file`. Since pydantic-deep installs `pydantic-ai-slim`,
+  the selected provider's SDK is now declared, as for PydanticAI projects
+- **The project-scoped PydanticDeep chat WebSocket could never have worked** —
+  it called `get_agent(context=...)`, which takes no such argument, and a
+  `stream_events()` method that does not exist. It now streams
+  `run_stream_events()`
+- **MCP connections failed on mcp 2.x** — the streamable-HTTP transport is
+  `streamable_http_client` with headers on an `httpx2` client, and the OAuth
+  discovery helpers return `httpx2` requests that an `httpx` client cannot
+  send. Both ported; `mcp>=2.0.0` is now declared
+- **Code execution and skills broke on new majors** — `pydantic-monty` 1.0
+  renamed `max_duration_secs` to `max_feed_duration_secs`, and
+  `pydantic-ai-skills` 2.0 removed `SkillsToolset` for `SkillsCapability`
+  (skills now load through `load_capability`)
+- **OpenAI embeddings relied on another package's dependency** — `openai` is
+  now declared whenever OpenAI embeddings are selected, so a non-OpenAI
+  provider no longer leaves the embedding service without its SDK
+
+### Security
+
+- Upgraded the generator's locked `aiohttp`, `anyio`, `multidict`, `pyjwt`,
+  `urllib3` and `virtualenv` past the advisories `pip-audit` reports
+
 ## [0.2.19] - 2026-08-01
 
 Findings from a full audit of the template's product code. The theme is one

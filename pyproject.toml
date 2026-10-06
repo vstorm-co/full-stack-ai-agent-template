@@ -1,7 +1,7 @@
 [project]
 name = "fastapi-fullstack"
 version = "0.2.19"
-description = "Full-stack FastAPI + Next.js template generator with PydanticAI/LangChain agents, WebSocket streaming, 20+ enterprise integrations, and Logfire/LangSmith observability. Ship AI apps fast. CLI tool to generate production-ready FastAPI + Next.js projects with AI agents, auth, and observability."
+description = "Full-stack FastAPI + Next.js template generator with Pydantic AI/LangChain agents, WebSocket streaming, 20+ enterprise integrations, and Logfire/LangSmith observability. Ship AI apps fast."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
@@ -86,7 +86,7 @@ fastapi-fullstack = "fastapi_gen.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/vstorm-co/full-stack-ai-agent-template"
-Documentation = "https://github.com/vstorm-co/full-stack-ai-agent-template#readme"
+Documentation = "https://vstorm-co.github.io/full-stack-ai-agent-template/"
 Repository = "https://github.com/vstorm-co/full-stack-ai-agent-template"
 
 [build-system]

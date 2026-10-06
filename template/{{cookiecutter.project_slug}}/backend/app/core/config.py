@@ -94,9 +94,13 @@ class Settings(BaseSettings):
     @computed_field  # type: ignore[prop-decorator]
     @property
     def DATABASE_URL_SYNC(self) -> str:
-        """Build sync PostgreSQL connection URL (for Alembic)."""
+        """Build sync PostgreSQL connection URL (for Alembic).
+
+        The driver is named because a bare ``postgresql://`` means psycopg 3 on
+        SQLAlchemy 2.1 but psycopg2 on 2.0, which SQLModel pins.
+        """
         return (
-            f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
+            f"postgresql+psycopg2://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
             f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
         )
 

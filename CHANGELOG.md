@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **Resetting all non-admin users left their agent memory behind** — with
+  `--memory`, `UserService.delete_non_admins` (used by the seed command's reset)
+  bulk-deleted the rows but not the notebooks, which have no foreign key to
+  `users`; single deletion already cleared them. It now forgets each deleted
+  user's memory, and a store failure rolls the deletion back
+
 ## [0.2.20] - 2026-10-06
 
 ### Added

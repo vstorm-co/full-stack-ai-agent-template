@@ -121,8 +121,8 @@ services:
     restart: unless-stopped
 
   redis:
-    image: redis:7-alpine
-    command: redis-server --requirepass ${REDIS_PASSWORD}
+    image: valkey/valkey:8-alpine
+    command: valkey-server --requirepass ${REDIS_PASSWORD}
     volumes:
       - redis_data:/data
     restart: unless-stopped

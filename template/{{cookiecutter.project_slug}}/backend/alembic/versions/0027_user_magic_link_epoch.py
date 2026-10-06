@@ -17,7 +17,8 @@ import sqlalchemy as sa
 from alembic import op
 
 revision = "0027_user_magic_link_epoch"
-down_revision = "0026_create_mcp_connections"
+# 0026 exists only with the MCP client.
+down_revision = "{% if cookiecutter.enable_mcp_client %}0026_create_mcp_connections{% else %}0025{% endif %}"
 branch_labels = None
 depends_on = None
 
@@ -41,7 +42,8 @@ magic-link sign-in) is disabled.
 """
 
 revision = "0027_user_magic_link_epoch"
-down_revision = "0026_create_mcp_connections"
+# 0026 exists only with the MCP client.
+down_revision = "{% if cookiecutter.enable_mcp_client %}0026_create_mcp_connections{% else %}0025{% endif %}"
 branch_labels = None
 depends_on = None
 

@@ -91,6 +91,9 @@ async def _turn(
 {%- if cookiecutter.enable_teams and cookiecutter.enable_rag %}
         patch("app.services.agent_session.resolve_kb_collections", AsyncMock(return_value=[])),
 {%- endif %}
+{%- if cookiecutter.enable_mcp_client %}
+        patch("app.services.agent_session.build_toolsets_for_user", AsyncMock(return_value=[])),
+{%- endif %}
         patch("app.services.agent_session.send_event", AsyncMock()),
     ):
         await session.process_message({"message": text, "conversation_id": conversation_id})

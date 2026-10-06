@@ -247,7 +247,7 @@ DELETE /api/v1/rag/collections/{name}/documents/{document_id}
 
 RAG is integrated with AI agents through the `search_knowledge_base` tool.
 
-### PydanticAI Agent
+### Pydantic AI Agent
 
 ```python
 # app/agents/tools/rag_tool.py

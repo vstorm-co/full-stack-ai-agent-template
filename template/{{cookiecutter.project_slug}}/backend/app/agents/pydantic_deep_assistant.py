@@ -11,9 +11,9 @@ PydanticDeep is built on PydanticAI and provides:
 - Context file discovery (AGENTS.md, SOUL.md from workspace root)
 - Built-in web search and web fetch
 
-Backend types (set via PYDANTIC_DEEP_BACKEND_TYPE):
-  "state"   — In-memory (default, no persistence)
-  "daytona" — Daytona cloud workspace (isolated, cloud-native)
+Workspace types (set via PYDANTIC_DEEP_BACKEND_TYPE):
+  "state"   — In-memory ``StateWorkspace`` (default, no persistence)
+  "daytona" — ``DaytonaWorkspace``, a Daytona cloud sandbox (isolated, cloud-native)
 
 Configuration via settings:
   PYDANTIC_DEEP_BACKEND_TYPE  : "state" | "daytona" (default: "state")
@@ -32,7 +32,8 @@ from pydantic_ai import Agent
 {%- if cookiecutter.enable_rag or cookiecutter.enable_charts %}
 from pydantic_ai import Tool as PAITool
 {%- endif %}
-from pydantic_ai_backends import BackendProtocol, StateBackend
+from pydantic_ai.capabilities import AbstractCapability
+from pydantic_ai_backends import StateWorkspace
 from pydantic_deep import DeepAgentDeps, create_deep_agent
 
 from app.agents.prompts import DEFAULT_SYSTEM_PROMPT
@@ -100,8 +101,8 @@ class PydanticDeepAssistant:
     """Deep agentic assistant powered by pydantic-deep.
 
     Wraps create_deep_agent() with web-app friendly defaults:
-    - StateBackend by default (in-memory, ephemeral)
-    - Optional DaytonaSandbox for cloud-native workspaces
+    - StateWorkspace by default (in-memory, ephemeral)
+    - Optional DaytonaWorkspace for cloud-native sandboxes
     - Conversation scoped by conversation_id (history_messages_path)
     - Non-interactive mode (no human-in-the-loop approval prompts)
     """
@@ -113,7 +114,6 @@ class PydanticDeepAssistant:
         conversation_id: str = "default",
         user_id: str | None = None,
         user_name: str | None = None,
-        backend_override: Any = None,
         history_messages_path: str | None = None,
     ):
         self.model_name = model_name or settings.AI_MODEL
@@ -121,8 +121,7 @@ class PydanticDeepAssistant:
         self.conversation_id = conversation_id
         self.user_id = user_id
         self.user_name = user_name
-        # Allow project-scoped WS endpoint to inject a pre-built backend/history path
-        self._backend_override = backend_override
+        # Lets the project-scoped WS endpoint keep one history file per chat
         self._history_messages_path = history_messages_path
         self._agent: Agent | None = None
         self._deps: DeepAgentDeps | None = None
@@ -149,26 +148,22 @@ class PydanticDeepAssistant:
         prefix = _PROVIDER_PREFIXES.get(settings.LLM_PROVIDER, settings.LLM_PROVIDER)
         return f"{prefix}:{self.model_name}"
 
-    def _create_backend(self) -> BackendProtocol:
-        """Create the file-storage backend based on PYDANTIC_DEEP_BACKEND_TYPE."""
-        backend_type = settings.PYDANTIC_DEEP_BACKEND_TYPE
+    @property
+    def uses_sandbox(self) -> bool:
+        """Whether runs work in a sandbox the agent can read uploaded files from."""
+        return settings.PYDANTIC_DEEP_BACKEND_TYPE == "daytona"
 
-        if backend_type == "daytona":
-            try:
-                from pydantic_ai_backends import DaytonaSandbox
+    def _create_workspace(self) -> AbstractCapability[Any]:
+        """Create the workspace capability based on PYDANTIC_DEEP_BACKEND_TYPE."""
+        if self.uses_sandbox:
+            # Needs the `daytona` extra of pydantic-ai-backend, which the project
+            # depends on when generated with the Daytona sandbox.
+            from pydantic_ai_backends import DaytonaWorkspace
 
-                return DaytonaSandbox(
-                    workspace_id=f"pd-{self.conversation_id}",
-                )
-            except ImportError:
-                logger.warning(
-                    "Daytona backend not available — "
-                    "install 'pydantic-ai-backend[daytona]'. Falling back to StateBackend."
-                )
-                return StateBackend()
+            return DaytonaWorkspace(sandbox_name=f"pd-{self.conversation_id}")
 
         # Default: in-memory, no cross-connection persistence
-        return StateBackend()
+        return StateWorkspace()
 
     def _get_system_prompt(self) -> str:
         """Return the base system prompt."""
@@ -180,7 +175,7 @@ class PydanticDeepAssistant:
 
     def _build_agent_and_deps(self) -> tuple[Agent[DeepAgentDeps, str], DeepAgentDeps]:
         """Instantiate the pydantic-deep agent and its dependencies."""
-        backend = self._backend_override if self._backend_override is not None else self._create_backend()
+        workspace = self._create_workspace()
         model_str = self._get_model_string()
         history_path = (
             self._history_messages_path
@@ -189,9 +184,9 @@ class PydanticDeepAssistant:
         )
 
         logger.info(
-            "Creating PydanticDeep agent — model=%s backend=%s conversation=%s",
+            "Creating PydanticDeep agent — model=%s workspace=%s conversation=%s",
             model_str,
-            type(backend).__name__,
+            type(workspace).__name__,
             self.conversation_id,
         )
 
@@ -209,7 +204,7 @@ class PydanticDeepAssistant:
 
         agent = create_deep_agent(
             model=model_str,
-            backend=backend,
+            workspace=workspace,
             instructions=self._get_system_prompt(),
             # Per-conversation history persistence
             history_messages_path=history_path,
@@ -239,35 +234,23 @@ class PydanticDeepAssistant:
             **({"tools": extra_tools} if extra_tools else {}),
         )
 
-        deps = DeepAgentDeps(backend=backend)
+        deps = DeepAgentDeps()
         return agent, deps
 
-    async def write_file_to_workspace(self, rel_path: str, content: bytes | str) -> bool:
-        """Write a file into the sandbox workspace (Daytona).
+    async def upload_file(self, filename: str, content: bytes | str) -> str:
+        """Make a file available in the workspace of the next run.
 
-        For StateBackend (in-memory) this is a no-op — callers should fall back
-        to including file content inline in the user message.
+        pydantic-deep writes it into the run's workspace when the run starts.
 
         Args:
-            rel_path: Workspace-relative path, e.g. ``uploads/report.pdf``.
+            filename: The file's name; it lands under ``uploads/``.
             content: File content (bytes or str).
 
         Returns:
-            True if the file was written to the sandbox filesystem.
+            The workspace-relative path, e.g. ``uploads/report.pdf``.
         """
-        backend = self.deps.backend
         data = content if isinstance(content, bytes) else content.encode("utf-8")
-
-        upload_fn = getattr(backend, "upload_bytes", None) or getattr(backend, "write_file", None)
-        if upload_fn is not None:
-            try:
-                await upload_fn(rel_path, data)
-                return True
-            except Exception as exc:
-                logger.warning("Failed to write %s via backend API: %s", rel_path, exc)
-                return False
-
-        return False
+        return await self.deps.upload_file(filename, data)
 
     @property
     def agent(self) -> Agent:
@@ -292,7 +275,7 @@ class PydanticDeepAssistant:
         """Run the agent and return the full response.
 
         Note: pydantic-deep manages conversation history internally via the
-        backend (history_messages_path). The ``history`` parameter is accepted
+        workspace (history_messages_path). The ``history`` parameter is accepted
         for API parity with other agent wrappers but is not used.
 
         Args:
@@ -335,7 +318,7 @@ class PydanticDeepAssistant:
         """Stream agent execution token by token.
 
         Note: pydantic-deep manages conversation history internally via the
-        backend (history_messages_path). The ``history`` parameter is accepted
+        workspace (history_messages_path). The ``history`` parameter is accepted
         for API parity with other agent wrappers but is not used.
 
         Args:
@@ -370,7 +353,6 @@ def get_agent(
     conversation_id: str = "default",
     user_id: str | None = None,
     user_name: str | None = None,
-    backend_override: Any = None,
     history_messages_path: str | None = None,
 ) -> PydanticDeepAssistant:
     """Create a PydanticDeepAssistant instance.
@@ -381,9 +363,7 @@ def get_agent(
         conversation_id: Scope history to this conversation (default: "default").
         user_id: Optional user identifier for context.
         user_name: Optional user display name for context.
-        backend_override: Pre-built backend (e.g. DaytonaSandbox for a project).
-            When provided, bypasses _create_backend() entirely.
-        history_messages_path: Override the history file path inside the backend.
+        history_messages_path: Override the history file path inside the workspace.
             Useful for project-scoped chats where each chat has its own path.
 
     Returns:
@@ -395,7 +375,6 @@ def get_agent(
         conversation_id=conversation_id,
         user_id=user_id,
         user_name=user_name,
-        backend_override=backend_override,
         history_messages_path=history_messages_path,
     )
 

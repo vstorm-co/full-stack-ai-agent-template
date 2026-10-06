@@ -49,7 +49,7 @@ graph TB
 
     ---
 
-    PydanticAI, LangChain, LangGraph, DeepAgents with WebSocket streaming.
+    Pydantic AI, LangChain, LangGraph, DeepAgents with WebSocket streaming.
 
 -   :material-react: **[Frontend](../frontend.md)**
 

@@ -777,13 +777,13 @@ class AgentSession:
             elif isinstance(tool_event, FunctionToolResultEvent):
                 tc = pending.get(tool_event.tool_call_id)
                 if tc is not None:
-                    tc["result"] = str(tool_event.result.content)
+                    tc["result"] = str(tool_event.part.content)
                 await send_event(
                     self.websocket,
                     "tool_result",
                     {
                         "tool_call_id": tool_event.tool_call_id,
-                        "content": str(tool_event.result.content),
+                        "content": str(tool_event.part.content),
                     },
                 )
 {%- elif cookiecutter.use_langchain %}
@@ -2361,7 +2361,7 @@ class AgentSession:
 {%- elif cookiecutter.use_pydantic_deep %}
 """Per-connection AI agent session (PydanticDeep).
 
-PydanticDeep manages conversation history internally via the backend
+PydanticDeep manages conversation history internally via the workspace
 (history_messages_path), so this session does not maintain ``conversation_history``.
 """
 
@@ -2617,8 +2617,8 @@ class AgentSession:
     ) -> str | list[Any]:
         """Fold attached files into the agent input.
 
-        Sandbox backends (Docker/Daytona) get files written to the workspace and a path
-        reference appended. ``StateBackend`` falls back to inline content. Images are
+        A sandbox workspace (Daytona) gets files uploaded into it and a path reference
+        appended. The in-memory workspace falls back to inline content. Images are
         always attached as ``BinaryContent`` parts for vision models.
         """
         if not file_ids:
@@ -2628,25 +2628,18 @@ class AgentSession:
         file_refs: list[str] = []
         image_parts: list[Any] = []
 
-        backend = assistant.deps.backend
-        has_sandbox = (
-            hasattr(backend, "container_name")
-            or hasattr(backend, "upload_bytes")
-            or hasattr(backend, "workspace_id")
-        )
+        has_sandbox = assistant.uses_sandbox
 
         async def _process_files(attached_files: Any) -> None:
             for chat_file in attached_files:
                 try:
-                    rel_path = f"uploads/{chat_file.filename}"
-
                     if chat_file.file_type == "image":
                         file_data = await storage.load(chat_file.storage_path)
                         image_parts.append(
                             BinaryContent(data=file_data, media_type=chat_file.mime_type)
                         )
                         if has_sandbox:
-                            await assistant.write_file_to_workspace(rel_path, file_data)
+                            rel_path = await assistant.upload_file(chat_file.filename, file_data)
                             file_refs.append(
                                 f"- {rel_path} (image, also attached inline for vision)"
                             )
@@ -2656,8 +2649,8 @@ class AgentSession:
                             )
                     elif chat_file.parsed_content:
                         if has_sandbox:
-                            await assistant.write_file_to_workspace(
-                                rel_path, chat_file.parsed_content
+                            rel_path = await assistant.upload_file(
+                                chat_file.filename, chat_file.parsed_content
                             )
                             file_refs.append(f"- {rel_path}")
                         else:
@@ -2667,7 +2660,7 @@ class AgentSession:
                     else:
                         file_data = await storage.load(chat_file.storage_path)
                         if has_sandbox:
-                            await assistant.write_file_to_workspace(rel_path, file_data)
+                            rel_path = await assistant.upload_file(chat_file.filename, file_data)
                             file_refs.append(f"- {rel_path}")
                         else:
                             file_refs.append(
@@ -2796,13 +2789,13 @@ class AgentSession:
             elif isinstance(tool_event, FunctionToolResultEvent):
                 tc = pending.get(tool_event.tool_call_id)
                 if tc is not None:
-                    tc["result"] = str(tool_event.result.content)
+                    tc["result"] = str(tool_event.part.content)
                 await send_event(
                     self.websocket,
                     "tool_result",
                     {
                         "tool_call_id": tool_event.tool_call_id,
-                        "content": str(tool_event.result.content),
+                        "content": str(tool_event.part.content),
                     },
                 )
 {%- else %}

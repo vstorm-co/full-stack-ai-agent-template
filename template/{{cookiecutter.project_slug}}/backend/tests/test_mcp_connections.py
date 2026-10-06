@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
-import httpx
+import httpx2
 import pytest
 from mcp.shared.auth import OAuthToken
 from pydantic import ValidationError
@@ -116,14 +116,14 @@ class TestTransportSelection:
         calls: list = []
         import mcp.client.streamable_http as http_mod
 
-        def streamablehttp_client(url, headers=None):
-            calls.append(("http", url, headers))
-            return _acm(("http-read", "http-write", lambda: None))
+        def streamable_http_client(url, *, http_client):
+            calls.append(("http", url, http_client.headers.get("h")))
+            return _acm(("http-read", "http-write"))
 
-        monkeypatch.setattr(http_mod, "streamablehttp_client", streamablehttp_client)
-        async with _mcp_transport("https://example.com/mcp", None) as (r, w):
+        monkeypatch.setattr(http_mod, "streamable_http_client", streamable_http_client)
+        async with _mcp_transport("https://example.com/mcp", {"h": "1"}) as (r, w):
             assert (r, w) == ("http-read", "http-write")
-        assert calls == [("http", "https://example.com/mcp", None)]
+        assert calls == [("http", "https://example.com/mcp", "1")]
 
 
 class TestMakeToolset:
@@ -740,18 +740,18 @@ class TestOAuthRequestSafety:
     """
 
     @staticmethod
-    def _client(handler) -> httpx.AsyncClient:
-        return httpx.AsyncClient(
-            transport=httpx.MockTransport(handler), follow_redirects=False
+    def _client(handler) -> httpx2.AsyncClient:
+        return httpx2.AsyncClient(
+            transport=httpx2.MockTransport(handler), follow_redirects=False
         )
 
     @pytest.mark.anyio
     async def test_redirect_to_internal_host_is_blocked(self):
         seen: list[str] = []
 
-        def handler(request: httpx.Request) -> httpx.Response:
+        def handler(request: httpx2.Request) -> httpx2.Response:
             seen.append(str(request.url))
-            return httpx.Response(
+            return httpx2.Response(
                 302, headers={"Location": "http://169.254.169.254/latest/meta-data/"}
             )
 
@@ -765,10 +765,10 @@ class TestOAuthRequestSafety:
 
     @pytest.mark.anyio
     async def test_redirect_to_public_host_is_followed(self):
-        def handler(request: httpx.Request) -> httpx.Response:
+        def handler(request: httpx2.Request) -> httpx2.Response:
             if request.url.host == "93.184.216.34":
-                return httpx.Response(302, headers={"Location": "https://93.184.216.35/moved"})
-            return httpx.Response(200, text="ok")
+                return httpx2.Response(302, headers={"Location": "https://93.184.216.35/moved"})
+            return httpx2.Response(200, text="ok")
 
         async with self._client(handler) as client:
             request = client.build_request("GET", "https://93.184.216.34/start")
@@ -778,8 +778,8 @@ class TestOAuthRequestSafety:
 
     @pytest.mark.anyio
     async def test_redirect_loop_gives_up(self):
-        def handler(request: httpx.Request) -> httpx.Response:
-            return httpx.Response(302, headers={"Location": "https://93.184.216.34/loop"})
+        def handler(request: httpx2.Request) -> httpx2.Response:
+            return httpx2.Response(302, headers={"Location": "https://93.184.216.34/loop"})
 
         async with self._client(handler) as client:
             request = client.build_request("GET", "https://93.184.216.34/loop")
@@ -792,7 +792,7 @@ class TestOAuthRequestSafety:
         service's reply must not ride along with it."""
 
         async def fake_send(client, request):
-            return httpx.Response(500, text="redis: NOAUTH Authentication required", request=request)
+            return httpx2.Response(500, text="redis: NOAUTH Authentication required", request=request)
 
         monkeypatch.setattr(mcp_oauth, "_send", fake_send)
         with pytest.raises(mcp_oauth.OAuthError) as exc_info:

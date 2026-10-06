@@ -901,10 +901,10 @@ class TestPromptLLMProvider:
 
         prompt_llm_provider(AIFrameworkType.PYDANTIC_AI)
 
-        # Check that select was called with 4 choices (OpenAI, Anthropic, Google, OpenRouter)
+        # OpenAI, Anthropic, Google, OpenRouter, OpenAI-compatible
         select_call = mock_questionary.select.call_args
         choices = select_call[1]["choices"]
-        assert len(choices) == 4
+        assert len(choices) == 5
 
     @patch("fastapi_gen.prompts.questionary")
     def test_openrouter_option_not_added_for_langchain(self, mock_questionary: MagicMock) -> None:

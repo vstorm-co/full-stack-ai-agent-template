@@ -133,6 +133,11 @@ Computed properties:
 | `OPENROUTER_API_KEY` | (empty) | OpenRouter API key |
 | `AI_MODEL` | `anthropic/claude-opus-4-7` | Default LLM model for chat |
 {%- endif %}
+{%- if cookiecutter.use_openai_compatible %}
+| `OPENAI_COMPATIBLE_BASE_URL` | (empty) | The OpenAI-compatible endpoint, e.g. `https://gateway.example.com/v1` - required |
+| `OPENAI_COMPATIBLE_API_KEY` | (empty) | The endpoint's key, if it checks one |
+| `AI_MODEL` | (empty) | The model as the endpoint names it - required |
+{%- endif %}
 | `AI_TEMPERATURE` | `0.7` | LLM temperature (0.0 = deterministic, 1.0 = creative) |
 | `AI_AVAILABLE_MODELS` | (auto-configured) | JSON list of models shown in the UI model selector |
 | `AI_FRAMEWORK` | `{{ cookiecutter.ai_framework }}` | AI framework (informational) |
@@ -488,4 +493,7 @@ Before deploying to production, ensure these variables are properly set:
 {%- endif %}
 {%- if cookiecutter.use_openrouter %}
 8. `OPENROUTER_API_KEY` -- Your production API key
+{%- endif %}
+{%- if cookiecutter.use_openai_compatible %}
+8. `OPENAI_COMPATIBLE_BASE_URL` and `OPENAI_COMPATIBLE_API_KEY` -- Your production endpoint and its key
 {%- endif %}

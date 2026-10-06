@@ -60,6 +60,15 @@ These are used to sign JWTs and authenticate service-to-service calls. Rotate at
 - [ ] Set `OPENROUTER_API_KEY` in `.env`.
 {%- endif %}
 
+{%- if cookiecutter.use_openai_compatible %}
+
+## OpenAI-compatible endpoint
+
+- [ ] Set `OPENAI_COMPATIBLE_BASE_URL` in `.env` to the endpoint's `/v1` URL (a gateway such as LiteLLM or Requesty, or a server such as vLLM or Ollama).
+- [ ] Set `AI_MODEL` to a model the endpoint serves, under the name it uses.
+- [ ] Set `OPENAI_COMPATIBLE_API_KEY` if the endpoint checks one.
+{%- endif %}
+
 {%- if cookiecutter.enable_oauth_google %}
 
 ## Google OAuth

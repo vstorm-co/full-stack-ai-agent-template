@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`--llm-provider openai_compatible`: any OpenAI-compatible gateway or
+  server** — model routers and LLM gateways (LiteLLM, Requesty, OrcaRouter,
+  Portkey) and self-hosted servers (vLLM, llama.cpp, LM Studio, Ollama), reached
+  by `OPENAI_COMPATIBLE_BASE_URL`, with `AI_MODEL` named as the endpoint names
+  it and an optional `OPENAI_COMPATIBLE_API_KEY` (`OPENAI_API_KEY` is never sent
+  there). Pydantic AI and Pydantic Deep Agents projects; OpenAI embeddings for
+  RAG go to the same endpoint. One provider instead of a named one per gateway
+  (#141, #156)
+
 ### Fixed
 
 Generated projects had drifted from the libraries they resolve to: `main`'s CI

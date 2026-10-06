@@ -123,6 +123,8 @@ dependencies = [
     "pydantic-ai-slim[google,duckduckgo,web-fetch]>=2.0.0",
 {%- elif cookiecutter.use_openrouter %}
     "pydantic-ai-slim[openrouter,duckduckgo,web-fetch]>=2.0.0",
+{%- elif cookiecutter.use_openai_compatible %}
+    "pydantic-ai-slim[openai,duckduckgo,web-fetch]>=2.0.0",
 {%- endif %}
 {%- if cookiecutter.enable_mcp_client %}
     # MCP client transports + toolset support (Settings → Integrations).
@@ -192,6 +194,8 @@ dependencies = [
     "pydantic-ai-slim[google,duckduckgo,web-fetch]>=2.0.0",
 {%- elif cookiecutter.use_openrouter %}
     "pydantic-ai-slim[openrouter,duckduckgo,web-fetch]>=2.0.0",
+{%- elif cookiecutter.use_openai_compatible %}
+    "pydantic-ai-slim[openai,duckduckgo,web-fetch]>=2.0.0",
 {%- endif %}
 {%- endif %}
 {%- if cookiecutter.enable_rag %}

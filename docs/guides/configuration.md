@@ -10,7 +10,7 @@ All available options when generating a project.
 | `--orm` | `sqlalchemy`, `sqlmodel` | ORM choice (SQLModel for simplified syntax) |
 | `--oauth-google` | flag | Enable Google OAuth2 login |
 | `--ai-framework` | `pydantic_ai`, `pydantic_deep`, `langchain`, `langgraph`, `deepagents` | AI agent framework |
-| `--llm-provider` | `openai`, `anthropic`, `google`, `openrouter` | LLM provider |
+| `--llm-provider` | `openai`, `anthropic`, `google`, `openrouter`, `openai_compatible`, `all` | LLM provider; `openai_compatible` is any OpenAI-compatible gateway or server, set by `OPENAI_COMPATIBLE_BASE_URL` |
 | `--task-queue` | `none`, `celery`, `taskiq`, `arq` | Background task queue (Redis-backed). **Prefect** is available via the interactive wizard. |
 | `--frontend` | `none`, `nextjs` | Frontend framework |
 
@@ -31,8 +31,8 @@ fastapi-fullstack create my_app --minimal
 
 | Framework | Providers | Description |
 |-----------|-----------|-------------|
-| `pydantic_ai` | OpenAI, Anthropic, Google, OpenRouter | Type-safe agents with WebSearch/WebFetch built-in |
-| `pydantic_deep` | OpenAI, Anthropic, Google | Deep coding assistant (filesystem tools, Docker/Daytona sandbox) |
+| `pydantic_ai` | OpenAI, Anthropic, Google, OpenRouter, OpenAI-compatible | Type-safe agents with WebSearch/WebFetch built-in |
+| `pydantic_deep` | OpenAI, Anthropic, Google, OpenRouter, OpenAI-compatible | Deep coding assistant (filesystem tools, Docker/Daytona sandbox) |
 | `langchain` | OpenAI, Anthropic, Google | Comprehensive chain-based agents |
 | `langgraph` | OpenAI, Anthropic, Google | Graph-based ReAct agents |
 | `deepagents` | OpenAI, Anthropic, Google | Agentic framework with subagent delegation |

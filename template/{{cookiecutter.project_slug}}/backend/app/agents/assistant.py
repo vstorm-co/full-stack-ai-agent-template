@@ -39,8 +39,14 @@ from pydantic_ai.providers.google import GoogleProvider
 from pydantic_ai.models.openrouter import OpenRouterModel
 from pydantic_ai.providers.openrouter import OpenRouterProvider
 {%- endif %}
+{%- if cookiecutter.use_openai_compatible %}
+from pydantic_ai.models.openai import OpenAIChatModel
+{%- endif %}
 from pydantic_ai.settings import ModelSettings
 
+{%- if cookiecutter.use_openai_compatible %}
+from app.agents.openai_compatible import build_openai_compatible_model
+{%- endif %}
 from app.agents.prompts import DEFAULT_SYSTEM_PROMPT
 {%- if cookiecutter.enable_rag %}
 from app.agents.prompts import get_system_prompt_with_rag
@@ -147,6 +153,11 @@ def _build_model(model_name: str) -> OpenRouterModel:
         model_name or settings.AI_MODEL,
         provider=OpenRouterProvider(api_key=settings.OPENROUTER_API_KEY),
     )
+{%- elif cookiecutter.use_openai_compatible %}
+
+
+def _build_model(model_name: str) -> OpenAIChatModel:
+    return build_openai_compatible_model(model_name)
 {%- endif %}
 
 

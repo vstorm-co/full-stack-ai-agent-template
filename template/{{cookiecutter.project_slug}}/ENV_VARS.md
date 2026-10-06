@@ -54,6 +54,11 @@ group is for and which are required vs optional.
 {%- if cookiecutter.use_openrouter %}
 | `OPENROUTER_API_KEY` | **required** | — | From openrouter.ai |
 {%- endif %}
+{%- if cookiecutter.use_openai_compatible %}
+| `OPENAI_COMPATIBLE_BASE_URL` | **required** | — | Your OpenAI-compatible gateway or server, e.g. `https://gateway.example.com/v1` |
+| `OPENAI_COMPATIBLE_API_KEY` | optional | — | The endpoint's key; servers that check none need none |
+| `AI_MODEL` | **required** | — | The model as the endpoint names it |
+{%- endif %}
 {%- if cookiecutter.enable_logfire %}
 | `LOGFIRE_TOKEN` | optional | — | When set, ships traces to Logfire (logfire.pydantic.dev) |
 {%- endif %}

@@ -372,7 +372,7 @@ services:
 
   celery_worker:
     image: {{ cookiecutter.project_slug }}_backend:dev
-    container_name: {{ cookiecutter.project_slug }}_celery_worker
+    # No container_name: it must be unique, and this service runs `replicas: 2`.
     volumes:
       - media_data:/app/media
 {%- if cookiecutter.use_chromadb %}
@@ -508,7 +508,7 @@ services:
 
   taskiq_worker:
     image: {{ cookiecutter.project_slug }}_backend:dev
-    container_name: {{ cookiecutter.project_slug }}_taskiq_worker
+    # No container_name: it must be unique, and this service runs `replicas: 2`.
     volumes:
       - media_data:/app/media
 {%- if cookiecutter.use_chromadb %}

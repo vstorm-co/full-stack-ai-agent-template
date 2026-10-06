@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **`docker-compose.prod.yml` was rejected outright for Celery and Taskiq
+  projects** — `celery_worker` and `taskiq_worker` run `replicas: 2` and also set
+  `container_name`, which has to be unique, so Compose v2 refused the whole
+  project (`can't set container_name and celery_worker as container name must
+  be unique`). The two workers no longer name their containers
+
 ## [0.2.19] - 2026-08-01
 
 Findings from a full audit of the template's product code. The theme is one

@@ -20,9 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   data there, so move `/data/dump.rdb` aside (or recreate the `redis_data`
   volume) before the first start. The prod health check gained a
   `start_period`, so a restarted container is not judged on its stale status
-- Renovate no longer proposes Postgres major updates: a new major changes the
-  data directory layout and needs `pg_upgrade` for existing projects, so it
-  will be done deliberately, with a migration note
+- Renovate no longer proposes Postgres or Milvus major updates: a new major
+  changes the on-disk format of existing projects' volumes (Postgres needs
+  `pg_upgrade`), so each will be done deliberately, with a migration note
 
 ### Fixed
 

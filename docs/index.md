@@ -18,7 +18,7 @@ Generate complete, type-safe applications with authentication, WebSocket streami
 
 ## Why this template?
 
-1. **AI-First Design**: Native support for PydanticAI, LangChain, LangGraph, DeepAgents with WebSocket streaming and conversation persistence.
+1. **AI-First Design**: Native support for Pydantic AI, LangChain, LangGraph, DeepAgents with WebSocket streaming and conversation persistence.
 
 2. **Production Ready**: 100% test coverage, strict typing, Docker/Kubernetes configs, and battle-tested in real applications.
 
@@ -48,7 +48,7 @@ See the [Quick Start guide](guides/quick-start.md) for details and the [Installa
 
 | Framework | Streaming | Observability | Providers |
 |-----------|:---------:|:-------------:|:---------:|
-| **PydanticAI** | WebSocket | Logfire | OpenAI, Anthropic, OpenRouter |
+| **Pydantic AI** | WebSocket | Logfire | OpenAI, Anthropic, OpenRouter |
 | **LangChain** | WebSocket | LangSmith | OpenAI, Anthropic |
 | **LangGraph** | WebSocket | LangSmith | OpenAI, Anthropic |
 
@@ -56,7 +56,7 @@ See the [Quick Start guide](guides/quick-start.md) for details and the [Installa
 
 | Feature | Description |
 |---------|-------------|
-| **AI Agents** | PydanticAI, LangChain, LangGraph, DeepAgents with tool calling |
+| **AI Agents** | Pydantic AI, LangChain, LangGraph, DeepAgents with tool calling |
 | **WebSocket Streaming** | Real-time responses with full event access |
 | **Authentication** | JWT + Refresh tokens, API Keys, OAuth2 (Google) |
 | **Database** | PostgreSQL (async, SQLAlchemy 2.0 + Alembic) |

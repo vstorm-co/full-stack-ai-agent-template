@@ -43,6 +43,7 @@ import { RAGSearchResults } from "./tool-results/rag";
 import { WebSearchResults, parseWebSearch } from "./tool-results/web-search";
 {%- if cookiecutter.enable_skills %}
 import { LoadSkillResult, formatSkillName } from "./tool-results/skills";
+import { LOAD_SKILL_TOOL } from "@/lib/skill-result";
 {%- endif %}
 import { AskUserResult } from "./tool-results/ask-user";
 {%- if cookiecutter.enable_memory %}
@@ -122,10 +123,10 @@ export function ToolCallCard({ toolCall, defaultExpanded = false }: ToolCallCard
     typeof toolCall.args?.url === "string";
 {%- endif %}
 {%- if cookiecutter.enable_skills %}
-  const isLoadSkill = toolCall.name === "load_skill";
-  const isListSkills = toolCall.name === "list_skills";
+  // In this template only skills are deferred, so every capability loaded is one.
+  const isLoadSkill = toolCall.name === LOAD_SKILL_TOOL;
   const loadedSkillName =
-    isLoadSkill && typeof toolCall.args?.skill_name === "string" ? toolCall.args.skill_name : null;
+    isLoadSkill && typeof toolCall.args?.id === "string" ? toolCall.args.id : null;
 {%- endif %}
 {%- if cookiecutter.enable_charts %}
   // Memoize the parsed chart spec — `parseChartResult` does `JSON.parse` for
@@ -172,11 +173,9 @@ export function ToolCallCard({ toolCall, defaultExpanded = false }: ToolCallCard
               ? loadedSkillName
                 ? formatSkillName(loadedSkillName)
                 : "Load Skill"
-              : isListSkills
-                ? "Available Skills"
-                : toolCall.name === "run_python"
-                  ? "Run Python"
-                  : toolDisplayName(toolCall.name);
+              : toolCall.name === "run_python"
+                ? "Run Python"
+                : toolDisplayName(toolCall.name);
 {%- else %}
             : toolCall.name === "run_python"
               ? "Run Python"
@@ -379,7 +378,7 @@ export function ToolCallCard({ toolCall, defaultExpanded = false }: ToolCallCard
 {%- if cookiecutter.enable_skills %}
           ) : isLoadSkill ? (
             <LoadSkillResult resultText={resultText} status={toolCall.status} />
-          ) : isListSkills ? null : (
+          ) : (
 {%- else %}
           ) : (
 {%- endif %}

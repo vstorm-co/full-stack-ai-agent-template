@@ -15,7 +15,7 @@ const EXACT_CAPTIONS: Record<string, string> = {
   create_chart_tool: "Creating a chart",
   create_map_tool: "Drawing a map",
   ask_user: "Asking you a question",
-  load_skill: "Loading a skill",
+  load_capability: "Loading a skill",
 {%- if cookiecutter.enable_memory %}
   write_memory: "Saving a memory",
   read_memory: "Recalling memories",
@@ -56,8 +56,7 @@ const DISPLAY_NAMES: Record<string, string> = {
   search_knowledge_base: "Knowledge Base Search",
   search_documents: "Knowledge Base Search",
   ask_user: "Question",
-  load_skill: "Load Skill",
-  list_skills: "Available Skills",
+  load_capability: "Load Skill",
 {%- if cookiecutter.enable_memory %}
   write_memory: "Save Memory",
   read_memory: "Read Memory",

@@ -53,6 +53,7 @@ import { WebSearchResults, parseWebSearch } from "@/components/chat/tool-results
 import { useConversationReplay } from "@/hooks/use-conversation-replay";
 import { conversationMessagesToChatMessages, type RawMessage } from "@/lib/conversation-to-chat";
 import { formatSql } from "@/lib/sql-format";
+import { LOAD_SKILL_TOOL, loadedSkillSummary } from "@/lib/skill-result";
 import { cn } from "@/lib/utils";
 import type { ChatMessage, ResearchReplay, ToolCall } from "@/types";
 
@@ -92,7 +93,7 @@ const scrollbarStyle: React.CSSProperties = {
 const clamp = (v: number, min: number, max: number) => Math.min(Math.max(v, min), max);
 
 const TOOL_LABELS: Record<string, string> = {
-  load_skill: "Loading skill",
+  load_capability: "Loading skill",
   run_python: "Running Python",
   create_chart: "Creating a chart",
   create_chart_tool: "Creating a chart",
@@ -128,7 +129,7 @@ const frameIconFor = (frame?: { kind: StepKind; tool?: ToolCall } | null) => {
   if (!name) return Wrench;
   if (name === "run_python") return Code2;
   if (name.startsWith("create_chart")) return BarChart3;
-  if (name === "load_skill" || name === "list_skills") return BookOpen;{% endraw %}{%- if cookiecutter.enable_memory %}{% raw %}
+  if (name === LOAD_SKILL_TOOL) return BookOpen;{% endraw %}{%- if cookiecutter.enable_memory %}{% raw %}
   // Before the generic "search" match — search_memory reads its notebook, not the web.
   // Brain is taken by reasoning frames, so memory keeps the notebook it owns elsewhere.
   if (isMemoryTool(name)) return NotebookPen;{% endraw %}{%- endif %}{% raw %}
@@ -370,7 +371,7 @@ function graphSubLabel(frame: Frame): string | null {
   const t = frame.tool;
   if (!t) return null;
   const a = (t.args ?? {}) as Record<string, unknown>;
-  if (t.name === "load_skill" && typeof a.name === "string") return a.name;
+  if (t.name === LOAD_SKILL_TOOL && typeof a.id === "string") return a.id;
   if ((t.name === "fetch_url" || t.name === "fetch") && typeof a.url === "string") {
     try {
       return new URL(a.url).hostname.replace(/^www\./, "");
@@ -477,9 +478,8 @@ function graphNodePreview(frame: Frame): NodePreview {
     const type = typeof a.chart_type === "string" ? a.chart_type : "chart";
     return { tag: "Chart", meta: type };
   }
-  if (t.name === "load_skill") {
-    const desc = /<description>([\s\S]*?)<\/description>/i.exec(result)?.[1];
-    return { tag: "Skill", body: clipText(desc || result, 150) };
+  if (t.name === LOAD_SKILL_TOOL) {
+    return { tag: "Skill", body: clipText(loadedSkillSummary(result) || result, 150) };
   }
   if (t.name === "web_search_tool" || t.name === "search_web") {
     const parsed = parseWebSearch(result);

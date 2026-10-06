@@ -91,6 +91,12 @@ failed in 13 jobs, and several breakages were runtime-only.
   `container_name`, which has to be unique, so Compose v2 refused the whole
   project (`can't set container_name and celery_worker as container name must
   be unique`). The two workers no longer name their containers
+- **Skill cards rendered as generic tool calls** — since `pydantic-ai-skills`
+  2.0 a skill loads through `load_capability(id)` and returns its instructions,
+  but the chat, the demo replay and the step captions still looked for 1.x's
+  `load_skill` / `list_skills` and an XML result. They now recognise
+  `load_capability` and show the skill's name and the start of its
+  instructions (#177)
 
 ### Security
 

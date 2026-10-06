@@ -27,7 +27,7 @@ const RICH_TOOL_MS = 2000;
 /** Tools whose working view streams content — give them a longer beat so the reveal finishes. */
 const RICH_TOOLS = new Set<string>([
   "run_python",
-  "load_skill",
+  "load_capability",
   "web_search_tool",
   "search_web",
   "search_knowledge_base",

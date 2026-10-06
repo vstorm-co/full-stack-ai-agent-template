@@ -207,6 +207,8 @@ if not enable_mcp_client:
         remove_dir(os.path.join(frontend_src, "app", "api", "me", "mcp-connections"))
 
 # Agent memory (Settings → Memory). Full modules, not Jinja stubs — remove explicitly.
+if not (enable_memory and (use_slack or use_telegram)):
+    remove_file(os.path.join(os.getcwd(), "backend", "tests", "test_memory_channels.py"))
 if not enable_memory:
     backend_root = os.path.join(os.getcwd(), "backend")
     remove_file(os.path.join(backend_app, "agents", "memory.py"))
@@ -216,6 +218,7 @@ if not enable_memory:
     remove_file(os.path.join(backend_app, "api", "routes", "v1", "me_memory.py"))
     remove_file(os.path.join(backend_root, "tests", "test_memory.py"))
     remove_file(os.path.join(backend_root, "tests", "api", "test_me_memory.py"))
+    remove_file(os.path.join(backend_root, "tests", "test_memory_postgres.py"))
     if use_frontend:
         frontend_src = os.path.join(os.getcwd(), "frontend", "src")
         remove_file(os.path.join(frontend_src, "lib", "memory-api.ts"))

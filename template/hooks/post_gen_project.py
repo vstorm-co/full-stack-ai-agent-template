@@ -255,6 +255,8 @@ if not enable_subagents and use_frontend:
 
 if not use_ai:
     remove_dir(os.path.join(backend_app, "agents"))
+    # Its module goes below; a test left behind fails the whole run at collection.
+    remove_file(os.path.join(os.getcwd(), "backend", "tests", "test_services_conversation.py"))
     remove_dir(os.path.join(os.getcwd(), ".claude", "skills", "agent-tool"))
     remove_file(os.path.join(backend_app, "services", "agent.py"))
     remove_file(os.path.join(backend_app, "services", "agent_session.py"))

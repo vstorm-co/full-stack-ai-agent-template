@@ -1,6 +1,6 @@
 [project]
 name = "fastapi-fullstack"
-version = "0.2.20"
+version = "0.2.21"
 description = "Full-stack FastAPI + Next.js template generator with Pydantic AI/LangChain agents, WebSocket streaming, 20+ enterprise integrations, and Logfire/LangSmith observability. Ship AI apps fast."
 readme = "README.md"
 requires-python = ">=3.11"

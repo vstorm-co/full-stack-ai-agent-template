@@ -18,6 +18,10 @@
 #   manual_steps:
 #     - "Run `alembic upgrade head` (new billing tables)."
 
+- version: "0.2.21"
+  manual_steps:
+    - "Run `alembic upgrade head`. Since 0.2.19, projects without --mcp-client could not migrate past 0025 (`KeyError: '0026_create_mcp_connections'`); with the corrected chain the pending migrations apply, including 0027 (users.magic_link_epoch, which magic-link sign-in reads when --email is on)."
+
 - version: "0.2.20"
   breaking:
     - "Redis is replaced by Valkey (valkey/valkey:9-alpine) in the compose files and the generated CI. The protocol, the redis client, the REDIS_* settings and the `redis` service name are unchanged."

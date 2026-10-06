@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`--memory`: persistent per-user agent memory** (Pydantic AI + PostgreSQL) —
+  the assistant keeps a Markdown notebook per user with the
+  `pydantic-ai-harness` `Memory` capability, reads it back at the start of
+  every conversation, and gets `write_memory` / `read_memory` /
+  `delete_memory` / `search_memory` tools, each rendered as a chat card. Users
+  inspect, edit and delete every file on **Settings → Memory**
+  (`/api/v1/me/memory`, optimistic-concurrency versions). With `--teams` each
+  organisation gets its own notebook, so nothing learned in one is injected
+  into another; channel bots use memory only in one-to-one chats; deleting a
+  user deletes their memory; a notebook holds at most 100 files. Stored in the
+  harness's own `agent_memory*` tables, which Alembic autogenerate now leaves
+  alone (as it does the TODO planner's `todos`). Activated at runtime with
+  `ENABLE_MEMORY=true`. Contributed by @OchnikBartek (#133)
+
 ### Fixed
 
 Generated projects had drifted from the libraries they resolve to: `main`'s CI

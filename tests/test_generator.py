@@ -1,11 +1,19 @@
 """Tests for fastapi_gen.generator module."""
 
+import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from fastapi_gen.config import BackgroundTaskType, DatabaseType, FrontendType, ProjectConfig, RAGFeatures, VectorStoreType
+from fastapi_gen.config import (
+    BackgroundTaskType,
+    DatabaseType,
+    FrontendType,
+    ProjectConfig,
+    RAGFeatures,
+    VectorStoreType,
+)
 from fastapi_gen.generator import (
     TEMPLATE_DIR,
     _find_template_dir,
@@ -90,6 +98,38 @@ class TestGetTemplatePath:
 class TestGenerateProject:
     """Tests for generate_project function."""
 
+    @pytest.mark.parametrize("existing_empty_directory", [False, True], ids=["new", "empty"])
+    def test_generates_project_with_real_cookiecutter(
+        self,
+        minimal_config: ProjectConfig,
+        temp_output_dir: Path,
+        tmp_path: Path,
+        existing_empty_directory: bool,
+    ) -> None:
+        """Render into a new or empty directory without mocking Cookiecutter."""
+        template_dir = tmp_path / "template"
+        template_dir.mkdir()
+        (template_dir / "cookiecutter.json").write_text(
+            json.dumps({"project_name": "project", "project_slug": "{{ cookiecutter.project_name }}"}),
+            encoding="utf-8",
+        )
+        project_template = template_dir / "{{cookiecutter.project_slug}}"
+        project_template.mkdir()
+        (project_template / "README.md").write_text(
+            "# {{ cookiecutter.project_name }}\n", encoding="utf-8"
+        )
+        target_dir = temp_output_dir / minimal_config.project_slug
+        if existing_empty_directory:
+            target_dir.mkdir()
+
+        with patch("fastapi_gen.generator.get_template_path", return_value=str(template_dir)):
+            result = generate_project(minimal_config, temp_output_dir)
+
+        assert result == target_dir
+        assert (result / "README.md").read_text(encoding="utf-8") == "# test_project\n"
+        manifest = json.loads((result / ".fastapi-fullstack.json").read_text(encoding="utf-8"))
+        assert manifest["context"]["project_name"] == "test_project"
+
     @patch("fastapi_gen.generator.cookiecutter")
     def test_generates_project_in_current_dir(
         self,
@@ -157,6 +197,8 @@ class TestGenerateProject:
 
         with pytest.raises(ValueError, match="already exists and is not empty"):
             generate_project(minimal_config, temp_output_dir)
+
+        assert (target_dir / "existing_file.txt").read_text() == "content"
 
     @patch("fastapi_gen.generator.cookiecutter")
     @patch("fastapi_gen.generator.shutil.rmtree")

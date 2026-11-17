@@ -97,6 +97,7 @@ def generate_project(config: ProjectConfig, output_dir: Path | None = None) -> P
                 extra_context=context,
                 output_dir=str(output_dir),
                 no_input=True,
+                overwrite_if_exists=True,
             )
             write_manifest(Path(project_path), context)
         except Exception:

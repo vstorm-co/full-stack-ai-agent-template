@@ -5,7 +5,14 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from fastapi_gen.config import BackgroundTaskType, DatabaseType, FrontendType, ProjectConfig, RAGFeatures, VectorStoreType
+from fastapi_gen.config import (
+    BackgroundTaskType,
+    DatabaseType,
+    FrontendType,
+    ProjectConfig,
+    RAGFeatures,
+    VectorStoreType,
+)
 from fastapi_gen.generator import (
     TEMPLATE_DIR,
     _find_template_dir,
@@ -31,7 +38,7 @@ class TestFindTemplateDir:
         # Create a fake installed template directory structure
         installed_template = tmp_path / "template"
         installed_template.mkdir(parents=True)
-        (installed_template / "cookiecutter.json").write_text("{}")
+        (installed_template / "cookiecutter.json").write_text("{}", encoding="utf-8")
 
         # Mock __file__ to point to a location where:
         # - dev path (parent.parent / "template") doesn't exist
@@ -67,7 +74,6 @@ class TestGetDatabaseSetupCommands:
         assert "PostgreSQL" in commands[0][1]
         assert "db-migrate" in commands[1][0]
         assert "db-upgrade" in commands[2][0]
-
 
 
 class TestGetTemplatePath:
@@ -107,6 +113,7 @@ class TestGenerateProject:
         mock_cookiecutter.assert_called_once()
         call_kwargs = mock_cookiecutter.call_args
         assert call_kwargs[1]["no_input"] is True
+        assert call_kwargs[1]["overwrite_if_exists"] is True
         assert isinstance(result, Path)
 
     @patch("fastapi_gen.generator.cookiecutter")
@@ -125,6 +132,7 @@ class TestGenerateProject:
         mock_cookiecutter.assert_called_once()
         call_kwargs = mock_cookiecutter.call_args
         assert call_kwargs[1]["output_dir"] == str(temp_output_dir)
+        assert call_kwargs[1]["overwrite_if_exists"] is True
         assert isinstance(result, Path)
 
     @patch("fastapi_gen.generator.cookiecutter")
@@ -143,6 +151,26 @@ class TestGenerateProject:
         call_kwargs = mock_cookiecutter.call_args
         extra_context = call_kwargs[1]["extra_context"]
         assert extra_context["project_name"] == "test_project"
+        assert call_kwargs[1]["overwrite_if_exists"] is True
+
+    @patch("fastapi_gen.generator.cookiecutter")
+    def test_generates_project_into_existing_empty_dir(
+        self,
+        mock_cookiecutter: MagicMock,
+        minimal_config: ProjectConfig,
+        temp_output_dir: Path,
+    ) -> None:
+        """Test project generation succeeds when target directory exists and is empty."""
+        target_dir = temp_output_dir / "test_project"
+        target_dir.mkdir()  # Target directory exists but is empty
+        mock_cookiecutter.return_value = str(target_dir)
+
+        result = generate_project(minimal_config, temp_output_dir)
+
+        mock_cookiecutter.assert_called_once()
+        call_kwargs = mock_cookiecutter.call_args
+        assert call_kwargs[1]["overwrite_if_exists"] is True
+        assert result == target_dir
 
     def test_raises_if_directory_exists_and_not_empty(
         self,
@@ -153,10 +181,28 @@ class TestGenerateProject:
         # Create target directory with a file
         target_dir = temp_output_dir / "test_project"
         target_dir.mkdir()
-        (target_dir / "existing_file.txt").write_text("content")
+        (target_dir / "existing_file.txt").write_text("content", encoding="utf-8")
 
         with pytest.raises(ValueError, match="already exists and is not empty"):
             generate_project(minimal_config, temp_output_dir)
+
+    def test_post_gen_hook_open_calls_use_utf8_encoding(self) -> None:
+        """Test template/hooks/post_gen_project.py specifies encoding='utf-8' on open calls."""
+        import ast
+
+        hook_path = Path(__file__).parent.parent / "template" / "hooks" / "post_gen_project.py"
+        content = hook_path.read_text(encoding="utf-8")
+        tree = ast.parse(content, filename=str(hook_path))
+        for node in ast.walk(tree):
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id == "open"
+            ):
+                kw_names = [kw.arg for kw in node.keywords]
+                assert "encoding" in kw_names, (
+                    f"open() at line {node.lineno} is missing encoding='utf-8'"
+                )
 
     @patch("fastapi_gen.generator.cookiecutter")
     @patch("fastapi_gen.generator.shutil.rmtree")

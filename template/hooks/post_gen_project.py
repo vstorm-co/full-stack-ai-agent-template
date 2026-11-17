@@ -751,7 +751,7 @@ else:
                     "NEXT_PUBLIC_BRAND_LOGO_URL=",
                 ])
 
-            with open(frontend_env_local, "w") as f:
+            with open(frontend_env_local, "w", encoding="utf-8") as f:
                 f.write("\n".join(env_lines) + "\n")
             print("Generated frontend/.env.local")
 

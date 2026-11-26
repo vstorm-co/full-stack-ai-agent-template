@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.22] - 2026-11-27
+
+### Security
+
+- Update certifi, dnspython, filelock and virtualenv to patched versions.
+- Give CI and the template rename guard read-only repository permissions.
+
+### Fixed
+
+- Generate into an existing empty directory, contributed by @jipeng6036-del (#189).
+- Write the generated frontend environment file in UTF-8, contributed by @Gouthambalaji03 (#207).
+- Handle missing Qdrant payloads and restore compatibility with the current dependency versions used in the test matrix.
+
+### Changed
+
+- Update Qdrant, etcd, Milvus, Traefik, and the GitHub Actions for uv and project triage.
+
 ## [0.2.21] - 2026-10-06
 
 ### Fixed

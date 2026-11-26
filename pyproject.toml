@@ -1,6 +1,6 @@
 [project]
 name = "fastapi-fullstack"
-version = "0.2.21"
+version = "0.2.22"
 description = "Full-stack FastAPI + Next.js template generator with Pydantic AI/LangChain agents, WebSocket streaming, 20+ enterprise integrations, and Logfire/LangSmith observability. Ship AI apps fast."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -58,6 +58,9 @@ dependencies = [
     "pydantic>=2.13.0",
     # Required at runtime by pydantic's EmailStr (ProjectConfig.author_email).
     "email-validator>=2.3.0",
+    # Security floors for transitive runtime dependencies when installed without uv.lock.
+    "dnspython>=2.9.2",
+    "certifi>=2026.10.18",
 ]
 
 [project.optional-dependencies]

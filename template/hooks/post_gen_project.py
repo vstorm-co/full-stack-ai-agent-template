@@ -480,6 +480,10 @@ if not use_pydantic_deep:
     remove_file(os.path.join(backend_app, "repositories", "project.py"))
 
 backend_tests = os.path.join(os.getcwd(), "backend", "tests")
+for test_filename in ("test_telegram_webhook.py", "test_rag_permissions.py"):
+    feature_test = os.path.join(backend_tests, test_filename)
+    if is_stub_file(feature_test):
+        remove_file(feature_test)
 if not enable_redis:
     remove_file(os.path.join(backend_tests, "test_clients.py"))
 if not (use_postgresql and use_sqlalchemy):

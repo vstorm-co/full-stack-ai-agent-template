@@ -18,6 +18,8 @@
 #   manual_steps:
 #     - "Run `alembic upgrade head` (new billing tables)."
 
+- version: "0.2.24"
+
 - version: "0.2.23"
   breaking:
     - "New knowledge bases receive server-assigned collection names. Remove collection_name from create requests. Read the assigned name from the response."

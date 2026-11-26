@@ -13,6 +13,9 @@ on:
       - ".github/workflows/rename-guard.yml"
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   rename-guard:
     runs-on: ubuntu-latest

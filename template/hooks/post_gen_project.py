@@ -79,7 +79,6 @@ def remove_file(path: str) -> None:
     """Remove a file if it exists."""
     if os.path.exists(path):
         os.remove(path)
-        print(f"  Removed: {os.path.relpath(path)}")
 
 
 def read_text(filepath: str) -> str:
@@ -121,7 +120,6 @@ def remove_dir(path: str) -> None:
     """Remove a directory if it exists."""
     if os.path.exists(path):
         shutil.rmtree(path)
-        print(f"  Removed: {os.path.relpath(path)}/")
 
 
 backend_app = os.path.join(os.getcwd(), "backend", "app")
@@ -751,7 +749,7 @@ else:
                     "NEXT_PUBLIC_BRAND_LOGO_URL=",
                 ])
 
-            with open(frontend_env_local, "w") as f:
+            with open(frontend_env_local, "w", encoding="utf-8") as f:
                 f.write("\n".join(env_lines) + "\n")
             print("Generated frontend/.env.local")
 

@@ -300,12 +300,13 @@ class QdrantVectorStore(BaseVectorStore):
         )
         return [
             SearchResult(
-                content=hit.payload.get("content", ""),
+                content=payload.get("content", ""),
                 score=hit.score,
-                metadata=hit.payload.get("metadata", {}),
-                parent_doc_id=hit.payload.get("parent_doc_id"),
+                metadata=payload.get("metadata", {}),
+                parent_doc_id=payload.get("parent_doc_id"),
             )
             for hit in results
+            if (payload := hit.payload) is not None
         ]
 
     async def get_collection_info(self, collection_name: str) -> CollectionInfo:
@@ -332,8 +333,9 @@ class QdrantVectorStore(BaseVectorStore):
         await self._ensure_collection(collection_name)
         records, _ = await self.client.scroll(collection_name=collection_name, limit=10000, with_payload=True)
         results = [
-            {"parent_doc_id": r.payload.get("parent_doc_id"), "metadata": r.payload.get("metadata", {})}
-            for r in records
+            {"parent_doc_id": payload.get("parent_doc_id"), "metadata": payload.get("metadata", {})}
+            for record in records
+            if (payload := record.payload) is not None
         ]
         return self._group_documents(results)
 

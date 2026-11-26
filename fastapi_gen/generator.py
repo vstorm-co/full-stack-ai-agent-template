@@ -77,7 +77,8 @@ def generate_project(config: ProjectConfig, output_dir: Path | None = None) -> P
 
     # Check if target directory already exists and is not empty
     target_dir = output_dir / config.project_slug
-    if target_dir.exists() and any(target_dir.iterdir()):
+    target_dir_exists = target_dir.exists()
+    if target_dir_exists and any(target_dir.iterdir()):
         raise ValueError(f"Directory '{target_dir}' already exists and is not empty")
 
     context = config.to_cookiecutter_context()
@@ -97,6 +98,7 @@ def generate_project(config: ProjectConfig, output_dir: Path | None = None) -> P
                 extra_context=context,
                 output_dir=str(output_dir),
                 no_input=True,
+                overwrite_if_exists=target_dir_exists,
             )
             write_manifest(Path(project_path), context)
         except Exception:

@@ -171,6 +171,8 @@ def _is_ip_blocked(ip_str: str) -> bool:
         # If we can't parse it, block it to be safe
         return True
 
+    if isinstance(addr, ipaddress.IPv6Address) and addr.ipv4_mapped is not None:
+        addr = addr.ipv4_mapped
     return (
         addr.is_private
         or addr.is_reserved
@@ -186,31 +188,20 @@ def validate_webhook_url(
     url: str,
     allowed_schemes: frozenset[str] | None = None,
 ) -> str:
-    """Validate a webhook URL to prevent SSRF attacks.
+    """Check URL syntax and current DNS answers before saving a URL.
 
-    Checks that the URL:
-    - Uses an allowed scheme (http/https only by default)
-    - Does not contain userinfo (credentials in the URL)
-    - Does not point to private, reserved, loopback, or link-local IP addresses
-    - Resolves via DNS to a public IP (prevents DNS rebinding attacks)
-
-    Args:
-        url: The webhook URL to validate.
-        allowed_schemes: Allowed URL schemes. Defaults to {"http", "https"}.
-
-    Returns:
-        The validated URL string.
-
-    Raises:
-        SSRFBlockedError: If the URL is blocked by SSRF protection.
-        ValueError: If the URL is malformed.
-
-    Example:
-        >>> validate_webhook_url("https://example.com/webhook")
-        "https://example.com/webhook"
-        >>> validate_webhook_url("http://169.254.169.254/latest/meta-data/")
-        Raises SSRFBlockedError
+    Outbound requests must connect to a validated address, since DNS can
+    change between validation and connection.
     """
+    resolve_public_addresses(url, allowed_schemes)
+    return url
+
+
+def resolve_public_addresses(
+    url: str,
+    allowed_schemes: frozenset[str] | None = None,
+) -> tuple[str, ...]:
+    """Resolve a URL and return its addresses only if every address is public."""
     if allowed_schemes is None:
         allowed_schemes = WEBHOOK_ALLOWED_SCHEMES
 
@@ -244,7 +235,7 @@ def validate_webhook_url(
                 f"Webhook URL blocked: {hostname!r} resolves to a private/internal "
                 f"address. SSRF protection does not allow requests to internal networks."
             )
-        return url
+        return (str(addr),)
     except SSRFBlockedError:
         raise
     except ValueError:
@@ -268,16 +259,12 @@ def validate_webhook_url(
             f"Webhook URL blocked: hostname {hostname!r} did not resolve to any address"
         )
 
-    for _family, _type, _proto, _canonname, sockaddr in addr_infos:
-        ip_str = str(sockaddr[0])
-        if _is_ip_blocked(ip_str):
-            raise SSRFBlockedError(
-                f"Webhook URL blocked: {hostname!r} resolves to private/internal "
-                f"address {ip_str!r}. SSRF protection does not allow requests to "
-                f"internal networks."
-            )
-
-    return url
+    addresses = tuple(dict.fromkeys(str(info[4][0]) for info in addr_infos))
+    if any(_is_ip_blocked(address) for address in addresses):
+        raise SSRFBlockedError(
+            f"Webhook URL blocked: {hostname!r} resolves to a private/internal address"
+        )
+    return addresses
 
 
 def sanitize_string(

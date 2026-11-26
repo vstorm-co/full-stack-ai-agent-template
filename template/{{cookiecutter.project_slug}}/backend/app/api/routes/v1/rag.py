@@ -188,27 +188,36 @@ async def list_documents(
 async def search_documents(
     request: RAGSearchRequest,
     retrieval_service: RetrievalSvc,
-{%- if cookiecutter.use_jwt %}
+{%- if cookiecutter.enable_teams and cookiecutter.use_jwt %}
+    current_user: CurrentUser,
+    active_org: ActiveOrg,
+    kb_svc: KnowledgeBaseSvc,
+{%- elif cookiecutter.use_jwt %}
     _: CurrentUser,
 {%- endif %}
     use_reranker: bool = Query(False, description="Whether to use reranking (if configured)"),
 ) -> Any:
     """Search for relevant document chunks. Supports multi-collection search."""
-    if request.collection_names and len(request.collection_names) > 1:
+    collections = request.collection_names or [request.collection_name]
+{%- if cookiecutter.enable_teams and cookiecutter.use_jwt %}
+    allowed = await kb_svc.list_accessible_collection_names(
+        user_id=current_user.id, organization_id=active_org.id
+    )
+    if not set(collections).issubset(allowed):
+        raise NotFoundError(message="Knowledge base not found")
+{%- endif %}
+    if len(collections) > 1:
         results = await retrieval_service.retrieve_multi(
             query=request.query,
-            collection_names=request.collection_names,
+            collection_names=collections,
             limit=request.limit,
             min_score=request.min_score,
             use_reranker=use_reranker,
         )
     else:
-        collection = (
-            request.collection_names[0] if request.collection_names else request.collection_name
-        )
         results = await retrieval_service.retrieve(
             query=request.query,
-            collection_name=collection,
+            collection_name=collections[0],
             limit=request.limit,
             min_score=request.min_score,
             filter=request.filter or "",
@@ -439,7 +448,8 @@ async def clone_sync_source(
     source_id: str,
     data: SyncSourceClone,
     sync_source_svc: SyncSourceSvc,
-    _: CurrentAdmin,
+    admin: CurrentAdmin,
+    kb_svc: KnowledgeBaseSvc,
     active_org: ActiveOrg,
 ) -> Any:
     """Clone an existing integration into a different knowledge base.
@@ -447,7 +457,15 @@ async def clone_sync_source(
     Credentials are decrypted from the source and re-encrypted for the clone.
     The clone is independent — its own schedule and sync history.
     """
-    return await sync_source_svc.clone_source(source_id, data, organization_id=active_org.id)
+    allowed = await kb_svc.manageable_collection_names(
+        user_id=admin.id, organization_id=active_org.id, is_app_admin=admin.is_app_admin
+    )
+    if data.collection_name not in allowed:
+        raise NotFoundError(message="Knowledge base not found")
+    return await sync_source_svc.clone_source(
+        source_id, data, organization_id=active_org.id, allowed_source_collections=allowed,
+        allow_org_integrations=await kb_svc.can_manage_org(admin.id, active_org.id),
+    )
 {%- endif %}
 
 
@@ -512,6 +530,13 @@ async def list_connectors(
 
 @router.get("/status/stream", response_class=EventSourceResponse)
 async def rag_status_stream(
+{%- if cookiecutter.enable_teams and cookiecutter.use_jwt %}
+    admin: CurrentAdmin,
+    active_org: ActiveOrg,
+    kb_svc: KnowledgeBaseSvc,
+{%- elif cookiecutter.use_jwt %}
+    _: CurrentAdmin,
+{%- endif %}
     rag_status_svc: RAGStatusSvc,
 ) -> AsyncIterable[ServerSentEvent]:
     """SSE endpoint for real-time RAG ingestion status updates.
@@ -523,7 +548,14 @@ async def rag_status_stream(
     streams what it yields. Returning the generator object instead (with
     ``response_class``) makes the producer mis-iterate it → HTTP 500.
     """
+{%- if cookiecutter.enable_teams and cookiecutter.use_jwt %}
+    collections = await kb_svc.list_accessible_collection_names(
+        user_id=admin.id, organization_id=active_org.id
+    )
+    async for event in rag_status_svc.stream_events(collections=set(collections)):
+{%- else %}
     async for event in rag_status_svc.stream_events():
+{%- endif %}
         yield event
 {%- endif %}
 {%- else %}

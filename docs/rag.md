@@ -179,6 +179,16 @@ Pass `use_reranker=true` as a query parameter when calling the search endpoint:
 
 All RAG endpoints are prefixed with `/api/v1/rag`.
 
+With teams enabled, search accepts only collections associated with knowledge
+bases the caller can read in their active organization. Personal knowledge
+bases are writable by their owner, organization bases by an organization admin
+or owner, and application bases by an app admin. The server assigns collection
+names for new knowledge bases. Cloning a sync source requires write access to
+its destination and permission to manage the source in the same organization.
+
+The ingestion status stream requires admin authentication when JWT auth is
+enabled. The Next.js frontend opens it through its same-origin API route.
+
 ### Upload Document
 
 ```http

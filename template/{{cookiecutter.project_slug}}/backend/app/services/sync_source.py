@@ -194,15 +194,29 @@ class SyncSourceService:
         )
         return self._to_read(source)
 
-    async def clone_source(
-        self, source_id: str, data: SyncSourceClone, organization_id: UUID | None = None
-    ) -> SyncSourceRead:
-        """Clone an existing integration into a different knowledge base.
+    async def get_source_for_org(self, source_id: str, organization_id: UUID) -> SyncSource:
+        source = await self.get_source(source_id)
+        if source.organization_id != organization_id:
+            raise NotFoundError(message="Sync source not found", details={"source_id": source_id})
+        return source
 
-        Decrypts credentials from the source, re-encrypts them, and creates
-        a new independent SyncSource record targeting ``data.collection_name``.
-        """
-        existing = await self.get_source(source_id)
+    async def clone_source(
+        self,
+        source_id: str,
+        data: SyncSourceClone,
+        *,
+        organization_id: UUID,
+        allowed_source_collections: set[str],
+        allow_org_integrations: bool,
+    ) -> SyncSourceRead:
+        """Clone an authorized integration and re-encrypt its credentials."""
+        existing = await self.get_source_for_org(source_id, organization_id)
+        if existing.collection_name is None:
+            authorized = allow_org_integrations
+        else:
+            authorized = existing.collection_name in allowed_source_collections
+        if not authorized:
+            raise NotFoundError(message="Sync source not found", details={"source_id": source_id})
         raw = _raw_config(existing)
         decrypted = _decrypt_config(raw)
         re_encrypted = _encrypt_config(decrypted, existing.connector_type)
@@ -211,7 +225,7 @@ class SyncSourceService:
             self.db,
             name=data.name or f"{existing.name} (copy)",
             connector_type=existing.connector_type,
-            organization_id=organization_id or existing.organization_id,
+            organization_id=organization_id,
             collection_name=data.collection_name,
             config=re_encrypted,
             sync_mode=existing.sync_mode,

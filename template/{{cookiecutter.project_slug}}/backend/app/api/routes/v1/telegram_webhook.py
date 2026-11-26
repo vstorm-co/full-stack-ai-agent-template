@@ -33,17 +33,18 @@ async def telegram_webhook(
     Immediately returns HTTP 200 to Telegram, then processes the update
     asynchronously in the background so Telegram does not time out.
     """
-    adapter = get_adapter("telegram")
-    headers: dict[str, str] = dict(request.headers)
-    payload: dict[str, Any] = await request.json()
-
     bot = await bot_service.find_active(bot_id)
-    if bot is None:
+    if bot is None or bot.platform != "telegram" or not bot.webhook_mode:
         return Response(status_code=200)
 
-    if bot.webhook_secret and not adapter.verify_webhook_signature(headers, bot.webhook_secret):
+    secret = bot.webhook_secret
+    if not secret:
+        raise HTTPException(status_code=403, detail="Invalid webhook signature")
+    adapter = get_adapter("telegram")
+    if not adapter.verify_webhook_signature(dict(request.headers), secret):
         raise HTTPException(status_code=403, detail="Invalid webhook signature")
 
+    payload: dict[str, Any] = await request.json()
     incoming = adapter.parse_incoming(payload, str(bot_id))
     if incoming is None:
         return Response(status_code=200)

@@ -17,16 +17,23 @@ from uuid import UUID
 import click
 
 from app.commands import command, error, info, success
-from app.core.config import settings
+from app.core.exceptions import NotFoundError
 from app.db.session import get_db_context
 from app.schemas.channel_bot import AccessPolicy, ChannelBotCreate
 from app.services.channel_bot import ChannelBotService
 from app.services.channels import get_adapter
 from app.services.channels.base import OutgoingMessage
+{%- if cookiecutter.use_telegram %}
+from app.services.channels import register_adapter
+from app.services.channels.telegram import TelegramAdapter
+{%- endif %}
 
 @asynccontextmanager
 async def _channel_service():
     """Open a DB session and yield a ChannelBotService bound to it."""
+{%- if cookiecutter.use_telegram %}
+    register_adapter(TelegramAdapter())
+{%- endif %}
     async with get_db_context() as db:
         yield ChannelBotService(db)
 
@@ -90,20 +97,11 @@ def channel_webhook_register(bot_id: str) -> None:
     async def _run() -> None:
         async with _channel_service() as svc:
             try:
-                bot = await svc.get(_coerce_bot_id(bot_id))
-            except Exception:
+                result = await svc.register_webhook(_coerce_bot_id(bot_id))
+            except NotFoundError:
                 error(f"Bot not found: {bot_id}")
                 return
-            token = svc.get_decrypted_token(bot)
-
-        adapter = get_adapter("telegram")
-        webhook_url = (
-            f"{settings.TELEGRAM_WEBHOOK_BASE_URL}/api/v1/channels/telegram/{bot_id}/webhook"
-        )
-
-        info(f"Registering webhook: {webhook_url}")
-        ok = await adapter.register_webhook(token, url=webhook_url, secret=bot.webhook_secret)
-        if ok:
+        if result["success"]:
             success("Webhook registered successfully.")
         else:
             error("Failed to register webhook. Check logs for details.")
@@ -118,16 +116,12 @@ def channel_webhook_delete(bot_id: str) -> None:
     async def _run() -> None:
         async with _channel_service() as svc:
             try:
-                bot = await svc.get(_coerce_bot_id(bot_id))
-            except Exception:
+                result = await svc.delete_webhook(_coerce_bot_id(bot_id))
+            except NotFoundError:
                 error(f"Bot not found: {bot_id}")
                 return
-            token = svc.get_decrypted_token(bot)
-
-        adapter = get_adapter("telegram")
-        ok = await adapter.delete_webhook(token)
-        if ok:
-            success("Webhook removed. Bot is now in polling mode.")
+        if result["success"]:
+            success("Webhook removed successfully.")
         else:
             error("Failed to remove webhook. Check logs for details.")
 

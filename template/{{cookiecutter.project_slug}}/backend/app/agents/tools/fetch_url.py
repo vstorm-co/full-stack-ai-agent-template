@@ -5,18 +5,14 @@ LangChain / LangGraph / DeepAgents don't have a model-native web-fetch
 capability (only PydanticAI/PydanticDeep do), so this gives them a portable,
 SSRF-safe "read this web page" tool.
 
-SSRF protection reuses ``app.core.sanitize.validate_webhook_url`` (scheme +
-userinfo + DNS-resolves-to-public-IP checks). Redirects are followed manually
-so every hop is re-validated — ``httpx``'s built-in redirect following would
-bypass the per-hop check.
+The HTTP transport validates and pins the address for every redirect hop.
 """
-
-import asyncio
 
 import httpx
 from bs4 import BeautifulSoup
 
-from app.core.sanitize import SSRFBlockedError, validate_webhook_url
+from app.core.public_http import PublicHTTPTransport
+from app.core.sanitize import SSRFBlockedError
 
 # Keep tool output bounded so a huge page can't blow up the context window.
 DEFAULT_MAX_CHARS = 8000
@@ -52,7 +48,6 @@ async def _resolve_safe(client: httpx.AsyncClient, url: str) -> httpx.Response:
     """GET ``url``, validating SSRF safety on the initial URL and every redirect."""
     current = url
     for _ in range(MAX_REDIRECTS + 1):
-        validate_webhook_url(current)  # raises SSRFBlockedError / ValueError
         resp = await client.get(current, headers=_HEADERS, follow_redirects=False)
         if resp.is_redirect and "location" in resp.headers:
             current = str(resp.next_request.url) if resp.next_request else resp.headers["location"]
@@ -76,7 +71,7 @@ async def fetch_url(url: str, max_chars: int = DEFAULT_MAX_CHARS) -> str:
         The page's readable text, or a short error message the agent can act on.
     """
     try:
-        async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
+        async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT, transport=PublicHTTPTransport()) as client:
             resp = await _resolve_safe(client, url)
     except SSRFBlockedError as e:
         return f"Could not fetch URL — blocked for security reasons: {e}"

@@ -68,7 +68,6 @@ import { SyncSourceWizard } from "@/components/rag/sync-source-wizard";
 import { apiClient } from "@/lib/api-client";
 import { PageHeader } from "@/components/dashboard/page-header";
 
-import { BACKEND_URL } from "@/lib/constants";
 import { getErrorMessage, isAppAdmin, MAX_UPLOAD_SIZE_MB, timeAgo } from "@/lib/utils";
 
 interface CollectionWithInfo {
@@ -269,7 +268,8 @@ export default function RAGPage() {
 
   // SSE for real-time ingestion status updates (auto-reconnect built-in)
   useEffect(() => {
-    const es = new EventSource(`${BACKEND_URL}/api/v1/rag/status/stream`);
+    if (!user || !isAppAdmin(user)) return;
+    const es = new EventSource("/api/v1/rag/status/stream");
 
     es.addEventListener("status", (event) => {
       try {
@@ -287,7 +287,7 @@ export default function RAGPage() {
     });
 
     return () => es.close();
-  }, [fetchCollections]);
+  }, [fetchCollections, user]);
 
   const handleCreate = async () => {
     const name = newName.trim().toLowerCase().replace(/\s+/g, "_");

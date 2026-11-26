@@ -150,12 +150,15 @@ async def upload_kb_document(
 ) -> Any:
     """Upload a file into the KB's underlying vector collection.
 
-    Auth is per-KB (owner / org member / admin) — unlike the bulk
+    Auth is per-KB (owner / organization admin / app admin) — unlike the bulk
     ``/rag/{collection}/documents`` endpoint which is admin-only — so a
     workspace user can manage their own KB without elevation.
     """
-    kb = await service.get(
-        kb_id, user_id=current_user.id, organization_id=active_org.id
+    kb = await service.get_for_write(
+        kb_id,
+        user_id=current_user.id,
+        organization_id=active_org.id,
+        is_app_admin=current_user.is_app_admin,
     )
     data = await file.read()
     return await rag_doc_service.dispatch_upload(
@@ -211,8 +214,11 @@ async def delete_kb_document(
     check a KB owner could pass any doc_id and remove docs from KBs they
     don't own.
     """
-    kb = await service.get(
-        kb_id, user_id=current_user.id, organization_id=active_org.id
+    kb = await service.get_for_write(
+        kb_id,
+        user_id=current_user.id,
+        organization_id=active_org.id,
+        is_app_admin=current_user.is_app_admin,
     )
     doc = await rag_doc_service.get_document(str(doc_id))
     if doc.collection_name != kb.collection_name:
@@ -295,7 +301,12 @@ async def create_kb_sync_source(
     The ``collection_name`` field on the request body is overridden with the
     KB's own collection — clients should not need to know that detail.
     """
-    kb = await service.get(kb_id, user_id=current_user.id, organization_id=active_org.id)
+    kb = await service.get_for_write(
+        kb_id,
+        user_id=current_user.id,
+        organization_id=active_org.id,
+        is_app_admin=current_user.is_app_admin,
+    )
     payload = data.model_copy(update={"collection_name": kb.collection_name})
     return await sync_source_svc.create_source(payload, organization_id=active_org.id)
 
@@ -319,10 +330,22 @@ async def clone_kb_sync_source(
     Decrypts credentials from the source and re-encrypts them for the clone,
     pinning it to this KB's collection_name. The clone is independent.
     """
-    kb = await service.get(kb_id, user_id=current_user.id, organization_id=active_org.id)
+    kb = await service.get_for_write(
+        kb_id,
+        user_id=current_user.id,
+        organization_id=active_org.id,
+        is_app_admin=current_user.is_app_admin,
+    )
     clone_data = data.model_copy(update={"collection_name": kb.collection_name})
     return await sync_source_svc.clone_source(
-        str(source_id), clone_data, organization_id=active_org.id
+        str(source_id),
+        clone_data,
+        organization_id=active_org.id,
+        allowed_source_collections=await service.manageable_collection_names(
+            user_id=current_user.id, organization_id=active_org.id,
+            is_app_admin=current_user.is_app_admin,
+        ),
+        allow_org_integrations=await service.can_manage_org(current_user.id, active_org.id),
     )
 
 
@@ -339,10 +362,13 @@ async def trigger_kb_sync_source(
     active_org: ActiveOrg,
 ) -> Any:
     """Manually trigger a sync run for one of this KB's sources."""
-    kb = await service.get(
-        kb_id, user_id=current_user.id, organization_id=active_org.id
+    kb = await service.get_for_write(
+        kb_id,
+        user_id=current_user.id,
+        organization_id=active_org.id,
+        is_app_admin=current_user.is_app_admin,
     )
-    source = await sync_source_svc.get_source(str(source_id))
+    source = await sync_source_svc.get_source_for_org(str(source_id), active_org.id)
     if source.collection_name != kb.collection_name:
         raise NotFoundError(
             message="Sync source not found in this knowledge base",
@@ -406,10 +432,13 @@ async def delete_kb_sync_source(
     active_org: ActiveOrg,
 ) -> None:
     """Remove a sync source from this KB."""
-    kb = await service.get(
-        kb_id, user_id=current_user.id, organization_id=active_org.id
+    kb = await service.get_for_write(
+        kb_id,
+        user_id=current_user.id,
+        organization_id=active_org.id,
+        is_app_admin=current_user.is_app_admin,
     )
-    source = await sync_source_svc.get_source(str(source_id))
+    source = await sync_source_svc.get_source_for_org(str(source_id), active_org.id)
     if source.collection_name != kb.collection_name:
         raise NotFoundError(
             message="Sync source not found in this knowledge base",

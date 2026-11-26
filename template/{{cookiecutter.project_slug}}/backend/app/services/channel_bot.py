@@ -134,9 +134,14 @@ class ChannelBotService:
         webhook_url = (
             f"{settings.TELEGRAM_WEBHOOK_BASE_URL}/api/v1/channels/{bot.platform}/{bot_id}/webhook"
         )
-        success = await adapter.register_webhook(
-            token, url=webhook_url, secret=bot.webhook_secret
-        )
+        secret = bot.webhook_secret or secrets.token_urlsafe(32)
+        success = await adapter.register_webhook(token, url=webhook_url, secret=secret)
+        if success:
+            await channel_bot_repo.update(
+                self.db,
+                db_bot=bot,
+                update_data={"webhook_mode": True, "webhook_secret": secret},
+            )
         return {"success": success, "webhook_url": webhook_url}
 
     async def delete_webhook(self, bot_id: UUID) -> dict[str, Any]:
@@ -145,6 +150,12 @@ class ChannelBotService:
         adapter = get_adapter(bot.platform)
         token = self.get_decrypted_token(bot)
         success = await adapter.delete_webhook(token)
+        if success:
+            await channel_bot_repo.update(
+                self.db,
+                db_bot=bot,
+                update_data={"webhook_mode": False, "webhook_secret": None},
+            )
         return {"success": success}
 
 

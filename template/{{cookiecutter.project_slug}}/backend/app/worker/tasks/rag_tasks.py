@@ -245,7 +245,7 @@ async def _run_ingestion(rag_document_id: str, collection_name: str, filepath: s
         result = await ingestion_service.ingest_file(filepath=file_path, collection_name=collection_name, replace=replace, source_path=source_path)
         async with get_worker_db_context() as db:
             await RAGDocumentService(db).complete_ingestion(rag_document_id, vector_document_id=result.document_id)
-        await _notify_ws(rag_document_id, "done", source_path)
+        await _notify_ws(rag_document_id, "done", source_path, collection_name)
         logger.info("Ingestion complete: %s", source_path)
         return {"status": "done", "document_id": result.document_id, "filename": source_path}
     except Exception as e:
@@ -356,11 +356,14 @@ async def _update_status(rag_document_id: str, status: str, error_message: str |
         logger.warning("Failed to update RAGDocument status: %s", e)
 
 
-async def _notify_ws(rag_document_id: str, status: str, filename: str) -> None:
+async def _notify_ws(
+    rag_document_id: str, status: str, filename: str, collection_name: str
+) -> None:
     try:
         r = aioredis.from_url(f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}/{settings.REDIS_DB}")  # type: ignore[no-untyped-call]
         await r.publish("rag_status", json.dumps({
             "document_id": rag_document_id, "status": status, "filename": filename,
+            "collection_name": collection_name,
         }))
         await r.aclose()
     except Exception as e:

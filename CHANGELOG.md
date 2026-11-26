@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.23] - 2026-11-27
+
+### Security
+
+- Validate and pin outbound connections made by the URL fetch tool and webhook
+  delivery. HTTPS continues to verify the destination hostname.
+- Require Telegram webhook authentication before handling a bot event.
+- Enforce collection and tenant permissions for RAG search, changes to knowledge
+  bases, integration cloning, and status streams.
+
+Existing projects must apply the template upgrade to receive the generated code
+changes. Re-register Telegram webhooks if the bot was registered without a
+webhook secret.
+
 ## [0.2.22] - 2026-11-27
 
 ### Security

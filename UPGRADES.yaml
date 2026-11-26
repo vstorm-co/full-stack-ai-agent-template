@@ -18,6 +18,16 @@
 #   manual_steps:
 #     - "Run `alembic upgrade head` (new billing tables)."
 
+- version: "0.2.23"
+  breaking:
+    - "New knowledge bases receive server-assigned collection names. Remove collection_name from create requests. Read the assigned name from the response."
+    - "RAG status streams require admin authentication. The generated frontend sends it through its same-origin route."
+  manual_steps:
+    - "Re-register Telegram webhooks that were registered without a secret with `channel-webhook-register --bot-id <id>`."
+    - "Restart background workers and the backend together so RAG ingestion events include their collection."
+
+- version: "0.2.22"
+
 - version: "0.2.21"
   manual_steps:
     - "Run `alembic upgrade head`. Since 0.2.19, projects without --mcp-client could not migrate past 0025 (`KeyError: '0026_create_mcp_connections'`); with the corrected chain the pending migrations apply, including 0027 (users.magic_link_epoch, which magic-link sign-in reads when --email is on)."

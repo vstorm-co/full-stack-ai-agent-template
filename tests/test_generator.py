@@ -1,5 +1,6 @@
 """Tests for fastapi_gen.generator module."""
 
+import ast
 import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -77,7 +78,6 @@ class TestGetDatabaseSetupCommands:
         assert "db-upgrade" in commands[2][0]
 
 
-
 class TestGetTemplatePath:
     """Tests for get_template_path function."""
 
@@ -95,6 +95,24 @@ class TestGetTemplatePath:
         assert cookiecutter_json.exists()
 
 
+def test_post_generation_hook_uses_utf8() -> None:
+    hook = TEMPLATE_DIR / "hooks" / "post_gen_project.py"
+    tree = ast.parse(hook.read_text(encoding="utf-8"), filename=str(hook))
+    open_calls = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "open"
+    ]
+    assert open_calls
+    for call in open_calls:
+        assert any(
+            keyword.arg == "encoding"
+            and isinstance(keyword.value, ast.Constant)
+            and keyword.value.value == "utf-8"
+            for keyword in call.keywords
+        ), f"Missing UTF-8 encoding at {hook}:{call.lineno}"
+
+
 class TestGenerateProject:
     """Tests for generate_project function."""
 
@@ -110,7 +128,9 @@ class TestGenerateProject:
         template_dir = tmp_path / "template"
         template_dir.mkdir()
         (template_dir / "cookiecutter.json").write_text(
-            json.dumps({"project_name": "project", "project_slug": "{{ cookiecutter.project_name }}"}),
+            json.dumps(
+                {"project_name": "project", "project_slug": "{{ cookiecutter.project_name }}"}
+            ),
             encoding="utf-8",
         )
         project_template = template_dir / "{{cookiecutter.project_slug}}"

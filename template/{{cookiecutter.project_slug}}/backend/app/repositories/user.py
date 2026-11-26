@@ -4,7 +4,8 @@
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import delete as sql_delete, func, literal, select
+from sqlalchemy import asc, desc, func, literal, select
+from sqlalchemy import delete as sql_delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.user import User
@@ -202,7 +203,7 @@ async def admin_list_with_counts(
         "conversations": conv_count_col,
     }
     sort_col = sort_columns.get(sort_by, User.created_at)
-    sort_col = sort_col.desc() if sort_dir == "desc" else sort_col.asc()
+    sort_col = desc(sort_col) if sort_dir == "desc" else asc(sort_col)
     query = query.order_by(sort_col).offset(skip).limit(limit)
 
     total = await db.scalar(count_query) or 0

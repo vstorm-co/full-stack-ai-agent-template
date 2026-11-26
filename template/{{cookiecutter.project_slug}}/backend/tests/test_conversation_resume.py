@@ -29,7 +29,11 @@ def _prompts(messages: list[ModelMessage]) -> list[str]:
         for message in messages
         if isinstance(message, ModelRequest)
         for part in message.parts
-        if isinstance(part, UserPromptPart) and isinstance(part.content, str)
+        if isinstance(part, UserPromptPart)
+        and isinstance(part.content, str)
+        # The harness adds its memory trust marker as a user-role message
+        # for providers that cannot insert a system message mid-history.
+        and not part.content.startswith("<system>The accompanying <memory>")
     ]
 
 
